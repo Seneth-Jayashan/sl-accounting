@@ -1,37 +1,30 @@
-// tailwind.config.ts
-import type { Config } from "tailwindcss";
+// tailwind.config.js
 
-const config: Config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   content: [
-    "./app/**/*.{js,ts,jsx,tsx}",
-    "./components/**/*.{js,ts,jsx,tsx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
       colors: {
-        primary: {
-          blue: "#053A4E",
-          cerulean: "#05668A",
-          coral: "#EF8D8E",
-          black: "#02121E",
-        },
-        secondary: {
-          blue: "#82B3C5",
-          alice: "#E8EFF7",
-          tea: "#F7C6C7",
-          rose: "#795056",
-        },
-        accent: {
-          jasmine: "#FFE787",
-        },
+        // Based on the new Brand Guideline PDF
+        "primary-blue": "#053A4E",        // Dark Blue (Secondary Color)
+        "primary-cerulean": "#05668A",     // Prussian Blue (Primary)
+        "secondary-alice": "#E8EFF7",      // Alice Blue (Secondary)
+        "accent-asparagus": "#679436",     // Asparagus Green (Primary)
+        "accent-coral": "#EF8D8E",         // Light Coral (Primary/Accent)
+        "accent-yellow": "#FFE787",        // Yellow (Accent)
+        "text-dark": "#02121E",           // Almost Black (Secondary)
       },
       fontFamily: {
-        heading: ["Poppins", "sans-serif"],
-        body: ["Inter", "sans-serif"],
+        // We already set these up, they match the guide!
+        heading: ["Apex Pura", "Poppins", "sans-serif"], //
+        body: ["Sarasavi", "FM Basuru", "sans-serif"],    //
       },
     },
   },
   plugins: [],
 };
-
-export default config;
