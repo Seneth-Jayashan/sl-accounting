@@ -33,9 +33,8 @@ const classSchema = new mongoose.Schema({
 
   timeSchedules: { type: [scheduleSchema], default: [] },
 
-  firstSessionDate: { type: Date },               // ISO date/time of first session (optional)
   recurrence: { type: String, enum: ["weekly", "daily", "none"], default: "weekly" },
-  totalSessions: { type: Number, default: 4 },    // e.g., 4 sessions total
+  totalSessions: { type: Number, default: 4 },   
   sessionDurationMinutes: { type: Number, default: 60 },
 
   images: [{ type: String }],
@@ -48,15 +47,10 @@ const classSchema = new mongoose.Schema({
   level: { type: String, enum: ["general", "ordinary", "advanced"], default: "general" },
   language: { type: String, default: "si" }, 
   tags: [{ type: String, index: true }],
-  durationMinutes: { type: Number },
 
   isActive: { type: Boolean, default: true },
   isPublished: { type: Boolean, default: false },
   isDeleted: { type: Boolean, default: false },
-
-  zoomMeetingId: { type: String },      
-  zoomMeetingUrl: { type: String },
-  youtubePlaylistId: { type: String }
 
 }, {
   timestamps: true,

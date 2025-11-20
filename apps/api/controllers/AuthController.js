@@ -1,7 +1,7 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import { registerSchema } from "../validators/AuthValidator.js";
-import path from 'path'; 
+import {sendVerificationEmail} from "../utils/email/Template.js";
 
 const generateTokens = (userId) => {
   const accessToken = jwt.sign({ id: userId }, process.env.JWT_ACCESS_SECRET, { expiresIn: "15m" });
@@ -44,6 +44,11 @@ export const register = async (req, res) => {
 
     // Optional: Send Verification Email here (don't wait for it to complete request)
     // emailQueue.add({ type: 'verify', email: newUser.email });
+
+    await sendVerificationEmail(
+      newUser.email,
+      `${process.env.FRONTEND_URL}/verify-email?token=${newUser.generateEmailVerificationToken()}`
+    );
 
     return res.status(201).json({
       success: true,
