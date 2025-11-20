@@ -1,43 +1,68 @@
 import mongoose from "mongoose";
 
-const attendanceSchema = new mongoose.Schema({
-  date: { type: Date, required: true },
-  joinedAt: { type: Date },
-  leftAt: { type: Date },
-  durationMinutes: { type: Number }
-}, { _id: false });
+const attendanceSchema = new mongoose.Schema(
+  {
+    date: { type: Date, required: true },
+    joinedAt: { type: Date },
+    leftAt: { type: Date },
+    durationMinutes: { type: Number },
+  },
+  { _id: false }
+);
 
+const enrollmentSchema = new mongoose.Schema(
+  {
+    student: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+    class: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Class",
+      required: true,
+      index: true,
+    },
 
+    // Payment & access
+    paymentStatus: {
+      type: String,
+      enum: ["paid", "unpaid", "pending"],
+      default: "unpaid",
+    },
+    lastPayment: { type: mongoose.Schema.Types.ObjectId, ref: "Payment" },
+    lastPaymentDate: { type: Date },
+    nextPaymentDate: { type: Date },
+    accessStartDate: { type: Date, default: Date.now },
+    accessEndDate: { type: Date },
 
-const enrollmentSchema = new mongoose.Schema({
-  student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
-  class: { type: mongoose.Schema.Types.ObjectId, ref: "Class", required: true, index: true },
+    // Enrollment state
+    isActive: { type: Boolean, default: true },
+    isBlocked: { type: Boolean, default: false },
 
-  // Payment & access
-  paymentStatus: { type: String, enum: ["paid", "unpaid", "pending"], default: "unpaid" },
-  lastPaymentDate: { type: Date },
-  nextPaymentDate: { type: Date },
-  accessStartDate: { type: Date, default: Date.now },
-  accessEndDate: { type: Date },
+    // Attendance & progress
+    attendance: { type: [attendanceSchema], default: [] },
 
-  // Enrollment state
-  isActive: { type: Boolean, default: true },
-  isBlocked: { type: Boolean, default: false },
+    subscriptionType: {
+      type: String,
+      enum: ["monthly", "one-time", "free"],
+      default: "monthly",
+    },
 
-  // Attendance & progress
-  attendance: { type: [attendanceSchema], default: [] },
-
-  subscriptionType: { type: String, enum: ["monthly", "one-time", "free"], default: "monthly" },
-
-  notes: { type: String }
-
-}, { timestamps: true });
+    notes: { type: String },
+  },
+  { timestamps: true }
+);
 
 // Prevent duplicate enrollments for same student-class pair
 enrollmentSchema.index({ student: 1, class: 1 }, { unique: true });
 
 // Convenience method: mark payment
-enrollmentSchema.methods.markPaid = async function (date = new Date(), nextDate = null) {
+enrollmentSchema.methods.markPaid = async function (
+  date = new Date(),
+  nextDate = null
+) {
   this.paymentStatus = "paid";
   this.lastPaymentDate = date;
   if (nextDate) this.nextPaymentDate = nextDate;

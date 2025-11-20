@@ -1,13 +1,6 @@
 // models/Session.js
 import mongoose from "mongoose";
 
-const attendanceSchema = new mongoose.Schema({
-  student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  joinedAt: { type: Date },
-  leftAt: { type: Date },
-  durationMinutes: { type: Number }
-}, { _id: false });
-
 const sessionSchema = new mongoose.Schema({
   class: { type: mongoose.Schema.Types.ObjectId, ref: "Class", required: true, index: true },
 
@@ -24,7 +17,6 @@ const sessionSchema = new mongoose.Schema({
   youtubeVideoId: { type: String },  
   recordingShared: { type: Boolean, default: false },
 
-  attendance: { type: [attendanceSchema], default: [] },
 
   notes: { type: String },
 

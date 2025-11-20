@@ -1,54 +1,58 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-const userSchema = new mongoose.Schema({
-  firstName: { type: String, required: true, trim: true },
-  lastName: { type: String, required: true, trim: true },
+const userSchema = new mongoose.Schema(
+  {
+    firstName: { type: String, required: true, trim: true },
+    lastName: { type: String, required: true, trim: true },
 
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
 
-  phoneNumber: { type: String, required: true, trim: true },
+    phoneNumber: { type: String, required: true, trim: true },
 
-  password: { type: String, required: true, minlength: 6, select: false },
+    password: { type: String, required: true, minlength: 6, select: false },
 
-  role: { type: String, enum: ["admin", "student"], default: "student" },
+    role: { type: String, enum: ["admin", "student"], default: "student" },
 
-  address: {
-    street: String,
-    city: String,
-    state: String,
-    zipCode: String,
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      zipCode: String,
+    },
+
+    profileImage: { type: String, default: null },
+
+    otp: { type: String },
+    otpExpiresAt: { type: Date },
+
+    lastLogin: { type: Date },
+    loginAttempts: { type: Number, default: 0 },
+    isLocked: { type: Boolean, default: false },
+
+    refreshTokens: [
+      {
+        token: String,
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
+
+    isVerified: { type: Boolean, default: false },
+
+    isActive: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false },
   },
-
-  profileImage: { type: String, default: null },
-
-  enrolledClasses: [{ type: mongoose.Schema.Types.ObjectId, ref: "Class" }],
-  grade: { type: String },
-
-  nextPaymentDate: { type: Date },
-  paymentStatus: { type: String, enum: ["paid", "unpaid", "pending"], default: "unpaid" },
-
-  otp: { type: String },
-  otpExpiresAt: { type: Date },
-
-  lastLogin: { type: Date },
-  loginAttempts: { type: Number, default: 0 },
-  isLocked: { type: Boolean, default: false },
-
-  refreshTokens: [{
-    token: String,
-    createdAt: { type: Date, default: Date.now }
-  }],
-
-  resetPasswordToken: String,
-  resetPasswordExpires: Date,
-
-  isVerified: { type: Boolean, default: false },
-
-  isActive: { type: Boolean, default: true },
-  isDeleted: { type: Boolean, default: false }
-
-}, { timestamps: true });
+  { timestamps: true }
+);
 
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS, 10) || 10;
 
