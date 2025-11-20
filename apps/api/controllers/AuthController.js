@@ -47,7 +47,7 @@ export const register = async (req, res) => {
 
     await sendVerificationEmail(
       newUser.email,
-      `${process.env.FRONTEND_URL}/verify-email?token=${newUser.generateEmailVerificationToken()}`
+      newUser.generateOtpCode()
     );
 
     return res.status(201).json({
