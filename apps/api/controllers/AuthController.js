@@ -42,8 +42,8 @@ export const register = async (req, res) => {
 
     await newUser.save();
 
-    // Optional: Send Verification Email here (don't wait for it to complete request)
-    // emailQueue.add({ type: 'verify', email: newUser.email });
+
+    //TODO : Send Whatapp Verification Message 
 
     await sendVerificationEmail(
       newUser.email,
