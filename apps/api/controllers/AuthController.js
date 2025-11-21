@@ -158,3 +158,21 @@ export const me = async (req, res) => {
         return res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
+
+export const logout = async (req, res) => {
+    const incomingRefreshToken = req.cookies.refreshToken;
+    if (!incomingRefreshToken) return res.status(204).end();
+    try {
+      const decoded = jwt.verify(incomingRefreshToken, process.env.JWT_REFRESH_SECRET);
+      const user = await User.findById(decoded.id).select('+refreshTokens');
+      if (user) {
+        user.refreshTokens = user.refreshTokens.filter(t => t.token !== incomingRefreshToken);
+        await user.save();
+      }
+      res.clearCookie("refreshToken", cookieOptions);
+      return res.status(204).end();
+    } catch (err) {
+      res.clearCookie("refreshToken", cookieOptions);
+      return res.status(204).end();
+    }
+};
