@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { validate } from './AuthValidator.js'; // Ensure the common validate middleware is imported
 
 // Helper Zod schema for a single schedule entry (matching Mongoose timeSchedule schema)
 const timeScheduleSchema = z.object({
@@ -79,5 +78,30 @@ export const classIdSchema = z.object({
   }),
 });
 
-// Re-export the existing validate middleware for convenience
-export { validate };
+export const validate = (schema) => (req, res, next) => {
+  try {
+    const parsed = schema.parse({
+      body: req.body,
+      query: req.query,
+      params: req.params,
+    });
+    req.body = parsed.body;
+    req.query = parsed.query;
+    req.params = parsed.params;
+    next();
+  } catch (error) {
+    if (error.name === "ZodError") {
+      return res 
+        .status(400)
+        .json({
+          success: false,
+          message: "Class Validation Error",
+          errors: error.errors,
+        });
+    }
+    console.error("Class Validation Middleware Error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  } 
+};

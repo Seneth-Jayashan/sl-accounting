@@ -2,7 +2,7 @@ import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '../utils/email/Template.js';
 
-export const getUserProfile = async (req, res) => {
+export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
     const user = await User.findById(id).select('-password');

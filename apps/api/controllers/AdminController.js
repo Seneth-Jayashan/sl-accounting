@@ -1,5 +1,5 @@
-import User from "../models/User";
-import { sendVerificationEmail } from "../utils/email/Template";
+import User from "../models/User.js";
+import { sendVerificationEmail } from "../utils/email/Template.js";
 
 export const updateUserProfile = async (req, res) => {
   try {

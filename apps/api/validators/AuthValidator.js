@@ -70,7 +70,7 @@ export const validate = (schema) => (req, res, next) => {
 
       return res.status(400).json({
         success: false,
-        message: "Validation Error",
+        message: "Auth Validation Error",
         errors: formattedErrors,
       });
     }
