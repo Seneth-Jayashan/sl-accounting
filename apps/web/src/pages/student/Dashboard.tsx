@@ -1,5 +1,4 @@
 // student/Dashboard.tsx
-import React from "react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import SidebarStudent from "../../components/sidebar/SidebarStudent";
 

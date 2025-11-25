@@ -1,6 +1,16 @@
 // components/SidebarAdmin.tsx
-import React from "react";
-import { HomeIcon, UsersIcon, ClipboardDocumentCheckIcon, ChartBarIcon, Cog6ToothIcon, Bars3Icon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
+import {
+  HomeIcon,
+  UsersIcon,
+  ClipboardDocumentCheckIcon,
+  ChartBarIcon,
+  Cog6ToothIcon,
+  Bars3Icon,
+  ArrowRightOnRectangleIcon,
+  AcademicCapIcon,
+  CurrencyDollarIcon,
+  BookOpenIcon
+} from "@heroicons/react/24/outline";
 
 type Props = { collapsed?: boolean; onToggle?: () => void };
 
@@ -8,7 +18,10 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
   const nav = [
     { key: "overview", label: "Overview", href: "/admin/dashboard", Icon: HomeIcon },
     { key: "students", label: "Students", href: "/admin/students", Icon: UsersIcon },
+    { key: "classes", label: "Classes", href: "/admin/classes", Icon: AcademicCapIcon },
     { key: "attendance", label: "Attendance", href: "/admin/attendance", Icon: ClipboardDocumentCheckIcon },
+    { key: "payments", label: "Payments", href: "/admin/payments", Icon: CurrencyDollarIcon },
+    { key: "materials", label: "Materials", href: "/admin/materials", Icon: BookOpenIcon },
     { key: "reports", label: "Reports", href: "/admin/reports", Icon: ChartBarIcon },
     { key: "settings", label: "Settings", href: "/admin/settings", Icon: Cog6ToothIcon },
   ];

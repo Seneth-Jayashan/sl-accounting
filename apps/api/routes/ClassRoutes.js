@@ -6,15 +6,14 @@ import {
     updateClass, 
     deleteClass,
     getAllClasses, 
-    getClassDetails, 
-    enrollInClass 
+    getClassById, 
 } from '../controllers/ClassController.js';
 
 const router = express.Router();
 
 // Public (Authenticated) routes for students/admins to view classes
 router.get('/', protect, getAllClasses);
-router.get('/:classId', protect, validate(classIdSchema), getClassDetails);
+router.get('/:classId', protect, validate(classIdSchema), getClassById);
 
 // Admin-only routes for CRUD
 router.route('/')
@@ -42,14 +41,6 @@ router.route('/:classId')
         deleteClass
     );
 
-// Student-only actions (enroll)
-router.post(
-    '/:classId/enroll', 
-    protect, 
-    restrictTo('student'), 
-    validate(classIdSchema), 
-    enrollInClass
-);
 
 
 export default router;
