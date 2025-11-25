@@ -1,5 +1,4 @@
 // components/SidebarStudent.tsx
-import React from "react";
 import { HomeIcon, CalendarIcon, BookOpenIcon, CreditCardIcon, UserGroupIcon, Bars3Icon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 
 type Props = { collapsed?: boolean; onToggle?: () => void };
