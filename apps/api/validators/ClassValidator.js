@@ -51,7 +51,7 @@ export const createClassSchema = z.object({
     
     level: z.enum(["general", "ordinary", "advanced"]).default("general"),
     
-    language: z.string().default("si"), 
+    batch: z.string().min(24).max(24, "Invalid Batch ID format (must be 24 hex characters)").optional(),
 
     tags: z.array(z.string().trim().min(1)).optional(),
     
@@ -85,23 +85,38 @@ export const validate = (schema) => (req, res, next) => {
       query: req.query,
       params: req.params,
     });
-    req.body = parsed.body;
-    req.query = parsed.query;
-    req.params = parsed.params;
-    next();
+
+    // Only overwrite things that actually exist on the schema
+
+    // body
+    if ("body" in schema.shape && parsed.body !== undefined) {
+      req.body = parsed.body;
+    }
+
+    // params
+    if ("params" in schema.shape && parsed.params !== undefined) {
+      req.params = parsed.params;
+    }
+
+    // query – DO NOT reassign, just merge into existing object
+    if ("query" in schema.shape && parsed.query !== undefined) {
+      // req.query is usually an object already created by the framework
+      Object.assign(req.query, parsed.query);
+    }
+
+    return next();
   } catch (error) {
     if (error.name === "ZodError") {
-      return res 
-        .status(400)
-        .json({
-          success: false,
-          message: "Class Validation Error",
-          errors: error.errors,
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Class Validation Error: " + error.message,
+        errors: error.errors,
+      });
     }
+
     console.error("Class Validation Middleware Error:", error);
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
-  } 
+  }
 };

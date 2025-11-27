@@ -27,7 +27,7 @@ export const createClass = async (req, res) => {
   try {
     const {
       timeSchedules = [],
-      totalSessions = 4,
+      totalSessions = 1,
       sessionDurationMinutes = 120,
       ...rest
     } = req.body;
