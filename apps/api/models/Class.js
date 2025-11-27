@@ -44,10 +44,9 @@ const classSchema = new mongoose.Schema({
   sessions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Session", default: [] }],
 
   price: { type: Number, min: 0, default: 0 },
+  bacth: { type: mongoose.Schema.Types.ObjectId, ref: "Batch" },
   level: { type: String, enum: ["general", "ordinary", "advanced"], default: "general" },
-  language: { type: String, default: "si" }, 
   tags: [{ type: String, index: true }],
-
   isActive: { type: Boolean, default: true },
   isPublished: { type: Boolean, default: false },
   isDeleted: { type: Boolean, default: false },
