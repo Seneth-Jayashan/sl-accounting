@@ -39,11 +39,14 @@ export const Navbar: React.FC = () => {
 
             {/* Logo Area */}
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#05668A] to-[#053A4E] flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-105 transition-transform">
+              {/* <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#05668A] to-[#053A4E] flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-105 transition-transform">
                 S
               </div>
               <div className="text-lg font-bold text-[#053A4E] tracking-tight leading-none">
                 SL <span className="text-[#05668A]">ACCOUNTING</span>
+              </div> */}
+              <div className='w-24 h-12'>
+                <img src="/kalumwaduge Logo.png" alt="SL Accounting Logo" className="w-full h-full object-cover"/>
               </div>
             </Link>
 

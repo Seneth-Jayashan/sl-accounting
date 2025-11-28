@@ -84,7 +84,7 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="border-t border-[#E8EFF7]/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-[#E8EFF7]/40">
-          <p>© 2025 SL Accounting. All rights reserved.</p>
+          <p>© 2025 SL Accounting. All rights reserved.<br/>Developed by One X Universe (Pvt) Ltd</p>
 
           <div className="flex gap-4">
             {[Facebook, Youtube, Instagram].map((Icon, i) => (

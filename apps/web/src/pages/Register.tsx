@@ -1,9 +1,6 @@
-import React, { useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Environment, MeshTransmissionMaterial, Sparkles } from "@react-three/drei";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Mail, Phone, Lock, ArrowRight, Eye, EyeOff, CheckCircle2 } from "lucide-react";
-import * as THREE from "three";
+import { User, Mail, Phone, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 
 // --- BRAND CONSTANTS ---
@@ -15,51 +12,43 @@ const BRAND = {
   alice: "#E8EFF7",
 };
 
-// --- 3D BACKGROUND COMPONENT ---
-const RegisterShape = () => {
-  const mesh = useRef<THREE.Mesh>(null!);
-  
-  useFrame((state, delta) => {
-    if (!mesh.current) return;
-    mesh.current.rotation.x -= delta * 0.2;
-    mesh.current.rotation.y -= delta * 0.15;
-  });
-
-  return (
-    <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-      <mesh ref={mesh} position={[-2, 0, -2]} scale={2.5}>
-        {/* CHANGED: Swapped Torus for Icosahedron (Gem) like Login Page */}
-        <icosahedronGeometry args={[1, 0]} />
-        <MeshTransmissionMaterial 
-          backside
-          samples={4}
-          thickness={0.5}
-          roughness={0}
-          iridescence={1}
-          iridescenceIOR={1}
-          chromaticAberration={0.06}
-          anisotropy={0.1}
-          color={BRAND.coral} 
-          background={new THREE.Color(BRAND.alice)}
-        />
-      </mesh>
-    </Float>
-  );
-};
-
-const RegisterScene = () => (
-  <>
-    <Environment preset="city" />
-    <ambientLight intensity={1} />
-    <spotLight position={[10, 10, 10]} intensity={2} color={BRAND.cerulean} />
-    <RegisterShape />
-    <Sparkles count={50} scale={[12, 12, 12]} size={4} speed={0.3} opacity={0.4} color={BRAND.prussian} />
-  </>
+// --- BACKGROUND COMPONENT (Framer Motion) ---
+const BackgroundGradient = () => (
+  <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
+    {/* Animated Blobs */}
+    <motion.div 
+      animate={{ 
+        scale: [1, 1.2, 1],
+        opacity: [0.3, 0.5, 0.3],
+        rotate: [0, 90, 0]
+      }}
+      transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+      className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-[#05668A] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
+    />
+    <motion.div 
+      animate={{ 
+        scale: [1, 1.1, 1],
+        x: [0, 50, 0],
+        y: [0, 30, 0]
+      }}
+      transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute top-[40%] left-[-10%] w-[600px] h-[600px] bg-[#EF8D8E] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
+    />
+    <motion.div 
+      animate={{ 
+        scale: [1, 1.3, 1],
+        x: [0, -30, 0],
+      }}
+      transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute bottom-[-10%] right-[10%] w-[600px] h-[600px] bg-[#FFE787] rounded-full mix-blend-multiply filter blur-[128px] opacity-40" 
+    />
+  </div>
 );
 
 // --- REGISTER FORM COMPONENT ---
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -67,34 +56,34 @@ export default function Register() {
     lastName: "",
     email: "",
     phoneNumber: "",
+    batch: "",
     password: "",
     confirmPassword: ""
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Handle Input Changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     console.log("Register Payload:", formData);
-    setTimeout(() => setLoading(false), 2000);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setLoading(false);
+      // Add navigation logic here if needed
+    }, 2000);
   };
 
   return (
-    // CHANGED: Added 'pt-24 pb-12' for Nav clearance and 'overflow-y-auto' for scrolling
-    <div className="w-full min-h-screen bg-[#E8EFF7] relative overflow-y-auto overflow-x-hidden flex items-center justify-center md:justify-end pt-24 pb-12">
+    <div className="w-full min-h-screen relative overflow-y-auto overflow-x-hidden flex items-center justify-center md:justify-end pt-24 pb-12">
       
-      {/* 3D Background Layer - Fixed position so it stays while scrolling */}
-      <div className="fixed inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-          <RegisterScene />
-        </Canvas>
-      </div>
-
-      {/* Decorative Blob */}
-      <div className="fixed bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-[#EF8D8E]/10 rounded-full blur-3xl pointer-events-none z-0" />
+      {/* Static Animated Background */}
+      <BackgroundGradient />
 
       {/* Content Container */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-start md:items-center">
@@ -104,19 +93,32 @@ export default function Register() {
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="hidden md:block text-left pointer-events-none sticky top-32"
+          className="hidden md:block text-left sticky top-32"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/30 backdrop-blur-md border border-white/40 mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/30 backdrop-blur-md border border-white/40 mb-6 shadow-sm">
             <CheckCircle2 className="text-[#EF8D8E]" size={20} />
             <span className="text-[#053A4E] font-bold text-sm">Join 1000+ Students</span>
           </div>
-          <h1 className="text-6xl font-black text-[#053A4E] mb-4 font-sinhala leading-tight">
+          <h1 className="text-6xl font-black text-[#053A4E] mb-4 font-sinhala leading-tight drop-shadow-sm">
             අනාගතය දිනන <br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#EF8D8E] to-[#05668A]">පවුලට එක්වන්න</span>
           </h1>
-          <p className="text-xl text-gray-500 max-w-lg font-sinhala leading-relaxed">
+          <p className="text-xl text-gray-600 max-w-lg font-sinhala leading-relaxed">
             Create your student account today to access exclusive A/L Accounting tutorials, exams, and live sessions.
           </p>
+
+          {/* New Static Badge Element */}
+          <div className="mt-8 flex items-center gap-4">
+            <div className="flex -space-x-3">
+               {[1,2,3,4].map((i) => (
+                 <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-gray-200" style={{ backgroundImage: `url(https://i.pravatar.cc/100?img=${i + 10})`, backgroundSize: 'cover' }}></div>
+               ))}
+            </div>
+            <div className="text-sm font-medium text-[#053A4E]">
+              <span className="font-bold block">Trusted Community</span>
+              Join your friends today
+            </div>
+          </div>
         </motion.div>
 
         {/* Right Side: Registration Form */}
@@ -124,7 +126,7 @@ export default function Register() {
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="bg-white/70 backdrop-blur-xl border border-white/60 p-6 md:p-8 rounded-[2rem] shadow-2xl shadow-[#053A4E]/10 w-full max-w-lg mx-auto md:mx-0"
+          className="bg-white/70 backdrop-blur-xl border border-white/60 p-6 md:p-8 rounded-[2rem] shadow-2xl shadow-[#053A4E]/10 w-full max-w-xl mx-auto md:mx-0 mt-4 md:mt-12"
         >
           <div className="mb-6">
             <h2 className="text-2xl md:text-3xl font-bold text-[#053A4E]">Register</h2>
@@ -133,8 +135,8 @@ export default function Register() {
 
           <form onSubmit={handleRegister} className="space-y-3">
             
-            {/* Name Row */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Name Row: Stack on mobile (grid-cols-1), Side-by-side on Laptop (md:grid-cols-2) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">First Name</label>
                 <div className="relative group">
@@ -165,75 +167,114 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Email */}
-            <div className="space-y-1">
-              <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Email Address</label>
-              <div className="relative group">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                <input 
-                  name="email"
-                  type="email" 
-                  placeholder="kamal@example.com"
-                  className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
-                  required
-                  onChange={handleChange}
-                />
+            {/* Email & Phone Row: Stack on mobile (grid-cols-1), Side-by-side on Laptop (md:grid-cols-2) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Email */}
+              <div className="space-y-1">
+                <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Email Address</label>
+                <div className="relative group">
+                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
+                  <input 
+                    name="email"
+                    type="email" 
+                    placeholder="kamal@example.com"
+                    className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
+                    required
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              {/* Phone Number */}
+              <div className="space-y-1">
+                <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Phone Number <span className="text-green-500">(Whatsapp) </span></label>
+                <div className="relative group">
+                  <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
+                  <input 
+                    name="phoneNumber"
+                    type="tel" 
+                    placeholder="07X XXX XXXX"
+                    className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
+                    required
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Phone Number */}
+            {/* Batch Selection Box (Full Width) */}
             <div className="space-y-1">
-              <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Phone Number</label>
+              <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">A/L Batch</label>
               <div className="relative group">
-                <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                <input 
-                  name="phoneNumber"
-                  type="tel" 
-                  placeholder="07X XXX XXXX"
-                  className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
+                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
+                <select 
+                  name="batch"
+                  className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm appearance-none cursor-pointer"
                   required
                   onChange={handleChange}
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="space-y-1">
-              <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Password</label>
-              <div className="relative group">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                <input 
-                  name="password"
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="Min 6 chars"
-                  className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-9 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
-                  required
-                  minLength={6}
-                  onChange={handleChange}
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#053A4E]"
+                  defaultValue=""
                 >
-                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
+                  <option value="" disabled>Select your Batch</option>
+                  <option value="2025">2025 A/L</option>
+                  <option value="2026">2026 A/L</option>
+                  <option value="2027">2027 A/L</option>
+                  <option value="after_al">After A/L</option>
+                </select>
+                {/* Custom arrow for select */}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-[#05668A]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
               </div>
             </div>
 
-            {/* Confirm Password */}
-            <div className="space-y-1">
-              <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Confirm Password</label>
-              <div className="relative group">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                <input 
-                  name="confirmPassword"
-                  type="password" 
-                  placeholder="Re-enter password"
-                  className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
-                  required
-                  onChange={handleChange}
-                />
+            {/* Password Row: Stack on mobile (grid-cols-1), Side-by-side on Laptop (md:grid-cols-2) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Password */}
+              <div className="space-y-1">
+                <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Password</label>
+                <div className="relative group">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
+                  <input 
+                    name="password"
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="Min 6 chars"
+                    className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-8 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
+                    required
+                    minLength={6}
+                    onChange={handleChange}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#053A4E]"
+                  >
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div className="space-y-1">
+                <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Confirm</label>
+                <div className="relative group">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
+                  <input 
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"} 
+                    placeholder="Re-enter"
+                    className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-8 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
+                    required
+                    onChange={handleChange}
+                  />
+                  {/* Added Toggle for Confirm Password */}
+                  <button 
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#053A4E]"
+                  >
+                    {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </div>
             </div>
 
