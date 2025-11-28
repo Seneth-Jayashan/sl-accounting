@@ -1,9 +1,6 @@
-import React, { useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Environment, MeshTransmissionMaterial, Sparkles } from "@react-three/drei";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { User, Lock, ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import * as THREE from "three";
 import { Link } from "react-router-dom";
 
 // --- BRAND CONSTANTS ---
@@ -15,45 +12,38 @@ const BRAND = {
   alice: "#E8EFF7",
 };
 
-// --- 3D BACKGROUND COMPONENT ---
-const LoginGem = () => {
-  const mesh = useRef<THREE.Mesh>(null!);
-  
-  useFrame((state, delta) => {
-    if (!mesh.current) return;
-    mesh.current.rotation.x += delta * 0.2;
-    mesh.current.rotation.y += delta * 0.1;
-  });
-
-  return (
-    <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-      <mesh ref={mesh} position={[2, 0, -2]} scale={2.5}>
-        <icosahedronGeometry args={[1, 0]} />
-        <MeshTransmissionMaterial 
-          backside
-          samples={4}
-          thickness={0.5}
-          roughness={0}
-          iridescence={1}
-          iridescenceIOR={1}
-          chromaticAberration={0.06}
-          anisotropy={0.1}
-          color={BRAND.cerulean}
-          background={new THREE.Color(BRAND.alice)}
-        />
-      </mesh>
-    </Float>
-  );
-};
-
-const LoginScene = () => (
-  <>
-    <Environment preset="city" />
-    <ambientLight intensity={1} />
-    <spotLight position={[-10, 10, 10]} intensity={2} color={BRAND.coral} />
-    <LoginGem />
-    <Sparkles count={40} scale={[10, 10, 10]} size={4} speed={0.4} opacity={0.4} color={BRAND.cerulean} />
-  </>
+// --- BACKGROUND COMPONENT (Framer Motion) ---
+// Matching the Register page background for consistency
+const BackgroundGradient = () => (
+  <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
+    {/* Animated Blobs */}
+    <motion.div 
+      animate={{ 
+        scale: [1, 1.2, 1],
+        opacity: [0.3, 0.5, 0.3],
+        rotate: [0, 90, 0]
+      }}
+      transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+      className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-[#05668A] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
+    />
+    <motion.div 
+      animate={{ 
+        scale: [1, 1.1, 1],
+        x: [0, 50, 0],
+        y: [0, 30, 0]
+      }}
+      transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute top-[40%] left-[-10%] w-[600px] h-[600px] bg-[#EF8D8E] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
+    />
+    <motion.div 
+      animate={{ 
+        scale: [1, 1.3, 1],
+        x: [0, -30, 0],
+      }}
+      transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute bottom-[-10%] right-[10%] w-[600px] h-[600px] bg-[#FFE787] rounded-full mix-blend-multiply filter blur-[128px] opacity-40" 
+    />
+  </div>
 );
 
 // --- LOGIN FORM COMPONENT ---
@@ -69,17 +59,10 @@ export default function Login() {
   };
 
   return (
-    <div className="w-full h-screen bg-[#E8EFF7] relative overflow-hidden flex items-center justify-center md:justify-start pt-12 md:pt-12">
+    <div className="w-full min-h-screen relative overflow-hidden flex items-center justify-center md:justify-start pt-12 md:pt-0">
       
-      {/* 3D Background Layer */}
-      <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-          <LoginScene />
-        </Canvas>
-      </div>
-
-      {/* Decorative Blob */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#05668A]/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Static Animated Background */}
+      <BackgroundGradient />
 
       {/* Login Card Container */}
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -89,7 +72,7 @@ export default function Login() {
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
-          className="bg-white/70 backdrop-blur-xl border border-white/60 p-8 md:p-12 rounded-[2.5rem] shadow-2xl shadow-[#053A4E]/10 max-w-md w-full mx-auto md:mx-0"
+          className="bg-white/70 backdrop-blur-xl border border-white/60 p-8 md:p-12 rounded-[2.5rem] shadow-2xl shadow-[#053A4E]/10 max-w-md w-full mx-auto md:mx-0 mt-0 md:mt-20"
         >
           {/* Header */}
           <div className="mb-10 text-center md:text-left">
@@ -144,7 +127,7 @@ export default function Login() {
                 <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-[#05668A] focus:ring-[#05668A]" />
                 Remember me
               </label>
-              <a href="#" className="text-[#05668A] font-bold hover:text-[#EF8D8E] transition-colors">Forgot Password?</a>
+              <a href="/forgot-password" className="text-[#05668A] font-bold hover:text-[#EF8D8E] transition-colors">Forgot Password?</a>
             </div>
 
             {/* Submit Button */}
@@ -172,7 +155,7 @@ export default function Login() {
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="hidden md:block text-right pointer-events-none"
+          className="hidden md:block text-right"
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/30 backdrop-blur-md border border-white/40 mb-6">
             <ShieldCheck className="text-[#05668A]" size={20} />
@@ -182,9 +165,16 @@ export default function Login() {
             ඔබේ ජයග්‍රහණයේ <br/>
             <span className="text-transparent bg-clip-text bg-gradient-to-l from-[#05668A] to-[#EF8D8E]">ආරම්භය මෙතැනයි</span>
           </h1>
-          <p className="text-xl text-gray-500 max-w-md ml-auto font-sinhala">
+          <p className="text-xl text-gray-500 max-w-md ml-auto font-sinhala leading-relaxed">
             Access your course materials, recordings, and exam papers in one secure place.
           </p>
+
+          {/* Optional: Add a subtle static graphic or icons here if desired */}
+          <div className="mt-8 flex justify-end gap-3 opacity-60">
+             <div className="w-12 h-1 bg-[#053A4E] rounded-full"></div>
+             <div className="w-6 h-1 bg-[#EF8D8E] rounded-full"></div>
+             <div className="w-3 h-1 bg-[#FFE787] rounded-full"></div>
+          </div>
         </motion.div>
 
       </div>
