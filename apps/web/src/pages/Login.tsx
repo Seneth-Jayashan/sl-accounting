@@ -1,7 +1,33 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Lock, ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { User, Lock, ArrowRight, Eye, EyeOff, ShieldCheck, AlertCircle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+
+// --- AUTH HOOK MOCK (For Preview Purposes) ---
+// TODO: In your actual project, delete this mock and uncomment the import below:
+// import { useAuth } from "../contexts/AuthContext";
+
+interface LoginPayload {
+  email: string;
+  password?: string;
+}
+
+const useAuth = () => {
+  // Mock login function
+  const login = async ({ email, password }: LoginPayload): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (email && password) {
+          console.log("Mock login successful:", email);
+          resolve();
+        } else {
+          reject(new Error("Invalid credentials"));
+        }
+      }, 1500);
+    });
+  };
+  return { login };
+};
 
 // --- BRAND CONSTANTS ---
 const BRAND = {
@@ -13,7 +39,6 @@ const BRAND = {
 };
 
 // --- BACKGROUND COMPONENT (Framer Motion) ---
-// Matching the Register page background for consistency
 const BackgroundGradient = () => (
   <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
     {/* Animated Blobs */}
@@ -48,14 +73,30 @@ const BackgroundGradient = () => (
 
 // --- LOGIN FORM COMPONENT ---
 export default function Login() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { login } = useAuth(); // Access login function from (mock) context
+  const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    // Simulate login delay
-    setTimeout(() => setLoading(false), 2000);
+
+    try {
+      await login({ email, password });
+      // Redirect on success (adjust path as needed)
+      navigate("/dashboard"); 
+    } catch (err: any) {
+      // Set error message from the exception thrown in AuthContext
+      setError(err.message || "Failed to login. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -75,23 +116,37 @@ export default function Login() {
           className="bg-white/70 backdrop-blur-xl border border-white/60 p-8 md:p-12 rounded-[2.5rem] shadow-2xl shadow-[#053A4E]/10 max-w-md w-full mx-auto md:mx-0 mt-0 md:mt-20"
         >
           {/* Header */}
-          <div className="mb-10 text-center md:text-left">
+          <div className="mb-8 text-center md:text-left">
             <h2 className="text-3xl font-bold text-[#053A4E] font-sinhala">ආයුබෝවන්!</h2>
             <p className="text-gray-500 mt-2 font-sans">Welcome back to SL Accounting LMS</p>
           </div>
 
+          {/* Error Message Display */}
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3"
+            >
+              <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+              <p className="text-sm text-red-600 font-medium">{error}</p>
+            </motion.div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-6">
             
-            {/* Username Input */}
+            {/* Email Input */}
             <div className="space-y-2">
-              <label className="text-sm font-bold text-[#053A4E] ml-1">Student ID / Email</label>
+              <label className="text-sm font-bold text-[#053A4E] ml-1">Email Address</label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#05668A] group-focus-within:text-[#EF8D8E] transition-colors">
                   <User size={20} />
                 </div>
                 <input 
-                  type="text" 
-                  placeholder="Enter your ID"
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
                   className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-12 pr-4 py-4 rounded-2xl outline-none transition-all shadow-sm"
                   required
                 />
@@ -107,6 +162,8 @@ export default function Login() {
                 </div>
                 <input 
                   type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-12 pr-12 py-4 rounded-2xl outline-none transition-all shadow-sm"
                   required
@@ -127,11 +184,12 @@ export default function Login() {
                 <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-[#05668A] focus:ring-[#05668A]" />
                 Remember me
               </label>
-              <a href="/forgot-password" className="text-[#05668A] font-bold hover:text-[#EF8D8E] transition-colors">Forgot Password?</a>
+              <Link to="/forgot-password" className="text-[#05668A] font-bold hover:text-[#EF8D8E] transition-colors">Forgot Password?</Link>
             </div>
 
             {/* Submit Button */}
             <button 
+              type="submit"
               disabled={loading}
               className="w-full bg-[#053A4E] hover:bg-[#05668A] text-white font-bold py-4 rounded-2xl shadow-lg shadow-[#053A4E]/20 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
             >
@@ -169,7 +227,6 @@ export default function Login() {
             Access your course materials, recordings, and exam papers in one secure place.
           </p>
 
-          {/* Optional: Add a subtle static graphic or icons here if desired */}
           <div className="mt-8 flex justify-end gap-3 opacity-60">
              <div className="w-12 h-1 bg-[#053A4E] rounded-full"></div>
              <div className="w-6 h-1 bg-[#EF8D8E] rounded-full"></div>
