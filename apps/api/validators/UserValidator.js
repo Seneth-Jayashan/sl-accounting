@@ -82,7 +82,7 @@ export const verifyEmailSchema = z.object({
       .trim()
       .toLowerCase()
       .email("Invalid email address format"),
-    otp: z.string().trim().length(6, "OTP must be 6 characters long"),
+    otpCode: z.string().trim().length(6, "OTP must be 6 characters long"),
   }),
 });
 
@@ -103,23 +103,34 @@ export const validate = (schema) => (req, res, next) => {
       query: req.query,
       params: req.params,
     });
-    req.body = parsed.body;
-    req.query = parsed.query;
-    req.params = parsed.params;
+
+    // FIX: Only update req.body if it was parsed
+    if (parsed.body) {
+      req.body = parsed.body;
+    }
+
+    // FIX: Only update query/params if they were defined in the schema
+    // and strictly avoid overwriting them if parsed returns undefined.
+    // Use Object.assign to merge validated data if direct assignment is forbidden.
+    if (parsed.query) {
+       // In strict environments, use Object.assign instead of replacing the object
+       Object.assign(req.query, parsed.query);
+    }
+    
+    if (parsed.params) {
+       Object.assign(req.params, parsed.params);
+    }
+
     next();
   } catch (error) {
     if (error.name === "ZodError") {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "User Validation Error",
-          errors: error.errors,
-        });
+      return res.status(400).json({
+        success: false,
+        message: "User Validation Error" + error.message,
+        errors: error.errors,
+      });
     }
     console.error("User Validation Middleware Error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal server error" });
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

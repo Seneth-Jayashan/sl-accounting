@@ -144,19 +144,25 @@ export const resetUserPassword = async (req, res) => {
 
 export const verifyUserEmail = async (req, res) => {
   try {
-    const { email, otpCode } = req.body;
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+otp +otpExpiresAt +otpAttempts +isVerified');
+    const { email, otp } = req.body; 
+
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .select('+otp +otpExpiresAt +otpAttempts +isVerified');
+
     if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
     }
-    const otpResult = user.verifyOtpCode(otpCode);
+
+    const otpResult = await user.verifyOtpCode(otp); 
+    
     if (!otpResult.ok) {
-      return res.status(400).json({ success: false, message: "Invalid or expired OTP code" });
+      return res.status(400).json({ 
+        success: false, 
+        message: otpResult.reason === "expired" ? "OTP has expired" : "Invalid OTP code" 
+      });
     }
-    user.isVerified = true;
-    user.clearOtp();
-    await user.save();
     return res.status(200).json({ success: true, message: "Email verified successfully" });
+
   } catch (error) {
     console.error("Verify User Email Error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });

@@ -25,11 +25,13 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // CORS Configuration
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || '*';
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 app.use(
   cors({
     origin: CLIENT_ORIGIN,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   })
 );
 

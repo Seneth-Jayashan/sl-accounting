@@ -10,6 +10,7 @@ import Register from "./pages/Register";
 import { MainLayout } from "./layouts/MainLayout";
 import { SplashScreen } from "./components/SplashScreen";
 import ForgotPassword from "./pages/ForgotPassword";
+import Verification from "./pages/Verification";
 import "./index.css";
 
 function App() {
@@ -41,6 +42,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verification" element={<Verification />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
         </Route>
 
