@@ -2,32 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { User, Lock, ArrowRight, Eye, EyeOff, ShieldCheck, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-
-// --- AUTH HOOK MOCK (For Preview Purposes) ---
-// TODO: In your actual project, delete this mock and uncomment the import below:
-// import { useAuth } from "../contexts/AuthContext";
-
-interface LoginPayload {
-  email: string;
-  password?: string;
-}
-
-const useAuth = () => {
-  // Mock login function
-  const login = async ({ email, password }: LoginPayload): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email && password) {
-          console.log("Mock login successful:", email);
-          resolve();
-        } else {
-          reject(new Error("Invalid credentials"));
-        }
-      }, 1500);
-    });
-  };
-  return { login };
-};
+import { useAuth } from "../contexts/AuthContext";
 
 // --- BRAND CONSTANTS ---
 const BRAND = {
@@ -73,29 +48,32 @@ const BackgroundGradient = () => (
 
 // --- LOGIN FORM COMPONENT ---
 export default function Login() {
-  const { login } = useAuth(); // Access login function from (mock) context
+  const { login } = useAuth(); // Now using the REAL context
   const navigate = useNavigate();
 
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
+  
+  // Local loading state for the button (separate from global auth loading)
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
+      // The login function from AuthContext throws an error if it fails
       await login({ email, password });
-      // Redirect on success (adjust path as needed)
-      navigate("/dashboard"); 
+      navigate("/student/dashboard"); 
     } catch (err: any) {
-      // Set error message from the exception thrown in AuthContext
+      console.error("Login Error:", err);
+      // Extract the message from the Error object thrown by AuthContext
       setError(err.message || "Failed to login. Please check your credentials.");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -190,10 +168,10 @@ export default function Login() {
             {/* Submit Button */}
             <button 
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting}
               className="w-full bg-[#053A4E] hover:bg-[#05668A] text-white font-bold py-4 rounded-2xl shadow-lg shadow-[#053A4E]/20 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {loading ? (
+              {isSubmitting ? (
                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>

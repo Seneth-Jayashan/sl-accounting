@@ -1,7 +1,8 @@
 // App.tsx
 import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";   // 👈 import this
+import { AnimatePresence } from "framer-motion";
+
 import StudentDashboardPage from "./pages/student/Dashboard";
 import AdminDashboardPage from "./pages/admin/Dashboard";
 import Home from "./pages/Home";
@@ -11,6 +12,10 @@ import { MainLayout } from "./layouts/MainLayout";
 import { SplashScreen } from "./components/SplashScreen";
 import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
+
+import AuthProvider from "./contexts/AuthContext";
+import ProtectedRoute from "./routes/ProtectedRoute"; // 🔁 adjust path if you put it elsewhere
+
 import "./index.css";
 
 function App() {
@@ -21,37 +26,56 @@ function App() {
 
   const handleSplashComplete = () => {
     localStorage.setItem("hasSeenSplash", "true");
-    setShowSplash(false); // <- this triggers exit animation
+    setShowSplash(false);
   };
 
   return (
-    <BrowserRouter>
-      {/* AnimatePresence handles smooth unmount */}
-      <AnimatePresence mode="wait">
-        {showSplash && (
-          <SplashScreen
-            key="splash"
-            onComplete={handleSplashComplete}
+    <AuthProvider>
+      <BrowserRouter>
+        {/* Splash intro */}
+        <AnimatePresence mode="wait">
+          {showSplash && (
+            <SplashScreen
+              key="splash"
+              onComplete={handleSplashComplete}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Main app routes */}
+        <Routes>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/verification" element={<Verification />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+          </Route>
+
+          {/* Protected routes */}
+          <Route
+            path="/student/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentDashboardPage />
+              </ProtectedRoute>
+            }
           />
-        )}
-      </AnimatePresence>
 
-      {/* Your app is already behind the splash, it just becomes visible as it fades out */}
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/verification" element={<Verification />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-        </Route>
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route path="/student/dashboard" element={<StudentDashboardPage />} />
-        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
