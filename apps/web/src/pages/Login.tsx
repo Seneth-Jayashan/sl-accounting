@@ -3,43 +3,24 @@ import { motion } from "framer-motion";
 import { User, Lock, ArrowRight, Eye, EyeOff, ShieldCheck, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { api } from "../services/api"; // Import API to fetch role immediately
+import ResendVerificationModal from "../components/modals/ResendVerification";
 
-// --- BRAND CONSTANTS ---
-const BRAND = {
-  prussian: "#053A4E",
-  cerulean: "#05668A",
-  coral: "#EF8D8E",
-  jasmine: "#FFE787",
-  alice: "#E8EFF7",
-};
-
-// --- BACKGROUND COMPONENT (Framer Motion) ---
+// --- BACKGROUND COMPONENT ---
 const BackgroundGradient = () => (
   <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
-    {/* Animated Blobs */}
     <motion.div 
-      animate={{ 
-        scale: [1, 1.2, 1],
-        opacity: [0.3, 0.5, 0.3],
-        rotate: [0, 90, 0]
-      }}
+      animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3], rotate: [0, 90, 0] }}
       transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
       className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-[#05668A] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
     />
     <motion.div 
-      animate={{ 
-        scale: [1, 1.1, 1],
-        x: [0, 50, 0],
-        y: [0, 30, 0]
-      }}
+      animate={{ scale: [1, 1.1, 1], x: [0, 50, 0], y: [0, 30, 0] }}
       transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       className="absolute top-[40%] left-[-10%] w-[600px] h-[600px] bg-[#EF8D8E] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
     />
     <motion.div 
-      animate={{ 
-        scale: [1, 1.3, 1],
-        x: [0, -30, 0],
-      }}
+      animate={{ scale: [1, 1.3, 1], x: [0, -30, 0] }}
       transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
       className="absolute bottom-[-10%] right-[10%] w-[600px] h-[600px] bg-[#FFE787] rounded-full mix-blend-multiply filter blur-[128px] opacity-40" 
     />
@@ -48,16 +29,17 @@ const BackgroundGradient = () => (
 
 // --- LOGIN FORM COMPONENT ---
 export default function Login() {
-  const { login } = useAuth(); // Now using the REAL context
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  
-  // Local loading state for the button (separate from global auth loading)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+
+  // STATE FOR MODAL VISIBILITY
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,13 +47,37 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      // The login function from AuthContext throws an error if it fails
+      // 1. Perform Login
       await login({ email, password });
-      navigate("/student/dashboard"); 
+
+      // 2. Fetch fresh user info to determine Role
+      // We call the API directly here because the 'user' from context might 
+      // not be updated in this function scope yet due to React batching.
+      const res = await api.get("/auth/me");
+      const role = res.data?.user?.role;
+
+      // 3. Navigate based on Role
+      if (role === "admin") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/student/dashboard");
+      }
+
     } catch (err: any) {
       console.error("Login Error:", err);
-      // Extract the message from the Error object thrown by AuthContext
-      setError(err.message || "Failed to login. Please check your credentials.");
+      const msg = err.message || "Failed to login. Please check your credentials.";
+
+      // Handle Verification Required Error
+      if (err.response && err.response.status === 403 && err.response.data.message === "Please verify your email before logging in.") {
+        setIsVerifyModalOpen(true);
+      }
+      
+      setError(msg);
+
+      // Auto-open modal if error text mentions verification
+      if (msg.toLowerCase().includes("verify") || msg.toLowerCase().includes("activation")) {
+         setIsVerifyModalOpen(true);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -80,10 +86,14 @@ export default function Login() {
   return (
     <div className="w-full min-h-screen relative overflow-hidden flex items-center justify-center md:justify-start pt-12 md:pt-0">
       
-      {/* Static Animated Background */}
       <BackgroundGradient />
 
-      {/* Login Card Container */}
+      {/* RENDER THE MODAL */}
+      <ResendVerificationModal 
+        isOpen={isVerifyModalOpen} 
+        onClose={() => setIsVerifyModalOpen(false)} 
+      />
+
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         
         {/* Left Side: Form */}
@@ -93,13 +103,11 @@ export default function Login() {
           transition={{ duration: 0.8 }}
           className="bg-white/70 backdrop-blur-xl border border-white/60 p-8 md:p-12 rounded-[2.5rem] shadow-2xl shadow-[#053A4E]/10 max-w-md w-full mx-auto md:mx-0 mt-0 md:mt-20"
         >
-          {/* Header */}
           <div className="mb-8 text-center md:text-left">
             <h2 className="text-3xl font-bold text-[#053A4E] font-sinhala">ආයුබෝවන්!</h2>
             <p className="text-gray-500 mt-2 font-sans">Welcome back to SL Accounting LMS</p>
           </div>
 
-          {/* Error Message Display */}
           {error && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
@@ -107,7 +115,9 @@ export default function Login() {
               className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3"
             >
               <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
-              <p className="text-sm text-red-600 font-medium">{error}</p>
+              <div className="flex-1">
+                <p className="text-sm text-red-600 font-medium">{error}</p>
+              </div>
             </motion.div>
           )}
 
@@ -156,7 +166,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 cursor-pointer text-gray-600 hover:text-[#053A4E]">
                 <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-[#05668A] focus:ring-[#05668A]" />
@@ -165,7 +174,6 @@ export default function Login() {
               <Link to="/forgot-password" className="text-[#05668A] font-bold hover:text-[#EF8D8E] transition-colors">Forgot Password?</Link>
             </div>
 
-            {/* Submit Button */}
             <button 
               type="submit"
               disabled={isSubmitting}
@@ -181,8 +189,21 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-8 text-center text-sm text-gray-500">
-            Don't have an account? <Link to="/register" className="text-[#05668A] font-bold hover:underline">Register Now</Link>
+          <div className="mt-8 space-y-3 text-center text-sm text-gray-500">
+            <div>
+              Don't have an account? <Link to="/register" className="text-[#05668A] font-bold hover:underline">Register Now</Link>
+            </div>
+            
+            {/* Verification Link
+            <div>
+              Account not verified?{" "}
+              <button 
+                onClick={() => setIsVerifyModalOpen(true)}
+                className="text-[#EF8D8E] font-bold hover:underline cursor-pointer"
+              >
+                Resend Verification Code
+              </button>
+            </div> */}
           </div>
         </motion.div>
 
@@ -206,9 +227,9 @@ export default function Login() {
           </p>
 
           <div className="mt-8 flex justify-end gap-3 opacity-60">
-             <div className="w-12 h-1 bg-[#053A4E] rounded-full"></div>
-             <div className="w-6 h-1 bg-[#EF8D8E] rounded-full"></div>
-             <div className="w-3 h-1 bg-[#FFE787] rounded-full"></div>
+              <div className="w-12 h-1 bg-[#053A4E] rounded-full"></div>
+              <div className="w-6 h-1 bg-[#EF8D8E] rounded-full"></div>
+              <div className="w-3 h-1 bg-[#FFE787] rounded-full"></div>
           </div>
         </motion.div>
 

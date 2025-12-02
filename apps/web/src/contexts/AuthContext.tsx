@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useRef } from "react";
 import axios, { AxiosError } from "axios";
-import { api, setAccessToken } from "../services/api"; // Import from your new service file
+import { api, setAccessToken } from "../services/api"; // Ensure this path matches your project structure
 
 // ------------ Types ------------
 export type User = {
@@ -41,7 +41,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Sync module-level token
+  // 🔴 FIX: Ref to track if initialization has already started
+  const isCheckingAuth = useRef(false);
+
+  // Sync module-level token whenever state changes
   useEffect(() => {
     setAccessToken(accessToken);
   }, [accessToken]);
@@ -49,6 +52,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // INITIALIZATION: Check for Refresh Token Cookie
   useEffect(() => {
     const initializeAuth = async () => {
+      // 🔴 FIX: Prevent double execution in React Strict Mode
+      if (isCheckingAuth.current) return;
+      isCheckingAuth.current = true;
+
+      console.log("AuthContext: Starting Initialization...");
+
       try {
         // We use the base axios (not 'api') to check refresh status once on mount
         const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
@@ -56,20 +65,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const res = await axios.post(
           `${API_BASE}/auth/refresh`,
           {},
-          { withCredentials: true }
+          { withCredentials: true } // Crucial for sending cookies
         );
 
         const newAccessToken = res.data?.accessToken;
 
         if (newAccessToken) {
+          console.log("AuthContext: Refresh Success");
           setAccessToken(newAccessToken); // Update service
           setAccessTokenState(newAccessToken); // Update State
-          await fetchMe(); // Fetch User
+          await fetchMe(); // Fetch User details
         } else {
           setUser(null);
         }
-      } catch (err) {
-        // User is not logged in (no cookie or expired)
+      } catch (err: any) {
+        // Expected behavior if user is not logged in or token expired
+        console.log("AuthContext: No valid session found (401/403)"); 
         setUser(null);
       } finally {
         setLoading(false);
@@ -83,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --------- Actions ----------
   const fetchMe = async () => {
     try {
+      // Note: 'api' instance already has the token set via the useEffect above or login
       const res = await api.get("/auth/me");
       if (res.data?.success) {
         setUser(res.data.user);
@@ -90,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
       }
     } catch (error) {
+      console.error("AuthContext: fetchMe failed", error);
       setUser(null);
     }
   };
@@ -114,7 +127,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (axios.isAxiosError(error)) {
         const axiosErr = error as AxiosError;
         throw new Error(
-          // Fix: Ensure we extract the message string, not an object
           (axiosErr.response?.data as any)?.message ?? axiosErr.message ?? "Login error"
         );
       }
@@ -140,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (payload.phoneNumber) form.append("phoneNumber", payload.phoneNumber);
       if (payload.profileImageFile) form.append("profileImage", payload.profileImageFile);
 
+      // Append any extra fields
       Object.keys(payload).forEach((key) => {
         if (
           !["firstName", "lastName", "email", "password", "phoneNumber", "profileImageFile"].includes(
@@ -163,7 +176,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const axiosErr = error as AxiosError;
-        // Fix: Properly extract error message from object response
         const errorData = axiosErr.response?.data as any;
         const msg = 
           errorData?.message || 
@@ -181,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await api.post("/auth/logout");
     } catch (err) {
-      // ignore
+      console.warn("Logout API call failed, clearing local state anyway.");
     } finally {
       setAccessTokenState(null);
       setAccessToken(null);

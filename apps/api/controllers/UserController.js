@@ -144,8 +144,7 @@ export const resetUserPassword = async (req, res) => {
 
 export const verifyUserEmail = async (req, res) => {
   try {
-    const { email, otp } = req.body; 
-
+    const { email, otpCode } = req.body; 
     const user = await User.findOne({ email: email.toLowerCase() })
       .select('+otp +otpExpiresAt +otpAttempts +isVerified');
 
@@ -153,8 +152,7 @@ export const verifyUserEmail = async (req, res) => {
         return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const otpResult = await user.verifyOtpCode(otp); 
-    
+    const otpResult = await user.verifyOtpCode(otpCode); 
     if (!otpResult.ok) {
       return res.status(400).json({ 
         success: false, 
