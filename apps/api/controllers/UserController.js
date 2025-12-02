@@ -104,17 +104,31 @@ export const updateUserPassword = async (req, res) => {
   }
 };
 
-export  const forgetUserPassword = async (req, res) => {
+export const forgetUserPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email: email.toLowerCase() });
+
     if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
+      // For security, it's often better to return success even if user not found 
+      // to prevent email enumeration, but for now we keep your 404 logic.
+      return res.status(404).json({ success: false, message: "User not found" });
     }
-    const otpCode = user.generateOtpCode();
+
+    // 1. Generate a 6-digit OTP string
+    const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 2. Save to the specific RESET fields (Expires in 10 minutes)
+    user.resetPasswordToken = resetOtp;
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 Minutes from now
+
     await user.save();
-    await sendVerificationEmail(user.email, otpCode);
-    return res.status(200).json({ success: true, message: "OTP code sent to email" });
+
+    // 3. Send the email (Pass the resetOtp)
+    // Ensure your sendVerificationEmail function accepts the subject or type
+    await sendVerificationEmail(user.email, resetOtp);
+
+    return res.status(200).json({ success: true, message: "Password reset code sent to email" });
   } catch (error) {
     console.error("Forget User Password Error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });
@@ -123,18 +137,39 @@ export  const forgetUserPassword = async (req, res) => {
 
 export const resetUserPassword = async (req, res) => {
   try {
-    const { email, otpCode, newPassword } = req.body;
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+otp +otpExpiresAt +otpAttempts');
+    const { email, otp, newPassword } = req.body;
+
+    // 1. Find user and select the hidden reset fields
+    const user = await User.findOne({ email: email.toLowerCase() })
+      .select('+resetPasswordToken +resetPasswordExpires');
+
     if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
-    const otpResult = user.verifyOtpCode(otpCode);
-    if (!otpResult.ok) {
-      return res.status(400).json({ success: false, message: "Invalid or expired OTP code" });
+
+    // 2. Verify Token Existence
+    if (!user.resetPasswordToken || !user.resetPasswordExpires) {
+      return res.status(400).json({ success: false, message: "No password reset requested" });
     }
-    user.password = newPassword;
-    user.clearOtp();
+
+    // 3. Check if OTP matches
+    // Note: If you hash tokens in the DB, you need to hash 'otp' here before comparing
+    if (user.resetPasswordToken !== otp) {
+      return res.status(400).json({ success: false, message: "Invalid reset code" });
+    }
+
+    // 4. Check if Token has expired
+    if (user.resetPasswordExpires < Date.now()) {
+      return res.status(400).json({ success: false, message: "Reset code has expired" });
+    }
+
+    // 5. Update Password and Clear Tokens
+    user.password = newPassword; // Mongoose pre-save hook should handle hashing
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
     await user.save();
+
     return res.status(200).json({ success: true, message: "Password reset successfully" });
   } catch (error) {
     console.error("Reset User Password Error:", error);

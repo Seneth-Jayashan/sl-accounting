@@ -11,10 +11,14 @@ import {
   CurrencyDollarIcon,
   BookOpenIcon
 } from "@heroicons/react/24/outline";
+import {useAuth} from "../../contexts/AuthContext";
+
 
 type Props = { collapsed?: boolean; onToggle?: () => void };
 
 export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
+  const { logout } = useAuth();
+
   const nav = [
     { key: "overview", label: "Overview", href: "/admin/dashboard", Icon: HomeIcon },
     { key: "students", label: "Students", href: "/admin/students", Icon: UsersIcon },
@@ -48,7 +52,7 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-medium">K</div>
             {!collapsed && <div><div className="text-sm font-medium">Kalum</div><div className="text-xs">Instructor</div></div>}
           </div>
-          {!collapsed && <button aria-label="Logout" className="p-1 rounded-md hover:bg-white/10"><ArrowRightOnRectangleIcon className="w-5 h-5" /></button>}
+          {!collapsed && <button aria-label="Logout" className="p-1 rounded-md hover:bg-white/10" onClick={logout}><ArrowRightOnRectangleIcon className="w-5 h-5" /></button>}
         </div>
       </div>
     </aside>
