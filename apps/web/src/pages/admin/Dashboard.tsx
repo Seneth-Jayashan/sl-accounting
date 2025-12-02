@@ -1,6 +1,7 @@
 // src/pages/admin/Dashboard.tsx
 import DashboardLayout from "../../layouts/DashboardLayout";
 import SidebarAdmin from "../../components/sidebar/SidebarAdmin";
+import BottomNavAdmin from "../../components/bottomNavbar/BottomNavAdmin"; // Updated import path
 import {
   UserPlusIcon,
   BanknotesIcon,
@@ -8,6 +9,8 @@ import {
   ArrowTrendingUpIcon,
   ClockIcon
 } from "@heroicons/react/24/outline";
+
+// --- Types & Helper Components ---
 
 interface StatCardProps {
   title: string;
@@ -19,6 +22,19 @@ interface StatCardProps {
 }
 
 function StatCard({ title, value, trend, trendUp, icon: Icon, color = "blue" }: StatCardProps) {
+  // Map color strings to Tailwind classes dynamically or use safe-listing
+  // For simplicity, using inline logic or standard classes. 
+  // Note: In strict Tailwind setups, dynamic class names like `bg-${color}-50` might be purged.
+  // Using a simple switch or fixed classes is often safer, but sticking to your original logic:
+  
+  const getColorClasses = (c: string) => {
+    switch (c) {
+      case "emerald": return "bg-emerald-50 text-emerald-600";
+      case "purple": return "bg-purple-50 text-purple-600";
+      default: return "bg-blue-50 text-blue-600";
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start">
@@ -27,7 +43,7 @@ function StatCard({ title, value, trend, trendUp, icon: Icon, color = "blue" }: 
           <h3 className="text-3xl font-bold text-gray-900 mt-2">{value}</h3>
         </div>
         {Icon && (
-          <div className={`p-3 rounded-xl bg-${color}-50 text-${color}-600`}>
+          <div className={`p-3 rounded-xl ${getColorClasses(color)}`}>
             <Icon className="w-6 h-6" />
           </div>
         )}
@@ -59,6 +75,8 @@ function QuickAction({ title, icon: Icon, onClick }: { title: string; icon: Reac
   );
 }
 
+// --- Main Page Component ---
+
 export default function AdminDashboardPage() {
   const recentActivity = [
     { id: 1, text: "New student registered: Tharindu", time: "2 hours ago", type: "student" },
@@ -75,7 +93,7 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin}>
+    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
       <div className="space-y-8">
 
         {/* HEADER SECTION */}
