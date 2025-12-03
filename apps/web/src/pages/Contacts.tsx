@@ -1,14 +1,11 @@
 import React, { useState } from "react";
-import Swal from "sweetalert2";
+//import Swal from "sweetalert2";
 import {
-  FaFacebook,
-  FaInstagram,
-  FaTiktok,
-  FaLinkedin,
+
   FaUser,
   FaComment,
 } from "react-icons/fa";
-import { FaLocationDot, FaXTwitter } from "react-icons/fa6";
+import { FaLocationDot } from "react-icons/fa6";
 import { MdEmail } from "react-icons/md";
 import { PiPhoneCallFill } from "react-icons/pi";
 
@@ -27,9 +24,9 @@ export default function ContactUsForm(): React.ReactElement {
     message: "",
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting] = useState(false);
 
-  const validate = (values: InputState) => {
+ /* const validate = (values: InputState) => {
     const errors: string[] = [];
     if (!values.name.trim()) errors.push("නම අවශ්‍යයි.");
     if (!values.email.trim()) errors.push("Email එක අවශ්‍යයි.");
@@ -42,7 +39,7 @@ export default function ContactUsForm(): React.ReactElement {
     else if (values.message.trim().length < 15)
       errors.push("පණිවිඩයේ දිග අවම වශයෙන් අක්ෂර 15 ක් විය යුතුයි.");
     return errors;
-  };
+  };*/
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
