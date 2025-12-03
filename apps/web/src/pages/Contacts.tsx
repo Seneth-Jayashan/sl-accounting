@@ -31,16 +31,16 @@ export default function ContactUsForm(): React.ReactElement {
 
   const validate = (values: InputState) => {
     const errors: string[] = [];
-    if (!values.name.trim()) errors.push("Name is required.");
-    if (!values.email.trim()) errors.push("Email is required.");
+    if (!values.name.trim()) errors.push("නම අවශ්‍යයි.");
+    if (!values.email.trim()) errors.push("Email එක අවශ්‍යයි.");
     else if (!/^[\w-.]+@[\w-]+\.[A-Za-z]{2,}$/.test(values.email))
-      errors.push("Enter a valid email address.");
-    if (!values.phoneNumber.trim()) errors.push("Phone number is required.");
+      errors.push("වලංගු Email ලිපිනයක් ඇතුළත් කරන්න.");
+    if (!values.phoneNumber.trim()) errors.push("දුරකථන අංකය අවශ්‍යයි.");
     else if (!/^\d{10,15}$/.test(values.phoneNumber.replace(/\s+/g, "")))
-      errors.push("Enter a valid phone number (10-15 digits).");
-    if (!values.message.trim()) errors.push("Message is required.");
+      errors.push("වලංගු දුරකථන අංකයක් (10–15 ලකුණු) ඇතුළත් කරන්න.");
+    if (!values.message.trim()) errors.push("පණිවිඩයක් අවශ්‍යයි.");
     else if (values.message.trim().length < 15)
-      errors.push("Message must be at least 15 characters.");
+      errors.push("පණිවිඩයේ දිග අවම වශයෙන් අක්ෂර 15 ක් විය යුතුයි.");
     return errors;
   };
 
@@ -49,12 +49,10 @@ export default function ContactUsForm(): React.ReactElement {
   ) => {
     let { name, value } = e.target as HTMLInputElement & HTMLTextAreaElement;
 
-    // Enforce digit-only phone input
     if (name === "phoneNumber") {
       value = value.replace(/\D/g, "");
     }
 
-    // Prevent spaces in email value
     if (name === "email") {
       value = value.replace(/\s+/g, "");
     }
@@ -67,7 +65,6 @@ export default function ContactUsForm(): React.ReactElement {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Submission temporarily disabled
     return;
   };
 
@@ -78,10 +75,10 @@ export default function ContactUsForm(): React.ReactElement {
           {/* Contact Header */}
           <header className="text-center mb-12 mt-6">
             <h1 className="text-4xl md:text-5xl font-bold text-[#053A4E] mb-3">
-              Contact Us
+              අපව සම්බන්ධ කරගන්න
             </h1>
             <p className="text-xl text-[#053A4E] opacity-80 max-w-2xl mx-auto">
-              Have questions or feedback? We'd love to hear from you!
+              ප්‍රශ්න හෝ අදහස් තියෙනවද? ඔබගෙන් ඇසීමට අපි කැමතියි!
             </p>
           </header>
 
@@ -90,21 +87,29 @@ export default function ContactUsForm(): React.ReactElement {
             {/* Contact Info Section */}
             <div className="w-full lg:w-2/5">
               <div className="bg-white/70 backdrop-blur-xl border border-white/60 p-6 md:p-8 rounded-[2rem] shadow-2xl shadow-[#053A4E]/10 w-full">
-                <h2 className="text-3xl font-semibold text-[#053A4E] mb-6">Get in touch</h2>
+                <h2 className="text-3xl font-semibold text-[#053A4E] mb-6">
+                  අප හා සම්බන්ධ වන්න
+                </h2>
 
                 <div className="space-y-6">
                   <div className="flex items-start gap-4">
                     <FaLocationDot className="text-2xl text-brand-coral mt-1 flex-shrink-0" />
                     <div>
-                      <h3 className="text-lg font-medium text-brand-prussian">Head Office</h3>
-                      <p className="text-brand-prussian opacity-80">Colombo, Sri Lanka</p>
+                      <h3 className="text-lg font-medium text-brand-prussian">
+                        මුලස්ථාන කාර්යාලය
+                      </h3>
+                      <p className="text-brand-prussian opacity-80">
+                        කොළඹ, ශ්‍රී ලංකාව
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-4">
                     <MdEmail className="text-2xl text-brand-prussian mt-1 flex-shrink-0" />
                     <div>
-                      <h3 className="text-lg font-medium text-brand-prussian">Email Us</h3>
+                      <h3 className="text-lg font-medium text-brand-prussian">
+                        අපට Email කරන්න
+                      </h3>
                       <a
                         href="mailto:info@slaccounting.lk"
                         className="text-brand-prussian opacity-80 hover:text-brand-cerulean transition-colors"
@@ -117,14 +122,18 @@ export default function ContactUsForm(): React.ReactElement {
                   <div className="flex items-start gap-4">
                     <PiPhoneCallFill className="text-2xl text-brand-cerulean mt-1 flex-shrink-0" />
                     <div>
-                      <h3 className="text-lg font-medium text-brand-prussian">Call Us</h3>
+                      <h3 className="text-lg font-medium text-brand-prussian">
+                        අපව අමතන්න
+                      </h3>
                       <a
                         href="tel:+94768826142"
                         className="text-brand-prussian opacity-80 hover:text-brand-cerulean transition-colors inline-block"
                       >
                         0768826142
                       </a>
-                      <div className="text-xs opacity-60 mt-1">Mon - Fri, 9am - 5pm</div>
+                      <div className="text-xs opacity-60 mt-1">
+                        සඳු–සිකු, පෙ.ව 9 – ප.ව 5
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -135,7 +144,7 @@ export default function ContactUsForm(): React.ReactElement {
             <div className="w-full lg:w-3/5">
               <div className="bg-white/70 backdrop-blur-xl border border-white/60 p-6 md:p-8 rounded-[2rem] shadow-2xl shadow-[#053A4E]/10 w-full">
                 <h2 className="text-3xl font-semibold text-[#053A4E] mb-6">
-                  Send us a message
+                  ඔබගේ පණිවිඩය අප වෙත එවන්න
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -144,7 +153,7 @@ export default function ContactUsForm(): React.ReactElement {
                       htmlFor="name"
                       className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1"
                     >
-                      Full Name
+                      සම්පූර්ණ නම
                     </label>
                     <div className="relative">
                       <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -153,7 +162,7 @@ export default function ContactUsForm(): React.ReactElement {
                         id="name"
                         name="name"
                         className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm"
-                        placeholder="Your name"
+                        placeholder="ඔබගේ නම"
                         value={input.name}
                         onChange={handleChange}
                         required
@@ -168,7 +177,7 @@ export default function ContactUsForm(): React.ReactElement {
                       htmlFor="email"
                       className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1"
                     >
-                      Email Address
+                      Email ලිපිනය
                     </label>
                     <div className="relative">
                       <MdEmail className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -190,7 +199,7 @@ export default function ContactUsForm(): React.ReactElement {
                       htmlFor="phoneNumber"
                       className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1"
                     >
-                      Phone Number
+                      දුරකථන අංකය
                     </label>
                     <div className="relative">
                       <PiPhoneCallFill className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -213,7 +222,7 @@ export default function ContactUsForm(): React.ReactElement {
                       htmlFor="message"
                       className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1"
                     >
-                      Your Message
+                      ඔබගේ පණිවිඩය
                     </label>
                     <div className="relative">
                       <FaComment className="absolute left-3 top-3 text-[#05668A]" />
@@ -222,7 +231,7 @@ export default function ContactUsForm(): React.ReactElement {
                         name="message"
                         rows={5}
                         className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-3 rounded-xl outline-none transition-all shadow-sm text-sm"
-                        placeholder="Tell us how we can help..."
+                        placeholder="අපෙන් ඔබට උදව් කළ හැක්කේ කුමක්ද?"
                         value={input.message}
                         onChange={handleChange}
                         required
@@ -231,8 +240,8 @@ export default function ContactUsForm(): React.ReactElement {
                       ></textarea>
                     </div>
                     <div className="flex justify-between mt-1 text-sm text-[#053A4E] opacity-70">
-                      <span>Minimum 15 characters</span>
-                      <span>{input.message.length}/500 characters</span>
+                      <span>අවම අක්ෂර 15 ක්</span>
+                      <span>{input.message.length}/500 අක්ෂර</span>
                     </div>
                   </div>
 
@@ -248,7 +257,7 @@ export default function ContactUsForm(): React.ReactElement {
                     {isSubmitting ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      "Send Message"
+                      "පණිවිඩය යවන්න"
                     )}
                   </button>
                 </form>
