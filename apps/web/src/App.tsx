@@ -3,8 +3,6 @@ import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
-import StudentDashboardPage from "./pages/student/Dashboard";
-import AdminDashboardPage from "./pages/admin/Dashboard";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -14,7 +12,14 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
 
 import AuthProvider from "./contexts/AuthContext";
-import ProtectedRoute from "./routes/ProtectedRoute"; // 🔁 adjust path if you put it elsewhere
+import ProtectedRoute from "./routes/ProtectedRoute"; 
+
+import StudentDashboardPage from "./pages/student/Dashboard";
+
+
+import AdminDashboardPage from "./pages/admin/Dashboard";
+import AdminStudentsPage from "./pages/admin/students/Students";
+import AdminClassesPage from "./pages/admin/classes/Class";
 
 import "./index.css";
 
@@ -67,6 +72,22 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/students"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminStudentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/classes"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminClassesPage />
               </ProtectedRoute>
             }
           />

@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useRef } from "react";
 import axios, { AxiosError } from "axios";
-import { api, setAccessToken } from "../services/api"; // Import from your new service file
+import { api, setAccessToken } from "../services/api"; 
 
 // ------------ Types ------------
 export type User = {
@@ -8,7 +8,6 @@ export type User = {
   firstName?: string;
   lastName?: string;
   email: string;
-  phoneNumber?: string;
   role?: string;
   profileImage?: string | null;
   [k: string]: any;
@@ -19,15 +18,7 @@ type AuthContextType = {
   accessToken: string | null;
   loading: boolean;
   login: (payload: { email: string; password: string }) => Promise<void>;
-  register: (payload: {
-    firstName: string;
-    lastName?: string;
-    email: string;
-    password: string;
-    phoneNumber?: string;
-    profileImageFile?: File | null;
-    [k: string]: any;
-  }) => Promise<void>;
+  register: (payload: any) => Promise<void>;
   logout: () => Promise<void>;
   fetchMe: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
@@ -35,41 +26,58 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Base URL for direct axios calls (skipping interceptors)
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
+
 // ------------ Provider ------------
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Sync module-level token
+  // Prevent double execution in React Strict Mode
+  const isCheckingAuth = useRef(false);
+
+  // Sync module-level token whenever state changes
   useEffect(() => {
     setAccessToken(accessToken);
   }, [accessToken]);
 
-  // INITIALIZATION: Check for Refresh Token Cookie
+  // INITIALIZATION: Check for Refresh Token Cookie ONCE on mount
   useEffect(() => {
     const initializeAuth = async () => {
+      if (isCheckingAuth.current) return;
+      isCheckingAuth.current = true;
+
+      console.log("AuthContext: Starting Initialization...");
+
       try {
-        // We use the base axios (not 'api') to check refresh status once on mount
-        const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
-        
+        // Use base 'axios' to avoid interceptor loops during initialization
         const res = await axios.post(
           `${API_BASE}/auth/refresh`,
           {},
-          { withCredentials: true }
+          { withCredentials: true } 
         );
 
         const newAccessToken = res.data?.accessToken;
 
         if (newAccessToken) {
-          setAccessToken(newAccessToken); // Update service
-          setAccessTokenState(newAccessToken); // Update State
-          await fetchMe(); // Fetch User
+          console.log("AuthContext: Session Restored");
+          setAccessToken(newAccessToken); 
+          setAccessTokenState(newAccessToken);
+          
+          // Now fetch user details using the authenticated 'api' instance
+          // We call api.get directly here to avoid circular dependency in fetchMe
+          const userRes = await api.get("/auth/me");
+          if(userRes.data?.success) {
+            setUser(userRes.data.user);
+          }
         } else {
           setUser(null);
         }
-      } catch (err) {
-        // User is not logged in (no cookie or expired)
+      } catch (err: any) {
+        // Silent fail: User is simply not logged in.
+        console.log("AuthContext: No active session."); 
         setUser(null);
       } finally {
         setLoading(false);
@@ -77,26 +85,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initializeAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --------- Actions ----------
+  
   const fetchMe = async () => {
     try {
       const res = await api.get("/auth/me");
       if (res.data?.success) {
         setUser(res.data.user);
-      } else {
-        setUser(null);
       }
     } catch (error) {
-      setUser(null);
+      console.error("AuthContext: fetchMe failed", error);
+      // Optional: If fetchMe fails with 401, the interceptor handles logout usually
     }
   };
 
   const login = async (payload: { email: string; password: string }) => {
     try {
-      const res = await api.post("/auth/login", payload);
+      // 🔴 CHANGE: Use 'axios' instead of 'api'.
+      // This bypasses the interceptor. If password is wrong (401), 
+      // it throws immediately instead of trying to /refresh.
+      const res = await axios.post(`${API_BASE}/auth/login`, payload, {
+        withCredentials: true // Important: To set the HttpOnly cookie
+      });
+
       if (res.data?.success) {
         const token: string | null = res.data.accessToken ?? null;
         setAccessTokenState(token);
@@ -113,8 +126,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const axiosErr = error as AxiosError;
+        // This will now correctly show "Invalid Credentials" instead of "No token provided"
         throw new Error(
-          // Fix: Ensure we extract the message string, not an object
           (axiosErr.response?.data as any)?.message ?? axiosErr.message ?? "Login error"
         );
       }
@@ -122,17 +135,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (payload: {
-    firstName: string;
-    lastName?: string;
-    email: string;
-    password: string;
-    phoneNumber?: string;
-    profileImageFile?: File | null;
-    [k: string]: any;
-  }) => {
+  const register = async (payload: any) => {
     try {
       const form = new FormData();
+      // ... (Your FormData logic remains the same)
       form.append("firstName", payload.firstName);
       if (payload.lastName) form.append("lastName", payload.lastName);
       form.append("email", payload.email);
@@ -141,18 +147,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (payload.profileImageFile) form.append("profileImage", payload.profileImageFile);
 
       Object.keys(payload).forEach((key) => {
-        if (
-          !["firstName", "lastName", "email", "password", "phoneNumber", "profileImageFile"].includes(
-            key
-          )
-        ) {
+        if (!["firstName", "lastName", "email", "password", "phoneNumber", "profileImageFile"].includes(key)) {
           const val = (payload as any)[key];
           if (val !== undefined && val !== null) form.append(key, String(val));
         }
       });
 
-      const res = await api.post("/auth/register", form, {
+      // 🔴 CHANGE: Use 'axios' here too for safety
+      const res = await axios.post(`${API_BASE}/auth/register`, form, {
         headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true 
       });
 
       if (res.data?.success) {
@@ -161,16 +165,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(res.data?.message ?? "Registration failed");
       }
     } catch (error) {
-      if (axios.isAxiosError(error)) {
+       // ... (Error handling remains the same)
+       if (axios.isAxiosError(error)) {
         const axiosErr = error as AxiosError;
-        // Fix: Properly extract error message from object response
         const errorData = axiosErr.response?.data as any;
-        const msg = 
-          errorData?.message || 
-          (errorData?.errors ? JSON.stringify(errorData.errors) : null) ||
-          axiosErr.message ||
-          "Registration error";
-        
+        const msg = errorData?.message || "Registration error";
         throw new Error(msg);
       }
       throw error;
@@ -179,9 +178,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      // Use 'api' here because we want to send the token if we have it
       await api.post("/auth/logout");
     } catch (err) {
-      // ignore
+      console.warn("Logout API call failed, clearing local state anyway.");
     } finally {
       setAccessTokenState(null);
       setAccessToken(null);
