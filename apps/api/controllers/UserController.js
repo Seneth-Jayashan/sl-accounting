@@ -18,11 +18,50 @@ export const getUserById = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({ isDeleted: false }).select('-password');
+    // 1. Extract parameters sent by the frontend
+    // Example URL: /users?role=student&search=Sahan&batch=2024 A/L
+    const { search, batch, role } = req.query;
+
+    // 2. Start with a base query (never show deleted users)
+    const query = { isDeleted: false };
+
+    // 3. Filter by Role (if provided)
+    if (role) {
+      query.role = role;
+    }
+
+    // 4. Filter by Batch (if provided and isn't "All")
+    if (batch && batch !== "All") {
+      query.batch = batch;
+    }
+
+    // 5. Search Logic (if search term exists)
+    // Uses Regex for partial matching (case-insensitive)
+    if (search) {
+      const searchRegex = new RegExp(search, 'i'); 
+      query.$or = [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+        { regNo: searchRegex },      // Matches Registration Number
+        { phoneNumber: searchRegex } // Matches Phone Number
+      ];
+    }
+
+    // 6. Execute Query
+    // .sort({ createdAt: -1 }) ensures the newest students appear first
+    const users = await User.find(query)
+      .select('-password')
+      .sort({ createdAt: -1 });
+
     return res.status(200).json({ success: true, users });
+
   } catch (error) {
     console.error("Get All Users Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ 
+      success: false, 
+      message: "Internal Server Error" 
+    });
   }
 };
 

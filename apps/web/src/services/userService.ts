@@ -1,9 +1,8 @@
 import { api } from "./api"; // Import the shared Axios instance
 import type { User } from "../contexts/AuthContext";
 
-// Define the base URL for this router. 
-// ⚠️ NOTE: Update this if your backend mounts this router at a different path (e.g. app.use('/api/v1/users', userRouter))
-const BASE_URL = "/users"; 
+// Define the base URL for this router.
+const BASE_URL = "/users";
 
 export interface UpdateProfilePayload {
   firstName: string;
@@ -12,20 +11,58 @@ export interface UpdateProfilePayload {
   profileImage?: File | null;
 }
 
+// Define specific Student type for API responses if different from generic User
+// You can merge this into your main types file later
+export interface StudentUser extends User {
+  batch?: string;
+  status?: boolean;
+}
+
 const UserService = {
   // ==========================================
   // ADMIN ROUTES
   // ==========================================
-  
+
   // GET /users (Admin Only)
   getAllUsers: async () => {
     const response = await api.get<{ success: boolean; users: User[] }>(BASE_URL);
     return response.data;
   },
 
+  /**
+   * GET /users/students
+   * Fetch students with optional filtering.
+   * Backend should handle query params: ?role=student&search=...&batch=...
+   */
+  getStudents: async (params?: { search?: string; batch?: string }) => {
+    // Construct query string based on backend requirements
+    // Example: /users?role=student OR /students
+    // We assume your backend can filter users or has a specific endpoint.
+    const response = await api.get<{ success: boolean; users: StudentUser[] }>(
+      `${BASE_URL}`, 
+      {
+        params: {
+          role: 'student', // Force filtering by role if using a generic /users endpoint
+          ...params
+        }
+      }
+    );
+    console.log("Fetched Students:", response.data);
+    return response.data;
+  },
+
   // GET /users/:id (Admin Only)
   getUserById: async (id: string) => {
     const response = await api.get<{ success: boolean; user: User }>(`${BASE_URL}/${id}`);
+    return response.data;
+  },
+
+  // PUT /users/:id (Admin Update User)
+  updateUser: async (id: string, data: Partial<User & { batch?: string; regNo?: string }>) => {
+    const response = await api.put<{ success: boolean; user: User }>(
+      `${BASE_URL}/${id}`, 
+      data
+    );
     return response.data;
   },
 
@@ -39,8 +76,7 @@ const UserService = {
     formData.append("firstName", data.firstName);
     if (data.lastName) formData.append("lastName", data.lastName);
     if (data.phoneNumber) formData.append("phoneNumber", data.phoneNumber);
-    
-    // "profileImage" matches the string in your createUploader middleware
+
     if (data.profileImage) {
       formData.append("profileImage", data.profileImage);
     }
@@ -58,7 +94,7 @@ const UserService = {
   // PUT /users/email
   updateUserEmail: async (email: string) => {
     const response = await api.put<{ success: boolean; message: string }>(
-      `${BASE_URL}/email`, 
+      `${BASE_URL}/email`,
       { email }
     );
     return response.data;
@@ -67,7 +103,7 @@ const UserService = {
   // PUT /users/password
   updateUserPassword: async (payload: { currentPassword: string; newPassword: string }) => {
     const response = await api.put<{ success: boolean; message: string }>(
-      `${BASE_URL}/password`, 
+      `${BASE_URL}/password`,
       payload
     );
     return response.data;
@@ -82,41 +118,36 @@ const UserService = {
   },
 
   // ==========================================
-  // AUTH / RECOVERY (Public or Hybrid)
+  // AUTH / RECOVERY
   // ==========================================
 
-  // POST /users/forget-password
   forgetUserPassword: async (email: string) => {
     const response = await api.post<{ success: boolean; message: string }>(
-      `${BASE_URL}/forget-password`, 
+      `${BASE_URL}/forget-password`,
       { email }
     );
     return response.data;
   },
 
-  // POST /users/reset-password
-  // Note: Adjust payload fields based on your 'resetPasswordSchema' (usually requires otp + newPassword + email)
   resetUserPassword: async (payload: { email: string; otp: string; newPassword: string }) => {
     const response = await api.post<{ success: boolean; message: string }>(
-      `${BASE_URL}/reset-password`, 
+      `${BASE_URL}/reset-password`,
       payload
     );
     return response.data;
   },
 
-  // POST /users/verify-email
   verifyUserEmail: async (payload: { email: string; otpCode: string }) => {
     const response = await api.post<{ success: boolean; user?: User; message: string }>(
-      `${BASE_URL}/verify-email`, 
+      `${BASE_URL}/verify-email`,
       payload
     );
     return response.data;
   },
 
-  // POST /users/resend-otp
   resendVerificationOtp: async (email: string) => {
     const response = await api.post<{ success: boolean; message: string }>(
-      `${BASE_URL}/resend-otp`, 
+      `${BASE_URL}/resend-otp`,
       { email }
     );
     return response.data;
