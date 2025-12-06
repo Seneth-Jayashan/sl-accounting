@@ -51,6 +51,17 @@ const UserService = {
     return response.data;
   },
 
+// POST /users/student (Admin Create Student)
+  createStudent: async (data: any) => {
+    // NOTE: Adjust the endpoint if your auth registration is different (e.g. /auth/register)
+    // But usually admins have a specific route to create users without needing email verification immediately
+    const response = await api.post<{ success: boolean; user: User; message: string }>(
+      `${BASE_URL}/student`, 
+      data
+    );
+    return response.data;
+  },
+
   // GET /users/:id (Admin Only)
   getUserById: async (id: string) => {
     const response = await api.get<{ success: boolean; user: User }>(`${BASE_URL}/${id}`);
