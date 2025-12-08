@@ -22,6 +22,8 @@ import StudentDashboardPage from "./pages/student/Dashboard";
 
 import AdminDashboardPage from "./pages/admin/Dashboard";
 import AdminStudentsPage from "./pages/admin/students/Students";
+import ViewStudentPage from "./pages/admin/students/ViewStudent";
+import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
 import AdminClassesPage from "./pages/admin/classes/Class";
 
 import "./index.css";
@@ -86,6 +88,24 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminStudentsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/students/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <ViewStudentPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/students/edit/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <UpdateStudentPage />
               </ProtectedRoute>
             }
           />
