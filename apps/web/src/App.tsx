@@ -25,6 +25,7 @@ import AdminStudentsPage from "./pages/admin/students/Students";
 import ViewStudentPage from "./pages/admin/students/ViewStudent";
 import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
 import AdminClassesPage from "./pages/admin/classes/Class";
+import AdminSupportPage from "./pages/admin/SupportReply";
 
 import "./index.css";
 
@@ -63,6 +64,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             
             
+            
           </Route>
 
           {/* Protected routes */}
@@ -88,6 +90,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminStudentsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/support"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminSupportPage />
               </ProtectedRoute>
             }
           />
