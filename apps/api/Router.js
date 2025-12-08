@@ -3,6 +3,7 @@ import authRoutes from './routes/AuthRoutes.js';
 import classRoutes from './routes/ClassRoutes.js';
 import userRoutes from './routes/UserRoutes.js';
 import adminRoutes from './routes/AdminRoutes.js';
+import contactRoutes from './routes/ContactRoutes.js';
 
 const router = express.Router();
 
@@ -21,5 +22,8 @@ router.use('/admin', adminRoutes);
 
 // Class routes
 router.use('/classes', classRoutes);
+
+//contact routes
+router.use('/contact', contactRoutes);
 
 export default router;
