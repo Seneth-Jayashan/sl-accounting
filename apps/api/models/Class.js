@@ -41,13 +41,12 @@ const classSchema = new mongoose.Schema({
 
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
-  sessions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Session" }],
+  sessions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Session", default: [] }],
 
   price: { type: Number, min: 0, default: 0 },
+  bacth: { type: mongoose.Schema.Types.ObjectId, ref: "Batch" },
   level: { type: String, enum: ["general", "ordinary", "advanced"], default: "general" },
-  language: { type: String, default: "si" }, 
   tags: [{ type: String, index: true }],
-
   isActive: { type: Boolean, default: true },
   isPublished: { type: Boolean, default: false },
   isDeleted: { type: Boolean, default: false },
@@ -67,7 +66,6 @@ classSchema.virtual("studentCount").get(function () {
 
 classSchema.methods.enrollStudent = async function (studentId) {
   if (this.isDeleted || !this.isActive) throw new Error("Class not available");
-  if (this.isFull()) throw new Error("Class is full");
   if (this.students.some(id => id.toString() === studentId.toString())) return this;
   this.students.push(studentId);
   await this.save();

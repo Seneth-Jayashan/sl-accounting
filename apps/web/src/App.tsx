@@ -1,13 +1,122 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
+// App.tsx
+import React, { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
+
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import { MainLayout } from "./layouts/MainLayout";
+import { SplashScreen } from "./components/SplashScreen";
+import ForgotPassword from "./pages/ForgotPassword";
+import Verification from "./pages/Verification";
+
+import AuthProvider from "./contexts/AuthContext";
+import ProtectedRoute from "./routes/ProtectedRoute"; 
+
+import StudentDashboardPage from "./pages/student/Dashboard";
+
+
+import AdminDashboardPage from "./pages/admin/Dashboard";
+import AdminStudentsPage from "./pages/admin/students/Students";
+import ViewStudentPage from "./pages/admin/students/ViewStudent";
+import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
+import AdminClassesPage from "./pages/admin/classes/Class";
+
+import "./index.css";
 
 function App() {
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("hasSeenSplash") !== "true";
+  });
+
+  const handleSplashComplete = () => {
+    localStorage.setItem("hasSeenSplash", "true");
+    setShowSplash(false);
+  };
+
   return (
-    <div>
-      <Navbar />
-      <Footer />
-    </div>
+    <AuthProvider>
+      <BrowserRouter>
+        {/* Splash intro */}
+        <AnimatePresence mode="wait">
+          {showSplash && (
+            <SplashScreen
+              key="splash"
+              onComplete={handleSplashComplete}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Main app routes */}
+        <Routes>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/verification" element={<Verification />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+          </Route>
+
+          {/* Protected routes */}
+          <Route
+            path="/student/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/students"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminStudentsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/students/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <ViewStudentPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/students/edit/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <UpdateStudentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/classes"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminClassesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

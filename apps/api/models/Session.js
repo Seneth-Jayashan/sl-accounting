@@ -17,6 +17,20 @@ const sessionSchema = new mongoose.Schema({
   youtubeVideoId: { type: String },  
   recordingShared: { type: Boolean, default: false },
 
+  attendance: [
+    {
+      student: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User", // Assuming 'User' is the student model
+        required: true
+      },
+      joinedAt: { type: Date, required: true },
+      leftAt: { type: Date },
+      durationMinutes: { type: Number, min: 0, default: 0 },
+      _id: false
+    }
+  ],
+
 
   notes: { type: String },
 

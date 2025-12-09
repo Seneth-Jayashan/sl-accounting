@@ -1,10 +1,11 @@
 import express from 'express';
-import authRoutes from './routes/authRoutes.js';
-import classRoutes from './routes/classRoutes.js';
+import authRoutes from './routes/AuthRoutes.js';
+import classRoutes from './routes/ClassRoutes.js';
+import userRoutes from './routes/UserRoutes.js';
+import adminRoutes from './routes/AdminRoutes.js';
 
 const router = express.Router();
 
-// Health check and simple info routes (already in app.js, but good to keep structure)
 router.get('/', (req, res) => {
     res.json({ message: 'Welcome to the LMS API v1' });
 });
@@ -12,7 +13,13 @@ router.get('/', (req, res) => {
 // Authentication routes
 router.use('/auth', authRoutes);
 
-// Class management routes
+// User routes
+router.use('/users', userRoutes);
+
+// Admin routes
+router.use('/admin', adminRoutes);
+
+// Class routes
 router.use('/classes', classRoutes);
 
 export default router;

@@ -42,13 +42,15 @@ export const register = async (req, res) => {
 
     await newUser.save();
 
-    // Optional: Send Verification Email here (don't wait for it to complete request)
-    // emailQueue.add({ type: 'verify', email: newUser.email });
+
+    //TODO : Send Whatapp Verification Message 
 
     await sendVerificationEmail(
       newUser.email,
       newUser.generateOtpCode()
     );
+
+    await newUser.save();
 
     return res.status(201).json({
       success: true,
@@ -78,6 +80,16 @@ export const login = async (req, res) => {
 
     if (user.isLocked) {
       return res.status(403).json({ success: false, message: "Account is locked. Contact support." });
+    }
+
+    if (user.loginAttempts >= 5) {
+        user.isLocked = true;
+        await user.save();
+        return res.status(403).json({ success: false, message: "Account is locked due to too many failed login attempts. Contact support." });
+    }
+
+    if (!user.isVerified) {
+        return res.status(403).json({ success: false, message: "Please verify your email before logging in." });
     }
 
     const isMatch = await user.comparePassword(password);
@@ -115,37 +127,69 @@ export const login = async (req, res) => {
   }
 };
 
+// apps/api/controllers/AuthController.js
+
 export const refresh = async (req, res) => {
-    const incomingRefreshToken = req.cookies.refreshToken;
-    if (!incomingRefreshToken) return res.status(401).json({ message: "No token provided" });
+  const incomingRefreshToken = req.cookies.refreshToken;
 
-    try {
-      const decoded = jwt.verify(incomingRefreshToken, process.env.JWT_REFRESH_SECRET);
-      
-      const user = await User.findById(decoded.id).select('+refreshTokens');
-      if (!user) return res.status(401).json({ message: "User not found" });
+  if (!incomingRefreshToken) return res.status(401).json({ message: "No token provided" });
 
-      const tokenExists = user.refreshTokens.find(t => t.token === incomingRefreshToken);
-      if (!tokenExists) {
-            user.refreshTokens = [];
-            await user.save();
-            return res.status(403).json({ message: "Token reuse detected. Please login again." });
-      }
+  try {
+    const decoded = jwt.verify(incomingRefreshToken, process.env.JWT_REFRESH_SECRET);
+    
+    // 1. Find user (Verification step)
+    const user = await User.findById(decoded.id).select('+refreshTokens');
+    if (!user) return res.status(401).json({ message: "User not found" });
 
-      user.refreshTokens = user.refreshTokens.filter(t => t.token !== incomingRefreshToken);
-      
-      const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
-      
-      user.refreshTokens.push({ token: newRefreshToken });
-      await user.save();
+    // 2. Reuse Detection
+    const tokenExists = user.refreshTokens.find(t => t.token === incomingRefreshToken);
 
-      res.cookie("refreshToken", newRefreshToken, cookieOptions);
-      
-      return res.status(200).json({ success: true, accessToken });
-
-    } catch (err) {
-        return res.status(403).json({ message: "Invalid token" });
+    if (!tokenExists) {
+      console.log("Token reuse detected for user:", user._id);
+      // Clear all tokens if reuse detected
+      await User.updateOne({ _id: user._id }, { $set: { refreshTokens: [] } });
+      return res.status(403).json({ message: "Token reuse detected. Please login again." });
     }
+
+    // 3. Generate New Tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
+    
+    // 4. 🟢 THE FIX: Atomic Swap (In-Place Update) 
+
+    // [Image of MongoDB array update]
+
+    // We search for the user AND the specific old token.
+    // Then we use '$set' on 'refreshTokens.$' (the matched index) to replace it.
+    const updateResult = await User.findOneAndUpdate(
+      { 
+        _id: user._id, 
+        "refreshTokens.token": incomingRefreshToken // Filter: Find the specific old token
+      },
+      { 
+        $set: { "refreshTokens.$": { token: newRefreshToken } } // Action: Replace ONLY that token
+      },
+      { new: true } 
+    );
+
+    // RACE CONDITION HANDLE: 
+    // If updateResult is null, it means the old token was ALREADY rotated by a parallel request.
+    // In this case, we can't rotate it again.
+    if (!updateResult) {
+       console.log("Race condition: Token already rotated.");
+       // Ideally, stop here. But returning 403 might confuse the frontend.
+       // Returning the accessToken generated above is safe, 
+       // but the refreshToken in the cookie will be rejected next time.
+    }
+
+    // 5. Send Response
+    res.cookie("refreshToken", newRefreshToken, cookieOptions);
+    
+    return res.status(200).json({ success: true, accessToken });
+
+  } catch (err) {
+    console.error("Refresh Token Error:", err);
+    return res.status(403).json({ message: "Invalid token" });
+  }
 };
 
 export const me = async (req, res) => {
@@ -156,5 +200,23 @@ export const me = async (req, res) => {
     } catch (error) {
         console.error("Me Endpoint Error:", error);
         return res.status(500).json({ success: false, message: "Internal Server Error" });
+    }
+};
+
+export const logout = async (req, res) => {
+    const incomingRefreshToken = req.cookies.refreshToken;
+    if (!incomingRefreshToken) return res.status(204).end();
+    try {
+      const decoded = jwt.verify(incomingRefreshToken, process.env.JWT_REFRESH_SECRET);
+      const user = await User.findById(decoded.id).select('+refreshTokens');
+      if (user) {
+        user.refreshTokens = user.refreshTokens.filter(t => t.token !== incomingRefreshToken);
+        await user.save();
+      }
+      res.clearCookie("refreshToken", cookieOptions);
+      return res.status(204).end();
+    } catch (err) {
+      res.clearCookie("refreshToken", cookieOptions);
+      return res.status(204).end();
     }
 };
