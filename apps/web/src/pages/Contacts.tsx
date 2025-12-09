@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import axios from "axios";
 
@@ -9,6 +9,57 @@ import { PiPhoneCallFill } from "react-icons/pi";
 
 // Base URL for direct axios calls (skipping interceptors)
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
+
+const translations = {
+  si: {
+    pageTitle: "අපව සම්බන්ධ කරගන්න",
+    pageSubtitle: "ප්‍රශ්න හෝ අදහස් තියෙනවද? ඔබගෙන් ඇසීමට අපි කැමතියි!",
+    infoTitle: "අප හා සම්බන්ධ වන්න",
+    locationTitle: "මුලස්ථාන කාර්යාලය",
+    locationAddress: "කොළඹ, ශ්‍රී ලංකාව",
+    emailTitle: "අපට Email කරන්න",
+    phoneTitle: "අපව අමතන්න",
+    phoneHours: "සඳු–සිකු, පෙ.ව 9 – ප.ව 5",
+    formTitle: "ඔබගේ පණිවිඩය අප වෙත එවන්න",
+    nameLabel: "සම්පූර්ණ නම",
+    namePlaceholder: "ඔබගේ නම",
+    emailLabel: "Email ලිපිනය",
+    phoneLabel: "දුරකථන අංකය",
+    messageLabel: "ඔබගේ පණිවිඩය",
+    messagePlaceholder: "අපෙන් ඔබට උදව් කළ හැක්කේ කුමක්ද?",
+    minChars: "අවම අක්ෂර 15 ක්",
+    send: "පණිවිඩය යවන්න",
+    successTitle: "පණිවිඩය යවා අවසන්!",
+    successText: "අපගේ කණ්ඩායම ඉක්මනින්ම ඔබව සම්බන්ධ කරගනී.",
+    errorTitle: "දෝෂයක් සිදු විය!",
+    errorText: "පණිවිඩය යැවීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+    characterCount: (len: number) => `${len}/500`,
+  },
+  en: {
+    pageTitle: "Contact Us",
+    pageSubtitle: "Have questions or feedback? We’d love to hear from you!",
+    infoTitle: "Get in touch",
+    locationTitle: "Head Office",
+    locationAddress: "Colombo, Sri Lanka",
+    emailTitle: "Email us",
+    phoneTitle: "Call us",
+    phoneHours: "Mon–Fri, 9am – 5pm",
+    formTitle: "Send us your message",
+    nameLabel: "Full Name",
+    namePlaceholder: "Your name",
+    emailLabel: "Email address",
+    phoneLabel: "Phone number",
+    messageLabel: "Your message",
+    messagePlaceholder: "How can we help you?",
+    minChars: "Minimum 15 characters",
+    send: "Send Message",
+    successTitle: "Message sent!",
+    successText: "Our team will get back to you shortly.",
+    errorTitle: "Something went wrong!",
+    errorText: "Could not send the message. Please try again.",
+    characterCount: (len: number) => `${len}/500`,
+  },
+};
 
 
 export default function ContactUsForm(): React.ReactElement {
@@ -27,6 +78,9 @@ export default function ContactUsForm(): React.ReactElement {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [useEnglish, setUseEnglish] = useState(false);
+
+  const copy = useMemo(() => (useEnglish ? translations.en : translations.si), [useEnglish]);
 
   // HANDLE INPUT CHANGES
   const handleChange = (
@@ -65,8 +119,8 @@ export default function ContactUsForm(): React.ReactElement {
       if (response.status === 200) {
         Swal.fire({
           icon: "success",
-          title: "පණිවිඩය යවා අවසන්!",
-          text: "අපගේ කණ්ඩායම ඉක්මනින්ම ඔබව සම්බන්ධ කරගනී.",
+          title: copy.successTitle,
+          text: copy.successText,
           confirmButtonColor: "#053A4E",
         });
 
@@ -81,8 +135,8 @@ export default function ContactUsForm(): React.ReactElement {
     } catch (error) {
       Swal.fire({
         icon: "error",
-        title: "දෝෂයක් සිදු විය!",
-        text: "පණිවිඩය යැවීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.",
+        title: copy.errorTitle,
+        text: copy.errorText,
         confirmButtonColor: "#d33",
       });
     } finally {
@@ -96,11 +150,30 @@ export default function ContactUsForm(): React.ReactElement {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-24">
           {/* Contact Header */}
           <header className="text-center mb-12 mt-6">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <span className="text-xs font-semibold uppercase tracking-wide text-[#053A4E] bg-white/60 px-3 py-1 rounded-full border border-white/40">
+                Language
+              </span>
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none text-sm text-[#053A4E]">
+                <span className={!useEnglish ? "font-semibold" : "opacity-70"}>සිංහල</span>
+                <div className="relative inline-flex h-6 w-11 items-center">
+                  <input
+                    type="checkbox"
+                    className="peer h-0 w-0 opacity-0"
+                    checked={useEnglish}
+                    onChange={(e) => setUseEnglish(e.target.checked)}
+                  />
+                  <div className="absolute inset-0 rounded-full bg-[#053A4E]/30 transition peer-checked:bg-[#053A4E]" />
+                  <div className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+                </div>
+                <span className={useEnglish ? "font-semibold" : "opacity-70"}>English</span>
+              </label>
+            </div>
             <h1 className="text-4xl md:text-5xl font-bold text-[#053A4E] mb-3">
-              අපව සම්බන්ධ කරගන්න
+              {copy.pageTitle}
             </h1>
             <p className="text-xl text-[#053A4E] opacity-80 max-w-2xl mx-auto">
-              ප්‍රශ්න හෝ අදහස් තියෙනවද? ඔබගෙන් ඇසීමට අපි කැමතියි!
+              {copy.pageSubtitle}
             </p>
           </header>
 
@@ -109,7 +182,7 @@ export default function ContactUsForm(): React.ReactElement {
             <div className="w-full lg:w-2/5">
               <div className="bg-white/70 backdrop-blur-xl border border-white/60 p-6 md:p-8 rounded-[2rem] shadow-2xl shadow-[#053A4E]/10 w-full">
                 <h2 className="text-3xl font-semibold text-[#053A4E] mb-6">
-                  අප හා සම්බන්ධ වන්න
+                  {copy.infoTitle}
                 </h2>
 
                 <div className="space-y-6">
@@ -118,9 +191,9 @@ export default function ContactUsForm(): React.ReactElement {
                     <FaLocationDot className="text-2xl text-brand-coral mt-1" />
                     <div>
                       <h3 className="text-lg font-medium text-brand-prussian">
-                        මුලස්ථාන කාර්යාලය
+                        {copy.locationTitle}
                       </h3>
-                      <p className="opacity-80">කොළඹ, ශ්‍රී ලංකාව</p>
+                      <p className="opacity-80">{copy.locationAddress}</p>
                     </div>
                   </div>
 
@@ -129,7 +202,7 @@ export default function ContactUsForm(): React.ReactElement {
                     <MdEmail className="text-2xl text-brand-prussian mt-1" />
                     <div>
                       <h3 className="text-lg font-medium text-brand-prussian">
-                        අපට Email කරන්න
+                        {copy.emailTitle}
                       </h3>
                       <a
                         href="mailto:info@slaccounting.lk"
@@ -145,7 +218,7 @@ export default function ContactUsForm(): React.ReactElement {
                     <PiPhoneCallFill className="text-2xl text-brand-cerulean mt-1" />
                     <div>
                       <h3 className="text-lg font-medium text-brand-prussian">
-                        අපව අමතන්න
+                        {copy.phoneTitle}
                       </h3>
                       <a
                         href="tel:+94768826142"
@@ -154,7 +227,7 @@ export default function ContactUsForm(): React.ReactElement {
                         0768826142
                       </a>
                       <div className="text-xs opacity-60 mt-1">
-                        සඳු–සිකු, පෙ.ව 9 – ප.ව 5
+                        {copy.phoneHours}
                       </div>
                     </div>
                   </div>
@@ -166,21 +239,21 @@ export default function ContactUsForm(): React.ReactElement {
             <div className="w-full lg:w-3/5">
               <div className="bg-white/70 backdrop-blur-xl border border-white/60 p-6 md:p-8 rounded-[2rem] shadow-2xl shadow-[#053A4E]/10 w-full">
                 <h2 className="text-3xl font-semibold text-[#053A4E] mb-6">
-                  ඔබගේ පණිවිඩය අප වෙත එවන්න
+                  {copy.formTitle}
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* NAME */}
                   <div>
                     <label className="text-[10px] md:text-xs font-bold ml-1">
-                      සම්පූර්ණ නම
+                      {copy.nameLabel}
                     </label>
                     <div className="relative">
                       <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
                       <input
                         type="text"
                         name="name"
-                        placeholder="ඔබගේ නම"
+                        placeholder={copy.namePlaceholder}
                         value={input.name}
                         onChange={handleChange}
                         required
@@ -194,7 +267,7 @@ export default function ContactUsForm(): React.ReactElement {
                   {/* EMAIL */}
                   <div>
                     <label className="text-[10px] md:text-xs font-bold ml-1">
-                      Email ලිපිනය
+                      {copy.emailLabel}
                     </label>
                     <div className="relative">
                       <MdEmail className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -213,7 +286,7 @@ export default function ContactUsForm(): React.ReactElement {
                   {/* PHONE */}
                   <div>
                     <label className="text-[10px] md:text-xs font-bold ml-1">
-                      දුරකථන අංකය
+                      {copy.phoneLabel}
                     </label>
                     <div className="relative">
                       <PiPhoneCallFill className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -233,14 +306,14 @@ export default function ContactUsForm(): React.ReactElement {
                   {/* MESSAGE */}
                   <div>
                     <label className="text-[10px] md:text-xs font-bold ml-1">
-                      ඔබගේ පණිවිඩය
+                      {copy.messageLabel}
                     </label>
                     <div className="relative">
                       <FaComment className="absolute left-3 top-3 text-[#05668A]" />
                       <textarea
                         name="message"
                         rows={5}
-                        placeholder="අපෙන් ඔබට උදව් කළ හැක්කේ කුමක්ද?"
+                        placeholder={copy.messagePlaceholder}
                         value={input.message}
                         onChange={handleChange}
                         required
@@ -251,8 +324,8 @@ export default function ContactUsForm(): React.ReactElement {
                     </div>
 
                     <div className="flex justify-between mt-1 text-sm opacity-70">
-                      <span>අවම අක්ෂර 15 ක්</span>
-                      <span>{input.message.length}/500</span>
+                      <span>{copy.minChars}</span>
+                      <span>{copy.characterCount(input.message.length)}</span>
                     </div>
                   </div>
 
@@ -267,7 +340,7 @@ export default function ContactUsForm(): React.ReactElement {
                     {isSubmitting ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      "පණිවිඩය යවන්න"
+                      copy.send
                     )}
                   </button>
                 </form>
