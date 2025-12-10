@@ -5,6 +5,7 @@ import userRoutes from './routes/UserRoutes.js';
 import adminRoutes from './routes/AdminRoutes.js';
 import contactRoutes from './routes/ContactRoutes.js';
 import ticketRoutes from './routes/TicketRoutes.js';
+import chatRoutes from './routes/ChatRoutes.js';
 
 const router = express.Router();
 
@@ -29,4 +30,7 @@ router.use('/contact', contactRoutes);
 
 // Ticket routes
 router.use('/tickets', ticketRoutes);
+
+// Chat routes
+router.use('/chats', chatRoutes);
 export default router;
