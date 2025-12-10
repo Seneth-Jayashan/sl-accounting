@@ -18,6 +18,7 @@ import AuthProvider from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute"; 
 
 import StudentDashboardPage from "./pages/student/Dashboard";
+//import StudentTicketPage from "./pages/student/Ticket";
 
 
 import AdminDashboardPage from "./pages/admin/Dashboard";
@@ -76,6 +77,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
 
           <Route
             path="/admin/dashboard"

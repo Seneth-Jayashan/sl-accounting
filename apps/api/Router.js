@@ -4,6 +4,7 @@ import classRoutes from './routes/ClassRoutes.js';
 import userRoutes from './routes/UserRoutes.js';
 import adminRoutes from './routes/AdminRoutes.js';
 import contactRoutes from './routes/ContactRoutes.js';
+import ticketRoutes from './routes/TicketRoutes.js';
 
 const router = express.Router();
 
@@ -26,4 +27,6 @@ router.use('/classes', classRoutes);
 //contact routes
 router.use('/contact', contactRoutes);
 
+// Ticket routes
+router.use('/tickets', ticketRoutes);
 export default router;
