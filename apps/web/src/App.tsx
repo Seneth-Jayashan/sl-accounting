@@ -18,7 +18,7 @@ import AuthProvider from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute"; 
 
 import StudentDashboardPage from "./pages/student/Dashboard";
-//import StudentTicketPage from "./pages/student/Ticket";
+import StudentTicketPage from "./pages/student/Ticket";
 
 
 import AdminDashboardPage from "./pages/admin/Dashboard";
@@ -74,6 +74,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <StudentDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/tickets"
+            element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentTicketPage />
               </ProtectedRoute>
             }
           />

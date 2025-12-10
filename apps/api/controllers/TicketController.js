@@ -1,5 +1,6 @@
 import Ticket from "../models/Ticket.js";
 import User from "../models/User.js";
+import Notification from "../models/Notification.js";
 
 // Get all tickets
 const getAllTickets = async (req, res) => {
@@ -40,16 +41,16 @@ const addTicket = async (req, res) => {
 
     await ticket.save();
 
-    // Notify user
+    // Notify user (use `user` field as defined in Notification schema)
     await Notification.create({
-      user_id,
+      user: user_id,
       message: `Your ticket has been created successfully. Ticket ID: ${ticket._id}`,
     });
 
     // Notify all customer supporters
     const supporters = await User.find({ role: "customer_supporter" });
     const supporterNotifications = supporters.map((support) => ({
-      user_id: support._id,
+      user: support._id,
       message: `New support ticket requires attention. Ticket ID: ${ticket._id}`,
     }));
 
@@ -103,7 +104,7 @@ const updateTicket = async (req, res) => {
 
     // Notify user
     await Notification.create({
-      user_id: ticket.user_id,
+      user: ticket.user_id,
       message: `Your ticket status has been updated to ${status}. Ticket ID: ${ticket._id}`,
     });
 
@@ -125,7 +126,7 @@ const deleteTicket = async (req, res) => {
 
     // Notify user
     await Notification.create({
-      user_id: ticket.user_id,
+      user: ticket.user_id,
       message: `Your ticket has been deleted. Ticket ID: ${ticket._id}`,
     });
 
