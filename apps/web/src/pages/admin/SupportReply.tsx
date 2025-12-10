@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import SidebarAdmin from "../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../components/bottomNavbar/BottomNavAdmin";
+import DashboardLayout from "../../layouts/DashboardLayout";
 import SupportService, {
   type SupportMessage,
 } from "../../services/SupportService";
@@ -11,7 +12,7 @@ export default function SupportReply() {
   const [loading, setLoading] = useState<boolean>(true);
   const [list, setList] = useState<SupportMessage[]>([]);
   const [error, setError] = useState<string>("");
-  const [collapsed, setCollapsed] = useState<boolean>(false);
+  // collapsed state is managed by DashboardLayout when using Sidebar prop
 
   const [selected, setSelected] = useState<SupportMessage | null>(null);
   const [reply, setReply] = useState<string>("");
@@ -117,14 +118,8 @@ export default function SupportReply() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#E8EFF7]">
-      {/* Sidebar (left) */}
-      <div className="flex-shrink-0 sticky top-0 h-screen overflow-hidden z-40 hidden lg:block">
-        <SidebarAdmin collapsed={collapsed} onToggle={() => setCollapsed((s) => !s)} />
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#e9f0f7]">
+    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
+      <div className="bg-[#e9f0f7]">
         <main className="p-4 lg:p-8 pb-24 lg:pb-10 overflow-x-hidden flex justify-center">
           <div className="w-full max-w-7xl space-y-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -337,11 +332,8 @@ export default function SupportReply() {
               </div>
             )}
           </div>
-      </main>
+        </main>
       </div>
-
-      {/* Bottom nav for mobile */}
-      <BottomNavAdmin />
-    </div>
+    </DashboardLayout>
   );
 }
