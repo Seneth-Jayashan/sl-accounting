@@ -9,9 +9,11 @@ import {
   ArrowRightOnRectangleIcon,
   AcademicCapIcon,
   CurrencyDollarIcon,
-  BookOpenIcon
+  BookOpenIcon,
+  PhoneIcon 
 } from "@heroicons/react/24/outline";
 import {useAuth} from "../../contexts/AuthContext";
+
 
 type Props = { collapsed?: boolean; onToggle?: () => void };
 
@@ -26,6 +28,7 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
     { key: "payments", label: "Payments", href: "/admin/payments", Icon: CurrencyDollarIcon },
     { key: "materials", label: "Materials", href: "/admin/materials", Icon: BookOpenIcon },
     { key: "reports", label: "Reports", href: "/admin/reports", Icon: ChartBarIcon },
+    { key: "Support", label: "Support", href: "/admin/support", Icon: PhoneIcon },
     { key: "settings", label: "Settings", href: "/admin/settings", Icon: Cog6ToothIcon },
   ];
 

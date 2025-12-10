@@ -1,15 +1,18 @@
 // App.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Contacts from "./pages/Contacts";
 import { MainLayout } from "./layouts/MainLayout";
 import { SplashScreen } from "./components/SplashScreen";
 import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
+
+
 
 import AuthProvider from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute"; 
@@ -22,6 +25,7 @@ import AdminStudentsPage from "./pages/admin/students/Students";
 import ViewStudentPage from "./pages/admin/students/ViewStudent";
 import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
 import AdminClassesPage from "./pages/admin/classes/Class";
+import AdminSupportPage from "./pages/admin/SupportReply";
 
 import "./index.css";
 
@@ -55,8 +59,12 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/contacts" element={<Contacts />} />
             <Route path="/verification" element={<Verification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            
+            
+            
           </Route>
 
           {/* Protected routes */}
@@ -82,6 +90,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminStudentsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/support"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminSupportPage />
               </ProtectedRoute>
             }
           />
