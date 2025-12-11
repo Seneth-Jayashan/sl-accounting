@@ -24,7 +24,12 @@ import AdminDashboardPage from "./pages/admin/Dashboard";
 import AdminStudentsPage from "./pages/admin/students/Students";
 import ViewStudentPage from "./pages/admin/students/ViewStudent";
 import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
+
 import AdminClassesPage from "./pages/admin/classes/Class";
+import AdminClassesCreatePage from "./pages/admin/classes/CreateClass";
+import AdminClassesViewPage from "./pages/admin/classes/ViewClass";
+import AdminClassesUpdatePage from "./pages/admin/classes/UpdateClass";
+
 import AdminSupportPage from "./pages/admin/SupportReply";
 
 import "./index.css";
@@ -125,6 +130,33 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminClassesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/classes/create"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminClassesCreatePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/classes/view/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminClassesViewPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/classes/edit/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminClassesUpdatePage />
               </ProtectedRoute>
             }
           />

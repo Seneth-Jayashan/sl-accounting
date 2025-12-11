@@ -86,9 +86,6 @@ export const validate = (schema) => (req, res, next) => {
       params: req.params,
     });
 
-    // Only overwrite things that actually exist on the schema
-
-    // body
     if ("body" in schema.shape && parsed.body !== undefined) {
       req.body = parsed.body;
     }
@@ -107,6 +104,7 @@ export const validate = (schema) => (req, res, next) => {
     return next();
   } catch (error) {
     if (error.name === "ZodError") {
+      console.error("Class Validation Error:", error);
       return res.status(400).json({
         success: false,
         message: "Class Validation Error: " + error.message,
