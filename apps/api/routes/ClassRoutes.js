@@ -1,6 +1,8 @@
 import express from 'express';
 import { protect, restrictTo } from '../middlewares/AuthMiddleware.js';
 import { validate, createClassSchema, updateClassSchema, classIdSchema } from '../validators/ClassValidator.js';
+import { classMediaUpload } from '../middlewares/UploadMiddleware.js'; // Named Import
+import { parseClassFormData } from '../middlewares/ClassFormDataParser.js'; 
 import { 
     createClass, 
     updateClass, 
@@ -11,36 +13,33 @@ import {
 
 const router = express.Router();
 
-// Public (Authenticated) routes for students/admins to view classes
 router.get('/', protect, getAllClasses);
 router.get('/:classId', protect, validate(classIdSchema), getClassById);
 
-// Admin-only routes for CRUD
 router.route('/')
-    // POST /api/v1/classes - Create new class
     .post(
         protect, 
         restrictTo('admin'), 
-        validate(createClassSchema), 
+        classMediaUpload,   // 1. Handle files (multipart)
+        parseClassFormData, // 2. Parse text fields
+        validate(createClassSchema), // 3. Validate
         createClass
     );
 
 router.route('/:classId')
-    // PATCH /api/v1/classes/:classId - Update class details
     .patch(
         protect, 
         restrictTo('admin'), 
+        classMediaUpload,
+        parseClassFormData,
         validate(updateClassSchema), 
         updateClass
     )
-    // DELETE /api/v1/classes/:classId - Soft delete class
     .delete(
         protect, 
         restrictTo('admin'), 
         validate(classIdSchema), 
         deleteClass
     );
-
-
 
 export default router;
