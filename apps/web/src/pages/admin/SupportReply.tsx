@@ -65,9 +65,30 @@ export default function SupportReply() {
   }, [list, tab]);
 
   const onSelect = (m: SupportMessage) => {
+    // Toggle selection: clicking an already-selected message will unselect it
+    if (selected?._id === m._id) {
+      setSelected(null);
+      setReply("");
+      setError("");
+      return;
+    }
     setSelected(m);
     setReply(m.reply ?? "");
   };
+
+  // Allow pressing Escape to unselect the current message
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelected(null);
+        setReply("");
+        setError("");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected]);
 
   const hasChanges = useMemo(() => {
     if (!selected) return false;
@@ -118,7 +139,7 @@ export default function SupportReply() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
+    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} showHeader={false}>
       <div className="bg-[#e9f0f7]">
         <main className="p-4 lg:p-8 pb-24 lg:pb-10 overflow-x-hidden flex justify-center">
           <div className="w-full max-w-7xl space-y-6">
@@ -279,53 +300,57 @@ export default function SupportReply() {
                         </div>
                       </div>
 
-                      <div>
-                        <div className="flex items-center justify-between text-xs font-medium text-gray-500">
-                          <span>Your Reply</span>
-                          <span className="text-[11px] text-gray-400">Press Ctrl/Cmd + Enter to send</span>
+                      {selected.reply?.trim() ? (
+                        <div>
+                          <div className="text-xs font-medium text-gray-500">Your Reply</div>
+                          <div className="mt-2 whitespace-pre-wrap rounded-md border bg-green-50 p-3 text-sm text-gray-800">
+                            {selected.reply}
+                          </div>
+                          <div className="mt-2 text-xs text-gray-500">Reply has been sent to the user.</div>
                         </div>
-                        <textarea
-                          className="mt-1 w-full rounded-md border p-3 text-sm outline-none focus:ring-2 focus:ring-[#0b2540]/40"
-                          rows={7}
-                          value={reply}
-                          onChange={(e) => setReply(e.target.value)}
-                          onKeyDown={handleReplyKeyDown}
-                          placeholder="Type your response to the user..."
-                        />
-                        <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                          <span>
-                            {hasChanges
-                              ? "Unsaved changes"
-                              : selected.reply?.trim()
-                              ? "Last reply saved"
-                              : "No reply sent yet"}
-                          </span>
-                          <span>{reply.trim().length} chars</span>
+                      ) : (
+                        <div>
+                          <div className="flex items-center justify-between text-xs font-medium text-gray-500">
+                            <span>Your Reply</span>
+                            <span className="text-[11px] text-gray-400">Press Ctrl/Cmd + Enter to send</span>
+                          </div>
+                          <textarea
+                            className="mt-1 w-full rounded-md border p-3 text-sm outline-none focus:ring-2 focus:ring-[#0b2540]/40"
+                            rows={7}
+                            value={reply}
+                            onChange={(e) => setReply(e.target.value)}
+                            onKeyDown={handleReplyKeyDown}
+                            placeholder="Type your response to the user..."
+                          />
+                          <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                            <span>
+                              {hasChanges
+                                ? "Unsaved changes"
+                                : selected.reply?.trim()
+                                ? "Last reply saved"
+                                : "No reply sent yet"}
+                            </span>
+                            <span>{reply.trim().length} chars</span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={handleSubmit}
+                              disabled={submitting || reply.trim() === ""}
+                              className="inline-flex items-center justify-center rounded-md bg-[#0b2540] px-4 py-2 text-white hover:opacity-95 disabled:opacity-60"
+                            >
+                              {submitting ? "Sending..." : "Send reply"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleReset}
+                              disabled={!hasChanges || submitting}
+                              className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Reset
+                            </button>
+                          </div>
                         </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <button
-                            onClick={handleSubmit}
-                            disabled={submitting || reply.trim() === ""}
-                            className="inline-flex items-center justify-center rounded-md bg-[#0b2540] px-4 py-2 text-white hover:opacity-95 disabled:opacity-60"
-                          >
-                            {submitting
-                              ? "Sending..."
-                              : selected.reply?.trim()
-                              ? hasChanges
-                                ? "Update reply & send"
-                                : "Resend"
-                              : "Send reply"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleReset}
-                            disabled={!hasChanges || submitting}
-                            className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                          >
-                            Reset
-                          </button>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>
