@@ -28,7 +28,7 @@ import AdminStudentsPage from "./pages/admin/students/Students";
 import ViewStudentPage from "./pages/admin/students/ViewStudent";
 import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
 import AdminClassesPage from "./pages/admin/classes/Class";
-import AdminSupportPage from "./pages/admin/SupportReply";
+import AdminSupportPage from "./pages/admin/support/SupportReply";
 
 import "./index.css";
 

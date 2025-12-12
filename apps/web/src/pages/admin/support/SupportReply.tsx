@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import SidebarAdmin from "../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../components/bottomNavbar/BottomNavAdmin";
-import DashboardLayout from "../../layouts/DashboardLayout";
+import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
+import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
+import DashboardLayout from "../../../layouts/DashboardLayout";
 import SupportService, {
   type SupportMessage,
-} from "../../services/SupportService";
+} from "../../../services/SupportService";
 
 type Tab = "all" | "unreplied";
 
