@@ -5,6 +5,7 @@ import DashboardLayout from "../../layouts/DashboardLayout";
 import SidebarStudent from "../../components/sidebar/SidebarStudent";
 import { useAuth } from "../../contexts/AuthContext";
 import TicketService from "../../services/TicketService";
+import Chat from "../../components/Chat";
 
 type TicketFormState = {
   name: string;
@@ -25,6 +26,7 @@ const CATEGORY_OPTIONS = [
 const PRIORITY_OPTIONS = ["Low", "Medium", "High"];
 export default function StudentTicketPage(): React.ReactElement {
   const { user, loading: authLoading } = useAuth();
+  const [ticketId, setTicketId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<TicketFormState>({
     name: "",
@@ -82,7 +84,10 @@ export default function StudentTicketPage(): React.ReactElement {
         priority: form.priority,
       };
 
-      await TicketService.createTicket(payload);
+      const newTicket = await TicketService.createTicket(payload);
+      // try common id fields
+      const id = newTicket?._id ?? newTicket?.id ?? newTicket?.ticketId ?? null;
+      if (id) setTicketId(String(id));
       Swal.fire({
         icon: "success",
         title: "Ticket created",
@@ -247,6 +252,14 @@ export default function StudentTicketPage(): React.ReactElement {
             </button>
           </form>
         </div>
+        {ticketId && (
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold text-[#053A4E] mb-3">Chat about your ticket</h2>
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <Chat ticketId={ticketId} />
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

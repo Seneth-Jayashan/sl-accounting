@@ -12,6 +12,8 @@ import { SplashScreen } from "./components/SplashScreen";
 import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
 
+import Chat from "./components/Chat";
+
 
 
 import AuthProvider from "./contexts/AuthContext";
@@ -63,6 +65,7 @@ function App() {
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/verification" element={<Verification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/chat/:ticketId" element={<Chat />} />
             
             
             
