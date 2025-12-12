@@ -37,11 +37,14 @@ export default function StudentTicketPage(): React.ReactElement {
 
   useEffect(() => {
     if (!user) return;
+    const rawPhone = (user?.phoneNumber || (user as any)?.phone || (user as any)?.contactNumber || "") as string;
+    const digits = rawPhone.replace(/\D/g, "");
+
     setForm((prev) => ({
       ...prev,
       name: prev.name || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
       email: prev.email || user.email || "",
-      phoneNumber: prev.phoneNumber,
+      phoneNumber: prev.phoneNumber || (digits ? digits : ""),
     }));
   }, [user]);
 
