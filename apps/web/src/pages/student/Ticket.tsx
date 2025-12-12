@@ -155,8 +155,8 @@ export default function StudentTicketPage(): React.ReactElement {
   }, [ticketId]);
 
   return (
-    <DashboardLayout Sidebar={SidebarStudent}>
-      <div className="max-w-4xl mx-auto">
+    <DashboardLayout Sidebar={SidebarStudent} showHeader={false}>
+      <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
           {ticketId && ticketInfo && !["closed", "close"].includes(String(ticketInfo.status).toLowerCase()) ? (
             // Ticket exists and is not closed: show only chat with heading
@@ -165,6 +165,8 @@ export default function StudentTicketPage(): React.ReactElement {
                 <p className="text-sm text-gray-500">Support — Ticket</p>
                 <h1 className="text-2xl font-semibold text-[#053A4E]">Ticket ID: {ticketId}</h1>
                 <p className="text-gray-600">Category: {ticketInfo?.Categories ?? ticketInfo?.category ?? "-"}</p>
+                <p className="text-sm text-gray-600">Issue reported: {ticketInfo?.message ?? "-"}</p>
+                <p className="text-xs text-gray-600">Status: {ticketInfo?.status ?? "-"}</p>
               </header>
               <div className="mt-4">
                 <Chat ticketId={ticketId} />
