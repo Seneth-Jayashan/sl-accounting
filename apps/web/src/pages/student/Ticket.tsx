@@ -27,6 +27,7 @@ const PRIORITY_OPTIONS = ["Low", "Medium", "High"];
 export default function StudentTicketPage(): React.ReactElement {
   const { user, loading: authLoading } = useAuth();
   const [ticketId, setTicketId] = useState<string | null>(null);
+  const [ticketInfo, setTicketInfo] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<TicketFormState>({
     name: "",
@@ -39,6 +40,17 @@ export default function StudentTicketPage(): React.ReactElement {
 
   useEffect(() => {
     if (!user) return;
+    // restore an open ticket for this user from the server (no localStorage)
+    (async () => {
+      try {
+        const open = await TicketService.getOpenTicketForUser(user._id);
+        if (open && open._id) {
+          setTicketId(String(open._id));
+        }
+      } catch (err) {
+        console.error("Failed to restore open ticket", err);
+      }
+    })();
     const rawPhone = (user?.phoneNumber || (user as any)?.phone || (user as any)?.contactNumber || "") as string;
     const digits = rawPhone.replace(/\D/g, "");
 
@@ -88,6 +100,7 @@ export default function StudentTicketPage(): React.ReactElement {
       // try common id fields
       const id = newTicket?._id ?? newTicket?.id ?? newTicket?.ticketId ?? null;
       if (id) setTicketId(String(id));
+      // no local persistence: rely on server-side lookup for open tickets
       Swal.fire({
         icon: "success",
         title: "Ticket created",
@@ -116,18 +129,57 @@ export default function StudentTicketPage(): React.ReactElement {
     }
   };
 
+  // When we have a ticket id, fetch its details (status, category)
+  useEffect(() => {
+    if (!ticketId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const t = await TicketService.getTicketById(ticketId);
+        if (cancelled) return;
+        setTicketInfo(t ?? null);
+        // if ticket closed, reset local state (no localStorage used)
+        if (t && ["closed", "close"].includes(String(t.status).toLowerCase())) {
+          setTicketId(null);
+          setTicketInfo(null);
+        }
+      } catch (err) {
+        console.error("Failed to load ticket info", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ticketId]);
+
   return (
     <DashboardLayout Sidebar={SidebarStudent}>
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
-          <header className="mb-6">
-            <p className="text-sm text-gray-500">Support</p>
-            <h1 className="text-3xl font-semibold text-[#053A4E]">Submit a Ticket</h1>
-            <p className="text-gray-600 mt-2">Describe the issue you are facing and we will get back to you.</p>
-          </header>
+          {ticketId && ticketInfo && !["closed", "close"].includes(String(ticketInfo.status).toLowerCase()) ? (
+            // Ticket exists and is not closed: show only chat with heading
+            <div>
+              <header className="mb-4">
+                <p className="text-sm text-gray-500">Support — Ticket</p>
+                <h1 className="text-2xl font-semibold text-[#053A4E]">Ticket ID: {ticketId}</h1>
+                <p className="text-gray-600">Category: {ticketInfo?.Categories ?? ticketInfo?.category ?? "-"}</p>
+              </header>
+              <div className="mt-4">
+                <Chat ticketId={ticketId} />
+              </div>
+            </div>
+          ) : (
+            <>
+              <header className="mb-6">
+                <p className="text-sm text-gray-500">Support</p>
+                <h1 className="text-3xl font-semibold text-[#053A4E]">Submit a Ticket</h1>
+                <p className="text-gray-600 mt-2">Describe the issue you are facing and we will get back to you.</p>
+              </header>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="flex flex-col gap-1 text-sm font-semibold text-[#053A4E]">
                 Full name
                 <div className="relative">
@@ -251,15 +303,10 @@ export default function StudentTicketPage(): React.ReactElement {
               )}
             </button>
           </form>
+            </>
+          )}
         </div>
-        {ticketId && (
-          <div className="mt-6">
-            <h2 className="text-xl font-semibold text-[#053A4E] mb-3">Chat about your ticket</h2>
-            <div className="bg-white rounded-2xl shadow-sm p-4">
-              <Chat ticketId={ticketId} />
-            </div>
-          </div>
-        )}
+        
       </div>
     </DashboardLayout>
   );
