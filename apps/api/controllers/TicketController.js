@@ -1,6 +1,7 @@
 import Ticket from "../models/Ticket.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
+import Chat from "../models/Chat.js";
 
 // Get all tickets
 const getAllTickets = async (req, res) => {
@@ -122,6 +123,14 @@ const deleteTicket = async (req, res) => {
 
     if (!ticket) {
       return res.status(404).json({ message: "Ticket not found" });
+    }
+
+    // Remove associated chat messages for this ticket
+    try {
+      await Chat.deleteMany({ ticket: ticket._id });
+    } catch (chatErr) {
+      console.error("Failed to delete related chats:", chatErr);
+      // proceed even if chat deletion fails — ticket is already deleted
     }
 
     // Notify user
