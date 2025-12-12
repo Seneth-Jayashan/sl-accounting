@@ -38,6 +38,9 @@ const classSchema = new mongoose.Schema({
   sessionDurationMinutes: { type: Number, default: 60 },
 
   images: [{ type: String }],
+  coverImage: { type: String },
+
+  firstSessionDate: { type: Date },
 
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
