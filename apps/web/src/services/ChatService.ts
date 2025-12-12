@@ -134,13 +134,12 @@ class ChatService {
       // Optionally append denormalized fields if available
       const saved: ChatMessage = {
         ...data,
-        senderName: payload.senderName ?? data.senderName,
-        senderAvatar: payload.senderAvatar ?? data.senderAvatar,
+        senderName: payload.senderName ?? (data as any).senderName,
+        senderAvatar: payload.senderAvatar ?? (data as any).senderAvatar,
       };
 
-      // Locally emit to any listeners so UI updates
-      this.socket?.emit("receive_message", saved);
-      return { ok: true, fallback: true } as const;
+      // Return saved message so caller (UI) can append it when socket path isn't available
+      return { ok: true, fallback: true, message: saved } as const;
     } catch (err: any) {
       console.error("REST chat fallback failed", err?.response?.data || err);
       return { ok: false, error: "rest_failed" } as const;

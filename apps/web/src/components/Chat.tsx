@@ -106,6 +106,14 @@ export default function TicketChat({ ticketId: propTicketId, userId: propUserId,
       if (!res?.ok) {
         console.warn("Send failed", res);
       }
+      // If fallback saved the message, append it locally so UI updates immediately
+      if ((res as any)?.message) {
+        const saved = (res as any).message as ChatMessage;
+        setMessages((prev) => {
+          const next = [...prev, saved];
+          return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
+        });
+      }
     });
     setMessage("");
   };
@@ -153,7 +161,7 @@ export default function TicketChat({ ticketId: propTicketId, userId: propUserId,
 
   // ------------------------ RENDER --------------------
   return (
-    <div className="w-full h-full flex flex-col bg-gradient-to-br from-blue-50 to-amber-50">
+    <div className="w-full flex flex-col min-h-[300px] bg-gradient-to-br from-blue-50 to-amber-50">
       {/* ---------- Messages ---------- */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, i) => (
