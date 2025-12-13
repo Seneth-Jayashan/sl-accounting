@@ -36,6 +36,9 @@ const reply = async (
   const { data } = await api.put<ItemResponse>(`/contact/${id}`, payload);
   return data.Ms;
 };
+const remove = async (id: string): Promise<void> => {
+  await api.delete(`/contact/${id}`);
+};
 
-export const SupportService = { list, get, reply };
+export const SupportService = { list, get, reply, remove };
 export default SupportService;
