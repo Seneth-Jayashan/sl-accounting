@@ -36,7 +36,7 @@ const ticketSchema = new Schema({
     type: String,
     default: "Low", // Default priority is Normal
   },
-});
+}, { timestamps: true });
 
 const Ticket = mongoose.model("Ticket", ticketSchema);
 export default Ticket;
