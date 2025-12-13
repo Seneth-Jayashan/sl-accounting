@@ -21,7 +21,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 // --- Configuration ---
-// Adjust this to match your backend URL
+// IMPORTANT: Point this to your BACKEND port (usually 5000), not the Frontend port.
 const API_BASE_URL = "http://localhost:3000"; 
 
 // --- Interfaces ---
@@ -56,15 +56,16 @@ interface ClassData {
   totalSessions?: number;
   sessionDurationMinutes?: number;
   timeSchedules?: Schedule[];
-  sessions?: Session[]; // Populated from backend
+  sessions?: Session[];
   isActive: boolean;
   isPublished: boolean;
-  studentCount?: number; // Optional mock
+  studentCount?: number; 
   createdAt?: string;
 }
 
 export default function ViewClassPage() {
   const { id } = useParams<{ id: string }>();
+  console.log("Class ID from URL:", id);
   const navigate = useNavigate();
   
   const [classData, setClassData] = useState<ClassData | null>(null);
@@ -74,10 +75,15 @@ export default function ViewClassPage() {
   // Helper to format image URLs
   const getImageUrl = (path?: string) => {
     if (!path) return null;
-    if (path.startsWith("http")) return path;
-    // Replace backslashes just in case, and ensure leading slash
+    if (path.startsWith("http")) return path; // Already an absolute URL
+    
+    // Replace backslashes (Windows) with forward slashes
     const cleanPath = path.replace(/\\/g, "/");
-    return `${API_BASE_URL}/${cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath}`;
+    
+    // Ensure we don't double slash (e.g., base/ + /uploads)
+    const normalizedPath = cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath;
+    
+    return `${API_BASE_URL}/${normalizedPath}`;
   };
 
   const getDayName = (dayIndex: number) => {
@@ -92,11 +98,12 @@ export default function ViewClassPage() {
     const fetchClass = async () => {
       setIsLoading(true);
       try {
-        const data = await ClassService.getClassById(id);
-        // Check structure based on your controller response
-        if (data) {
-          console.log(data);
-          setClassData(data); // Assuming controller returns the object directly or data.class
+        // Response is expected to be: { success: boolean; class: ClassData }
+        const response: any = await ClassService.getClassById(id);
+        console.log("Fetched Class Data:", response);
+        // --- FIX IS HERE: Check success and set 'response.class' ---
+        if (response) {
+          setClassData(response);
         } else {
           setError("Class not found.");
         }
@@ -110,6 +117,8 @@ export default function ViewClassPage() {
 
     fetchClass();
   }, [id]);
+
+  console.log("Class Data State:", classData);
 
   // 2. Handle Delete
   const handleDelete = async () => {
@@ -193,7 +202,7 @@ export default function ViewClassPage() {
   }
 
   const coverUrl = getImageUrl(classData.coverImage);
-  console.log("Cover URL:", coverUrl);
+
   return (
     <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={ActionSidebar}>
       <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">

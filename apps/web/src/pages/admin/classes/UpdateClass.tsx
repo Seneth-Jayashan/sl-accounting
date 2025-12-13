@@ -1,10 +1,12 @@
 // src/pages/admin/classes/UpdateClassPage.tsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import moment from "moment";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import ClassService from "../../../services/ClassService";
+import BatchService from "../../../services/BatchService";
 import {
   ArrowLeftIcon,
   PhotoIcon,
@@ -15,19 +17,16 @@ import {
   TrashIcon
 } from "@heroicons/react/24/outline";
 
-// --- MOCK BATCH DATA (Same as Create Page) ---
-const MOCK_BATCHES = [
-  { _id: "675841029e0780f1966504e9", name: "2025 A/L Theory", year: "2025" },
-  { _id: "675841029e0780f1966504ea", name: "2026 A/L Theory", year: "2026" },
-  { _id: "675841029e0780f1966504eb", name: "2025 Revision", year: "2025" }
-];
-
+// Helper to Map Day Names to Index
 const DAY_TO_INDEX: Record<string, number> = {
   Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6,
 };
 
-// Helper to reverse index to day name
+// Helper to Reverse Index to Day Name
 const INDEX_TO_DAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// Configuration
+const API_BASE_URL = "http://localhost:3000"; // Ensure this matches your backend port
 
 export default function UpdateClassPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +36,11 @@ export default function UpdateClassPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form State (Matches Backend Schema)
+  // --- 1. Batch Data State ---
+  const [batches, setBatches] = useState<any[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(true);
+
+  // Form State
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -60,7 +63,24 @@ export default function UpdateClassPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // 1. Fetch Existing Data
+  // --- 2. Fetch Batches ---
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        const data = await BatchService.getAllBatches(false); 
+        if (data.batches) {
+          setBatches(data.batches);
+        }
+      } catch (err) {
+        console.error("Failed to fetch batches", err);
+      } finally {
+        setLoadingBatches(false);
+      }
+    };
+    fetchBatches();
+  }, []);
+
+  // --- 3. Fetch Existing Class Data ---
   useEffect(() => {
     if (!id) return;
     const fetchClass = async () => {
@@ -68,14 +88,17 @@ export default function UpdateClassPage() {
       try {
         const data = await ClassService.getClassById(id);
         
-        if (data.success && data.class) {
-          const c = data.class;
-
-          // Extract Schedule (Assuming 1 schedule for now)
+        // --- FIX START ---
+        // Your controller returns the object directly, so 'data' IS the class.
+        // We handle both cases just to be safe (wrapped vs unwrapped).
+        const c = data.class || data; 
+        
+        if (c && c._id) {
+          // Extract Schedule
           const schedule = c.timeSchedules && c.timeSchedules.length > 0 ? c.timeSchedules[0] : {};
           const dayName = schedule.day !== undefined ? INDEX_TO_DAY[schedule.day] : "Saturday";
 
-          // Format Date for Input (YYYY-MM-DD)
+          // Format Date (YYYY-MM-DD)
           let dateStr = "";
           if (c.firstSessionDate) {
             dateStr = new Date(c.firstSessionDate).toISOString().split('T')[0];
@@ -85,29 +108,34 @@ export default function UpdateClassPage() {
             name: c.name || "",
             description: c.description || "",
             price: c.price !== undefined ? String(c.price) : "",
-            batch: c.batch ? (typeof c.batch === 'object' ? c.batch._id : c.batch) : "", // Handle populated or raw ID
+            // Handle populated batch object or raw ID string
+            batch: c.batch ? (typeof c.batch === 'object' ? c.batch._id : c.batch) : "", 
             day: dayName,
             startTime: schedule.startTime || "08:00",
-            endTime: schedule.endTime || "10:00",
+            endTime: schedule.endTime || "10:00", // Fix: map endTime correctly
             firstSessionDate: dateStr,
             recurrence: c.recurrence || "weekly",
             totalSessions: c.totalSessions || 4,
             sessionDurationMinutes: c.sessionDurationMinutes || 60,
             level: c.level || "general",
-            tags: c.tags ? c.tags.join(", ") : "", // Array to Comma-String
+            tags: c.tags ? c.tags.join(", ") : "",
             isPublished: c.isPublished || false
           });
 
-          // Handle Image
-          // Assuming backend returns a full URL or relative path
+          // Handle Image URL
           if (c.coverImage) {
-            // Adjust this if your backend returns just filename
-            // e.g., `http://localhost:5000/uploads/classes/${c.coverImage}`
-            setCurrentImageUrl(c.coverImage); 
+             const cleanPath = c.coverImage.replace(/\\/g, "/");
+             // If path is already absolute (http...), use it; otherwise prepend base URL
+             const fullUrl = cleanPath.startsWith("http") 
+                ? cleanPath 
+                : `${API_BASE_URL}/${cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath}`;
+             setCurrentImageUrl(fullUrl);
           }
         } else {
           setError("Class not found.");
         }
+        // --- FIX END ---
+
       } catch (err: any) {
         console.error(err);
         setError("Failed to load class details.");
@@ -118,18 +146,17 @@ export default function UpdateClassPage() {
     fetchClass();
   }, [id]);
 
-  // 2. Handle Inputs
+  // Handle Inputs
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // 3. Handle Image Selection
+  // Handle Image Selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedImage(file);
-      // Clean up previous preview if exists
       if (imagePreview) URL.revokeObjectURL(imagePreview);
       setImagePreview(URL.createObjectURL(file));
     }
@@ -141,7 +168,7 @@ export default function UpdateClassPage() {
     setImagePreview(null);
   };
 
-  // 4. Submit Update
+  // Submit Update
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -149,7 +176,6 @@ export default function UpdateClassPage() {
     setIsSaving(true);
     setError(null);
 
-    // Reconstruct Time Schedules
     const timeSchedules = [
         {
           day: DAY_TO_INDEX[formData.day] ?? 0,
@@ -172,7 +198,7 @@ export default function UpdateClassPage() {
         level: formData.level as "general" | "ordinary" | "advanced",
         tags: formData.tags ? formData.tags.split(",").map(t => t.trim()).filter(Boolean) : undefined,
         isPublished: Boolean(formData.isPublished),
-        coverImage: selectedImage || undefined, // Only send if new image selected
+        coverImage: selectedImage || undefined,
     };
 
     try {
@@ -199,7 +225,7 @@ export default function UpdateClassPage() {
 
   return (
     <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6 pb-20">
         
         {/* Navigation */}
         <button 
@@ -245,7 +271,7 @@ export default function UpdateClassPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   
-                  {/* Batch Select */}
+                  {/* --- REAL BATCH SELECTOR --- */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-gray-700">Batch</label>
                     <select 
@@ -254,17 +280,17 @@ export default function UpdateClassPage() {
                         onChange={handleChange}
                         className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer"
                         required
+                        disabled={loadingBatches}
                     >
-                        <option value="">Select Batch</option>
-                        {MOCK_BATCHES.map((batch) => (
+                        <option value="">{loadingBatches ? "Loading..." : "Select Batch"}</option>
+                        {batches.map((batch) => (
                             <option key={batch._id} value={batch._id}>
-                                {batch.name} ({batch.year})
+                                {batch.name} ({moment(batch.startDate).format('YYYY')})
                             </option>
                         ))}
                     </select>
                   </div>
 
-                  {/* Tags */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-gray-700">Tags (comma sep)</label>
                     <input 
@@ -352,20 +378,16 @@ export default function UpdateClassPage() {
                 <div className="relative w-full aspect-video bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer">
                   
                   {imagePreview ? (
-                    // New Image Selected
                     <img src={imagePreview} alt="New Preview" className="w-full h-full object-cover" />
                   ) : currentImageUrl ? (
-                    // Existing Image from Backend
                     <img src={currentImageUrl} alt="Current Banner" className="w-full h-full object-cover" />
                   ) : (
-                    // No Image
                     <div className="text-center p-4">
                       <PhotoIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
                       <p className="text-xs text-gray-500">No cover image</p>
                     </div>
                   )}
 
-                  {/* Hidden Input */}
                   <input 
                     type="file" 
                     accept="image/*"
@@ -380,7 +402,6 @@ export default function UpdateClassPage() {
                   </div>
                 </div>
 
-                {/* Remove / Reset Button */}
                 {imagePreview && (
                   <button 
                     type="button"
