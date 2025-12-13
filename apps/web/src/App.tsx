@@ -30,6 +30,12 @@ import AdminClassesCreatePage from "./pages/admin/classes/CreateClass";
 import AdminClassesViewPage from "./pages/admin/classes/ViewClass";
 import AdminClassesUpdatePage from "./pages/admin/classes/UpdateClass";
 
+import AdminSessionPage from "./pages/admin/sessions/Session";
+import AdminCreateSessionPage from "./pages/admin/sessions/AddSession";
+
+import AdminBatchPage from "./pages/admin/batches/Batch";
+import AdminBatchViewPage from "./pages/admin/batches/ViewBatch";
+
 import AdminSupportPage from "./pages/admin/SupportReply";
 
 import "./index.css";
@@ -157,6 +163,42 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminClassesUpdatePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/sessions/"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminSessionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/sessions/create"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminCreateSessionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/batches/"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminBatchPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/batches/view/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminBatchViewPage />
               </ProtectedRoute>
             }
           />

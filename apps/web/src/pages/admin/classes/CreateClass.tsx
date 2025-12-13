@@ -1,10 +1,12 @@
 // src/pages/admin/classes/CreateClass.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import moment from "moment";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import ClassService from "../../../services/ClassService";
+import BatchService from "../../../services/BatchService"; // Import BatchService
 import {
   ArrowLeftIcon,
   PhotoIcon,
@@ -13,13 +15,6 @@ import {
   AcademicCapIcon,
   CheckCircleIcon
 } from "@heroicons/react/24/outline";
-
-// --- MOCK BATCH DATA FOR TESTING ---
-const MOCK_BATCHES = [
-  { _id: "675841029e0780f1966504e9", name: "2025 A/L Theory", year: "2025" },
-  { _id: "675841029e0780f1966504ea", name: "2026 A/L Theory", year: "2026" },
-  { _id: "675841029e0780f1966504eb", name: "2025 Revision", year: "2025" }
-];
 
 const DAY_TO_INDEX: Record<string, number> = {
   Sunday: 0,
@@ -36,12 +31,16 @@ export default function CreateClassPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // --- 1. Batch Data State ---
+  const [batches, setBatches] = useState<any[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(true);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
-    batch: "", // Will store the selected MOCK ID
+    batch: "", 
     day: "Saturday",
     startTime: "08:00",
     endTime: "10:00",
@@ -56,6 +55,26 @@ export default function CreateClassPage() {
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // --- 2. Fetch Batches on Mount ---
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        // Fetch only active batches for new classes
+        const data = await BatchService.getAllBatches(true); 
+        if (data.batches) {
+          setBatches(data.batches);
+        }
+      } catch (err) {
+        console.error("Failed to fetch batches", err);
+        setError("Failed to load batch list. Please refresh.");
+      } finally {
+        setLoadingBatches(false);
+      }
+    };
+
+    fetchBatches();
+  }, []);
 
   useEffect(() => {
     return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
@@ -117,7 +136,7 @@ export default function CreateClassPage() {
       name: formData.name.trim(),
       description: formData.description.trim(),
       price: formData.price ? Number(formData.price) : 0,
-      batch: formData.batch, // Sends the mock ID
+      batch: formData.batch,
       timeSchedules,
       firstSessionDate: formData.firstSessionDate,
       recurrence: formData.recurrence as "weekly" | "daily" | "none",
@@ -130,7 +149,6 @@ export default function CreateClassPage() {
     };
 
     try {
-      console.log("Create Class Payload:", payload);
       await ClassService.createClass(payload as any);
       alert("Class created successfully.");
       navigate("/admin/classes");
@@ -148,8 +166,8 @@ export default function CreateClassPage() {
       <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
         <h3 className="font-semibold text-gray-800 mb-2">Class Setup Tips</h3>
         <ul className="text-sm text-gray-500 space-y-3 list-disc pl-4">
-          <li><strong>Naming:</strong> Use a clear format like "Year + Subject".</li>
-          <li><strong>Batch:</strong> Select a batch to associate this class with.</li>
+          <li><strong>Naming:</strong> Use a clear format like "Subject - Year".</li>
+          <li><strong>Batch:</strong> Select the active intake this class belongs to.</li>
           <li><strong>Banner:</strong> 1200x600px recommended, PNG/JPG up to 5MB.</li>
         </ul>
       </div>
@@ -158,7 +176,7 @@ export default function CreateClassPage() {
 
   return (
     <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={TipsSidebar}>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6 pb-20">
         <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-[#0b2540] transition-colors">
           <ArrowLeftIcon className="w-4 h-4 mr-1" /> Back to Classes
         </button>
@@ -184,13 +202,13 @@ export default function CreateClassPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Class Name <span className="text-red-500">*</span></label>
-                  <input name="name" value={formData.name} onChange={handleChange} placeholder="e.g. 2025 A/L Accounting" required
+                  <input name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Accounting Theory 2025" required
                     className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   
-                  {/* --- MOCK BATCH SELECTOR --- */}
+                  {/* --- REAL BATCH SELECTOR --- */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-gray-700">Batch <span className="text-red-500">*</span></label>
                     <select 
@@ -199,15 +217,18 @@ export default function CreateClassPage() {
                         onChange={handleChange}
                         className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer"
                         required
+                        disabled={loadingBatches}
                     >
-                        <option value="">Select a Batch (Mock)</option>
-                        {MOCK_BATCHES.map((batch) => (
+                        <option value="">{loadingBatches ? "Loading batches..." : "Select a Batch"}</option>
+                        {batches.map((batch) => (
                             <option key={batch._id} value={batch._id}>
-                                {batch.name} ({batch.year})
+                                {batch.name} ({moment(batch.startDate).format('MMM YYYY')} - {moment(batch.endDate).format('MMM YYYY')})
                             </option>
                         ))}
                     </select>
-                     <p className="text-[10px] text-gray-400">Using Mock Data for Testing.</p>
+                    {batches.length === 0 && !loadingBatches && (
+                        <p className="text-xs text-red-500">No active batches found. Create a batch first.</p>
+                    )}
                   </div>
                   {/* ----------------------------- */}
 
