@@ -85,29 +85,37 @@ const updateTicket = async (req, res) => {
   const { name, gmail, phoneNumber, Categories, message, status, priority } = req.body;
 
   try {
-    const ticket = await Ticket.findByIdAndUpdate(
-      req.params.id,
-      {
-        name,
-        gmail,
-        phoneNumber,
-        Categories,
-        message,
-        status,
-        priority,
-      },
-      { new: true }
-    );
+    const ticket = await Ticket.findById(req.params.id);
+    if (!ticket) return res.status(404).json({ message: "Ticket not found" });
 
-    if (!ticket) {
-      return res.status(404).json({ message: "Ticket not found" });
+    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+    const isAdmin = req.user.role === "admin";
+    const isOwner = ticket.user_id?.toString() === req.user._id.toString();
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ message: "Forbidden: cannot update this ticket" });
     }
 
-    // Notify user
-    await Notification.create({
-      user: ticket.user_id,
-      message: `Your ticket status has been updated to ${status}. Ticket ID: ${ticket._id}`,
-    });
+    const isClosing = typeof status === "string" && status.toLowerCase() === "closed";
+    if (isClosing && !isAdmin) {
+      return res.status(403).json({ message: "Forbidden: only admins can close tickets" });
+    }
+
+    ticket.name = name ?? ticket.name;
+    ticket.gmail = gmail ?? ticket.gmail;
+    ticket.phoneNumber = phoneNumber ?? ticket.phoneNumber;
+    ticket.Categories = Categories ?? ticket.Categories;
+    ticket.message = message ?? ticket.message;
+    ticket.priority = priority ?? ticket.priority;
+    if (typeof status === "string") ticket.status = status;
+
+    await ticket.save();
+
+    if (typeof status === "string") {
+      await Notification.create({
+        user: ticket.user_id,
+        message: `Your ticket status has been updated to ${ticket.status}. Ticket ID: ${ticket._id}`,
+      });
+    }
 
     return res.status(200).json({ ticket });
   } catch (err) {

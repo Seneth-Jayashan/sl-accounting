@@ -7,6 +7,7 @@ import {
   Cog6ToothIcon,
   Bars3Icon,
   ArrowRightOnRectangleIcon,
+  ChatBubbleLeftRightIcon,
   AcademicCapIcon,
   CurrencyDollarIcon,
   BookOpenIcon,
@@ -29,6 +30,7 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
     { key: "materials", label: "Materials", href: "/admin/materials", Icon: BookOpenIcon },
     { key: "reports", label: "Reports", href: "/admin/reports", Icon: ChartBarIcon },
     { key: "Support", label: "Support", href: "/admin/support", Icon: PhoneIcon },
+    { key : "chat", label: "Chat", href: "/admin/chat", Icon: ChatBubbleLeftRightIcon },
     { key: "settings", label: "Settings", href: "/admin/settings", Icon: Cog6ToothIcon },
   ];
 

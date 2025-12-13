@@ -154,6 +154,28 @@ export default function StudentTicketPage(): React.ReactElement {
     };
   }, [ticketId]);
 
+  const handleMarkResolved = async () => {
+    if (!ticketId) return;
+    try {
+      const updated = await TicketService.updateTicket(ticketId, { status: "Resolved" });
+      setTicketInfo(updated);
+      Swal.fire({
+        icon: "success",
+        title: "Marked as resolved",
+        text: "We tagged this ticket as Resolved. An admin can still close it if needed.",
+        confirmButtonColor: "#053A4E",
+      });
+    } catch (err: any) {
+      console.error(err);
+      Swal.fire({
+        icon: "error",
+        title: "Unable to mark as resolved",
+        text: err?.response?.data?.message || "Could not update ticket status.",
+        confirmButtonColor: "#d33",
+      });
+    }
+  };
+
   return (
     <DashboardLayout Sidebar={SidebarStudent} showHeader={false}>
       <div className="max-w-7xl mx-auto">
@@ -167,6 +189,17 @@ export default function StudentTicketPage(): React.ReactElement {
                 <p className="text-gray-600">Category: {ticketInfo?.Categories ?? ticketInfo?.category ?? "-"}</p>
                 <p className="text-sm text-gray-600">Issue reported: {ticketInfo?.message ?? "-"}</p>
                 <p className="text-xs text-gray-600">Status: {ticketInfo?.status ?? "-"}</p>
+                {!["closed", "close"].includes(String(ticketInfo?.status ?? "").toLowerCase()) && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="text-sm px-3 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700"
+                      onClick={handleMarkResolved}
+                    >
+                      Mark as Resolved
+                    </button>
+                  </div>
+                )}
               </header>
               <div className="mt-4">
                 <Chat ticketId={ticketId} />

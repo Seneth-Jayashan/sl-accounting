@@ -29,6 +29,7 @@ import ViewStudentPage from "./pages/admin/students/ViewStudent";
 import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
 import AdminClassesPage from "./pages/admin/classes/Class";
 import AdminSupportPage from "./pages/admin/support/SupportReply";
+import AdminTicketReply from "./pages/admin/support/TicketChat";
 
 import "./index.css";
 
@@ -115,6 +116,26 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/chat"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminTicketReply />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/chat/ticket/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminTicketReply />
+              </ProtectedRoute>
+            }
+          />
+
+          
 
           <Route
             path="/admin/students/:id"

@@ -15,11 +15,39 @@ export interface ChatMessage {
 class ChatService {
   private socket: Socket | null = null;
 
+  // Resolve the socket base URL and strip any /api/* suffix that may be set for REST
+  private getSocketUrl() {
+    const fallback = typeof window !== "undefined" ? window.location.origin : "";
+    const raw =
+      (import.meta as any).env?.VITE_SOCKET_URL ||
+      (import.meta as any).env?.VITE_SERVER_URL ||
+      (import.meta as any).env?.VITE_API_URL ||
+      fallback;
+
+    try {
+      const url = new URL(raw, fallback || "http://localhost");
+      //  Socket.IO handshake hits /socket.io at the root
+      url.pathname = url.pathname.replace(/\/api(\/v\d+)?\/?$/i, "");
+      return url.toString().replace(/\/$/, "");
+    } catch {
+      return raw;
+    }
+  }
+
   init() {
     if (this.socket) return;
-    this.socket = io(import.meta.env.VITE_SERVER_URL as string, {
-      transports: ["websocket"],
+    const baseUrl = this.getSocketUrl();
+    this.socket = io(baseUrl, {
+      transports: ["websocket", "polling"],
+      withCredentials: true,
     });
+
+    this.socket.on("connect_error", (err) =>
+      console.error("ChatService socket connect_error", err?.message || err)
+    );
+    this.socket.on("reconnect_error", (err) =>
+      console.error("ChatService socket reconnect_error", err?.message || err)
+    );
   }
 
   joinTicket(ticketId: string) {
