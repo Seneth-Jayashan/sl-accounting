@@ -7,6 +7,8 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Contacts from "./pages/Contacts";
+import Classes from "./pages/Classes";
+import ViewClassPage from "./pages/ViewClass";
 import { MainLayout } from "./layouts/MainLayout";
 import { SplashScreen } from "./components/SplashScreen";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -71,6 +73,9 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/contacts" element={<Contacts />} />
+            <Route path="/classes" element={<Classes />} />
+            <Route path="/classes/:id" element={<ViewClassPage />} />
+
             <Route path="/verification" element={<Verification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             

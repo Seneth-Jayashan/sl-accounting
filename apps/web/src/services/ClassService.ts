@@ -1,4 +1,5 @@
 // services/ClassService.ts
+import axios from "axios";
 import { api } from "./api";
 
 const BASE_URL = "/classes";
@@ -80,6 +81,19 @@ const ClassService = {
   // GET by id
   getClassById: async (id: string) => {
     const response = await api.get<{ success: boolean; class?: any }>(`${BASE_URL}/${id}`);
+    return response.data;
+  },
+
+  // GET all public classes
+  getAllPublicClasses: async () => {
+    const response = await api.get(`${BASE_URL}/public`);
+    return response.data;
+  },
+
+    // GET all public classes
+  getPublicClassById: async (id: string) => {
+    // This hits: http://localhost:3000/api/v1/classes/public/:id
+    const response = await api.get(`${BASE_URL}/public/${id}`);
     return response.data;
   },
 
