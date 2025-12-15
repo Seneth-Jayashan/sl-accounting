@@ -40,6 +40,52 @@ function computePayHereMd5sig({ merchant_id, order_id, payhere_amount, payhere_c
  *
  * Documentation reference: PayHere md5sig & IPN verification. :contentReference[oaicite:2]{index=2}
  */
+
+
+export const createPayHereSignature = async (req, res) => {
+  try {
+    const { amount, order_id, currency } = req.body;
+    
+    if (!amount || !order_id) {
+        return res.status(400).json({ message: "Amount and Order ID required" });
+    }
+
+    const merchantId = process.env.PAYHERE_MERCHANT_ID;
+    const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET; // Ensure this is in your .env
+
+    if (!merchantId || !merchantSecret) {
+        return res.status(500).json({ message: "PayHere config missing on server" });
+    }
+
+    // Format amount to 2 decimal places exactly
+    const formattedAmount = Number(amount).toFixed(2);
+
+    // Hashing Logic: md5(merchant_id + order_id + amount + currency + strtoupper(md5(merchant_secret))) 
+    // *Note: PayHere hash generation for the REQUEST is different from the RESPONSE verification.*
+    
+    // 1. Hash the secret
+    const hashedSecret = crypto.createHash("md5").update(merchantSecret).digest("hex").toUpperCase();
+
+    // 2. Create the string
+    const hashString = `${merchantId}${order_id}${formattedAmount}${currency}${hashedSecret}`;
+
+    // 3. Final Hash
+    const hash = crypto.createHash("md5").update(hashString).digest("hex").toUpperCase();
+
+    res.json({
+        merchant_id: merchantId,
+        hash: hash,
+        amount: formattedAmount,
+        currency: currency
+    });
+
+  } catch (err) {
+    console.error("Error generating signature:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 export const payHereWebhook = async (req, res) => {
   try {
     const body = req.body; // payhere posts urlencoded body

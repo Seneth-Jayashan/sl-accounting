@@ -54,7 +54,7 @@ const classSchema = new mongoose.Schema({
   level: { type: String, enum: ["general", "ordinary", "advanced"], default: "general" },
   tags: [{ type: String, index: true }],
   isActive: { type: Boolean, default: true },
-  isPublished: { type: Boolean, default: false },
+  isPublished: { type: Boolean, default: true },
   isDeleted: { type: Boolean, default: false },
 
 }, {

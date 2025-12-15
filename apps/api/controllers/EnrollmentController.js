@@ -10,6 +10,52 @@ function endOfMonth(date = new Date(), addMonths = 0) {
 }
 
 /**
+ * GET ALL ENROLLMENTS (With Filters)
+ * Query Params: ?classId=... &studentId=... &paymentStatus=paid
+ */
+export const getAllEnrollments = async (req, res) => {
+  try {
+    // 1. Destructure query params
+    const { classId, studentId, paymentStatus } = req.query;
+
+    // 2. Build Filter Object
+    let filter = {};
+
+    // --- FIX: Map 'studentId' from query to 'student' in DB ---
+    if (studentId) filter.student = studentId; 
+    
+    if (classId) filter.class = classId;
+    if (paymentStatus) filter.paymentStatus = paymentStatus;
+
+    // 3. Fetch from DB
+    const enrollments = await Enrollment.find(filter)
+      .populate("student", "firstName lastName email mobile")
+      .populate("class", "name price")
+      .sort({ createdAt: -1 });
+
+    res.json(enrollments);
+  } catch (err) {
+    console.error("Error fetching enrollments:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getMyEnrollments = async (req, res) => {
+  try {
+    // req.user._id comes from the 'protect' middleware
+    const enrollments = await Enrollment.find({ student: req.user._id })
+      .populate("class", "name price coverImage description") // Populate class info for the UI card
+      .populate("lastPayment") // Optional: if you want to show payment details
+      .sort({ createdAt: -1 }); // Newest first
+
+    res.json(enrollments);
+  } catch (err) {
+    console.error("Error fetching my enrollments:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/**
  * GET ENROLLMENT BY ID
  */
 export const getEnrollmentById = async (req, res) => {
@@ -117,5 +163,18 @@ export const deleteEnrollment = async (req, res) => {
   } catch (err) {
     console.error("Error deleting enrollment:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+export const checkEnrollment = async (req, res) => {
+  try {
+    const { studentId, classId } = req.query;
+    if (!studentId || !classId) return res.status(400).json({ message: "Missing params" });
+
+    const exists = await Enrollment.findOne({ student: studentId, class: classId });
+    return res.json({ isEnrolled: !!exists, enrollmentId: exists?._id });
+  } catch (err) {
+    res.status(500).json({ message: "Server Error" });
   }
 };

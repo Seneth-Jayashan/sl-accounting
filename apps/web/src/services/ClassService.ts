@@ -126,7 +126,7 @@ const ClassService = {
         data.images.forEach((file, idx) => formData.append("images", file, file.name || `image-${idx}`));
       }
 
-      const response = await api.put(`${BASE_URL}/${id}`, formData);
+      const response = await api.patch(`${BASE_URL}/${id}`, formData);
       return response.data;
     } else {
       const payload: any = {};
@@ -143,7 +143,7 @@ const ClassService = {
       if (data.timeSchedules !== undefined) payload.timeSchedules = data.timeSchedules;
       if (data.isPublished !== undefined) payload.isPublished = Boolean(data.isPublished);
 
-      const response = await api.put(`${BASE_URL}/${id}`, payload);
+      const response = await api.patch(`${BASE_URL}/${id}`, payload);
       return response.data;
     }
   },

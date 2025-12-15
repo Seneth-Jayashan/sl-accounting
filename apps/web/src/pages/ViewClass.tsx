@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ClassService from "../services/ClassService";
+import EnrollmentService from "../services/EnrollmentService"; 
+import { useAuth } from "../contexts/AuthContext";
 import {
   CalendarDaysIcon,
   ClockIcon,
   UserGroupIcon,
-  CurrencyDollarIcon,
   CheckBadgeIcon,
   ArrowLeftIcon,
-  ShareIcon
+  ShareIcon,
+  ArrowRightIcon
 } from "@heroicons/react/24/outline";
 
 // --- Configuration ---
@@ -40,9 +42,13 @@ export default function ViewPublicClassPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
+  // 1. Access Auth Context
+  const { user } = useAuth(); 
+  
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEnrolled, setIsEnrolled] = useState(false); // New: Track Enrollment
 
   // --- Helper: Image URL ---
   const getImageUrl = (path?: string) => {
@@ -59,12 +65,20 @@ export default function ViewPublicClassPage() {
   // --- Fetch Data ---
   useEffect(() => {
     if (!id) return;
-    const fetchClass = async () => {
+
+    const fetchData = async () => {
       setLoading(true);
       try {
+        // 1. Fetch Class Data
         const data = await ClassService.getPublicClassById(id);
-        // Handle array vs object response just in case
-        setClassData(Array.isArray(data) ? data[0] : data); 
+        setClassData(Array.isArray(data) ? data[0] : data);
+
+        // 2. Check Enrollment Status (Only if logged in)
+        if (user) {
+             const status = await EnrollmentService.checkEnrollmentStatus(id);
+             setIsEnrolled(status);
+        }
+
       } catch (err) {
         console.error(err);
         setError("Class not found or unavailable.");
@@ -72,8 +86,25 @@ export default function ViewPublicClassPage() {
         setLoading(false);
       }
     };
-    fetchClass();
-  }, [id]);
+
+    fetchData();
+  }, [id, user]);
+
+  // --- Handle Enrollment Navigation ---
+  const handleEnrollClick = () => {
+    if (!classData) return;
+
+    // 1. Destination URL
+    const targetEnrollmentPage = `/student/enrollment/${classData._id}`;
+
+    // 2. Check Auth using Context
+    if (user) {
+        navigate(targetEnrollmentPage);
+    } else {
+        navigate("/login", { state: { from: targetEnrollmentPage } });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -222,21 +253,44 @@ export default function ViewPublicClassPage() {
 
                     {/* Action Buttons */}
                     <div className="space-y-3 mt-auto">
-                        <button 
-                            className="w-full bg-[#0b2540] text-white font-bold py-4 rounded-xl hover:bg-[#153454] transition-all shadow-lg shadow-blue-900/20 transform hover:-translate-y-0.5"
-                            onClick={() => alert("Enrollment feature coming soon!")}
-                        >
-                            Enroll Now
-                        </button>
-                        <button 
-                            className="w-full bg-white border border-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                            onClick={() => {
-                                navigator.clipboard.writeText(window.location.href);
-                                alert("Link copied to clipboard!");
-                            }}
-                        >
-                            <ShareIcon className="w-5 h-5" /> Share Class
-                        </button>
+                        
+                        {/* CONDITIONAL RENDERING BASED ON ENROLLMENT STATUS */}
+                        {isEnrolled ? (
+                            <>
+                                <button 
+                                    className="w-full bg-green-50 text-green-700 border border-green-200 font-bold py-4 rounded-xl flex items-center justify-center gap-2 cursor-default"
+                                    disabled
+                                >
+                                    <CheckBadgeIcon className="w-6 h-6" /> Already Enrolled
+                                </button>
+                                <button 
+                                    className="w-full bg-[#0b2540] text-white font-bold py-3 rounded-xl hover:bg-[#153454] transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10"
+                                    onClick={() => navigate("/student/dashboard")}
+                                >
+                                    Go to Dashboard <ArrowRightIcon className="w-5 h-5" />
+                                </button>
+                            </>
+                        ) : (
+                            <button 
+                                className="w-full bg-[#0b2540] text-white font-bold py-4 rounded-xl hover:bg-[#153454] transition-all shadow-lg shadow-blue-900/20 transform hover:-translate-y-0.5"
+                                onClick={handleEnrollClick}
+                            >
+                                Enroll Now
+                            </button>
+                        )}
+
+                        {/* Share button is always visible unless you want to hide it too */}
+                        {!isEnrolled && (
+                            <button 
+                                className="w-full bg-white border border-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(window.location.href);
+                                    alert("Link copied to clipboard!");
+                                }}
+                            >
+                                <ShareIcon className="w-5 h-5" /> Share Class
+                            </button>
+                        )}
                     </div>
 
                 </div>

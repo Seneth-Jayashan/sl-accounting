@@ -190,7 +190,7 @@ const recreateSessionsForClass = async (opts) => {
 // ... Rest of your controllers (updateClass, deleteClass etc.) remain the same
 // just ensure updateClass calls recreateSessionsForClass which is now fixed.
 export const updateClass = async (req, res) => {
-  const classId = req.params.id;
+  const classId = req.params.classId;
   const { timeSchedules, totalSessions, sessionDurationMinutes, ...otherUpdates } = req.body;
   const abortOnZoomFail = false;
   const session = await mongoose.startSession();
@@ -269,7 +269,7 @@ export const updateClass = async (req, res) => {
 export const deleteClass = async (req, res) => {
     // ... use the same delete logic as provided in previous corrected response
     // ensuring deleteMeeting is imported.
-    const classId = req.params.id;
+    const classId = req.params.classId;
     try {
         const classDoc = await Class.findById(classId);
         if (!classDoc) return res.status(404).json({ message: "Class not found" });
