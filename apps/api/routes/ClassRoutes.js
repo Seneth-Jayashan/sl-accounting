@@ -9,11 +9,17 @@ import {
     deleteClass,
     getAllClasses, 
     getClassById, 
+    getAllPublicClasses,
+    getPublicClass
 } from '../controllers/ClassController.js';
 
 const router = express.Router();
 
 router.get('/', protect, getAllClasses);
+
+router.get('/public', getAllPublicClasses);
+router.get('/public/:id', getPublicClass);
+
 router.get('/:classId', protect, validate(classIdSchema), getClassById);
 
 router.route('/')

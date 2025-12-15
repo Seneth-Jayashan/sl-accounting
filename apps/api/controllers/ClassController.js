@@ -190,7 +190,7 @@ const recreateSessionsForClass = async (opts) => {
 // ... Rest of your controllers (updateClass, deleteClass etc.) remain the same
 // just ensure updateClass calls recreateSessionsForClass which is now fixed.
 export const updateClass = async (req, res) => {
-  const classId = req.params.id;
+  const classId = req.params.classId;
   const { timeSchedules, totalSessions, sessionDurationMinutes, ...otherUpdates } = req.body;
   const abortOnZoomFail = false;
   const session = await mongoose.startSession();
@@ -269,7 +269,7 @@ export const updateClass = async (req, res) => {
 export const deleteClass = async (req, res) => {
     // ... use the same delete logic as provided in previous corrected response
     // ensuring deleteMeeting is imported.
-    const classId = req.params.id;
+    const classId = req.params.classId;
     try {
         const classDoc = await Class.findById(classId);
         if (!classDoc) return res.status(404).json({ message: "Class not found" });
@@ -304,6 +304,59 @@ export const getAllClasses = async (req, res) => {
     } catch (error) { return res.status(500).json(error); }
 };
 
+export const getAllPublicClasses = async (req, res) => {
+  try {
+    const classes = await Class.find({ 
+        isActive: true, 
+        isPublished: true, 
+        // Ensure you have isDeleted in your schema, otherwise remove this line
+        // isDeleted: false 
+    })
+    .populate("batch", "name") // Only get batch name
+    .populate({
+        path: "sessions",
+        select: "index startAt endAt" // Only get public session info
+    })
+    .sort({ createdAt: -1 });
+
+    return res.status(200).json(classes);
+  } catch (error) {
+    console.error("getAllPublicClasses error:", error);
+    return res.status(500).json({ message: "Failed to fetch public classes" });
+  }
+};
+
+// ---------------------------------------------------------
+// PUBLIC: Get Single Class (Hide Zoom Links)
+// ---------------------------------------------------------
+export const getPublicClass = async (req, res) => {
+  try {
+    const id = req.params.id;
+    
+    // 1. Find the class with filters
+    const classDoc = await Class.findOne({ 
+        _id: id, 
+        isActive: true, 
+        isPublished: true 
+        // isDeleted: false 
+    })
+    .populate("batch", "name")
+    .populate({
+        path: "sessions",
+        // SECURITY: Exclude sensitive Zoom links for public users
+        select: "-zoomStartUrl -zoomJoinUrl -zoomMeetingId -youtubeVideoId" 
+    });
+
+    if (!classDoc) {
+        return res.status(404).json({ message: "Class not found" });
+    }
+
+    return res.status(200).json(classDoc);
+  } catch (error) {
+    console.error("getPublicClass error:", error);
+    return res.status(500).json({ message: "Error fetching class details", error: error.message });
+  }
+};
 // ... Activate/Deactivate controllers remain same
 export const activateClass = async (req, res) => {
     try {

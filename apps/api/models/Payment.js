@@ -12,7 +12,6 @@ const paymentSchema = new mongoose.Schema(
     amount: { type: Number, required: true, min: 0 },
 
     // PayHere fields (optional; filled from IPN)
-    gateway: { type: String, enum: ["payhere", "manual", "stripe", "other"], default: "payhere" },
     payhere_order_id: { type: String, index: true }, // your order_id you sent to PayHere
     payhere_payment_id: { type: String, index: true }, // PayHere's internal id if provided
     payhere_currency: { type: String },

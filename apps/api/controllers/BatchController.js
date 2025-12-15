@@ -69,6 +69,28 @@ export const getAllBatches = async (req, res) => {
   }
 };
 
+export const getAllPublicBatches = async (req, res) => {
+  try {
+    const { activeOnly } = req.query;
+    
+    const query = activeOnly === 'true' ? { isActive: true } : {};
+
+    const batches = await Batch.find(query)
+      .populate("classes", "name subject level") // Only fetch specific fields from Class
+      .sort({ createdAt: -1 }); // Newest first
+
+    return res.status(200).json({
+      success: true,
+      count: batches.length,
+      batches,
+    });
+
+  } catch (error) {
+    console.error("getAllBatches error:", error);
+    return res.status(500).json({ message: "Error fetching batches", error: error.message });
+  }
+};
+
 // ---------------------------------------------------------
 // 3. GET BATCH BY ID
 // ---------------------------------------------------------

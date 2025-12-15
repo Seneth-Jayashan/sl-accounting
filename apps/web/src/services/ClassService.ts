@@ -1,4 +1,5 @@
 // services/ClassService.ts
+import axios from "axios";
 import { api } from "./api";
 
 const BASE_URL = "/classes";
@@ -83,6 +84,19 @@ const ClassService = {
     return response.data;
   },
 
+  // GET all public classes
+  getAllPublicClasses: async () => {
+    const response = await api.get(`${BASE_URL}/public`);
+    return response.data;
+  },
+
+    // GET all public classes
+  getPublicClassById: async (id: string) => {
+    // This hits: http://localhost:3000/api/v1/classes/public/:id
+    const response = await api.get(`${BASE_URL}/public/${id}`);
+    return response.data;
+  },
+
   // DELETE
   deleteClass: async (id: string) => {
     const response = await api.delete<{ success: boolean; message?: string }>(`${BASE_URL}/${id}`);
@@ -112,7 +126,7 @@ const ClassService = {
         data.images.forEach((file, idx) => formData.append("images", file, file.name || `image-${idx}`));
       }
 
-      const response = await api.put(`${BASE_URL}/${id}`, formData);
+      const response = await api.patch(`${BASE_URL}/${id}`, formData);
       return response.data;
     } else {
       const payload: any = {};
@@ -129,7 +143,7 @@ const ClassService = {
       if (data.timeSchedules !== undefined) payload.timeSchedules = data.timeSchedules;
       if (data.isPublished !== undefined) payload.isPublished = Boolean(data.isPublished);
 
-      const response = await api.put(`${BASE_URL}/${id}`, payload);
+      const response = await api.patch(`${BASE_URL}/${id}`, payload);
       return response.data;
     }
   },

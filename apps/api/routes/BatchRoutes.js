@@ -6,15 +6,18 @@ import {
     getBatchById, 
     updateBatch, 
     deleteBatch,
-    toggleBatchStatus
+    toggleBatchStatus,
+    getAllPublicBatches
 } from '../controllers/BatchController.js';
 
 const router = express.Router();
 
 // --- 1. Read Routes (Accessible to Authenticated Users) ---
 router.get('/', protect, getAllBatches);
-router.get('/:id', protect, getBatchById);
 
+router.get('/public', getAllPublicBatches);
+
+router.get('/:id', protect, getBatchById);
 // --- 2. Admin Only Routes (Create, Update, Delete) ---
 // All routes below this line require 'admin' role
 router.use(protect, restrictTo('admin'));

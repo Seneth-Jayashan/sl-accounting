@@ -5,13 +5,17 @@ import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import ClassService from "../../../services/ClassService";
+import SessionService from "../../../services/SessionService"; // Import SessionService
 import {
   VideoCameraIcon,
   CalendarDaysIcon,
   ClockIcon,
   MagnifyingGlassIcon,
   ArrowTopRightOnSquareIcon,
-  PlusIcon // Added PlusIcon
+  PlusIcon,
+  TrashIcon,       // Added
+  NoSymbolIcon,    // Added for Cancel
+  ExclamationCircleIcon // Added for visual cues
 } from "@heroicons/react/24/outline";
 
 // --- Interfaces ---
@@ -23,6 +27,7 @@ interface Session {
   zoomMeetingId?: string;
   zoomJoinUrl?: string;
   zoomStartUrl?: string;
+  isCancelled?: boolean; // Added to track status
 }
 
 interface ClassData {
@@ -52,11 +57,10 @@ export default function SessionsPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const classes = await ClassService.getAllClasses(); // Fetches classes with populated sessions
+        const classes = await ClassService.getAllClasses(); 
         
         const flattened: FlatSession[] = [];
         
-        // Flatten structure: Class -> [Sessions] -> Flat List
         classes.forEach((cls: ClassData) => {
           if (cls.sessions && Array.isArray(cls.sessions)) {
             cls.sessions.forEach((sess) => {
@@ -107,6 +111,44 @@ export default function SessionsPage() {
   const getDuration = (start: string, end: string) => {
     const diff = moment(end).diff(moment(start), 'minutes');
     return `${diff} mins`;
+  };
+
+  // --- Handlers: Cancel & Delete ---
+  
+  const handleCancelSession = async (sessionId: string) => {
+    const confirmCancel = window.confirm("Are you sure you want to CANCEL this session? This will mark it as cancelled and notify students.");
+    if (!confirmCancel) return;
+
+    try {
+        // Call API to cancel
+        await SessionService.cancelSession(sessionId, "Admin Cancelled", true);
+        
+        // Update local state to reflect change without reload
+        setAllSessions(prev => prev.map(s => 
+            s._id === sessionId ? { ...s, isCancelled: true, zoomMeetingId: undefined, zoomStartUrl: undefined } : s
+        ));
+        alert("Session cancelled successfully.");
+    } catch (error) {
+        console.error("Error cancelling session:", error);
+        alert("Failed to cancel session.");
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    const confirmDelete = window.confirm("Are you sure you want to DELETE this session PERMANENTLY? This cannot be undone.");
+    if (!confirmDelete) return;
+
+    try {
+        // Call API to delete
+        await SessionService.deleteSession(sessionId);
+
+        // Remove from local state
+        setAllSessions(prev => prev.filter(s => s._id !== sessionId));
+        alert("Session deleted successfully.");
+    } catch (error) {
+        console.error("Error deleting session:", error);
+        alert("Failed to delete session.");
+    }
   };
 
   return (
@@ -200,12 +242,15 @@ export default function SessionsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filteredSessions.map((session) => (
-                    <tr key={session._id} className="hover:bg-blue-50/30 transition-colors group">
+                    <tr 
+                        key={session._id} 
+                        className={`hover:bg-blue-50/30 transition-colors group ${session.isCancelled ? 'bg-gray-50/50' : ''}`}
+                    >
                       
                       {/* Date Column */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                           <div className="bg-blue-50 text-blue-700 font-bold p-2 rounded-lg text-center min-w-[50px]">
+                        <div className={`flex items-center gap-3 ${session.isCancelled ? 'opacity-50' : ''}`}>
+                           <div className={`font-bold p-2 rounded-lg text-center min-w-[50px] ${session.isCancelled ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-700'}`}>
                               <div className="text-xs uppercase">{moment(session.startAt).format("MMM")}</div>
                               <div className="text-lg">{moment(session.startAt).format("DD")}</div>
                            </div>
@@ -223,7 +268,7 @@ export default function SessionsPage() {
                       <td className="px-6 py-4">
                         <span 
                           onClick={() => navigate(`/admin/classes/${session.classId}`)}
-                          className="font-medium text-gray-700 hover:text-[#0b2540] hover:underline cursor-pointer"
+                          className={`font-medium cursor-pointer ${session.isCancelled ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-700 hover:text-[#0b2540] hover:underline'}`}
                         >
                           {session.className}
                         </span>
@@ -232,16 +277,26 @@ export default function SessionsPage() {
                         </div>
                       </td>
 
-                      {/* Session Index */}
+                      {/* Session Index / Status */}
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          Session {session.index}
-                        </span>
+                        {session.isCancelled ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
+                                <ExclamationCircleIcon className="w-3 h-3"/> Cancelled
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Session {session.index}
+                            </span>
+                        )}
                       </td>
 
                       {/* Zoom Status */}
                       <td className="px-6 py-4 text-center">
-                        {session.zoomMeetingId ? (
+                        {session.isCancelled ? (
+                             <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-300">
+                                <VideoCameraIcon className="w-5 h-5" />
+                             </div>
+                        ) : session.zoomMeetingId ? (
                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600" title="Zoom Linked">
                               <VideoCameraIcon className="w-5 h-5" />
                            </div>
@@ -255,7 +310,8 @@ export default function SessionsPage() {
                       {/* Actions */}
                       <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {session.zoomStartUrl && activeTab === 'upcoming' && (
+                            {/* Start Zoom Button */}
+                            {session.zoomStartUrl && activeTab === 'upcoming' && !session.isCancelled && (
                                 <a 
                                   href={session.zoomStartUrl} 
                                   target="_blank" 
@@ -265,11 +321,33 @@ export default function SessionsPage() {
                                   Start <ArrowTopRightOnSquareIcon className="w-3 h-3" />
                                 </a>
                             )}
+                            
+                            {/* Details Button */}
                             <button 
                                onClick={() => navigate(`/admin/classes/${session.classId}`)}
                                className="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
                             >
-                               Details
+                                Details
+                            </button>
+
+                            {/* Cancel Button (Only if not already cancelled and is upcoming) */}
+                            {!session.isCancelled && activeTab === 'upcoming' && (
+                                <button
+                                    onClick={() => handleCancelSession(session._id)}
+                                    title="Cancel Session"
+                                    className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                                >
+                                    <NoSymbolIcon className="w-5 h-5" />
+                                </button>
+                            )}
+
+                            {/* Delete Button (Always available for admin) */}
+                            <button
+                                onClick={() => handleDeleteSession(session._id)}
+                                title="Delete Permanently"
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                                <TrashIcon className="w-5 h-5" />
                             </button>
                           </div>
                       </td>
