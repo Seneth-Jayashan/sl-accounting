@@ -17,7 +17,7 @@ const server = http.createServer(app);
 
 // Initialize Socket.io handlers
 try {
-  const io = initSocket(server);
+  initSocket(server);
   console.log('✅ Socket.io initialized successfully');
 } catch (error) {
   console.error('❌ Failed to initialize Socket.io:', error);

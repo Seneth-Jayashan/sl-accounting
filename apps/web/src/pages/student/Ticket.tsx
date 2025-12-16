@@ -64,6 +64,12 @@ export default function StudentTicketPage(): React.ReactElement {
 
   const isDisabled = useMemo(() => isSubmitting || authLoading, [isSubmitting, authLoading]);
 
+  // Helper to determine if a ticket (or a status string) represents a closed state
+  const isTicketClosed = (ticketOrStatus: any) => {
+    const status = typeof ticketOrStatus === "string" ? ticketOrStatus : ticketOrStatus?.status;
+    return ["closed", "close"].includes(String(status ?? "").toLowerCase());
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -97,8 +103,12 @@ export default function StudentTicketPage(): React.ReactElement {
       };
 
       const newTicket = await TicketService.createTicket(payload);
-      // try common id fields
-      const id = newTicket?._id ?? newTicket?.id ?? newTicket?.ticketId ?? null;
+      // Try common id fields and a few nested/alternate shapes
+      let id: string | null = null;
+      if (newTicket) {
+        const anyT = newTicket as any;
+        id = anyT._id ?? anyT.id ?? anyT.ticketId ?? (anyT.ticket && (anyT.ticket._id ?? anyT.ticket.id)) ?? null;
+      }
       if (id) setTicketId(String(id));
       // no local persistence: rely on server-side lookup for open tickets
       Swal.fire({
@@ -140,7 +150,7 @@ export default function StudentTicketPage(): React.ReactElement {
         if (cancelled) return;
         setTicketInfo(t ?? null);
         // if ticket closed, reset local state (no localStorage used)
-        if (t && ["closed", "close"].includes(String(t.status).toLowerCase())) {
+        if (t && isTicketClosed(t)) {
           setTicketId(null);
           setTicketInfo(null);
         }
@@ -180,7 +190,7 @@ export default function StudentTicketPage(): React.ReactElement {
     <DashboardLayout Sidebar={SidebarStudent} showHeader={false}>
       <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
-          {ticketId && ticketInfo && !["closed", "close"].includes(String(ticketInfo.status).toLowerCase()) ? (
+          {ticketId && ticketInfo && !isTicketClosed(ticketInfo) ? (
             // Ticket exists and is not closed: show only chat with heading
             <div>
               <header className="mb-4">
@@ -189,7 +199,7 @@ export default function StudentTicketPage(): React.ReactElement {
                 <p className="text-gray-600">Category: {ticketInfo?.Categories ?? ticketInfo?.category ?? "-"}</p>
                 <p className="text-sm text-gray-600">Issue reported: {ticketInfo?.message ?? "-"}</p>
                 <p className="text-xs text-gray-600">Status: {ticketInfo?.status ?? "-"}</p>
-                {!["closed", "close"].includes(String(ticketInfo?.status ?? "").toLowerCase()) && (
+                {!isTicketClosed(ticketInfo) && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"

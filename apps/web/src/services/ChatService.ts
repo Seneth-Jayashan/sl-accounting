@@ -14,6 +14,8 @@ export interface ChatMessage {
 
 class ChatService {
   private socket: Socket | null = null;
+  // Timeout (ms) to wait for socket ack before falling back to REST
+  private readonly SOCKET_ACK_TIMEOUT_MS = 2000;
 
   // Resolve the socket base URL and strip any /api/* suffix that may be set for REST
   private getSocketUrl() {
@@ -137,7 +139,7 @@ class ChatService {
             settled = true;
             resolve({ ok: false, error: "socket_timeout" });
           }
-        }, 2000);
+        }, this.SOCKET_ACK_TIMEOUT_MS);
 
         this.socket?.emit("send_message", envelope, (ack?: { ok?: boolean; error?: string }) => {
           if (settled) return;

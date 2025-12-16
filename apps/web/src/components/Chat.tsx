@@ -32,6 +32,8 @@ export default function TicketChat({
 }: Props) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -41,6 +43,8 @@ export default function TicketChat({
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
 
   const MAX_MESSAGES = 200;
+  // Debounce (ms) used for typing indicator expiration
+  const TYPING_DEBOUNCE_MS = 700;
 
   // Derive missing values from router params / auth context when used in a route
   const params = useParams();
@@ -68,15 +72,26 @@ export default function TicketChat({
       unsubscribe = await ChatService.startTicketSession(ticketId, {
         onInitialMessages: (history) => {
           if (cancelled) return;
-          setMessages(history.slice(-MAX_MESSAGES));
+          if (Array.isArray(history) && history.length > MAX_MESSAGES) {
+            setHasOlder(true);
+            setIsTruncated(true);
+            setMessages(history.slice(-MAX_MESSAGES));
+          } else {
+            setHasOlder(false);
+            setIsTruncated(false);
+            setMessages(history.slice(-MAX_MESSAGES));
+          }
         },
         onMessage: (msg) => {
           if (cancelled) return;
           setMessages((prev) => {
             const next = [...prev, msg];
-            return next.length > MAX_MESSAGES
-              ? next.slice(-MAX_MESSAGES)
-              : next;
+            if (next.length > MAX_MESSAGES) {
+              setIsTruncated(true);
+              setHasOlder(true);
+              return next.slice(-MAX_MESSAGES);
+            }
+            return next;
           });
         },
         onTyping: (data) => {
@@ -96,6 +111,19 @@ export default function TicketChat({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Load earlier messages (fetch full history from REST and show all)
+  const handleLoadEarlier = async () => {
+    if (!ticketId) return;
+    try {
+      const history = await ChatService.fetchMessages(ticketId);
+      setMessages(history.slice(-Math.max(history.length, MAX_MESSAGES)));
+      setHasOlder(false);
+      setIsTruncated(false);
+    } catch (err) {
+      console.error("Failed to load earlier messages", err);
+    }
+  };
 
   // compute available height so chat fits the viewport (no per-message height changes)
   useEffect(() => {
@@ -181,7 +209,7 @@ export default function TicketChat({
 
     typingTimeoutRef.current = setTimeout(() => {
       ChatService.emitTyping(ticketId, false, userId);
-    }, 700);
+    }, TYPING_DEBOUNCE_MS);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -233,6 +261,21 @@ export default function TicketChat({
 
       {/* ---------- Messages ---------- */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white overflow-x-hidden">
+        {hasOlder && (
+          <div className="mb-3 flex items-center justify-between bg-yellow-50 border border-yellow-100 text-yellow-800 px-3 py-2 rounded">
+            <div className="text-xs">Showing latest {messages.length} messages. Older messages are hidden.</div>
+            <button
+              className="text-xs underline"
+              onClick={handleLoadEarlier}
+            >
+              Load earlier
+            </button>
+          </div>
+        )}
+        {isTruncated && !hasOlder && (
+          <div className="mb-3 text-xs text-gray-500">Showing latest messages.</div>
+        )}
+
         {messages.map((msg, i) => (
           <div
             key={i}
@@ -293,7 +336,7 @@ export default function TicketChat({
                   )}
 
                   <div
-                    className={`px-4 py-2 rounded-2xl text-sm break-words break-all whitespace-pre-wrap overflow-hidden ${getMessageColor(
+                    className={`px-4 py-2 rounded-2xl text-sm break-words whitespace-pre-wrap overflow-hidden ${getMessageColor(
                       msg
                     )} ${isOwn(msg) ? "rounded-br-md" : "rounded-bl-md"} shadow-sm`}
                     style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}

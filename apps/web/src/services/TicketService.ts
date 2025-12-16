@@ -11,7 +11,7 @@ export interface TicketPayload {
 }
 
 export interface TicketResponse {
-  ticket: any;
+  ticket: Ticket;
 }
 
 export interface Ticket {
@@ -48,7 +48,7 @@ const getTicketById = async (id: string) => {
 };
 
 const getTicketsByUser = async (user_id: string) => {
-  const { data } = await api.get<{ tickets: any[] }>(`/tickets/tickets/${user_id}`);
+  const { data } = await api.get<{ tickets: Ticket[] }>(`/tickets/tickets/${user_id}`);
   return data.tickets;
 };
 

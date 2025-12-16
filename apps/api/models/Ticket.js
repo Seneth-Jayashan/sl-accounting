@@ -22,7 +22,7 @@ const ticketSchema = new Schema({
   },
   Categories: {
     type: String,
-    default: "test",
+    default: "General",
   },
   message: {
     type: String,
