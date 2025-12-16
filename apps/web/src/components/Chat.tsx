@@ -21,12 +21,14 @@ interface Props {
   ticketId?: string;
   userId?: string;
   role?: "student" | "admin";
+  readOnly?: boolean;
 }
 
 export default function TicketChat({
   ticketId: propTicketId,
   userId: propUserId,
   role: propRole,
+  readOnly: propReadOnly,
 }: Props) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -48,6 +50,7 @@ export default function TicketChat({
   const userId = propUserId ?? auth.user?._id ?? "";
   const role = (propRole ??
     (auth.user?.role === "admin" ? "admin" : "student")) as "student" | "admin";
+  const readOnly = !!propReadOnly;
 
   // ------------------------ Emoji ------------------------
   const handleEmojiClick = (emoji: any) => {
@@ -114,6 +117,7 @@ export default function TicketChat({
 
   // ------------------------ Send Message ------------------------
   const handleSend = async () => {
+    if (readOnly) return;
     if (!message.trim()) return;
 
     if (!ticketId || !userId || !role) {
@@ -161,6 +165,7 @@ export default function TicketChat({
 
   // ------------------------ Typing ------------------------
   const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (readOnly) return;
     const val = e.target.value;
     setMessage(val);
 
@@ -337,43 +342,46 @@ export default function TicketChat({
             </Suspense>
           </motion.div>
         )}
-
-        <div className="flex items-end gap-3">
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={handleTyping}
-            onKeyDown={handleKeyDown}
-            placeholder="Write a message..."
-            className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-full 
+        {!readOnly ? (
+          <div className="flex items-end gap-3">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={handleTyping}
+              onKeyDown={handleKeyDown}
+              placeholder="Write a message..."
+              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-full 
              focus:ring-2 focus:ring-[#053A4E] resize-none overflow-hidden"
-            style={{ minHeight: "44px", maxHeight: "150px" }}
-          />
+              style={{ minHeight: "44px", maxHeight: "150px" }}
+            />
 
-          {/* Emoji */}
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            onClick={() => setShowEmojiPicker((s) => !s)}
-            className="p-3 rounded-full hover:bg-blue-50"
-          >
-            <FaSmile />
-          </motion.button>
+            {/* Emoji */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={() => setShowEmojiPicker((s) => !s)}
+              className="p-3 rounded-full hover:bg-blue-50"
+            >
+              <FaSmile />
+            </motion.button>
 
-          {/* Send */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            disabled={!message.trim()}
-            onClick={handleSend}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
-              message.trim()
-                ? "bg-[#053A4E] text-white"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
-            }`}
-          >
-            <FaPaperPlane />
-            <span>Send</span>
-          </motion.button>
-        </div>
+            {/* Send */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              disabled={!message.trim()}
+              onClick={handleSend}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
+                message.trim()
+                  ? "bg-[#053A4E] text-white"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              <FaPaperPlane />
+              <span>Send</span>
+            </motion.button>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">This conversation is read-only.</div>
+        )}
       </div>
     </div>
   );

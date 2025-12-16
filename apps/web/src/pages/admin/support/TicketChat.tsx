@@ -145,6 +145,15 @@ export default function TicketChatAdmin() {
 
 			setSelectedTicket(updated);
 			setTickets((prev) => prev.map((t) => (t._id === updated._id ? { ...t, status: updated.status } : t)));
+
+			// If admin closed the ticket, remove the chat view for admin
+			if (String(updated.status || "").toLowerCase() === "closed") {
+				setSelectedTicket(null);
+				const remaining = tickets.filter((t) => t._id !== selectedId);
+				const next = remaining[0]?._id ?? null;
+				setSelectedId(next);
+				navigate(`/admin/chat${next ? `/ticket/${next}` : ""}`, { replace: true });
+			}
 		} catch (e) {
 			console.error(e);
 			setError("Failed to update status");
@@ -311,7 +320,24 @@ export default function TicketChatAdmin() {
 
 									<div className="rounded-2xl border bg-white shadow-sm p-2 min-h-[420px]">
 										{selectedId && user ? (
-											<Chat ticketId={selectedId} userId={user._id} role="admin" />
+											selectedTicket ? (
+												String(selectedTicket.status || "").toLowerCase() === "resolved" ? (
+													<div className="h-full">
+														<div className="p-3 text-sm text-gray-600 border-b">This ticket was marked Resolved by the user. Now you can Close the chat.</div>
+														<Chat ticketId={selectedId} userId={user._id} role="admin" readOnly />
+													</div>
+												) : String(selectedTicket.status || "").toLowerCase() === "closed" ? (
+													<div className="flex items-center justify-center h-full text-gray-600 py-12">
+														This ticket is Closed. Conversation is removed for admins.
+													</div>
+												) : (
+													<Chat ticketId={selectedId} userId={user._id} role="admin" />
+												)
+											) : (
+												<div className="flex items-center justify-center h-full text-gray-600 py-12">
+													Select a ticket to view the conversation.
+												</div>
+											)
 										) : (
 											<div className="flex items-center justify-center h-full text-gray-600 py-12">
 												Select a ticket to view the conversation.
