@@ -94,6 +94,8 @@ export default function TicketChatAdmin() {
 		return { total, open: open.length };
 	}, [tickets]);
 
+	// Show all tickets in the left panel
+
 	const renderTicketMeta = () => {
 		if (!selectedTicket) return null;
 		return (
@@ -214,7 +216,7 @@ export default function TicketChatAdmin() {
 						) : (
 							<div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 								{/* Ticket list */}
-								<div className="lg:col-span-1 rounded-2xl border bg-white shadow-sm flex flex-col">
+								<div className="lg:col-span-1 rounded-2xl border bg-white shadow-sm flex flex-col h-[520px] lg:h-[750px] overflow-hidden">
 									<div className="flex items-center justify-between border-b px-4 py-3 text-sm text-gray-600">
 										<span>All tickets</span>
 										<span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{tickets.length}</span>
@@ -225,7 +227,7 @@ export default function TicketChatAdmin() {
 											<div className="text-xs text-gray-500">New tickets will appear automatically.</div>
 										</div>
 									) : (
-										<ul className="divide-y overflow-auto">
+										<ul className="divide-y overflow-auto min-h-0">
 											{tickets.map((t) => {
 												const isActive = selectedId === t._id;
 												const isClosed = String(t.status ?? "").toLowerCase().includes("close");
@@ -318,7 +320,7 @@ export default function TicketChatAdmin() {
 										)}
 									</div>
 
-									<div className="rounded-2xl border bg-white shadow-sm p-2 min-h-[420px]">
+									<div className="rounded-2xl border bg-white shadow-sm p-2 min-h-[520px] lg:min-h-[560px]">
 										{selectedId && user ? (
 											selectedTicket ? (
 												String(selectedTicket.status || "").toLowerCase() === "resolved" ? (

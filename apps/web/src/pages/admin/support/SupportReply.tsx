@@ -67,8 +67,9 @@ export default function SupportReply() {
     return list;
   }, [list, tab]);
 
-  // Limit visible messages in the list to 5 for the left panel
-  const visibleList = useMemo(() => filtered.slice(0, 5), [filtered]);
+  // Show all messages in the left panel
+
+  
 
   const onSelect = (m: SupportMessage) => {
     // Toggle selection: clicking an already-selected message will unselect it
@@ -275,7 +276,7 @@ export default function SupportReply() {
                     </div>
                   ) : (
                     <ul className="divide-y overflow-auto min-h-0">
-                      {visibleList.map((m) => {
+                      {filtered.map((m) => {
                         const isActive = selected?._id === m._id;
                         const hasReply = Boolean(m.reply && m.reply.trim());
                         return (
@@ -412,8 +413,8 @@ export default function SupportReply() {
                               </span>
                             </div>
                             <textarea
-                              className="mt-1 w-full rounded-md border p-3 text-sm outline-none focus:ring-2 focus:ring-[#0b2540]/40"
-                              rows={7}
+                              className="mt-1 w-full rounded-md border p-3 text-sm outline-none focus:ring-2 focus:ring-[#0b2540]/40 min-h-[200px] resize-y"
+                              rows={11}
                               value={reply}
                               onChange={(e) => setReply(e.target.value)}
                               onKeyDown={handleReplyKeyDown}

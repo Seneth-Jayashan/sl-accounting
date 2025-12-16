@@ -132,7 +132,8 @@ export default function TicketChat({
         if (!rootRef.current) return setContainerHeight(null);
         const top = rootRef.current.getBoundingClientRect().top;
         const avail = window.innerHeight - top - 24; // 24px bottom margin
-        setContainerHeight(Math.max(avail, 220));
+        // Increase minimum chat height so message area is roomier
+        setContainerHeight(Math.max(avail, 520));
       } catch (e) {
         setContainerHeight(null);
       }
@@ -393,9 +394,9 @@ export default function TicketChat({
               onChange={handleTyping}
               onKeyDown={handleKeyDown}
               placeholder="Write a message..."
-              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-full 
-             focus:ring-2 focus:ring-[#053A4E] resize-none overflow-hidden"
-              style={{ minHeight: "44px", maxHeight: "150px" }}
+                className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-full 
+               focus:ring-2 focus:ring-[#053A4E] resize-none overflow-hidden"
+                style={{ minHeight: "60px", maxHeight: "250px" }}
             />
 
             {/* Emoji */}
