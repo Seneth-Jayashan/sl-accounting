@@ -66,7 +66,7 @@ export const initSocket = (server) => {
 				const user = await User.findById(resolvedSenderId).lean();
 				if (user) {
 					senderName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || undefined;
-					senderAvatar = user.profileImage || undefined;
+					senderAvatar = user.avatar  || undefined;
 				}
 
 				const chat = await Chat.create({
@@ -97,6 +97,24 @@ export const initSocket = (server) => {
 				if (typeof ack === "function") ack({ ok: false, error: "internal_error" });
 			}
 		});
+
+			// Handle typing indicator from clients and broadcast to other users in the ticket room
+			socket.on("typing", (payload) => {
+				try {
+					const { ticketId, isTyping, senderId, eventId } = payload || {};
+					const resolvedTicketId = ticketId || eventId;
+					if (!resolvedTicketId || typeof isTyping !== "boolean" || !senderId) {
+						// ignore malformed typing events
+						return;
+					}
+
+					const room = getTicketRoom(resolvedTicketId);
+					// broadcast to others in the room (exclude the sender)
+					socket.to(room).emit("typing", { isTyping, senderId });
+				} catch (err) {
+					console.error("⚠️ Error handling typing event:", err);
+				}
+			});
 
 		socket.on("disconnect", (reason) => {
 			console.log(`🔴 Socket disconnected: ${socket.id} (reason: ${reason})`);
