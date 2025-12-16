@@ -67,6 +67,9 @@ export default function SupportReply() {
     return list;
   }, [list, tab]);
 
+  // Limit visible messages in the list to 5 for the left panel
+  const visibleList = useMemo(() => filtered.slice(0, 5), [filtered]);
+
   const onSelect = (m: SupportMessage) => {
     // Toggle selection: clicking an already-selected message will unselect it
     if (selected?._id === m._id) {
@@ -254,7 +257,7 @@ export default function SupportReply() {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* List */}
-                <div className="lg:col-span-1 rounded-2xl border bg-white shadow-md flex flex-col">
+                <div className="lg:col-span-1 rounded-2xl border bg-white shadow-md flex flex-col h-[520px] lg:h-[560px]">
                   <div className="flex items-center justify-between border-b px-4 py-3 text-sm text-gray-600">
                     <span>
                       {tab === "unreplied" ? "Unreplied queue" : "All messages"}
@@ -271,8 +274,8 @@ export default function SupportReply() {
                       </div>
                     </div>
                   ) : (
-                    <ul className="divide-y overflow-auto">
-                      {filtered.map((m) => {
+                    <ul className="divide-y overflow-auto min-h-0">
+                      {visibleList.map((m) => {
                         const isActive = selected?._id === m._id;
                         const hasReply = Boolean(m.reply && m.reply.trim());
                         return (
@@ -321,131 +324,133 @@ export default function SupportReply() {
                 </div>
 
                 {/* Detail + Reply */}
-                <div className="lg:col-span-2 rounded-2xl border bg-white p-5 shadow-md">
-                  {!selected ? (
-                    <div className="text-gray-500 flex items-center justify-center h-full">
-                      Select a message to view and reply.
-                    </div>
-                  ) : (
-                    <div className="space-y-5">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div>
-                          <div className="text-lg font-semibold text-[#0b2540]">
-                            {selected.name}
+                <div className="lg:col-span-2 rounded-2xl border bg-white p-5 shadow-md h-[520px] lg:h-[560px] overflow-hidden">
+                  <div className="h-full overflow-auto">
+                    {!selected ? (
+                      <div className="text-gray-500 flex items-center justify-center h-full">
+                        Select a message to view and reply.
+                      </div>
+                    ) : (
+                      <div className="space-y-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div>
+                            <div className="text-lg font-semibold text-[#0b2540]">
+                              {selected.name}
+                            </div>
+                            <div className="text-sm text-gray-500 space-x-2">
+                              <a
+                                className="hover:underline"
+                                href={`mailto:${selected.email}`}
+                              >
+                                {selected.email}
+                              </a>
+                              <span>•</span>
+                              <a
+                                className="hover:underline"
+                                href={`tel:${selected.phoneNumber}`}
+                              >
+                                {selected.phoneNumber}
+                              </a>
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-500 space-x-2">
-                            <a
-                              className="hover:underline"
-                              href={`mailto:${selected.email}`}
+                          <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium ${
+                                selected.reply?.trim()
+                                  ? "bg-green-50 text-green-700"
+                                  : "bg-yellow-50 text-yellow-700"
+                              }`}
                             >
-                              {selected.email}
-                            </a>
-                            <span>•</span>
-                            <a
-                              className="hover:underline"
-                              href={`tel:${selected.phoneNumber}`}
-                            >
-                              {selected.phoneNumber}
-                            </a>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium ${
-                              selected.reply?.trim()
-                                ? "bg-green-50 text-green-700"
-                                : "bg-yellow-50 text-yellow-700"
-                            }`}
-                          >
-                            {selected.reply?.trim() ? "Replied" : "Pending"}
-                          </span>
-                          {selected.createdAt && (
-                            <span className="text-gray-400 max-w-[160px] truncate">
-                              {new Date(selected.createdAt).toLocaleString()}
+                              {selected.reply?.trim() ? "Replied" : "Pending"}
                             </span>
-                          )}
+                            {selected.createdAt && (
+                              <span className="text-gray-400 max-w-[160px] truncate">
+                                {new Date(selected.createdAt).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      <div>
-                        <div className="text-xs font-medium text-gray-500">
-                          User Message
-                        </div>
-                        <div className="mt-2 whitespace-pre-wrap break-words rounded-md border bg-gray-50 p-3 text-sm text-gray-800">
-                          {selected.message}
-                        </div>
-                      </div>
-
-                      {selected.reply?.trim() ? (
                         <div>
                           <div className="text-xs font-medium text-gray-500">
-                            Your Reply
+                            User Message
                           </div>
-                          <div className="mt-2 whitespace-pre-wrap break-words rounded-md border bg-green-50 p-3 text-sm text-gray-800">
-                            {selected.reply}
-                          </div>
-                          <div className="mt-2 text-xs text-gray-500">
-                            Reply has been sent to the user.
-                          </div>
-                          <div className="mt-8 flex">
-                            <button
-                              onClick={() => void handleDelete(selected._id)}
-                              disabled={deletingId === selected._id}
-                              className="inline-flex whitespace-nowrap items-center justify-center rounded-md border border-red-200 text-red-700 px-4 py-2 text-sm hover:bg-red-50 disabled:opacity-60"
-                            >
-                              {deletingId === selected._id
-                                ? "Deleting..."
-                                : "Delete"}
-                            </button>
+                          <div className="mt-2 whitespace-pre-wrap break-words rounded-md border bg-gray-50 p-3 text-sm text-gray-800">
+                            {selected.message}
                           </div>
                         </div>
-                      ) : (
-                        <div>
-                          <div className="flex items-center justify-between text-xs font-medium text-gray-500">
-                            <span>Your Reply</span>
-                            <span className="text-[11px] text-gray-400">
-                              Press Ctrl/Cmd + Enter to send
-                            </span>
+
+                        {selected.reply?.trim() ? (
+                          <div>
+                            <div className="text-xs font-medium text-gray-500">
+                              Your Reply
+                            </div>
+                            <div className="mt-2 whitespace-pre-wrap break-words rounded-md border bg-green-50 p-3 text-sm text-gray-800">
+                              {selected.reply}
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              Reply has been sent to the user.
+                            </div>
+                            <div className="mt-8 flex">
+                              <button
+                                onClick={() => void handleDelete(selected._id)}
+                                disabled={deletingId === selected._id}
+                                className="inline-flex whitespace-nowrap items-center justify-center rounded-md border border-red-200 text-red-700 px-4 py-2 text-sm hover:bg-red-50 disabled:opacity-60"
+                              >
+                                {deletingId === selected._id
+                                  ? "Deleting..."
+                                  : "Delete"}
+                              </button>
+                            </div>
                           </div>
-                          <textarea
-                            className="mt-1 w-full rounded-md border p-3 text-sm outline-none focus:ring-2 focus:ring-[#0b2540]/40"
-                            rows={7}
-                            value={reply}
-                            onChange={(e) => setReply(e.target.value)}
-                            onKeyDown={handleReplyKeyDown}
-                            placeholder="Type your response to the user..."
-                          />
-                          <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                            <span>
-                              {hasChanges
-                                ? "Unsaved changes"
-                                : selected.reply?.trim()
-                                ? "Last reply saved"
-                                : "No reply sent yet"}
-                            </span>
-                            <span>{reply.trim().length} chars</span>
+                        ) : (
+                          <div>
+                            <div className="flex items-center justify-between text-xs font-medium text-gray-500">
+                              <span>Your Reply</span>
+                              <span className="text-[11px] text-gray-400">
+                                Press Ctrl/Cmd + Enter to send
+                              </span>
+                            </div>
+                            <textarea
+                              className="mt-1 w-full rounded-md border p-3 text-sm outline-none focus:ring-2 focus:ring-[#0b2540]/40"
+                              rows={7}
+                              value={reply}
+                              onChange={(e) => setReply(e.target.value)}
+                              onKeyDown={handleReplyKeyDown}
+                              placeholder="Type your response to the user..."
+                            />
+                            <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                              <span>
+                                {hasChanges
+                                  ? "Unsaved changes"
+                                  : selected.reply?.trim()
+                                  ? "Last reply saved"
+                                  : "No reply sent yet"}
+                              </span>
+                              <span>{reply.trim().length} chars</span>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <button
+                                onClick={handleSubmit}
+                                disabled={submitting || reply.trim() === ""}
+                                className="inline-flex items-center justify-center rounded-md bg-[#0b2540] px-4 py-2 text-white hover:opacity-95 disabled:opacity-60"
+                              >
+                                {submitting ? "Sending..." : "Send reply"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleReset}
+                                disabled={!hasChanges || submitting}
+                                className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Reset
+                              </button>
+                            </div>
                           </div>
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <button
-                              onClick={handleSubmit}
-                              disabled={submitting || reply.trim() === ""}
-                              className="inline-flex items-center justify-center rounded-md bg-[#0b2540] px-4 py-2 text-white hover:opacity-95 disabled:opacity-60"
-                            >
-                              {submitting ? "Sending..." : "Send reply"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleReset}
-                              disabled={!hasChanges || submitting}
-                              className="inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                            >
-                              Reset
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
