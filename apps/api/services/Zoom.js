@@ -76,7 +76,7 @@ export async function createMeeting(sessionMeta = {}) {
     topic: sessionMeta.topic || "Class Session",
     type: 2, // scheduled meeting
     start_time: sessionMeta.start_time, // ISO 8601
-    duration: sessionMeta.duration || 60,
+    duration: sessionMeta.duration || 120,
     timezone: sessionMeta.timezone || "UTC",
     password: sessionMeta.password || undefined,
     settings: sessionMeta.settings || {

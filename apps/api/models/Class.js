@@ -1,6 +1,7 @@
 // models/Class.js
 import mongoose from "mongoose";
 import slugify from "slugify";
+import { tr } from "zod/v4/locales";
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -38,17 +39,22 @@ const classSchema = new mongoose.Schema({
   sessionDurationMinutes: { type: Number, default: 60 },
 
   images: [{ type: String }],
+  coverImage: { type: String },
+
+  firstSessionDate: { type: Date },
 
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
   sessions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Session", default: [] }],
 
   price: { type: Number, min: 0, default: 0 },
-  bacth: { type: mongoose.Schema.Types.ObjectId, ref: "Batch" },
+
+  batch: { type: mongoose.Schema.Types.ObjectId, ref: "Batch", required: true },
+  
   level: { type: String, enum: ["general", "ordinary", "advanced"], default: "general" },
   tags: [{ type: String, index: true }],
   isActive: { type: Boolean, default: true },
-  isPublished: { type: Boolean, default: false },
+  isPublished: { type: Boolean, default: true },
   isDeleted: { type: Boolean, default: false },
 
 }, {

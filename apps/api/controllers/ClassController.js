@@ -1,9 +1,25 @@
-// controllers/classController.js
 import mongoose from "mongoose";
 import Class from "../models/Class.js";
 import Session from "../models/Session.js";
 import moment from "moment-timezone";
 import { createMeeting, deleteMeeting } from "../services/Zoom.js";
+
+// --- Helper: Get file path safely ---
+const getFilePath = (files, fieldName) => {
+  if (files && files[fieldName] && files[fieldName][0]) {
+    // Returns e.g., "uploads/images/classes/cover-image-123.jpg"
+    // .replace(/\\/g, "/") ensures forward slashes for consistent DB storage (Windows compatibility)
+    return files[fieldName][0].path.replace(/\\/g, "/");
+  }
+  return null;
+};
+
+const getGalleryPaths = (files, fieldName) => {
+  if (files && files[fieldName]) {
+    return files[fieldName].map((file) => file.path.replace(/\\/g, "/"));
+  }
+  return [];
+};
 
 // Helper to calculate session times
 const getNextSessionMoment = (startDateMoment, targetDayIndex, timeStr, timezone, weekOffset = 0) => {
@@ -29,8 +45,13 @@ export const createClass = async (req, res) => {
       totalSessions = 1,
       sessionDurationMinutes = 120,
       firstSessionDate,
-      ...rest
+      ...rest // This contains text fields (name, description, etc.)
     } = req.body;
+
+    // --- FIX START: Extract files from req.files ---
+    const coverImage = getFilePath(req.files, 'coverImage');
+    const images = getGalleryPaths(req.files, 'images');
+    // --- FIX END ---
 
     const newClass = new Class({
       ...rest,
@@ -38,14 +59,18 @@ export const createClass = async (req, res) => {
       timeSchedules,
       totalSessions,
       sessionDurationMinutes,
+      coverImage, // Save the path to DB
+      images: images.length > 0 ? images : undefined, // Save gallery if exists
     });
+
     const savedClass = await newClass.save();
 
+    // ... (Rest of your Session/Zoom creation logic remains exactly the same) ...
     let globalIndex = 1;
     const schedules =
       Array.isArray(timeSchedules) && timeSchedules.length > 0
         ? timeSchedules
-        : [{ day: 0, startTime: "12:00", timezone: "UTC" }]; // Default fallback
+        : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
 
     const anchorDate = firstSessionDate ? moment(firstSessionDate) : moment();
     const savedSessionIds = [];
@@ -59,40 +84,27 @@ export const createClass = async (req, res) => {
         const sessionDoc = new Session({
           class: savedClass._id,
           index: globalIndex,
-          startAt: startMoment.toDate(), // Save to DB as UTC Date object (Correct for Mongo)
+          startAt: startMoment.toDate(),
           endAt: endMoment.toDate(),
           timezone: tz,
-          zoomMeetingId: null,
-          zoomStartUrl: null,
-          zoomJoinUrl: null,
-          youtubeVideoId: null,
-          recordingShared: false,
+          // ... defaults
         });
 
         try {
-          // --- FIX IS HERE ---
-          // Send "Wall Clock" time to Zoom (e.g., "2025-11-29T18:00:00")
-          // Zoom will combine this with the 'timezone' parameter.
           const zoomStartTime = startMoment.format("YYYY-MM-DDTHH:mm:ss");
-          
           const zoomData = await createMeeting({
             topic: `${savedClass.name || "Class"} - Session ${globalIndex}`,
-            start_time: zoomStartTime, // Sending 18:00
+            start_time: zoomStartTime,
             duration: sessionDurationMinutes,
-            timezone: tz,              // Sending Asia/Colombo
-            settings: {
-              join_before_host: false,
-              approval_type: 0,
-              host_video: false,
-              participant_video: false,
-            },
+            timezone: tz,
+            settings: { join_before_host: false, approval_type: 0, host_video: false, participant_video: false },
           });
 
           sessionDoc.zoomMeetingId = zoomData.id?.toString?.() ?? zoomData.id ?? null;
           sessionDoc.zoomStartUrl = zoomData.start_url ?? null;
           sessionDoc.zoomJoinUrl = zoomData.join_url ?? null;
         } catch (zoomErr) {
-          console.error(`Zoom creation failed for class ${savedClass._id} session ${globalIndex}:`, zoomErr?.message);
+          console.error(`Zoom creation failed:`, zoomErr?.message);
         }
 
         const savedSession = await sessionDoc.save();
@@ -136,74 +148,51 @@ const recreateSessionsForClass = async (opts) => {
   if (existingSessions.length > 0) await Session.deleteMany({ class: classDoc._id });
 
   // 2. Create new sessions
-  const schedules = Array.isArray(timeSchedules) && timeSchedules.length > 0
-      ? timeSchedules
-      : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
+  const schedules = Array.isArray(timeSchedules) && timeSchedules.length > 0 ? timeSchedules : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
+    const anchorDate = classDoc.firstSessionDate ? moment(classDoc.firstSessionDate) : moment();
+    const savedSessionIds = [];
+    let globalIndex = 1;
 
-  const anchorDate = classDoc.firstSessionDate ? moment(classDoc.firstSessionDate) : moment();
-  const savedSessionIds = [];
-  let globalIndex = 1;
+    for (let i = 0; i < totalSessions; i++) {
+        for (const sch of schedules) {
+             const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "UTC";
+             const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, i);
+             const endMoment = startMoment.clone().add(sessionDurationMinutes, "minutes");
 
-  for (let i = 0; i < totalSessions; i++) {
-    for (const sch of schedules) {
-      const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "UTC";
-      const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, i);
-      const endMoment = startMoment.clone().add(sessionDurationMinutes, "minutes");
-
-      const sessionDoc = new Session({
-        class: classDoc._id,
-        index: globalIndex,
-        startAt: startMoment.toDate(),
-        endAt: endMoment.toDate(),
-        timezone: tz,
-        zoomMeetingId: null,
-        zoomStartUrl: null,
-        zoomJoinUrl: null,
-        youtubeVideoId: null,
-        recordingShared: false,
-      });
-
-      try {
-        // --- FIX IS HERE AS WELL ---
-        const zoomStartTime = startMoment.format("YYYY-MM-DDTHH:mm:ss");
-
-        const zoomData = await createMeeting({
-          topic: `${classDoc.name || "Class"} - Session ${globalIndex}`,
-          start_time: zoomStartTime,
-          duration: sessionDurationMinutes,
-          timezone: tz,
-          settings: {
-            join_before_host: false,
-            approval_type: 0,
-            host_video: false,
-            participant_video: false,
-          },
-        });
-
-        if (zoomData) {
-          sessionDoc.zoomMeetingId = String(zoomData.id) || null;
-          sessionDoc.zoomStartUrl = zoomData.start_url ?? null;
-          sessionDoc.zoomJoinUrl = zoomData.join_url ?? null;
+             const sessionDoc = new Session({
+                 class: classDoc._id, index: globalIndex, startAt: startMoment.toDate(), endAt: endMoment.toDate(), timezone: tz
+             });
+             
+             try {
+                 const zoomStartTime = startMoment.format("YYYY-MM-DDTHH:mm:ss");
+                 const zoomData = await createMeeting({
+                    topic: `${classDoc.name || "Class"} - Session ${globalIndex}`,
+                    start_time: zoomStartTime,
+                    duration: sessionDurationMinutes,
+                    timezone: tz,
+                    settings: { join_before_host: false, approval_type: 0, host_video: false, participant_video: false },
+                 });
+                 if(zoomData) {
+                    sessionDoc.zoomMeetingId = String(zoomData.id);
+                    sessionDoc.zoomStartUrl = zoomData.start_url;
+                    sessionDoc.zoomJoinUrl = zoomData.join_url;
+                 }
+             } catch(e) { console.error(e); if(abortOnZoomFail) throw e; }
+             
+             const saved = await sessionDoc.save();
+             savedSessionIds.push(saved._id);
+             globalIndex++;
         }
-      } catch (zoomErr) {
-        console.error(`Zoom creation failed for class ${classDoc._id}:`, zoomErr?.message);
-        if (abortOnZoomFail) throw zoomErr;
-      }
-
-      const saved = await sessionDoc.save();
-      savedSessionIds.push(saved._id);
-      globalIndex++;
     }
-  }
-  return savedSessionIds;
+    return savedSessionIds;
 };
 
 // ... Rest of your controllers (updateClass, deleteClass etc.) remain the same
 // just ensure updateClass calls recreateSessionsForClass which is now fixed.
 export const updateClass = async (req, res) => {
-  const classId = req.params.id;
+  const classId = req.params.classId;
   const { timeSchedules, totalSessions, sessionDurationMinutes, ...otherUpdates } = req.body;
-  const abortOnZoomFail = false; 
+  const abortOnZoomFail = false;
   const session = await mongoose.startSession();
 
   try {
@@ -214,6 +203,23 @@ export const updateClass = async (req, res) => {
       session.endSession();
       return res.status(404).json({ message: "Class not found" });
     }
+
+    // --- FIX START: Check for new files ---
+    if (req.files) {
+      const newCover = getFilePath(req.files, 'coverImage');
+      const newImages = getGalleryPaths(req.files, 'images');
+
+      if (newCover) {
+        // Optional: Delete old file using fs.unlinkSync(classDoc.coverImage) here if you want
+        classDoc.coverImage = newCover;
+      }
+      if (newImages && newImages.length > 0) {
+        // Depending on logic, you might want to push to array or replace
+        // Here we replace the gallery if new images are uploaded
+        classDoc.images = newImages; 
+      }
+    }
+    // --- FIX END ---
 
     Object.assign(classDoc, otherUpdates);
 
@@ -229,9 +235,9 @@ export const updateClass = async (req, res) => {
     await classDoc.save({ session });
 
     if (willReplaceSchedule) {
-      await session.commitTransaction(); 
+      await session.commitTransaction();
       session.endSession();
-      
+
       const newSessionIds = await recreateSessionsForClass({
         classDoc,
         timeSchedules: classDoc.timeSchedules,
@@ -263,7 +269,7 @@ export const updateClass = async (req, res) => {
 export const deleteClass = async (req, res) => {
     // ... use the same delete logic as provided in previous corrected response
     // ensuring deleteMeeting is imported.
-    const classId = req.params.id;
+    const classId = req.params.classId;
     try {
         const classDoc = await Class.findById(classId);
         if (!classDoc) return res.status(404).json({ message: "Class not found" });
@@ -284,7 +290,7 @@ export const deleteClass = async (req, res) => {
 export const getClassById = async (req, res) => {
     // ... same as before
     try {
-        const classDoc = await Class.findById(req.params.id).populate("sessions");
+        const classDoc = await Class.findById(req.params.classId).populate("sessions");
         if (!classDoc) return res.status(404).json({ message: "Class not found" });
         return res.status(200).json(classDoc);
     } catch (error) { return res.status(500).json(error); }
@@ -298,6 +304,59 @@ export const getAllClasses = async (req, res) => {
     } catch (error) { return res.status(500).json(error); }
 };
 
+export const getAllPublicClasses = async (req, res) => {
+  try {
+    const classes = await Class.find({ 
+        isActive: true, 
+        isPublished: true, 
+        // Ensure you have isDeleted in your schema, otherwise remove this line
+        // isDeleted: false 
+    })
+    .populate("batch", "name") // Only get batch name
+    .populate({
+        path: "sessions",
+        select: "index startAt endAt" // Only get public session info
+    })
+    .sort({ createdAt: -1 });
+
+    return res.status(200).json(classes);
+  } catch (error) {
+    console.error("getAllPublicClasses error:", error);
+    return res.status(500).json({ message: "Failed to fetch public classes" });
+  }
+};
+
+// ---------------------------------------------------------
+// PUBLIC: Get Single Class (Hide Zoom Links)
+// ---------------------------------------------------------
+export const getPublicClass = async (req, res) => {
+  try {
+    const id = req.params.id;
+    
+    // 1. Find the class with filters
+    const classDoc = await Class.findOne({ 
+        _id: id, 
+        isActive: true, 
+        isPublished: true 
+        // isDeleted: false 
+    })
+    .populate("batch", "name")
+    .populate({
+        path: "sessions",
+        // SECURITY: Exclude sensitive Zoom links for public users
+        select: "-zoomStartUrl -zoomJoinUrl -zoomMeetingId -youtubeVideoId" 
+    });
+
+    if (!classDoc) {
+        return res.status(404).json({ message: "Class not found" });
+    }
+
+    return res.status(200).json(classDoc);
+  } catch (error) {
+    console.error("getPublicClass error:", error);
+    return res.status(500).json({ message: "Error fetching class details", error: error.message });
+  }
+};
 // ... Activate/Deactivate controllers remain same
 export const activateClass = async (req, res) => {
     try {

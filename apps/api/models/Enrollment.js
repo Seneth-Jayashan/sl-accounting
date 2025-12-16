@@ -44,11 +44,6 @@ const enrollmentSchema = new mongoose.Schema(
     // Attendance & progress
     attendance: { type: [attendanceSchema], default: [] },
 
-    subscriptionType: {
-      type: String,
-      enum: ["monthly", "one-time", "free"],
-      default: "monthly",
-    },
 
     notes: { type: String },
   },
