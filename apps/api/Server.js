@@ -6,18 +6,29 @@ dotenv.config();
 
 import http from 'http';
 import app from './App.js';
-import connectDB from './config/db.js';
+import connectDB from './config/DB.js';
 import mongoose from 'mongoose';
+import { initSocket } from "./config/socket.js";
+
 
 const PORT = process.env.PORT || 4000;
 
 const server = http.createServer(app);
+
+// Initialize Socket.io handlers
+try {
+  initSocket(server);
+  console.log('✅ Socket.io initialized successfully');
+} catch (error) {
+  console.error('❌ Failed to initialize Socket.io:', error);
+}
 
 async function start() {
   try {
     await connectDB();
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT} (env: ${process.env.NODE_ENV})`);
+      console.log(`📡 Socket.io ready for connections`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

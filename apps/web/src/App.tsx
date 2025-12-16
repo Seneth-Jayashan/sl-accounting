@@ -14,12 +14,16 @@ import { SplashScreen } from "./components/SplashScreen";
 import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
 
+import Chat from "./components/Chat";
+
 
 
 import AuthProvider from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute"; 
 
 import StudentDashboardPage from "./pages/student/Dashboard";
+import StudentTicketPage from "./pages/student/Ticket";
+
 import EnrollmentPage from "./pages/student/enrollment/Enrollment";
 import ViewEnrollmentPage from "./pages/student/enrollment/ViewEnrollment";
 import UploadPaymentSlipPage from "./pages/student/enrollment/UploadPaymentSlip";
@@ -30,6 +34,8 @@ import ViewStudentPage from "./pages/admin/students/ViewStudent";
 import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
 
 import AdminClassesPage from "./pages/admin/classes/Class";
+import AdminSupportPage from "./pages/admin/support/SupportReply";
+import AdminTicketReply from "./pages/admin/support/TicketChat";
 import AdminClassesCreatePage from "./pages/admin/classes/CreateClass";
 import AdminClassesViewPage from "./pages/admin/classes/ViewClass";
 import AdminClassesUpdatePage from "./pages/admin/classes/UpdateClass";
@@ -39,8 +45,6 @@ import AdminCreateSessionPage from "./pages/admin/sessions/AddSession";
 
 import AdminBatchPage from "./pages/admin/batches/Batch";
 import AdminBatchViewPage from "./pages/admin/batches/ViewBatch";
-
-import AdminSupportPage from "./pages/admin/SupportReply";
 
 import "./index.css";
 
@@ -80,6 +84,7 @@ function App() {
 
             <Route path="/verification" element={<Verification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/chat/:ticketId" element={<Chat />} />
             
             
             
@@ -94,6 +99,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/student/tickets"
+            element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentTicketPage />
+              </ProtectedRoute>
+            }
+          />
+
 
           <Route
             path="/student/enrollment"
@@ -146,6 +160,26 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/chat"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminTicketReply />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/chat/ticket/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminTicketReply />
+              </ProtectedRoute>
+            }
+          />
+
+          
 
           <Route
             path="/admin/students/:id"

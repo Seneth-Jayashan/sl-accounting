@@ -1,6 +1,7 @@
 // components/SidebarStudent.tsx
 import { HomeIcon, CalendarIcon, BookOpenIcon, CreditCardIcon, UserGroupIcon, Bars3Icon, ArrowRightOnRectangleIcon } from "@heroicons/react/24/outline";
 import {useAuth} from "../../contexts/AuthContext";
+import { GiHelp } from "react-icons/gi";
 
 type Props = { collapsed?: boolean; onToggle?: () => void };
 
@@ -13,6 +14,7 @@ export default function SidebarStudent({ collapsed = false, onToggle }: Props) {
     { key: "materials", label: "Materials", href: "/student/materials", Icon: BookOpenIcon },
     { key: "enrollment", label: "Enrollment", href: "/student/enrollment", Icon: CreditCardIcon },
     { key: "community", label: "Community", href: "/student/community", Icon: UserGroupIcon },
+    { key: "tickets", label: "Support Tickets", href: "/student/tickets", Icon: GiHelp }
   ];
 
   return (

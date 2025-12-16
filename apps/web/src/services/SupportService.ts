@@ -3,7 +3,7 @@ import api from "./api";
 export interface SupportMessage {
   _id: string;
   name: string;
-  gmail: string;
+  email: string;
   phoneNumber: number;
   message: string;
   reply?: string;
@@ -31,11 +31,14 @@ const get = async (id: string): Promise<SupportMessage> => {
 
 const reply = async (
   id: string,
-  payload: Pick<SupportMessage, "name" | "gmail" | "phoneNumber" | "message"> & { reply: string }
+  payload: Pick<SupportMessage, "name" | "email" | "phoneNumber" | "message"> & { reply: string }
 ): Promise<SupportMessage> => {
   const { data } = await api.put<ItemResponse>(`/contact/${id}`, payload);
   return data.Ms;
 };
+const remove = async (id: string): Promise<void> => {
+  await api.delete(`/contact/${id}`);
+};
 
-export const SupportService = { list, get, reply };
+export const SupportService = { list, get, reply, remove };
 export default SupportService;

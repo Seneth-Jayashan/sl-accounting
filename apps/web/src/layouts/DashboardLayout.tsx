@@ -9,10 +9,11 @@ interface LayoutProps {
   Sidebar: SidebarComponent;
   BottomNav?: BottomNavComponent;
   rightSidebar?: React.ReactNode; // <--- NEW PROP
+  showHeader?: boolean;
   children: React.ReactNode;
 }
 
-export default function DashboardLayout({ Sidebar, BottomNav, rightSidebar, children }: LayoutProps) {
+export default function DashboardLayout({ Sidebar, BottomNav, rightSidebar, children, showHeader = true }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -24,12 +25,14 @@ export default function DashboardLayout({ Sidebar, BottomNav, rightSidebar, chil
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* ... Header Code ... */}
-        <header className="flex items-center justify-between px-4 lg:px-6 py-4 bg-white border-b sticky top-0 z-30 shadow-sm">
-           {/* ... header content ... */}
-           <div className="flex items-center gap-4">
-             <div className="text-sm text-gray-600">Welcome</div>
-           </div>
-        </header>
+        {showHeader && (
+          <header className="flex items-center justify-between px-4 lg:px-6 py-4 bg-white border-b sticky top-0 z-30 shadow-sm">
+             {/* ... header content ... */}
+             <div className="flex items-center gap-4">
+               <div className="text-sm text-gray-600">Welcome</div>
+             </div>
+          </header>
+        )}
 
         <main className="p-4 lg:p-6 pb-24 lg:pb-6 flex gap-6 overflow-x-hidden">
           

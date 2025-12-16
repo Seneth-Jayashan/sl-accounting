@@ -65,7 +65,7 @@ const translations = {
 export default function ContactUsForm(): React.ReactElement {
   type InputState = {
     name: string;
-    email: string; // frontend email → backend "gmail"
+    email: string; 
     phoneNumber: string;
     message: string;
   };
@@ -103,10 +103,9 @@ export default function ContactUsForm(): React.ReactElement {
     setIsSubmitting(true);
 
     try {
-      // backend expects gmail instead of email
       const payload = {
         name: input.name,
-        gmail: input.email,
+        email: input.email,
         phoneNumber: input.phoneNumber,
         message: input.message,
       };

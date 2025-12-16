@@ -4,6 +4,8 @@ import classRoutes from './routes/ClassRoutes.js';
 import userRoutes from './routes/UserRoutes.js';
 import adminRoutes from './routes/AdminRoutes.js';
 import contactRoutes from './routes/ContactRoutes.js';
+import ticketRoutes from './routes/TicketRoutes.js';
+import chatRoutes from './routes/ChatRoutes.js';
 import batchRoutes from './routes/BatchRoutes.js';
 import sessionRoutes from './routes/SessionRoutes.js';
 import enrollmentRoutes from './routes/EnrollmentRoutes.js';
@@ -30,6 +32,11 @@ router.use('/classes', classRoutes);
 //contact routes
 router.use('/contact', contactRoutes);
 
+// Ticket routes
+router.use('/tickets', ticketRoutes);
+
+// Chat routes
+router.use('/chats', chatRoutes);
 // Batch routes
 router.use('/batches', batchRoutes);
 
