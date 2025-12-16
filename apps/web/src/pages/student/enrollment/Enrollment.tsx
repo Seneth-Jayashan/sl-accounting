@@ -128,7 +128,12 @@ export default function EnrollmentPage() {
 
           // 2. Get Hash from Backend
           const signatureData = await PaymentService.initiatePayHere(classData.price, orderId);
-
+          // ADD THIS LOG:
+          console.log("PAYHERE DEBUG:", {
+              merchant_id: signatureData.merchant_id,
+              amount: signatureData.amount,
+              hash: signatureData.hash
+          });
           // 3. Prepare PayHere Form Data
           const payHereParams = {
               merchant_id: signatureData.merchant_id,

@@ -273,4 +273,51 @@ export const listPayments = async (req, res) => {
     console.error("Error listing payments:", err);
     res.status(500).json({ message: "Server error" });
   }
+
+  
+};
+
+export const uploadPaymentSlip = async (req, res) => {
+  try {
+    const { enrollmentId, notes } = req.body;
+    
+    // 1. Check if file exists
+    if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    if (!enrollmentId) {
+        return res.status(400).json({ message: "Enrollment ID is required" });
+    }
+
+    // 2. Construct File Path (Store relative path)
+    // Assuming you serve the 'uploads' folder statically
+    const filePath = `/uploads/${req.file.filename}`;
+
+    // 3. Create Payment Record (Pending Verification)
+    const payment = new Payment({
+        enrollment: enrollmentId,
+        amount: 0, // Admin will verify amount from slip
+        method: "bank_transfer",
+        status: "pending", // Pending admin approval
+        verified: false,
+        paymentDate: new Date(),
+        notes: notes,
+        // You might need to add a 'slipImage' field to your Payment Model
+        // Or store it in 'rawPayload' if you don't want to change schema yet
+        rawPayload: { slipUrl: filePath } 
+    });
+
+    await payment.save();
+
+    res.status(201).json({ 
+        success: true, 
+        message: "Slip uploaded successfully", 
+        payment 
+    });
+
+  } catch (err) {
+    console.error("Error uploading slip:", err);
+    res.status(500).json({ message: "Server error during upload" });
+  }
 };
