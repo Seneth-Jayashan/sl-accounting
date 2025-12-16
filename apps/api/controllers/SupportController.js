@@ -28,19 +28,19 @@ const getAllMs = async (req, res) => {
 
 //       ADD MESSAGE
 const addMs = async (req, res) => {
-  const { name, gmail, phoneNumber, message } = req.body;
+  const { name, email, phoneNumber, message } = req.body;
 
   try {
-    const Ms = new contact({ name, gmail, phoneNumber, message });
+    const Ms = new contact({ name, email, phoneNumber, message });
     await Ms.save();
 
     // EMAIL TO ADMIN
     const mailOptions = {
-      from: `"${name}" <${gmail}>`,
+      from: `"${name}" <${email}>`,
       to: ADMIN_EMAIL,
-      replyTo: gmail,
+      replyTo: email,
       subject: "New Contact Us Form Submission",
-      text: `You have received a new message:\n\nName: ${name}\nEmail: ${gmail}\nPhone: ${phoneNumber}\nMessage: ${message}\n`,
+      text: `You have received a new message:\n\nName: ${name}\nEmail: ${email}\nPhone: ${phoneNumber}\nMessage: ${message}\n`,
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
@@ -81,12 +81,12 @@ const getByID = async (req, res) => {
 //   REPLY & SEND EMAIL
 const replyUser = async (req, res) => {
   const id = req.params.id;
-  const { name, gmail, phoneNumber, message, reply } = req.body;
+  const { name, email, phoneNumber, message, reply } = req.body;
 
   try {
     const Ms = await contact.findByIdAndUpdate(
       id,
-      { name, gmail, phoneNumber, message, reply },
+      { name, email, phoneNumber, message, reply },
       { new: true }
     );
 
@@ -95,7 +95,7 @@ const replyUser = async (req, res) => {
     // Email to User
     const mailOptions = {
       from: `SL Accounting <${ADMIN_EMAIL}>`,
-      to: gmail,
+      to: email,
       subject: "Reply to Your Contact Form Submission",
       text: `Dear ${name},\n\nThanks for contacting us.\n\nYour message: "${message}"\nOur reply: "${reply}"\n\nBest regards,\nSl Accounting team`,
     };

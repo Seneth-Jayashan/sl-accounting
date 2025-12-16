@@ -123,7 +123,7 @@ export default function SupportReply() {
     try {
       const updated = await SupportService.reply(selected._id, {
         name: selected.name,
-        gmail: selected.gmail,
+        email: selected.email,
         phoneNumber: selected.phoneNumber,
         message: selected.message,
         reply: body,
@@ -291,7 +291,7 @@ export default function SupportReply() {
                                   {m.name}
                                 </div>
                                 <div className="text-xs text-gray-500 truncate">
-                                  {m.gmail} • {m.phoneNumber}
+                                  {m.email} • {m.phoneNumber}
                                 </div>
                               </div>
                               <span
@@ -336,9 +336,9 @@ export default function SupportReply() {
                           <div className="text-sm text-gray-500 space-x-2">
                             <a
                               className="hover:underline"
-                              href={`mailto:${selected.gmail}`}
+                              href={`mailto:${selected.email}`}
                             >
-                              {selected.gmail}
+                              {selected.email}
                             </a>
                             <span>•</span>
                             <a

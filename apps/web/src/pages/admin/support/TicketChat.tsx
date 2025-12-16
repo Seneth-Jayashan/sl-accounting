@@ -99,7 +99,7 @@ export default function TicketChatAdmin() {
 		return (
 			<div className="space-y-1 text-sm text-gray-600">
 				<div className="font-semibold text-[#0b2540]">{selectedTicket.name}</div>
-				<div className="text-xs text-gray-500">{selectedTicket.gmail} • {selectedTicket.phoneNumber}</div>
+				<div className="text-xs text-gray-500">{selectedTicket.email} • {selectedTicket.phoneNumber}</div>
 				<div>Category: {selectedTicket.Categories || "Unspecified"}</div>
 				<div>Priority: {selectedTicket.priority || "Low"}</div>
 				<div>Status: {selectedTicket.status || "Open"}</div>
@@ -135,7 +135,7 @@ export default function TicketChatAdmin() {
 		try {
 			const updated = await TicketService.updateTicket(selectedId, {
 				name: selectedTicket.name,
-				gmail: selectedTicket.gmail,
+				email: selectedTicket.email,
 				phoneNumber: selectedTicket.phoneNumber,
 				Categories: selectedTicket.Categories,
 				message: selectedTicket.message,
@@ -240,7 +240,7 @@ export default function TicketChatAdmin() {
 														<div className="flex items-start justify-between gap-3">
 															<div className="min-w-0 space-y-1">
 																<div className="font-semibold text-[#0b2540] truncate">{t.name}</div>
-																<div className="text-xs text-gray-500 truncate">{t.gmail}</div>
+																<div className="text-xs text-gray-500 truncate">{t.email}</div>
 																<div className="text-xs text-gray-500 truncate">{t.Categories || "Category"}</div>
 															</div>
 															<span

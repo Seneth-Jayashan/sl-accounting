@@ -89,7 +89,7 @@ export default function StudentTicketPage(): React.ReactElement {
       const payload = {
         user_id: user._id,
         name: form.name.trim(),
-        gmail: form.email.trim(),
+        email: form.email.trim(),
         phoneNumber: form.phoneNumber.trim(),
         Categories: form.category, // backend expects the key `Categories`
         message: form.message.trim(),

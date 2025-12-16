@@ -27,13 +27,14 @@ const getTicketsByUserID = async (req, res) => {
 
 // Add new ticket (NO ticket_id — MongoDB _id is used)
 const addTicket = async (req, res) => {
-  const { user_id, name, gmail, phoneNumber, Categories, message, priority } = req.body;
+  const { user_id, name, email, phoneNumber, Categories, message, priority } =
+    req.body;
 
   try {
     const ticket = new Ticket({
       name,
       user_id,
-      gmail,
+      email,
       phoneNumber,
       Categories,
       message,
@@ -82,26 +83,33 @@ const getTicketByID = async (req, res) => {
 
 // Update ticket by _id
 const updateTicket = async (req, res) => {
-  const { name, gmail, phoneNumber, Categories, message, status, priority } = req.body;
+  const { name, email, phoneNumber, Categories, message, status, priority } =
+    req.body;
 
   try {
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) return res.status(404).json({ message: "Ticket not found" });
 
-    if (!req.user) return res.status(401).json({ message: "Not authenticated" });
+    if (!req.user)
+      return res.status(401).json({ message: "Not authenticated" });
     const isAdmin = req.user.role === "admin";
     const isOwner = ticket.user_id?.toString() === req.user._id.toString();
     if (!isAdmin && !isOwner) {
-      return res.status(403).json({ message: "Forbidden: cannot update this ticket" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden: cannot update this ticket" });
     }
 
-    const isClosing = typeof status === "string" && status.toLowerCase() === "closed";
+    const isClosing =
+      typeof status === "string" && status.toLowerCase() === "closed";
     if (isClosing && !isAdmin) {
-      return res.status(403).json({ message: "Forbidden: only admins can close tickets" });
+      return res
+        .status(403)
+        .json({ message: "Forbidden: only admins can close tickets" });
     }
 
     ticket.name = name ?? ticket.name;
-    ticket.gmail = gmail ?? ticket.gmail;
+    ticket.email = email ?? ticket.email;
     ticket.phoneNumber = phoneNumber ?? ticket.phoneNumber;
     ticket.Categories = Categories ?? ticket.Categories;
     ticket.message = message ?? ticket.message;
@@ -154,7 +162,7 @@ const deleteTicket = async (req, res) => {
   }
 };
 
-export default{
+export default {
   getAllTickets,
   getTicketsByUserID,
   addTicket,

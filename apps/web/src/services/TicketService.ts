@@ -3,7 +3,7 @@ import api from "./api";
 export interface TicketPayload {
   user_id: string;
   name: string;
-  gmail: string;
+  email: string;
   phoneNumber: string;
   Categories: string;
   message: string;
@@ -18,7 +18,7 @@ export interface Ticket {
   _id: string;
   name: string;
   user_id: string;
-  gmail: string;
+  email: string;
   phoneNumber: string;
   Categories: string;
   message: string;
@@ -29,7 +29,7 @@ export interface Ticket {
 
 export interface TicketUpdatePayload {
   name?: string;
-  gmail?: string;
+  email?: string;
   phoneNumber?: string;
   Categories?: string;
   message?: string;

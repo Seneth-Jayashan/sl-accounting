@@ -12,7 +12,7 @@ const ticketSchema = new Schema({
     required: true,
     index: true,
   },
-  gmail: {
+  email: {
     type: String,
     required: true,
   },
@@ -34,7 +34,7 @@ const ticketSchema = new Schema({
   },
   priority: {
     type: String,
-    default: "Low", // Default priority is Normal
+    default: "Low", // Default priority is low
   },
 });
 
