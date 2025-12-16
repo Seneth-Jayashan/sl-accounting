@@ -34,8 +34,6 @@ const EnrollmentService = {
   /**
    * Enroll the current user in a specific class
    * Endpoint: POST /api/v1/enrollments
-   * * @param classId - The ID of the class to enroll in
-   * @param studentId - The ID of the user (passed from AuthContext)
    */
   enrollInClass: async (classId: string, studentId: string) => {
     if (!studentId) {
@@ -45,7 +43,7 @@ const EnrollmentService = {
     const payload = {
       student: studentId,
       class: classId,
-      subscriptionType: "monthly", // Defaulting to monthly
+      subscriptionType: "monthly",
       accessStartDate: new Date().toISOString()
     };
 
@@ -53,7 +51,6 @@ const EnrollmentService = {
       const response = await api.post<EnrollmentResponse>("/enrollments", payload);
       return response.data;
     } catch (error: any) {
-      // Handle "409 Conflict" (Already enrolled)
       if (error.response?.status === 409) {
         throw "You are already enrolled in this class.";
       }
@@ -63,17 +60,10 @@ const EnrollmentService = {
 
   /**
    * Check if user is already enrolled
-   * (This usually relies on backend token auth, so no args needed ideally, 
-   * but keeping classId if your specific route needs it)
    */
   checkEnrollmentStatus: async (classId: string) => {
     try {
-      // If your backend has a specific check endpoint:
-      // const response = await api.get<{ isEnrolled: boolean }>(`/enrollments/check/${classId}`);
-      // return response.data.isEnrolled;
-      
-      // Fallback: If you don't have a check endpoint, return false 
-      // (Backend createEnrollment will catch duplicates anyway)
+      // Fallback if no dedicated check endpoint exists
       return false; 
     } catch (error) {
       return false;
@@ -81,10 +71,27 @@ const EnrollmentService = {
   },
 
   /**
+   * Get a specific enrollment by ID
+   * Endpoint: GET /api/v1/enrollments/:id
+   */
+  getEnrollmentById: async (id: string) => {
+    const response = await api.get<EnrollmentResponse>(`/enrollments/${id}`);
+    return response.data;
+  },
+
+  /**
    * Get all enrollments (Admin)
    */
   getAllEnrollments: async (filters: { classId?: string; paymentStatus?: string } = {}) => {
     const response = await api.get<EnrollmentResponse[]>("/enrollments", { params: filters });
+    return response.data;
+  },
+
+  /**
+   * Get my enrollments (Student)
+   */
+  getMyEnrollments: async () => { 
+    const response = await api.get<EnrollmentResponse[]>("/enrollments/my-enrollments");
     return response.data;
   },
 
@@ -102,12 +109,6 @@ const EnrollmentService = {
    */
   cancelEnrollment: async (id: string) => {
     const response = await api.delete(`/enrollments/${id}`);
-    return response.data;
-  },
-
-  getMyEnrollments: async (studentId?: string) => { 
-    // studentId arg is now optional/unused because backend uses the token
-    const response = await api.get<EnrollmentResponse[]>("/enrollments/my-enrollments");
     return response.data;
   },
 };

@@ -34,7 +34,18 @@ const PaymentService = {
       notes
     });
     return response.data;
-  }
+  },
+
+ uploadPaymentSlip: async (enrollmentId: string, file: File, notes?: string) => {
+    const formData = new FormData();
+    formData.append("enrollmentId", enrollmentId);
+    formData.append("slip", file); // Must match upload.single("slip") in backend
+    if (notes) formData.append("notes", notes);
+
+    // REMOVED manual header. Let Axios handle the boundary.
+    const response = await api.post("/payments/upload-slip", formData);
+    return response.data;
+  },
 };
 
 export default PaymentService;

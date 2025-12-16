@@ -4,10 +4,12 @@ import {
   getPaymentById,
   listPayments,
   payHereWebhook,
-  createPayHereSignature // Import the new function
+  createPayHereSignature,
+  uploadPaymentSlip
 } from "../controllers/PaymentController.js"; // Adjust path matches your structure
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
-
+import createUploader from "../middlewares/UploadMiddleware.js";
+const PaymentSlipUploader = createUploader('images/payments', 'slip');
 const router = express.Router();
 
 // --- Public / Callback Routes ---
@@ -27,5 +29,7 @@ router.get("/:id", protect, getPaymentById);
 
 // List Payments (Admin Only)
 router.get("/", protect, restrictTo("admin"), listPayments);
+
+router.post("/upload-slip", protect, PaymentSlipUploader,  uploadPaymentSlip);
 
 export default router;

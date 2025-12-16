@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../layouts/DashboardLayout";
-// --- Import your Student Navigation Components ---
-// If you haven't created these yet, duplicate your Admin ones and rename them to Student
 import SidebarStudent from "../../../components/sidebar/SidebarStudent"; 
-import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent.tsx"; 
+import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent"; 
 import EnrollmentService from "../../../services/EnrollmentService";
 import type { EnrollmentResponse, EnrolledClass } from "../../../services/EnrollmentService";
 
@@ -16,7 +14,8 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   ArrowRightIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  DocumentArrowUpIcon // Added Icon
 } from "@heroicons/react/24/outline";
 
 export default function ViewEnrollments() {
@@ -30,7 +29,7 @@ export default function ViewEnrollments() {
     const fetchEnrollments = async () => {
       if (!user) return;
       try {
-        const data = await EnrollmentService.getMyEnrollments(user._id);
+        const data = await EnrollmentService.getMyEnrollments();
         setEnrollments(data);
       } catch (error) {
         console.error("Failed to fetch enrollments", error);
@@ -49,7 +48,6 @@ export default function ViewEnrollments() {
   };
 
   return (
-    // --- FIX: Pass the Sidebar and BottomNav props here ---
     <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
       <div className="p-6 max-w-7xl mx-auto pb-20">
         
@@ -130,7 +128,7 @@ export default function ViewEnrollments() {
                                     )}
                                 </div>
 
-                                <div className="mt-auto pt-4 border-t border-gray-50 flex gap-3">
+                                <div className="mt-auto pt-4 border-t border-gray-50 flex gap-2">
                                     {isPaid ? (
                                         <button 
                                             onClick={() => navigate(`/student/class/${classInfo._id}`)}
@@ -140,17 +138,22 @@ export default function ViewEnrollments() {
                                         </button>
                                     ) : (
                                         <>
+                                            {/* Pay Online Button */}
                                             <button 
                                                 onClick={() => navigate(`/student/enrollment/${classInfo._id}`)}
-                                                className="w-full bg-yellow-500 text-white py-2.5 rounded-xl font-medium hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+                                                className="flex-1 bg-yellow-500 text-white py-2.5 rounded-xl font-medium hover:bg-yellow-600 transition-colors flex items-center justify-center gap-1 text-sm"
+                                                title="Pay Online via PayHere"
                                             >
-                                                <CurrencyDollarIcon className="w-5 h-5" /> Pay Now
+                                                <CurrencyDollarIcon className="w-4 h-4" /> Pay
                                             </button>
+                                            
+                                            {/* Upload Slip Button (New) */}
                                             <button 
-                                                onClick={() => navigate(`/student/enrollment/${classInfo._id}`)} // Re-route to enrollment page for upload/pay details
-                                                className="w-full border border-gray-200 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                                                onClick={() => navigate(`/student/payment/upload/${enrollment._id}`)}
+                                                className="flex-1 border border-[#0b2540] text-[#0b2540] py-2.5 rounded-xl font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-1 text-sm"
+                                                title="Upload Bank Transfer Slip"
                                             >
-                                                Details
+                                                <DocumentArrowUpIcon className="w-4 h-4" /> Upload Slip
                                             </button>
                                         </>
                                     )}
