@@ -45,8 +45,6 @@ import AdminCreateSessionPage from "./pages/admin/sessions/AddSession";
 import AdminBatchPage from "./pages/admin/batches/Batch";
 import AdminBatchViewPage from "./pages/admin/batches/ViewBatch";
 
-import AdminSupportPage from "./pages/admin/SupportReply";
-
 import "./index.css";
 
 function App() {
