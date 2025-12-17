@@ -7,6 +7,29 @@ interface PayHereInitResponse {
   currency: string;
 }
 
+export interface PaymentData {
+  _id: string;
+  enrollment: {
+    _id: string;
+    student: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+    class: {
+      name: string;
+    };
+  };
+  amount: number;
+  method: "payhere" | "bank_transfer" | "manual";
+  status: "completed" | "pending" | "failed";
+  paymentDate: string;
+  rawPayload?: {
+    slipUrl?: string; // Where the uploaded image path is stored
+  };
+  notes?: string;
+}
+
 const PaymentService = {
   /**
    * Get the necessary Hash and Merchant ID from backend to start PayHere payment
@@ -44,6 +67,27 @@ const PaymentService = {
 
     // REMOVED manual header. Let Axios handle the boundary.
     const response = await api.post("/payments/upload-slip", formData);
+    return response.data;
+  },
+
+  getAllPayments: async (status?: string) => {
+    const params = status && status !== "all" ? { status } : {};
+    const response = await api.get<PaymentData[]>("/payments", { params });
+    return response.data;
+  },
+
+  /**
+   * Verify (Approve/Reject) a Bank Transfer
+   * Endpoint: PUT /api/v1/payments/:id/verify
+   * (You need to ensure your backend supports this, or use a generic update)
+   */
+  verifyBankSlip: async (id: string, action: "approve" | "reject") => {
+    // Assuming you have a backend route for verification
+    // If not, you might use a generic update: 
+    // api.put(`/payments/${id}`, { status: action === 'approve' ? 'completed' : 'failed' })
+    
+    const status = action === "approve" ? "completed" : "failed";
+    const response = await api.put(`/payments/${id}`, { status }); 
     return response.data;
   },
 };

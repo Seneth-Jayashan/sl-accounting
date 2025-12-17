@@ -27,7 +27,7 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
     { key: "classes", label: "Classes", href: "/admin/classes", Icon: AcademicCapIcon },
     { key: "batches", label: "Batches", href: "/admin/batches", Icon: ClipboardDocumentCheckIcon },
     { key: "sessions", label: "Sessions", href: "/admin/sessions", Icon: CurrencyDollarIcon },
-    { key: "materials", label: "Materials", href: "/admin/materials", Icon: BookOpenIcon },
+    { key: "payments", label: "Payments", href: "/admin/payments", Icon: BookOpenIcon },
     { key: "reports", label: "Reports", href: "/admin/reports", Icon: ChartBarIcon },
     { key: "Support", label: "Support", href: "/admin/support", Icon: PhoneIcon },
     { key : "chat", label: "Chat", href: "/admin/chat", Icon: ChatBubbleLeftRightIcon },
