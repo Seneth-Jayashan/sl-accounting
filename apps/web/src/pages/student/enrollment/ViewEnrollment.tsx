@@ -47,6 +47,7 @@ export default function ViewEnrollments() {
     return cls;
   };
 
+  console.log(enrollments);
   return (
     <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
       <div className="p-6 max-w-7xl mx-auto pb-20">
@@ -84,6 +85,7 @@ export default function ViewEnrollments() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {enrollments.map((enrollment) => {
                     const classInfo = getClassDetails(enrollment.class);
+                    console.log(classInfo.name);
                     const isPaid = enrollment.paymentStatus === 'paid';
                     const isExpired = enrollment.accessEndDate && new Date(enrollment.accessEndDate) < new Date();
 
