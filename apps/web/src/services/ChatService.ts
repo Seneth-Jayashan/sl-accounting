@@ -14,6 +14,7 @@ export interface ChatMessage {
 
 class ChatService {
   private socket: Socket | null = null;
+  private readonly joinedRooms = new Set<string>();
   // Timeout (ms) to wait for socket ack before falling back to REST
   private readonly SOCKET_ACK_TIMEOUT_MS = 2000;
 
@@ -44,6 +45,13 @@ class ChatService {
       withCredentials: true,
     });
 
+    // Rejoin any ticket rooms after reconnect so chat continues seamlessly
+    this.socket.on("connect", () => {
+      this.joinedRooms.forEach((room) => {
+        this.socket?.emit("join_ticket", { ticketId: room });
+      });
+    });
+
     this.socket.on("connect_error", (err) =>
       console.error("ChatService socket connect_error", err?.message || err)
     );
@@ -54,6 +62,8 @@ class ChatService {
 
   joinTicket(ticketId: string) {
     this.init();
+    if (!ticketId) return;
+    this.joinedRooms.add(ticketId);
     this.socket?.emit("join_ticket", { ticketId });
   }
 
