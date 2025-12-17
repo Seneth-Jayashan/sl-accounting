@@ -1,0 +1,318 @@
+import React, { useEffect, useState } from 'react';
+import DashboardLayout from '../../layouts/DashboardLayout';
+import SidebarAdmin from '../../components/sidebar/SidebarAdmin';
+import BottomNavAdmin from '../../components/bottomNavbar/BottomNavAdmin';
+import { api } from '../../services/api';
+import Swal from 'sweetalert2';
+
+const CATEGORIES = [
+  'Lecture Notes',
+  'Reading Materials',
+  'Past Papers',
+  'Assignments',
+  'Other',
+];
+
+const AdminKnowledgeList: React.FC = () => {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState<number>(Date.now());
+
+  const [editing, setEditing] = useState(false);
+  const [current, setCurrent] = useState<any | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [isPublished, setIsPublished] = useState(false);
+  const [publishAt, setPublishAt] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  // tick every second so scheduled countdowns update live
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDuration = (ms: number) => {
+    if (ms <= 0) return '00:00:00';
+    const total = Math.floor(ms / 1000);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  };
+
+  const fetchItems = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get('/knowledge');
+      if (res.data?.success) setItems(res.data.items || []);
+      else setError(res.data?.message || 'Failed to load items');
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.response?.data?.message || err.message || 'Failed to load items');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const item = items.find((it) => it._id === id);
+    const title = item?.title || 'this item';
+    const result = await Swal.fire({
+      title: `Delete ${title}?`,
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await api.delete(`/knowledge/${id}`);
+      setItems((s) => s.filter((i) => i._id !== id));
+      await Swal.fire({ title: 'Deleted', text: 'Item deleted successfully', icon: 'success', timer: 1400, showConfirmButton: false });
+    } catch (err: any) {
+      console.error(err);
+      await Swal.fire({ title: 'Delete failed', text: err?.response?.data?.message || err.message || 'Delete failed', icon: 'error' });
+    }
+  };
+
+  const openEdit = (item: any) => {
+    setCurrent(item);
+    setTitle(item.title || '');
+    setDescription(item.description || '');
+    setCategory(item.catageory || CATEGORIES[0]);
+    setIsPublished(Boolean(item.isPublished));
+    setPublishAt(item.publishAt ? new Date(item.publishAt).toISOString().slice(0,16) : null);
+    setFile(null);
+    setEditing(true);
+  };
+
+  // load preview for current file when edit modal opens
+  useEffect(() => {
+    let url: string | null = null;
+    let cancelled = false;
+    if (current && !file) {
+      const mime = current.fileMime || '';
+      const isPreviewable = mime === 'application/pdf' || mime.startsWith('image/');
+      if (isPreviewable) {
+        (async () => {
+          try {
+            const res = await api.get(`/knowledge/${current._id}/download`, { responseType: 'blob' });
+            if (cancelled) return;
+            const blob = new Blob([res.data], { type: res.headers['content-type'] || mime });
+            url = URL.createObjectURL(blob);
+            setPreviewUrl(url);
+          } catch (err) {
+            console.error('preview fetch failed', err);
+            setPreviewUrl(null);
+          }
+        })();
+      } else {
+        setPreviewUrl(null);
+      }
+    }
+
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+      setPreviewUrl((p) => {
+        if (p) URL.revokeObjectURL(p);
+        return null;
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
+  // update preview when a new file is selected in the modal
+  useEffect(() => {
+    if (!file) return;
+    const u = URL.createObjectURL(file);
+    // revoke previous
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return u;
+    });
+    return () => {
+      URL.revokeObjectURL(u);
+    };
+  }, [file]);
+
+  const handleDownloadCurrent = async () => {
+    if (!current) return;
+    try {
+      const res = await api.get(`/knowledge/${current._id}/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      const name = current.fileName || current.fileOriginalName || current.file || 'material';
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.response?.data?.message || err.message || 'Download failed');
+    }
+  };
+
+  const handleUpdate = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!current) return;
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.append('title', title);
+      form.append('description', description || '');
+      form.append('catageory', category);
+      form.append('isPublished', String(isPublished));
+      if (publishAt) form.append('publishAt', publishAt);
+      if (file) form.append('file', file as Blob);
+
+      const res = await api.put(`/knowledge/${current._id}`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data?.success) {
+        // update local list
+        setItems((s) => s.map((it) => (it._id === current._id ? res.data.item || { ...it, ...res.data.item } : it)));
+        setEditing(false);
+        setCurrent(null);
+      } else {
+        alert(res.data?.message || 'Update failed');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.response?.data?.message || err.message || 'Update failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Knowledge Base — Manage</h1>
+            <p className="text-sm text-gray-500">View, edit or delete uploaded materials.</p>
+          </div>
+        </div>
+
+        {loading && <div className="text-gray-500">Loading...</div>}
+        {error && <div className="text-red-600">{error}</div>}
+
+        <div className="grid gap-4">
+          {items.map((it) => (
+            <div key={it._id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+              <div>
+                <div className="font-semibold">{it.title}</div>
+                <div className="text-sm text-gray-500">{it.description}</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {it.catageory} • {new Date(it.createdAt).toLocaleString()}
+                </div>
+
+                {/* scheduled countdown */}
+                {it.publishAt && !it.isPublished && (() => {
+                  const target = new Date(it.publishAt).getTime();
+                  const diff = target - now;
+                  if (diff > 0) {
+                    return (
+                      <div className="text-xs text-yellow-600 mt-2">Scheduled — publishes in {formatDuration(diff)}</div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => openEdit(it)} className="px-3 py-1 rounded-xl bg-blue-600 text-white text-sm">Edit</button>
+                <button onClick={() => handleDelete(it._id)} className="px-3 py-1 rounded-xl border border-red-200 text-red-600 text-sm">Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {editing && (
+          <div className="fixed inset-0 bg-black/40 flex items-start sm:items-center justify-center z-50 p-4">
+            <div className="w-full mx-auto max-w-lg sm:max-w-2xl bg-white rounded-2xl p-4 sm:p-6 shadow-xl max-h-[90vh] overflow-auto">
+              <h2 className="text-lg font-semibold mb-4">Edit Material</h2>
+              <form onSubmit={(e) => { e.preventDefault(); handleUpdate(); }} className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Title</label>
+                  <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 border rounded" />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Description</label>
+                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Category</label>
+                  <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 border rounded">
+                    {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+
+                  <div>
+                    <label className="text-sm font-medium">File preview</label>
+                    <div className="mt-2 relative w-full bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                      {previewUrl ? (
+                        <div className="w-full">
+                          {((current?.fileMime || file?.type || '').startsWith('image/')) ? (
+                            <img src={previewUrl} alt="preview" className="w-full max-h-48 sm:max-h-64 md:max-h-72 object-contain" />
+                          ) : (
+                            <iframe src={previewUrl} title="file-preview" className="w-full h-48 sm:h-64 md:h-72" />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-4 flex items-center justify-between">
+                          <div className="text-sm text-gray-700 break-words">{current?.fileName || current?.fileOriginalName || current?.file || 'No file attached'}</div>
+                          <div className="text-xs text-gray-400">{current?.fileMime || ''}</div>
+                        </div>
+                      )}
+
+                      {/* Change file overlay on the preview box */}
+                      <label className="absolute top-2 right-2 inline-flex items-center gap-2 bg-white/90 px-3 py-1 rounded-lg cursor-pointer border">
+                        <span className="text-sm">Change file</span>
+                        <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="hidden" />
+                      </label>
+                    </div>
+
+                    <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="text-sm text-gray-600 break-words">{current?.fileName || 'No file attached'}</div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={handleDownloadCurrent} disabled={!current} className="px-3 py-1 rounded-lg border text-sm">Download</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button type="button" onClick={() => { setEditing(false); setCurrent(null); }} className="px-4 py-2 rounded-lg border">Cancel</button>
+                  <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#0b2540] text-white">{saving ? 'Saving...' : 'Save'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default AdminKnowledgeList;

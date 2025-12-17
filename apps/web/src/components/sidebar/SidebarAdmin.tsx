@@ -1,4 +1,5 @@
 // components/SidebarAdmin.tsx
+import React, { useState } from "react";
 import {
   HomeIcon,
   UsersIcon,
@@ -11,6 +12,7 @@ import {
   AcademicCapIcon,
   CurrencyDollarIcon,
   BookOpenIcon,
+  ChevronDownIcon,
   PhoneIcon 
 } from "@heroicons/react/24/outline";
 import {useAuth} from "../../contexts/AuthContext";
@@ -20,6 +22,7 @@ type Props = { collapsed?: boolean; onToggle?: () => void };
 
 export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
   const { logout } = useAuth();
+  const [kbOpen, setKbOpen] = useState(false);
 
   const nav = [
     { key: "overview", label: "Overview", href: "/admin/dashboard", Icon: HomeIcon },
@@ -27,7 +30,6 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
     { key: "classes", label: "Classes", href: "/admin/classes", Icon: AcademicCapIcon },
     { key: "batches", label: "Batches", href: "/admin/batches", Icon: ClipboardDocumentCheckIcon },
     { key: "sessions", label: "Sessions", href: "/admin/sessions", Icon: CurrencyDollarIcon },
-    { key: "materials", label: "Materials", href: "/admin/materials", Icon: BookOpenIcon },
     { key: "reports", label: "Reports", href: "/admin/reports", Icon: ChartBarIcon },
     { key: "Support", label: "Support", href: "/admin/support", Icon: PhoneIcon },
     { key : "chat", label: "Chat", href: "/admin/chat", Icon: ChatBubbleLeftRightIcon },
@@ -44,10 +46,32 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
 
       <nav className="flex-1 px-2 py-4 overflow-auto custom-scrollbar">
         {nav.map((n) => (
-          <a key={n.key} href={n.href} className="flex items-center gap-3 p-3 rounded-md hover:bg-white/10 transition-colors mb-1">
-            <n.Icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span className="whitespace-nowrap">{n.label}</span>}
-          </a>
+          <React.Fragment key={n.key}>
+            <a href={n.href} className="flex items-center gap-3 p-3 rounded-md hover:bg-white/10 transition-colors mb-1">
+              <n.Icon className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span className="whitespace-nowrap">{n.label}</span>}
+            </a>
+
+            {/* Insert Materials dropdown right after Sessions */}
+            {n.key === 'sessions' && (
+              <div className="mt-2">
+                <button onClick={() => setKbOpen((s) => !s)} className="w-full flex items-center gap-3 p-3 rounded-md hover:bg-white/10 transition-colors mb-1">
+                  <BookOpenIcon className="w-5 h-5 flex-shrink-0" />
+                  {!collapsed && <span className="whitespace-nowrap">Materials</span>}
+                  {!collapsed && (
+                    <ChevronDownIcon className={`w-4 h-4 transform transition-transform duration-150 ${kbOpen ? 'rotate-0' : '-rotate-90'}`} />
+                  )}
+                </button>
+
+                {kbOpen && (
+                  <div className="pl-10 pr-2 mt-1">
+                    <a href="/admin/knowledge-base" className="flex items-center gap-3 p-3 rounded-md hover:bg-white/5 transition-colors mb-1"> <span className="whitespace-nowrap">Add to KnowledgeBase</span></a>
+                    <a href="/admin/knowledge-list" className="flex items-center gap-3 p-3 rounded-md hover:bg-white/5 transition-colors mb-1"> <span className="whitespace-nowrap">View Knowledge Base</span></a>
+                  </div>
+                )}
+              </div>
+            )}
+          </React.Fragment>
         ))}
       </nav>
 

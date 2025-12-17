@@ -23,6 +23,7 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 
 import StudentDashboardPage from "./pages/student/Dashboard";
 import StudentTicketPage from "./pages/student/Ticket";
+import ViewKnowledgeBasePage from "./pages/student/KnowledgeBasestudent";
 
 import EnrollmentPage from "./pages/student/enrollment/Enrollment";
 import ViewEnrollmentPage from "./pages/student/enrollment/ViewEnrollment";
@@ -39,6 +40,8 @@ import AdminTicketReply from "./pages/admin/support/TicketChat";
 import AdminClassesCreatePage from "./pages/admin/classes/CreateClass";
 import AdminClassesViewPage from "./pages/admin/classes/ViewClass";
 import AdminClassesUpdatePage from "./pages/admin/classes/UpdateClass";
+import AdminKnowledgeBasePage from "./pages/admin/KnowledgeBase";
+import AdminKnowledgeListPage from "./pages/admin/KnowledgeList";
 
 import AdminSessionPage from "./pages/admin/sessions/Session";
 import AdminCreateSessionPage from "./pages/admin/sessions/AddSession";
@@ -136,6 +139,15 @@ function App() {
           />
 
           <Route
+            path="/student/knowledge-base"
+            element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <ViewKnowledgeBasePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin/dashboard"
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
@@ -179,7 +191,23 @@ function App() {
             }
           />
 
-          
+          <Route
+          path="/admin/knowledge-base"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminKnowledgeBasePage />
+              </ProtectedRoute> 
+          }
+        /> 
+
+        <Route
+          path="/admin/knowledge-list"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminKnowledgeListPage />
+              </ProtectedRoute> 
+          }
+        />        
 
           <Route
             path="/admin/students/:id"

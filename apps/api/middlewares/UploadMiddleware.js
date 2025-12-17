@@ -66,3 +66,25 @@ export const classMediaUpload = classUpload.fields([
 ]);
 
 export default createUploader;
+
+// --- Document Uploader (for PDFs, Docs, etc.) ---
+const documentFileFilter = (req, file, cb) => {
+    const allowed = /pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|zip/;
+    const mimetype = allowed.test(file.mimetype);
+    const extname = allowed.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+        return cb(null, true);
+    } else {
+        cb(new Error('Only document files are allowed (pdf, doc, docx, zip).'), false);
+    }
+};
+
+export const createDocumentUploader = (destinationFolder = 'docs', fieldName = 'file', maxFileSizeMB = 20) => {
+    const upload = multer({
+        storage: createStorage(destinationFolder),
+        limits: { fileSize: maxFileSizeMB * 1024 * 1024 },
+        fileFilter: documentFileFilter,
+    });
+    return upload.single(fieldName);
+};

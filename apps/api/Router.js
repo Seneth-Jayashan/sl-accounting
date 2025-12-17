@@ -10,6 +10,7 @@ import batchRoutes from './routes/BatchRoutes.js';
 import sessionRoutes from './routes/SessionRoutes.js';
 import enrollmentRoutes from './routes/EnrollmentRoutes.js';
 import paymentRoutes from './routes/PaymentRoutes.js';
+import knowledgeRoutes from './routes/KnowledgeRoutes.js';
 
 const router = express.Router();
 
@@ -48,5 +49,8 @@ router.use('/enrollments', enrollmentRoutes);
 
 // Payment routes
 router.use('/payments', paymentRoutes); 
+
+// Knowledge base routes
+router.use('/knowledge', knowledgeRoutes);
 
 export default router;
