@@ -30,13 +30,13 @@ export default function BottomNavStudent() {
         {/* 2. My Classes (Enrollments) */}
         <Link to="/student/enrollments" className={getLinkClass(path.startsWith("/student/enrollments"))}>
           <AcademicCapIcon className={`w-6 h-6 ${path.startsWith("/student/enrollments") ? "stroke-2" : "stroke-1.5"}`} />
-          <span className="text-[10px] font-medium">My Classes</span>
+          <span className="text-[10px] font-medium">My enrollments</span>
         </Link>
 
         {/* 3. Browse (Public Catalog) */}
-        <Link to="/classes" className={getLinkClass(path.startsWith("/classes"))}>
+        <Link to="/student/classes" className={getLinkClass(path.startsWith("/classes"))}>
           <MagnifyingGlassIcon className={`w-6 h-6 ${path.startsWith("/classes") ? "stroke-2" : "stroke-1.5"}`} />
-          <span className="text-[10px] font-medium">Browse</span>
+          <span className="text-[10px] font-medium">Classes</span>
         </Link>
 
         {/* 4. Profile */}

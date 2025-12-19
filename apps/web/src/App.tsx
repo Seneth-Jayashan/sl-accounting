@@ -24,6 +24,9 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import StudentDashboardPage from "./pages/student/Dashboard";
 import StudentTicketPage from "./pages/student/Ticket";
 
+import StudentClassPage from "./pages/student/class/Classes";
+import StudentViewClassPage from "./pages/student/class/ViewClass";
+
 import EnrollmentPage from "./pages/student/enrollment/Enrollment";
 import ViewEnrollmentPage from "./pages/student/enrollment/ViewEnrollment";
 import UploadPaymentSlipPage from "./pages/student/enrollment/UploadPaymentSlip";
@@ -111,6 +114,24 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <StudentTicketPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/classes"
+            element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentClassPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/class/:id"
+            element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentViewClassPage />
               </ProtectedRoute>
             }
           />

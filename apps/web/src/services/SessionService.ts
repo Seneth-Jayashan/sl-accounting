@@ -15,6 +15,7 @@ export interface SessionData {
   zoomMeetingId?: string;
   zoomStartUrl?: string; // Only visible to instructors/admin
   zoomJoinUrl?: string;
+  recordingUrl?: string; // Added recordingUrl as it's used in the frontend
   isCancelled: boolean;
   cancelledAt?: string;
   cancellationReason?: string;
@@ -56,8 +57,8 @@ export interface SessionFilterParams {
 export interface SessionResponse {
   message?: string;
   session?: SessionData;
-  data?: SessionData[]; // For getAll
-  count?: number;       // For getAll
+  // Based on your controller, GET requests return SessionData[] directly
+  // POST/PUT requests return an object with message/session
   error?: string;
 }
 
@@ -71,17 +72,28 @@ const SessionService = {
    * Endpoint: GET /api/v1/sessions
    */
   getAllSessions: async (params: SessionFilterParams = {}) => {
-    const response = await api.get<SessionResponse>(BASE_URL, { params });
+    // Backend returns SessionData[] directly
+    const response = await api.get<SessionData[]>(BASE_URL, { params });
+    return response.data;
+  },
+
+  /**
+   * Get all sessions specific to a class (Convenience wrapper for getAllSessions)
+   * Endpoint: GET /api/v1/sessions?classId=...
+   */
+  getSessionsByClassId: async (classId: string) => {
+    // FIX: Changed param 'class' to 'classId' to match backend route
+    const response = await api.get<SessionData[]>(BASE_URL, {
+        params: { classId: classId } 
+    });
     return response.data;
   },
 
   /**
    * Create a new custom session for a specific class
    * Endpoint: POST /api/v1/sessions/class/:classId
-   * (MATCHES SessionRoutes.js: router.post('/class/:classId', ...))
    */
   createSession: async (classId: string, data: CreateSessionPayload) => {
-    // --- FIX: URL matched to SessionRoutes.js ---
     const response = await api.post<SessionResponse>(`${BASE_URL}/class/${classId}`, data);
     return response.data;
   },
