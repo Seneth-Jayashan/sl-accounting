@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Added useEffect
 import { motion } from "framer-motion";
 import {
   User,
@@ -13,17 +13,11 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import BatchService from "../services/BatchService"; // Import BatchService
+import type { BatchData } from "../services/BatchService"; // Import BatchService
 
-// --- BRAND CONSTANTS ---
-const BRAND = {
-  prussian: "#053A4E",
-  cerulean: "#05668A",
-  coral: "#EF8D8E",
-  jasmine: "#FFE787",
-  alice: "#E8EFF7",
-};
 
-// --- BACKGROUND COMPONENT ---
+// --- BACKGROUND COMPONENT (Unchanged) ---
 const BackgroundGradient = () => (
   <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
     <motion.div
@@ -61,6 +55,10 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // --- NEW: Batches State ---
+  const [batches, setBatches] = useState<BatchData[]>([]);
+  const [loadingBatches, setLoadingBatches] = useState(true);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -77,6 +75,26 @@ export default function Register() {
 
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  // --- NEW: Fetch Batches on Mount ---
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        const data = await BatchService.getAllPublicBatches();
+        console.log("Fetched batches:", data);
+        // Assuming backend returns array directly or inside .data
+        const batchList = Array.isArray(data.batches) ? data.batches : (data as any).data || [];
+        setBatches(batchList);
+      } catch (err) {
+        console.error("Failed to fetch batches", err);
+        // Optional: Set a default or show error, but usually we just let the dropdown be empty
+      } finally {
+        setLoadingBatches(false);
+      }
+    };
+
+    fetchBatches();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -98,7 +116,6 @@ export default function Register() {
     if (formData.password.length < 6) return "Password must be at least 6 characters";
     if (formData.password !== formData.confirmPassword) return "Passwords do not match";
     
-    // Normalize phone
     const phoneNormalized = formData.phoneNumber.replace(/\s+/g, "");
     if (!/^[0-9+()-]{6,15}$/.test(phoneNormalized)) return "Enter a valid phone number";
     
@@ -125,7 +142,7 @@ export default function Register() {
         email: formData.email.trim(),
         password: formData.password,
         phoneNumber: formData.phoneNumber.trim(),
-        batch: formData.batch,
+        batch: formData.batch, // This will now send the Batch ID
         profileImageFile: profileFile,
       });
 
@@ -133,7 +150,6 @@ export default function Register() {
       
       const registeredEmail = formData.email.trim();
 
-      // Clear form
       setFormData({
         firstName: "",
         lastName: "",
@@ -145,7 +161,6 @@ export default function Register() {
       });
       setProfileFile(null);
 
-      // Navigate to verification and PASS THE EMAIL in state
       setTimeout(() => {
         navigate("/verification", { state: { email: registeredEmail } });
       }, 1400);
@@ -163,7 +178,7 @@ export default function Register() {
       <BackgroundGradient />
 
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-start md:items-center">
-        {/* Left Side Content */}
+        {/* Left Side Content - Unchanged */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
@@ -220,6 +235,7 @@ export default function Register() {
             {error && <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm">{error}</div>}
             {successMsg && <div className="p-3 rounded-md bg-green-50 text-green-700 text-sm">{successMsg}</div>}
 
+            {/* Name Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">First Name</label>
@@ -237,6 +253,7 @@ export default function Register() {
               </div>
             </div>
 
+            {/* Email & Phone */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Email Address</label>
@@ -254,23 +271,41 @@ export default function Register() {
               </div>
             </div>
 
+            {/* --- UPDATED: Dynamic Batch Selection --- */}
             <div className="space-y-1">
               <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">A/L Batch</label>
               <div className="relative group">
                 <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                <select name="batch" value={formData.batch} onChange={handleChange} className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm appearance-none cursor-pointer" required>
-                  <option value="" disabled>Select your Batch</option>
-                  <option value="2025">2025 A/L</option>
-                  <option value="2026">2026 A/L</option>
-                  <option value="2027">2027 A/L</option>
-                  <option value="after_al">After A/L</option>
+                <select 
+                  name="batch" 
+                  value={formData.batch} 
+                  onChange={handleChange} 
+                  className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-9 pr-3 py-2.5 rounded-xl outline-none transition-all shadow-sm text-sm appearance-none cursor-pointer" 
+                  required
+                  disabled={loadingBatches}
+                >
+                  <option value="" disabled>
+                    {loadingBatches ? "Loading batches..." : "Select your Batch"}
+                  </option>
+                  
+                  {/* Map batches dynamically */}
+                  {batches.map((batch) => (
+                    <option key={batch._id} value={batch._id}>
+                      {batch.name}
+                    </option>
+                  ))}
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-4 h-4 text-[#05668A]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  {loadingBatches ? (
+                    <div className="w-4 h-4 border-2 border-[#05668A] border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-4 h-4 text-[#05668A]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  )}
                 </div>
               </div>
             </div>
 
+            {/* Password Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs font-bold text-[#053A4E] uppercase tracking-wide ml-1">Password</label>
