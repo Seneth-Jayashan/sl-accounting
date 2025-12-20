@@ -63,7 +63,6 @@ const BatchService = {
   getAllPublicBatches: async (activeOnly: boolean = false) => {
     const queryString = activeOnly ? "?activeOnly=true" : "";
     const response = await api.get<BatchResponse>(`${BASE_URL}/public/${queryString}`);
-    console.log("Public batches response:", response.data);
     return response.data;
   },
 
