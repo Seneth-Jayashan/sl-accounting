@@ -102,6 +102,22 @@ const AdminKnowledgeList: React.FC = () => {
     setEditing(true);
   };
 
+  // Validate selected file (allow pdf, doc/docx, xls/xlsx, ppt/pptx, zip, csv)
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
+    if (e.target.files && e.target.files[0]) {
+      const f = e.target.files[0];
+      const allowedExt = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.zip', '.csv'];
+      const name = (f.name || '').toLowerCase();
+      const ok = allowedExt.some(ext => name.endsWith(ext));
+      if (!ok) {
+        setError('Unsupported file type. Please select PDF, Word, Excel, PowerPoint, ZIP, or CSV.');
+        return;
+      }
+      setFile(f);
+    }
+  };
+
   // load preview for current file when edit modal opens
   useEffect(() => {
     let url: string | null = null;
@@ -289,7 +305,7 @@ const AdminKnowledgeList: React.FC = () => {
                       {/* Change file overlay on the preview box */}
                       <label className="absolute top-2 right-2 inline-flex items-center gap-2 bg-white/90 px-3 py-1 rounded-lg cursor-pointer border">
                         <span className="text-sm">Change file</span>
-                        <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="hidden" />
+                        <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv" onChange={handleFileSelect} className="hidden" />
                       </label>
                     </div>
 

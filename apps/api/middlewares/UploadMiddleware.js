@@ -67,16 +67,19 @@ export const classMediaUpload = classUpload.fields([
 
 export default createUploader;
 
-// --- Document Uploader (for PDFs, Docs, etc.) ---
+// --- Document Uploader (for PDFs, Docs, Excel, PowerPoint, ZIP, CSV etc.) ---
 const documentFileFilter = (req, file, cb) => {
-    const allowed = /pdf|msword|vnd.openxmlformats-officedocument.wordprocessingml.document|zip/;
-    const mimetype = allowed.test(file.mimetype);
-    const extname = allowed.test(path.extname(file.originalname).toLowerCase());
+    // Allowed extensions and mimetypes for common office documents
+    const allowedExt = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|csv)$/i;
+    const allowedMime = /pdf|msword|wordprocessingml|spreadsheetml|excel|powerpoint|presentationml|zip|csv|text\/csv/i;
 
-    if (mimetype && extname) {
+    const mimetypeOk = allowedMime.test(file.mimetype);
+    const extnameOk = allowedExt.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetypeOk && extnameOk) {
         return cb(null, true);
     } else {
-        cb(new Error('Only document files are allowed (pdf, doc, docx, zip).'), false);
+        cb(new Error('Only document files are allowed (pdf, doc, docx, xls, xlsx, ppt, pptx, zip, csv).'), false);
     }
 };
 
