@@ -211,7 +211,7 @@ const AdminKnowledgeBase: React.FC = () => {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
+    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} showHeader={false}>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Knowledge Base — Upload</h1>
@@ -287,7 +287,7 @@ const AdminKnowledgeBase: React.FC = () => {
                     setSchedulePublish(false);
                     setPublishAt(null);
                   }}
-                  className={`px-3 py-2 rounded-lg text-sm ${
+                  className={`w-40 py-2 rounded-xl w- text-base font-semibold ${
                     isPublished
                       ? "bg-[#0b2540] text-white"
                       : "bg-gray-100 text-gray-700"
@@ -301,28 +301,13 @@ const AdminKnowledgeBase: React.FC = () => {
                     setSchedulePublish(true);
                     setIsPublished(false);
                   }}
-                  className={`px-3 py-2 rounded-lg text-sm ${
+                  className={`w-40 py-2 rounded-lg text-base font-semibold ${
                     schedulePublish
                       ? "bg-[#0b2540] text-white"
                       : "bg-gray-100 text-gray-700"
                   }`}
                 >
                   Schedule
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsPublished(false);
-                    setSchedulePublish(false);
-                    setPublishAt(null);
-                  }}
-                  className={`px-3 py-2 rounded-lg text-sm ${
-                    !isPublished && !schedulePublish
-                      ? "bg-[#0b2540] text-white"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  Save Draft
                 </button>
               </div>
             </div>
@@ -339,9 +324,6 @@ const AdminKnowledgeBase: React.FC = () => {
                 onChange={(e) => setPublishAt(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20"
               />
-              <p className="text-xs text-gray-500">
-                Leave timezone as local; backend will use server time.
-              </p>
             </div>
           )}
 
