@@ -266,15 +266,20 @@ export const listPayments = async (req, res) => {
     const payments = await Payment.find(filter)
       .sort({ createdAt: -1 })
       .limit(200)
-      .populate("enrollment");
+      // FIX: Use nested population to get Student AND Class details inside Enrollment
+      .populate({
+        path: "enrollment",
+        populate: [
+          { path: "student", select: "firstName lastName email" }, // Get Student Info
+          { path: "class", select: "name" }                        // Get Class Name
+        ]
+      });
 
     res.json(payments);
   } catch (err) {
     console.error("Error listing payments:", err);
     res.status(500).json({ message: "Server error" });
   }
-
-  
 };
 
 export const uploadPaymentSlip = async (req, res) => {
@@ -292,7 +297,7 @@ export const uploadPaymentSlip = async (req, res) => {
 
     // 2. Construct File Path (Store relative path)
     // Assuming you serve the 'uploads' folder statically
-    const filePath = `/uploads/${req.file.filename}`;
+    const filePath = `/uploads/images/payments/${req.file.filename}`;
 
     // 3. Create Payment Record (Pending Verification)
     const payment = new Payment({
@@ -319,5 +324,50 @@ export const uploadPaymentSlip = async (req, res) => {
   } catch (err) {
     console.error("Error uploading slip:", err);
     res.status(500).json({ message: "Server error during upload" });
+  }
+};
+
+/**
+ * Update Payment Status (Admin Verify)
+ * PUT /api/v1/payments/:id
+ * Body: { status: "completed" | "failed" }
+ */
+export const updatePaymentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["completed", "failed", "pending"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const payment = await Payment.findById(id);
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    // Update status
+    payment.status = status;
+    payment.verified = status === "completed"; // Mark verified if completed
+    await payment.save();
+
+    // IF APPROVED: Update Enrollment to "Paid"
+    if (status === "completed" && payment.enrollment) {
+        try {
+            const enrollment = await Enrollment.findById(payment.enrollment);
+            if (enrollment) {
+                // Use your existing markPaid logic
+                await enrollment.markPaid(new Date(), payment.paymentDate);
+            }
+        } catch (err) {
+            console.error("Error updating enrollment status:", err);
+            // Don't fail the response, just log the error
+        }
+    }
+
+    res.json({ success: true, payment });
+  } catch (err) {
+    console.error("Error updating payment:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };

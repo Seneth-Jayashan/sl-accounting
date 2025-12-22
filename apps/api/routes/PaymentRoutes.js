@@ -5,7 +5,8 @@ import {
   listPayments,
   payHereWebhook,
   createPayHereSignature,
-  uploadPaymentSlip
+  uploadPaymentSlip,
+  updatePaymentStatus
 } from "../controllers/PaymentController.js"; // Adjust path matches your structure
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import createUploader from "../middlewares/UploadMiddleware.js";
@@ -31,5 +32,7 @@ router.get("/:id", protect, getPaymentById);
 router.get("/", protect, restrictTo("admin"), listPayments);
 
 router.post("/upload-slip", protect, PaymentSlipUploader,  uploadPaymentSlip);
+
+router.put("/:id", protect, restrictTo("admin"), updatePaymentStatus); // <--- Add this line
 
 export default router;

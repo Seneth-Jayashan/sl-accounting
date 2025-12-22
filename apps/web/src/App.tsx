@@ -49,6 +49,13 @@ import AdminCreateSessionPage from "./pages/admin/sessions/AddSession";
 import AdminBatchPage from "./pages/admin/batches/Batch";
 import AdminBatchViewPage from "./pages/admin/batches/ViewBatch";
 
+import AdminEnrollmentPage from "./pages/admin/enrollments/Enrollment";
+// import AdminEnrollmentViewPage from "./pages/admin/enrollments/ViewEnrollment";
+
+import AdminPaymentsPage from "./pages/admin/payments/Payments";
+// import AdminViewPaymentPage from "./pages/admin/payments/ViewPayment";
+// import AdminPaymentVerificationPage from "./pages/admin/enrollments/PaymentVerification";
+
 import "./index.css";
 
 function App() {
@@ -297,6 +304,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/payments/"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminPaymentsPage />
+              </ProtectedRoute>
+            }
+          /> 
+
+
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
