@@ -5,6 +5,7 @@ import {
   getKnowledgeById,
   updateKnowledge,
   deleteKnowledge,
+  deleteKnowledgeBulk,
   downloadKnowledge,
 } from "../controllers/KnowledgeBaseController.js";
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
@@ -19,6 +20,7 @@ router.post(
   createDocumentUploader("docs", "file"),
   createKnowledge
 );
+router.post('/bulk-delete', protect, restrictTo('admin'), deleteKnowledgeBulk);
 router.put(
   "/:id",
   protect,

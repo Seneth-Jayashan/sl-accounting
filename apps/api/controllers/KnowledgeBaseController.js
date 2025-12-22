@@ -160,6 +160,30 @@ export const deleteKnowledge = async (req, res) => {
 	}
 };
 
+export const deleteKnowledgeBulk = async (req, res) => {
+	try {
+		const { ids } = req.body;
+		if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ success: false, message: 'No ids provided' });
+
+		const items = await KnowledgeBase.find({ _id: { $in: ids } });
+		// remove files
+		for (const item of items) {
+			if (item.filePath) {
+				const fileAbsolute = path.isAbsolute(item.filePath) ? item.filePath : path.join(process.cwd(), item.filePath);
+				if (fs.existsSync(fileAbsolute)) {
+					try { fs.unlinkSync(fileAbsolute); } catch (e) { console.warn('Could not remove file', e); }
+				}
+			}
+		}
+
+		const resDel = await KnowledgeBase.deleteMany({ _id: { $in: ids } });
+		return res.status(200).json({ success: true, deletedCount: resDel.deletedCount || 0 });
+	} catch (error) {
+		console.error('Bulk Delete Knowledge Error:', error);
+		return res.status(500).json({ success: false, message: 'Internal Server Error' });
+	}
+};
+
 export const downloadKnowledge = async (req, res) => {
 	try {
 		const { id } = req.params;

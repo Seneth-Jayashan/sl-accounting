@@ -29,6 +29,7 @@ const AdminKnowledgeList: React.FC = () => {
   const [isPublished, setIsPublished] = useState(false);
   const [publishAt, setPublishAt] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -88,6 +89,46 @@ const AdminKnowledgeList: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       await Swal.fire({ title: 'Delete failed', text: err?.response?.data?.message || err.message || 'Delete failed', icon: 'error' });
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((s) => {
+      if (s.includes(id)) return s.filter(x => x !== id);
+      return [...s, id];
+    });
+  };
+
+  const selectAll = (checked: boolean) => {
+    if (checked) setSelectedIds(items.map(i => i._id));
+    else setSelectedIds([]);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    const result = await Swal.fire({
+      title: `Delete ${selectedIds.length} item(s)?`,
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Delete',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await api.post('/knowledge/bulk-delete', { ids: selectedIds });
+      if (res.data?.success) {
+        setItems((s) => s.filter(i => !selectedIds.includes(i._id)));
+        setSelectedIds([]);
+        await Swal.fire({ title: 'Deleted', text: 'Items deleted', icon: 'success', timer: 1400, showConfirmButton: false });
+      } else {
+        alert(res.data?.message || 'Bulk delete failed');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.response?.data?.message || err.message || 'Bulk delete failed');
     }
   };
 
@@ -224,9 +265,31 @@ const AdminKnowledgeList: React.FC = () => {
     <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
       <div className="max-w-5xl mx-auto p-6 space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Knowledge Base — Manage</h1>
-            <p className="text-sm text-gray-500">View, edit or delete uploaded materials.</p>
+          <div className="flex items-center gap-4">
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                onChange={(e) => selectAll(e.target.checked)}
+                checked={selectedIds.length === items.length && items.length > 0}
+                className="sr-only"
+              />
+              <span className={`w-5 h-5 inline-flex items-center justify-center rounded-md border ${selectedIds.length === items.length && items.length > 0 ? 'bg-[#0b2540] border-[#0b2540] text-white' : 'bg-white border-gray-300'}`}>
+                {selectedIds.length === items.length && items.length > 0 ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                ) : null}
+              </span>
+            </label>
+
+            <div>
+              <h1 className="text-2xl font-bold">Knowledge Base — Manage</h1>
+              <p className="text-sm text-gray-500">View, edit or delete uploaded materials.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {selectedIds.length > 0 && (
+              <button onClick={handleDeleteSelected} className="px-3 py-1 rounded-xl border border-red-300 text-red-600 text-sm">Delete Selected ({selectedIds.length})</button>
+            )}
           </div>
         </div>
 
@@ -235,7 +298,19 @@ const AdminKnowledgeList: React.FC = () => {
 
         <div className="grid gap-4">
           {items.map((it) => (
-            <div key={it._id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+            <div key={it._id} className="relative bg-white p-4 pl-12 rounded-2xl border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">
+              {/* Absolute checkbox placed in front of the card text */}
+              <label className="absolute left-4 top-1/2 -translate-y-1/2 inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={selectedIds.includes(it._id)} onChange={() => toggleSelect(it._id)} className="sr-only" />
+                <span className={`w-5 h-5 inline-flex items-center justify-center rounded-md border shadow-sm ${selectedIds.includes(it._id) ? 'bg-[#0b2540] border-[#0b2540] text-white' : 'bg-white border-gray-200 text-transparent'} hover:scale-105 transition-transform`}> 
+                  {selectedIds.includes(it._id) ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  ) : (
+                    <svg className="w-4 h-4 opacity-0" viewBox="0 0 24 24" />
+                  )}
+                </span>
+              </label>
+
               <div>
                 <div className="font-semibold">{it.title}</div>
                 <div className="text-sm text-gray-500">{it.description}</div>
