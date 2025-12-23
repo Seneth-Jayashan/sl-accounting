@@ -458,7 +458,7 @@ const AdminKnowledgeBase: React.FC = () => {
                       <div className="text-sm font-medium">{file?.name}</div>
                       <div className="text-xs text-gray-400">
                         {file?.type ? file.type : ""}{" "}
-                        {file ? `• ${formatBytes(file.size)}` : ""}
+                        • {formatBytes(file.size)}
                       </div>
                     </div>
                     <div className="text-right">
