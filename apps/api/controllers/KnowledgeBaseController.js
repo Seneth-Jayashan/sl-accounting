@@ -6,14 +6,14 @@ import KnowledgeBase from '../models/KnowledgeBase.js';
 
 export const createKnowledge = async (req, res) => {
 	try {
-		const { title, description, class: classId, catageory, isPublished, publishAt } = req.body;
+		const { title, description, class: classId, category, isPublished, publishAt } = req.body;
 
 		if (!title) return res.status(400).json({ success: false, message: 'Title is required' });
 
 		const kb = new KnowledgeBase({
 			title,
 			description,
-			catageory: catageory || undefined,
+			category: category || undefined,
 			class: classId || undefined,
 			uploadedBy: req.user?._id,
 			isPublished: isPublished === 'true' || isPublished === true,
