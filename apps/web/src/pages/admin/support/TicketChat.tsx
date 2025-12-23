@@ -8,6 +8,7 @@ import ChatService from "../../../services/ChatService";
 import { useAuth } from "../../../contexts/AuthContext";
 import Chat from "../../../components/Chat";
 import Dropdown from "../../../components/Dropdown";
+import ConfirmDialog from "../../../components/modals/ConfirmDialog";
 
 export default function TicketChatAdmin() {
   const STATUS_OPTIONS = ["Open", "In Progress", "Resolved", "Closed"];
@@ -22,6 +23,15 @@ export default function TicketChatAdmin() {
   const [error, setError] = useState<string>("");
   const [statusUpdating, setStatusUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title?: string;
+    message?: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    loading?: boolean;
+    resolve?: (v: boolean) => void;
+  }>({ isOpen: false });
 
   const loadTicketDetails = async (id: string) => {
     setLoadingTicket(true);
@@ -147,23 +157,57 @@ export default function TicketChatAdmin() {
 
     // Admin cannot set status to Resolved directly
     if (nextStatus === "Resolved" && !isResolved) {
-      window.alert("Only the user can mark this ticket as Resolved.");
+      await new Promise<void>((res) => {
+        setConfirmConfig({
+          isOpen: true,
+          title: "Action not allowed",
+          message: "Only the user can mark this ticket as Resolved.",
+          confirmLabel: "OK",
+          cancelLabel: "",
+          resolve: () => {
+            res();
+            setConfirmConfig({ isOpen: false });
+          },
+        });
+      });
       return;
     }
 
     // When ticket is Resolved, admin may only Close it
     if (isResolved && nextStatus !== "Closed" && nextStatus !== currentStatus) {
-      window.alert(
-        "This ticket was marked Resolved by the user. You can only Close it."
-      );
+      await new Promise<void>((res) => {
+        setConfirmConfig({
+          isOpen: true,
+          title: "Cannot change status",
+          message:
+            "This ticket was marked Resolved by the user. You can only Close it.",
+          confirmLabel: "OK",
+          cancelLabel: "",
+          resolve: () => {
+            res();
+            setConfirmConfig({ isOpen: false });
+          },
+        });
+      });
       return;
     }
 
     // Confirm before closing
     if (nextStatus === "Closed") {
-      const ok = window.confirm(
-        "Close this ticket? This will prevent further updates unless reopened by an admin."
-      );
+      const ok = await new Promise<boolean>((resolve) => {
+        setConfirmConfig({
+          isOpen: true,
+          title: "Close ticket",
+          message:
+            "Close this ticket? This will prevent further updates unless reopened by an admin.",
+          confirmLabel: "Close",
+          cancelLabel: "Cancel",
+          resolve: (v: boolean) => {
+            resolve(!!v);
+            setConfirmConfig({ isOpen: false });
+          },
+        });
+      });
       if (!ok) return;
     }
     setStatusUpdating(true);
@@ -206,9 +250,19 @@ export default function TicketChatAdmin() {
 
   const handleDelete = async () => {
     if (!selectedId) return;
-    const confirmed = window.confirm(
-      "Delete this ticket and its chat messages?"
-    );
+    const confirmed = await new Promise<boolean>((resolve) => {
+      setConfirmConfig({
+        isOpen: true,
+        title: "Delete ticket",
+        message: "Delete this ticket and its chat messages?",
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        resolve: (v: boolean) => {
+          resolve(!!v);
+          setConfirmConfig({ isOpen: false });
+        },
+      });
+    });
     if (!confirmed) return;
 
     setDeleting(true);
@@ -457,6 +511,31 @@ export default function TicketChatAdmin() {
           </div>
         </main>
       </div>
+      <ConfirmDialog
+        isOpen={!!confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmLabel={confirmConfig.confirmLabel}
+        cancelLabel={confirmConfig.cancelLabel || "Cancel"}
+        loading={confirmConfig.loading}
+        onConfirm={() => {
+          try {
+            confirmConfig.resolve?.(true);
+          } finally {
+            setConfirmConfig({ isOpen: false });
+          }
+        }}
+        onClose={() => {
+          try {
+            confirmConfig.resolve?.(false);
+          } finally {
+            setConfirmConfig({ isOpen: false });
+          }
+        }}
+      />
     </DashboardLayout>
   );
 }
+
+
+// ConfirmDialog render is inserted inside component return; below export remains unchanged
