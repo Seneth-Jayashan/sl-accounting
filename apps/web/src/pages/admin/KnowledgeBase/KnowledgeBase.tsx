@@ -400,8 +400,8 @@ const AdminKnowledgeBase: React.FC = () => {
                           {displayName || file?.name}
                         </div>
                         <div className="text-xs text-gray-400">
-                          {file?.type ? file.type : ""}{" "}
-                          {file ? `• ${formatBytes(file.size)}` : ""}
+                          {file?.type || ""}{" "}
+                          {`• ${formatBytes(file.size)}`}
                         </div>
                         <div className="mt-2">
                           <input
