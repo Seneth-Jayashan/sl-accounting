@@ -67,6 +67,17 @@ class ChatService {
     this.socket?.emit("join_ticket", { ticketId });
   }
 
+  onTicketStatusUpdated(cb: (data: any) => void) {
+    this.init();
+    this.socket?.on("ticket_status_updated", cb);
+  }
+
+  offTicketStatusUpdated(cb?: (data: any) => void) {
+    if (!this.socket) return;
+    if (cb) this.socket.off("ticket_status_updated", cb);
+    else this.socket.off("ticket_status_updated");
+  }
+
   onReceiveMessage(cb: (msg: ChatMessage) => void) {
     this.socket?.on("receive_message", cb);
   }

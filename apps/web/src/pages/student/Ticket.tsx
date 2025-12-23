@@ -5,6 +5,7 @@ import DashboardLayout from "../../layouts/DashboardLayout";
 import SidebarStudent from "../../components/sidebar/SidebarStudent";
 import { useAuth } from "../../contexts/AuthContext";
 import TicketService from "../../services/TicketService";
+import ChatService from "../../services/ChatService";
 import Chat from "../../components/Chat";
 import Dropdown from "../../components/Dropdown";
 
@@ -163,6 +164,27 @@ export default function StudentTicketPage(): React.ReactElement {
     return () => {
       cancelled = true;
     };
+  }, [ticketId]);
+
+  // Reflect ticket status changes in real time (e.g., admin closes the ticket)
+  useEffect(() => {
+    if (!ticketId) return;
+
+    ChatService.joinTicket(ticketId);
+
+    const handleStatus = (payload: any) => {
+      if (!payload?._id || payload._id !== ticketId) return;
+
+      setTicketInfo(payload);
+
+      if (isTicketClosed(payload)) {
+        setTicketId(null);
+        setTicketInfo(null);
+      }
+    };
+
+    ChatService.onTicketStatusUpdated(handleStatus);
+    return () => ChatService.offTicketStatusUpdated(handleStatus);
   }, [ticketId]);
 
   const handleMarkResolved = async () => {

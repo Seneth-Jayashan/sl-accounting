@@ -2,6 +2,30 @@ import Ticket from "../models/Ticket.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import Chat from "../models/Chat.js";
+import { getIO } from "../config/socket.js";
+
+const broadcastTicketStatus = (ticket) => {
+  try {
+    const io = getIO();
+    const payload = {
+      _id: ticket._id?.toString?.() || ticket._id,
+      user_id: ticket.user_id?.toString?.() || ticket.user_id,
+      status: ticket.status,
+      name: ticket.name,
+      email: ticket.email,
+      phoneNumber: ticket.phoneNumber,
+      Categories: ticket.Categories,
+      message: ticket.message,
+      priority: ticket.priority,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+    };
+
+    io.to(`ticket_${payload._id}`).emit("ticket_status_updated", payload);
+  } catch (err) {
+    console.error("Failed to broadcast ticket status", err?.message || err);
+  }
+};
 
 // Get all tickets
 const getAllTickets = async (req, res) => {
@@ -123,6 +147,8 @@ const updateTicket = async (req, res) => {
         user: ticket.user_id,
         message: `Your ticket status has been updated to ${ticket.status}. Ticket ID: ${ticket._id}`,
       });
+
+      broadcastTicketStatus(ticket);
     }
 
     return res.status(200).json({ ticket });

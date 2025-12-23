@@ -4,6 +4,7 @@ import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import TicketService, { type Ticket } from "../../../services/TicketService";
+import ChatService from "../../../services/ChatService";
 import { useAuth } from "../../../contexts/AuthContext";
 import Chat from "../../../components/Chat";
 import Dropdown from "../../../components/Dropdown";
@@ -87,6 +88,25 @@ export default function TicketChatAdmin() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId]);
+
+  // Listen for real-time status changes (e.g., student marks Resolved)
+  useEffect(() => {
+    if (!selectedId) return;
+
+    ChatService.joinTicket(selectedId);
+
+    const handleStatus = (payload: any) => {
+      if (!payload?._id || payload._id !== selectedId) return;
+
+      setSelectedTicket((prev) => (prev ? { ...prev, ...payload } : payload));
+      setTickets((prev) =>
+        prev.map((t) => (t._id === payload._id ? { ...t, status: payload.status } : t))
+      );
+    };
+
+    ChatService.onTicketStatusUpdated(handleStatus);
+    return () => ChatService.offTicketStatusUpdated(handleStatus);
   }, [selectedId]);
 
   const stats = useMemo(() => {
