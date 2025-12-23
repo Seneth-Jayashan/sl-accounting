@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "../../layouts/DashboardLayout";
-import SidebarAdmin from "../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../components/bottomNavbar/BottomNavAdmin";
+import DashboardLayout from "../../../layouts/DashboardLayout";
+import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
+import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
-import KnowledgeBaseAdminService from "../../services/KnowledgeBaseAdminService";
+import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 
 const CATEGORIES = [

@@ -40,8 +40,8 @@ import AdminTicketReply from "./pages/admin/support/TicketChat";
 import AdminClassesCreatePage from "./pages/admin/classes/CreateClass";
 import AdminClassesViewPage from "./pages/admin/classes/ViewClass";
 import AdminClassesUpdatePage from "./pages/admin/classes/UpdateClass";
-import AdminKnowledgeBasePage from "./pages/admin/KnowledgeBase";
-import AdminKnowledgeListPage from "./pages/admin/KnowledgeList";
+import AdminKnowledgeBasePage from "./pages/admin/KnowledgeBase/KnowledgeBase";
+import AdminKnowledgeListPage from "./pages/admin/KnowledgeBase/KnowledgeList";
 
 import AdminSessionPage from "./pages/admin/sessions/Session";
 import AdminCreateSessionPage from "./pages/admin/sessions/AddSession";

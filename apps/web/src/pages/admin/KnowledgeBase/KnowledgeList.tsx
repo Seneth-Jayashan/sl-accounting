@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import DashboardLayout from '../../layouts/DashboardLayout';
-import SidebarAdmin from '../../components/sidebar/SidebarAdmin';
-import BottomNavAdmin from '../../components/bottomNavbar/BottomNavAdmin';
-import KnowledgeBaseAdminService from '../../services/KnowledgeBaseAdminService';
+import DashboardLayout from '../../../layouts/DashboardLayout';
+import SidebarAdmin from '../../../components/sidebar/SidebarAdmin';
+import BottomNavAdmin from '../../../components/bottomNavbar/BottomNavAdmin';
+import KnowledgeBaseAdminService from '../../../services/KnowledgeBaseAdminService';
 import Swal from 'sweetalert2';
 
 const CATEGORIES = [
