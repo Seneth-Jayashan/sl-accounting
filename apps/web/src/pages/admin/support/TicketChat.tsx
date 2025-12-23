@@ -33,6 +33,13 @@ export default function TicketChatAdmin() {
     resolve?: (v: boolean) => void;
   }>({ isOpen: false });
 
+  const sortTicketsDesc = (items: Ticket[]) =>
+    [...items].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+
   const loadTicketDetails = async (id: string) => {
     setLoadingTicket(true);
     try {
@@ -55,11 +62,7 @@ export default function TicketChatAdmin() {
       .then((items) => {
         if (!mounted) return;
         // Newest first when createdAt is available
-        const sorted = [...items].sort((a, b) => {
-          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return bTime - aTime;
-        });
+        const sorted = sortTicketsDesc(items);
         setTickets(sorted);
         // Prefer URL param if present
         const paramId = params.id;
@@ -79,6 +82,19 @@ export default function TicketChatAdmin() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  // Listen for real-time ticket creations and prepend new items
+  useEffect(() => {
+    const handleTicketCreated = (ticket: Ticket) => {
+      setTickets((prev) => {
+        if (!ticket?._id || prev.some((t) => t._id === ticket._id)) return prev;
+        return sortTicketsDesc([ticket, ...prev]);
+      });
+    };
+
+    ChatService.onTicketCreated(handleTicketCreated);
+    return () => ChatService.offTicketCreated(handleTicketCreated);
   }, []);
 
   // Load selected ticket details for header meta

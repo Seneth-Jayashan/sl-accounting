@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import api from "./api";
+import { type Ticket } from "./TicketService";
 
 export interface ChatMessage {
   _id?: string;
@@ -76,6 +77,17 @@ class ChatService {
     if (!this.socket) return;
     if (cb) this.socket.off("ticket_status_updated", cb);
     else this.socket.off("ticket_status_updated");
+  }
+
+  onTicketCreated(cb: (ticket: Ticket) => void) {
+    this.init();
+    this.socket?.on("ticket_created", cb);
+  }
+
+  offTicketCreated(cb?: (ticket: Ticket) => void) {
+    if (!this.socket) return;
+    if (cb) this.socket.off("ticket_created", cb);
+    else this.socket.off("ticket_created");
   }
 
   onReceiveMessage(cb: (msg: ChatMessage) => void) {

@@ -27,6 +27,29 @@ const broadcastTicketStatus = (ticket) => {
   }
 };
 
+const broadcastTicketCreated = (ticket) => {
+  try {
+    const io = getIO();
+    const payload = {
+      _id: ticket._id?.toString?.() || ticket._id,
+      user_id: ticket.user_id?.toString?.() || ticket.user_id,
+      status: ticket.status,
+      name: ticket.name,
+      email: ticket.email,
+      phoneNumber: ticket.phoneNumber,
+      Categories: ticket.Categories,
+      message: ticket.message,
+      priority: ticket.priority,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+    };
+
+    io.emit("ticket_created", payload);
+  } catch (err) {
+    console.error("Failed to broadcast ticket creation", err?.message || err);
+  }
+};
+
 // Get all tickets
 const getAllTickets = async (req, res) => {
   try {
@@ -81,6 +104,8 @@ const addTicket = async (req, res) => {
     }));
 
     await Notification.insertMany(supporterNotifications);
+
+    broadcastTicketCreated(ticket);
 
     return res.status(200).json({ ticket });
   } catch (err) {
