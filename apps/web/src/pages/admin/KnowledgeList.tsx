@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import SidebarAdmin from '../../components/sidebar/SidebarAdmin';
 import BottomNavAdmin from '../../components/bottomNavbar/BottomNavAdmin';
-import { api } from '../../services/api';
+import KnowledgeBaseAdminService from '../../services/KnowledgeBaseAdminService';
 import Swal from 'sweetalert2';
 
 const CATEGORIES = [
@@ -56,9 +56,9 @@ const AdminKnowledgeList: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get('/knowledge');
-      if (res.data?.success) setItems(res.data.items || []);
-      else setError(res.data?.message || 'Failed to load items');
+      const data = await KnowledgeBaseAdminService.getAll();
+      if (data?.success) setItems(data.items || []);
+      else setError(data?.message || 'Failed to load items');
     } catch (err: any) {
       console.error(err);
       setError(err?.response?.data?.message || err.message || 'Failed to load items');
@@ -83,8 +83,10 @@ const AdminKnowledgeList: React.FC = () => {
     if (!result.isConfirmed) return;
 
     try {
-      await api.delete(`/knowledge/${id}`);
-      setItems((s) => s.filter((i) => i._id !== id));
+      const res = await KnowledgeBaseAdminService.delete(id);
+      if (res?.success) {
+        setItems((s) => s.filter((i) => i._id !== id));
+      }
       await Swal.fire({ title: 'Deleted', text: 'Item deleted successfully', icon: 'success', timer: 1400, showConfirmButton: false });
     } catch (err: any) {
       console.error(err);
@@ -118,13 +120,13 @@ const AdminKnowledgeList: React.FC = () => {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await api.post('/knowledge/bulk-delete', { ids: selectedIds });
-      if (res.data?.success) {
+      const res = await KnowledgeBaseAdminService.bulkDelete(selectedIds);
+      if (res?.success) {
         setItems((s) => s.filter(i => !selectedIds.includes(i._id)));
         setSelectedIds([]);
         await Swal.fire({ title: 'Deleted', text: 'Items deleted', icon: 'success', timer: 1400, showConfirmButton: false });
       } else {
-        alert(res.data?.message || 'Bulk delete failed');
+        alert(res?.message || 'Bulk delete failed');
       }
     } catch (err: any) {
       console.error(err);
@@ -168,8 +170,8 @@ const AdminKnowledgeList: React.FC = () => {
       const isPreviewable = mime === 'application/pdf' || mime.startsWith('image/');
       if (isPreviewable) {
         (async () => {
-          try {
-            const res = await api.get(`/knowledge/${current._id}/download`, { responseType: 'blob' });
+            try {
+            const res = await KnowledgeBaseAdminService.download(current._id);
             if (cancelled) return;
             const blob = new Blob([res.data], { type: res.headers['content-type'] || mime });
             url = URL.createObjectURL(blob);
@@ -212,7 +214,7 @@ const AdminKnowledgeList: React.FC = () => {
   const handleDownloadCurrent = async () => {
     if (!current) return;
     try {
-      const res = await api.get(`/knowledge/${current._id}/download`, { responseType: 'blob' });
+      const res = await KnowledgeBaseAdminService.download(current._id);
       const url = URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       const name = current.fileName || current.fileOriginalName || current.file || 'material';
@@ -239,19 +241,17 @@ const AdminKnowledgeList: React.FC = () => {
       form.append('catageory', category);
       form.append('isPublished', String(isPublished));
       if (publishAt) form.append('publishAt', publishAt);
-      if (file) form.append('file', file as Blob);
+      if (file) form.append('file', file as Blob, (file as File).name);
 
-      const res = await api.put(`/knowledge/${current._id}`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await KnowledgeBaseAdminService.update(current._id, form);
 
-      if (res.data?.success) {
+      if (res?.success) {
         // update local list
-        setItems((s) => s.map((it) => (it._id === current._id ? res.data.item || { ...it, ...res.data.item } : it)));
+        setItems((s) => s.map((it) => (it._id === current._id ? res.item || { ...it, ...res.item } : it)));
         setEditing(false);
         setCurrent(null);
       } else {
-        alert(res.data?.message || 'Update failed');
+        alert(res?.message || 'Update failed');
       }
     } catch (err: any) {
       console.error(err);

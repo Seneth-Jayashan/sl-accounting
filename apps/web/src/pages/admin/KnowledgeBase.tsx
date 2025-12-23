@@ -4,7 +4,7 @@ import SidebarAdmin from "../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../components/bottomNavbar/BottomNavAdmin";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
-import { api } from "../../services/api";
+import KnowledgeBaseAdminService from "../../services/KnowledgeBaseAdminService";
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 
 const CATEGORIES = [
@@ -141,9 +141,9 @@ const AdminKnowledgeBase: React.FC = () => {
       }
 
       // Do not set Content-Type header manually; let Axios set boundary
-      const res = await api.post("/knowledge", form);
+      const res = await KnowledgeBaseAdminService.create(form);
 
-      if (res.data?.success) {
+      if (res?.success) {
         // clear local form state
         setTitle("");
         setDescription("");
@@ -200,7 +200,7 @@ const AdminKnowledgeBase: React.FC = () => {
           });
         }
       } else {
-        setError(res.data?.message || "Upload failed");
+        setError(res?.message || "Upload failed");
       }
     } catch (err: any) {
       console.error(err);

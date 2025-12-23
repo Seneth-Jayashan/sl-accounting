@@ -40,7 +40,7 @@ export default function StudentTicketPage(): React.ReactElement {
 
   useEffect(() => {
     if (!user) return;
-    // restore an open ticket for this user from the server (no localStorage)
+
     (async () => {
       try {
         const open = await TicketService.getOpenTicketForUser(user._id);
@@ -149,7 +149,7 @@ export default function StudentTicketPage(): React.ReactElement {
         const t = await TicketService.getTicketById(ticketId);
         if (cancelled) return;
         setTicketInfo(t ?? null);
-        // if ticket closed, reset local state (no localStorage used)
+      
         if (t && isTicketClosed(t)) {
           setTicketId(null);
           setTicketInfo(null);
