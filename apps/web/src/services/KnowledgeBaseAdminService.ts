@@ -63,6 +63,11 @@ const KnowledgeBaseAdminService = {
     return res;
   },
 
+  getSize: async (id: string) => {
+    const res = await api.get(`${BASE}/${id}/size`);
+    return res.data;
+  },
+
   publish: async (id: string) => {
     const res = await api.put(`${BASE}/${id}`, { isPublished: true });
     return res.data;

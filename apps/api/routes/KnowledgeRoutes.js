@@ -7,6 +7,7 @@ import {
   deleteKnowledge,
   deleteKnowledgeBulk,
   downloadKnowledge,
+  getKnowledgeFileSize,
 } from "../controllers/KnowledgeBaseController.js";
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import { createDocumentUploader } from "../middlewares/UploadMiddleware.js";
@@ -33,5 +34,6 @@ router.delete("/:id", protect, restrictTo("admin"), deleteKnowledge);
 router.get("/", protect, getAllKnowledge);
 router.get("/:id", protect, getKnowledgeById);
 router.get("/:id/download", protect, downloadKnowledge);
+router.get("/:id/size", protect, getKnowledgeFileSize);
 
 export default router;

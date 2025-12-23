@@ -206,3 +206,26 @@ export const downloadKnowledge = async (req, res) => {
 	}
 };
 
+export const getKnowledgeFileSize = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const item = await KnowledgeBase.findById(id);
+		if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+
+		if (!item.isPublished && (!req.user || req.user.role !== 'admin')) {
+			return res.status(403).json({ success: false, message: 'Forbidden' });
+		}
+
+		if (!item.filePath) return res.status(404).json({ success: false, message: 'File not available' });
+
+		const fileAbsolute = path.isAbsolute(item.filePath) ? item.filePath : path.join(process.cwd(), item.filePath);
+		if (!fs.existsSync(fileAbsolute)) return res.status(404).json({ success: false, message: 'File not found on server' });
+
+		const stats = fs.statSync(fileAbsolute);
+		return res.status(200).json({ success: true, size: stats.size });
+	} catch (error) {
+		console.error('Get Knowledge File Size Error:', error);
+		return res.status(500).json({ success: false, message: 'Internal Server Error' });
+	}
+};
+
