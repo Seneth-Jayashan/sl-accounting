@@ -55,6 +55,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   const handleSelect = (val: string) => {
     onChange(val);
     setOpen(false);
+    document.dispatchEvent(new CustomEvent("dropdown:close-all"));
   };
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLButtonElement> = (e) => {
@@ -107,6 +108,11 @@ const Dropdown: React.FC<DropdownProps> = ({
               role="option"
               aria-selected={opt.value === value}
               disabled={opt.disabled}
+              onMouseDown={(e) => {
+                // close immediately on press so click on underlying elements works
+                e.preventDefault();
+                handleSelect(opt.value);
+              }}
               onClick={() => handleSelect(opt.value)}
               className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
                 opt.value === value ? "bg-gray-50 text-[#0b2540]" : "text-gray-800"

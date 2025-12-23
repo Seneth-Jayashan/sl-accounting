@@ -6,6 +6,7 @@ import SidebarStudent from "../../components/sidebar/SidebarStudent";
 import { useAuth } from "../../contexts/AuthContext";
 import TicketService from "../../services/TicketService";
 import Chat from "../../components/Chat";
+import Dropdown from "../../components/Dropdown";
 
 type TicketFormState = {
   name: string;
@@ -280,18 +281,14 @@ export default function StudentTicketPage(): React.ReactElement {
                 Category
                 <div className="relative">
                   <FaClipboardList className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                  <select
+                  <Dropdown
                     name="category"
                     value={form.category}
-                    onChange={handleChange}
-                    className="w-full bg-white border border-gray-200 pl-10 pr-3 py-3 rounded-xl focus:border-[#05668A] focus:ring-1 focus:ring-[#05668A]"
-                  >
-                    {CATEGORY_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((prev) => ({ ...prev, category: v }))}
+                    options={CATEGORY_OPTIONS.map((opt) => ({ value: opt, label: opt }))}
+                    className="pl-10 pr-12 py-3 focus:border-[#05668A] focus:ring-[#05668A]/15"
+                    wrapperClassName="w-full"
+                  />
                 </div>
               </label>
 
@@ -299,18 +296,14 @@ export default function StudentTicketPage(): React.ReactElement {
                 Priority
                 <div className="relative">
                   <FaFlag className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                  <select
+                  <Dropdown
                     name="priority"
                     value={form.priority}
-                    onChange={handleChange}
-                    className="w-full bg-white border border-gray-200 pl-10 pr-3 py-3 rounded-xl focus:border-[#05668A] focus:ring-1 focus:ring-[#05668A]"
-                  >
-                    {PRIORITY_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((prev) => ({ ...prev, priority: v }))}
+                    options={PRIORITY_OPTIONS.map((opt) => ({ value: opt, label: opt }))}
+                    className="pl-10 pr-12 py-3 focus:border-[#05668A] focus:ring-[#05668A]/15"
+                    wrapperClassName="w-full"
+                  />
                 </div>
               </label>
             </div>
