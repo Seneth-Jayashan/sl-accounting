@@ -376,7 +376,7 @@ const AdminKnowledgeBase: React.FC = () => {
                 </div>
                 {filePreviewUrl ? (
                   <div>
-                    {file && file.type === "application/pdf" ? (
+                    {file?.type === "application/pdf" ? (
                       <iframe
                         src={filePreviewUrl}
                         title="PDF preview"
