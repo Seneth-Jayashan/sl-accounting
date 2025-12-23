@@ -330,8 +330,8 @@ export default function TicketChatAdmin() {
 
                 {/* Chat area */}
                 <div className="lg:col-span-2 space-y-3">
-                  <div className="rounded-2xl border bg-white shadow-sm p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
+                  <div className="rounded-2xl border bg-white shadow-sm p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between relative">
+                    <div className="min-w-0">
                       <div className="text-xs text-gray-500">Ticket detail</div>
                       {loadingTicket ? (
                         <div className="text-sm text-gray-600">
@@ -345,13 +345,13 @@ export default function TicketChatAdmin() {
                         </div>
                       )}
                     </div>
-                    {selectedTicket && (
-                      <div className="flex flex-col md:flex-row gap-2 md:items-center">
+                      {selectedTicket && (
+                      <div className="flex flex-col items-end md:flex-row gap-2 md:items-center md:flex-nowrap">
                         <label className="text-sm text-gray-600 flex items-center gap-2">
                           <span className="text-xs uppercase tracking-wide text-gray-500">
                             Status
                           </span>
-                          <div className="min-w-[180px]">
+                            <div className="min-w-[140px] w-full md:w-[180px] max-w-[240px]">
                             <Dropdown
                               value={selectedTicket.status || "Open"}
                               onChange={(v) => handleStatusChange(v)}
@@ -366,7 +366,7 @@ export default function TicketChatAdmin() {
                                 deleting ||
                                 String(selectedTicket.status || "").toLowerCase() === "closed"
                               }
-                              wrapperClassName="w-full"
+                                wrapperClassName="w-full md:w-[180px]"
                               className="px-3 py-2"
                             />
                           </div>
@@ -374,7 +374,7 @@ export default function TicketChatAdmin() {
                         {(selectedTicket.status || "").toLowerCase() ===
                         "closed" ? (
                           <button
-                            className="text-sm px-3 py-2 rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60"
+                            className="text-sm px-3 py-2 rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60 shrink-0 self-end md:self-auto"
                             onClick={handleDelete}
                             disabled={deleting || statusUpdating}
                           >
