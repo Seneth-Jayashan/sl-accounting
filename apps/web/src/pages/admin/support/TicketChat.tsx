@@ -6,6 +6,7 @@ import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import TicketService, { type Ticket } from "../../../services/TicketService";
 import { useAuth } from "../../../contexts/AuthContext";
 import Chat from "../../../components/Chat";
+import Dropdown from "../../../components/Dropdown";
 
 export default function TicketChatAdmin() {
   const STATUS_OPTIONS = ["Open", "In Progress", "Resolved", "Closed"];
@@ -351,35 +352,25 @@ export default function TicketChatAdmin() {
                           <span className="text-xs uppercase tracking-wide text-gray-500">
                             Status
                           </span>
-                          <select
-                            className="border rounded-lg px-3 py-2 text-sm bg-white"
-                            value={selectedTicket.status || "Open"}
-                            onChange={(e) => handleStatusChange(e.target.value)}
-                            disabled={
-                              statusUpdating ||
-                              deleting ||
-                              String(
-                                selectedTicket.status || ""
-                              ).toLowerCase() === "closed"
-                            }
-                          >
-                            {STATUS_OPTIONS.filter((opt) => {
-                              const current = selectedTicket.status || "Open";
-                              if (opt === "Resolved" && current !== "Resolved")
-                                return false; // admin can't set to Resolved
-                              if (
-                                opt === "Closed" &&
-                                current !== "Resolved" &&
-                                current !== "Closed"
-                              )
-                                return false; // show Closed only after Resolved
-                              return true;
-                            }).map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="min-w-[180px]">
+                            <Dropdown
+                              value={selectedTicket.status || "Open"}
+                              onChange={(v) => handleStatusChange(v)}
+                              options={STATUS_OPTIONS.filter((opt) => {
+                                const current = selectedTicket.status || "Open";
+                                if (opt === "Resolved" && current !== "Resolved") return false;
+                                if (opt === "Closed" && current !== "Resolved" && current !== "Closed") return false;
+                                return true;
+                              }).map((opt) => ({ value: opt, label: opt }))}
+                              disabled={
+                                statusUpdating ||
+                                deleting ||
+                                String(selectedTicket.status || "").toLowerCase() === "closed"
+                              }
+                              wrapperClassName="w-full"
+                              className="px-3 py-2"
+                            />
+                          </div>
                         </label>
                         {(selectedTicket.status || "").toLowerCase() ===
                         "closed" ? (

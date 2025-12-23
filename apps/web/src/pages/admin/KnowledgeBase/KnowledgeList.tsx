@@ -3,6 +3,7 @@ import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
+import Dropdown from "../../../components/Dropdown";
 import Swal from "sweetalert2";
 
 const CATEGORIES = [
@@ -497,18 +498,13 @@ const AdminKnowledgeList: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 text-sm bg-white border border-gray-200 rounded-xl px-3 py-1.5 shadow-sm">
                 <span className="text-gray-500">Filter</span>
-                <select
+                <Dropdown
                   value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="bg-transparent focus:outline-none"
-                >
-                  <option value="All">All</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setFilter(v)}
+                  options={[{ value: "All", label: "All" }, ...CATEGORIES.map((c) => ({ value: c, label: c }))]}
+                  className="pl-3 pr-9 py-1.5 text-sm rounded-lg"
+                  wrapperClassName="w-44"
+                />
               </div>
               <button
                 onClick={fetchItems}
@@ -749,17 +745,12 @@ const AdminKnowledgeList: React.FC = () => {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Category</label>
-                  <select
+                  <Dropdown
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-2 border rounded"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setCategory(v)}
+                    options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+                    className="px-3 py-2 pr-10"
+                  />
 
                   <div>
                     <label className="text-sm font-medium">File preview</label>
