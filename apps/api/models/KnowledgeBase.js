@@ -8,7 +8,7 @@ const knowledgeSchema = new mongoose.Schema(
     fileName: { type: String },
     fileMime: { type: String },
     publishAt: { type: Date },
-    catageory: { type: String },
+    category: { type: String },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     isPublished: { type: Boolean, default: false },
   },
