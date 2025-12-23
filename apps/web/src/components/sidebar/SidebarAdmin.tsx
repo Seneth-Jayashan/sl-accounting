@@ -1,5 +1,5 @@
 // components/SidebarAdmin.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   HomeIcon,
   UsersIcon,
@@ -22,7 +22,19 @@ type Props = { collapsed?: boolean; onToggle?: () => void };
 
 export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
   const { logout } = useAuth();
-  const [kbOpen, setKbOpen] = useState(false);
+  const [kbOpen, setKbOpen] = useState(() => {
+    try {
+      return sessionStorage.getItem('admin_kb_open') === '1';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('admin_kb_open', kbOpen ? '1' : '0');
+    } catch (e) {}
+  }, [kbOpen]);
 
   const nav = [
     { key: "overview", label: "Overview", href: "/admin/dashboard", Icon: HomeIcon },
@@ -48,7 +60,7 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
       <nav className="flex-1 px-2 py-4 overflow-auto custom-scrollbar">
         {nav.map((n) => (
           <React.Fragment key={n.key}>
-            <a href={n.href} className="flex items-center gap-3 p-3 rounded-md hover:bg-white/10 transition-colors mb-1">
+            <a href={n.href} onClick={() => setKbOpen(false)} className="flex items-center gap-3 p-3 rounded-md hover:bg-white/10 transition-colors mb-1">
               <n.Icon className="w-5 h-5 flex-shrink-0" />
               {!collapsed && <span className="whitespace-nowrap">{n.label}</span>}
             </a>
@@ -66,8 +78,12 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
 
                 {kbOpen && (
                   <div className="pl-10 pr-2 mt-1">
-                    <a href="/admin/knowledge-base" className="flex items-center gap-3 p-3 rounded-md hover:bg-white/5 transition-colors mb-1"> <span className="whitespace-nowrap">Add to KnowledgeBase</span></a>
-                    <a href="/admin/knowledge-list" className="flex items-center gap-3 p-3 rounded-md hover:bg-white/5 transition-colors mb-1"> <span className="whitespace-nowrap">View Knowledge Base</span></a>
+                    <a href="/admin/knowledge-base" className="flex items-center px-3 py-2 rounded-md hover:bg-white/10 focus:bg-white/10 transition-colors mb-1 text-sm font-medium text-white/90">
+                      <span className="whitespace-nowrap">Add to Knowledge Base</span>
+                    </a>
+                    <a href="/admin/knowledge-list" className="flex items-center px-3 py-2 rounded-md hover:bg-white/10 focus:bg-white/10 transition-colors mb-1 text-sm font-medium text-white/90">
+                      <span className="whitespace-nowrap">View Knowledge Base</span>
+                    </a>
                   </div>
                 )}
               </div>
