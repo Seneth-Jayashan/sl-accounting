@@ -52,6 +52,16 @@ const AdminKnowledgeList: React.FC = () => {
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
   };
 
+  const formatBytes = (bytes?: number | null) => {
+    if (!bytes && bytes !== 0) return '';
+    if (bytes === 0) return '0 B';
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(Number(bytes)) / Math.log(1024));
+    return `${(Number(bytes) / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
+  const getDisplayCategory = (item: any) => item?.catageory || item?.category || 'Other';
+
   const fetchItems = async () => {
     setLoading(true);
     setError(null);
@@ -126,11 +136,11 @@ const AdminKnowledgeList: React.FC = () => {
         setSelectedIds([]);
         await Swal.fire({ title: 'Deleted', text: 'Items deleted', icon: 'success', timer: 1400, showConfirmButton: false });
       } else {
-        alert(res?.message || 'Bulk delete failed');
+        await Swal.fire({ title: 'Failed', text: res?.message || 'Bulk delete failed', icon: 'error' });
       }
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.message || err.message || 'Bulk delete failed');
+      await Swal.fire({ title: 'Failed', text: err?.response?.data?.message || err.message || 'Bulk delete failed', icon: 'error' });
     }
   };
 
@@ -138,7 +148,7 @@ const AdminKnowledgeList: React.FC = () => {
     setCurrent(item);
     setTitle(item.title || '');
     setDescription(item.description || '');
-    setCategory(item.catageory || CATEGORIES[0]);
+    setCategory(item.catageory || item.category || CATEGORIES[0]);
     setIsPublished(Boolean(item.isPublished));
     setPublishAt(item.publishAt ? new Date(item.publishAt).toISOString().slice(0,16) : null);
     setFile(null);
@@ -226,7 +236,7 @@ const AdminKnowledgeList: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.message || err.message || 'Download failed');
+      await Swal.fire({ title: 'Download failed', text: err?.response?.data?.message || err.message || 'Download failed', icon: 'error' });
     }
   };
 
@@ -251,11 +261,11 @@ const AdminKnowledgeList: React.FC = () => {
         setEditing(false);
         setCurrent(null);
       } else {
-        alert(res?.message || 'Update failed');
+        await Swal.fire({ title: 'Update failed', text: res?.message || 'Update failed', icon: 'error' });
       }
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.message || err.message || 'Update failed');
+      await Swal.fire({ title: 'Update failed', text: err?.response?.data?.message || err.message || 'Update failed', icon: 'error' });
     } finally {
       setSaving(false);
     }
@@ -293,11 +303,26 @@ const AdminKnowledgeList: React.FC = () => {
           </div>
         </div>
 
-        {loading && <div className="text-gray-500">Loading...</div>}
+        {loading && (
+          <div className="grid gap-4">
+            {[1,2,3].map((n) => (
+              <div key={n} className="bg-white p-4 pl-12 rounded-2xl border border-gray-100 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/5 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-4/5 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-1/3" />
+              </div>
+            ))}
+          </div>
+        )}
         {error && <div className="text-red-600">{error}</div>}
 
         <div className="grid gap-4">
-          {items.map((it) => (
+          {(!loading && items.length === 0) ? (
+            <div className="bg-white p-6 rounded-2xl border border-dashed border-gray-200 text-center">
+              <div className="text-lg font-semibold">No materials yet</div>
+              <div className="text-sm text-gray-500 mt-2">There are no uploaded materials. Once materials are added they'll appear here.</div>
+            </div>
+          ) : items.map((it) => (
             <div key={it._id} className="relative bg-white p-4 pl-12 rounded-2xl border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">
               {/* Absolute checkbox placed in front of the card text */}
               <label className="absolute left-4 top-1/2 -translate-y-1/2 inline-flex items-center cursor-pointer">
@@ -315,7 +340,7 @@ const AdminKnowledgeList: React.FC = () => {
                 <div className="font-semibold">{it.title}</div>
                 <div className="text-sm text-gray-500">{it.description}</div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {it.catageory} • {new Date(it.createdAt).toLocaleString()}
+                  {getDisplayCategory(it)} • {new Date(it.createdAt).toLocaleString()}
                 </div>
 
                 {/* scheduled countdown */}
@@ -341,11 +366,15 @@ const AdminKnowledgeList: React.FC = () => {
         {editing && (
           <div className="fixed inset-0 bg-black/40 flex items-start sm:items-center justify-center z-50 p-4">
             <div className="w-full mx-auto max-w-lg sm:max-w-2xl bg-white rounded-2xl p-4 sm:p-6 shadow-xl max-h-[90vh] overflow-auto">
-              <h2 className="text-lg font-semibold mb-4">Edit Material</h2>
+              <div className="flex items-start justify-between">
+                <h2 className="text-lg font-semibold mb-4">Edit Material</h2>
+                <button aria-label="Close" onClick={() => { setEditing(false); setCurrent(null); }} className="text-gray-500 hover:text-gray-800">✕</button>
+              </div>
               <form onSubmit={(e) => { e.preventDefault(); handleUpdate(); }} className="space-y-4">
                 <div>
                   <label className="text-sm font-medium">Title</label>
                   <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 border rounded" />
+                  {title.trim() === '' && <div className="text-xs text-red-500 mt-1">Title is required</div>}
                 </div>
 
                 <div>
@@ -373,7 +402,7 @@ const AdminKnowledgeList: React.FC = () => {
                       ) : (
                         <div className="p-4 flex items-center justify-between">
                           <div className="text-sm text-gray-700 break-words">{current?.fileName || current?.fileOriginalName || current?.file || 'No file attached'}</div>
-                          <div className="text-xs text-gray-400">{current?.fileMime || ''}</div>
+                          <div className="text-xs text-gray-400">{(current?.fileMime || file?.type) || ''} {current?.fileSize ? `• ${formatBytes(current.fileSize)}` : (file ? `• ${formatBytes(file.size)}` : '')}</div>
                         </div>
                       )}
 
@@ -384,7 +413,7 @@ const AdminKnowledgeList: React.FC = () => {
                       </label>
                     </div>
 
-                    <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                       <div className="text-sm text-gray-600 break-words">{current?.fileName || 'No file attached'}</div>
                       <div className="flex gap-2">
                         <button type="button" onClick={handleDownloadCurrent} disabled={!current} className="px-3 py-1 rounded-lg border text-sm">Download</button>
@@ -395,7 +424,7 @@ const AdminKnowledgeList: React.FC = () => {
 
                 <div className="flex justify-end gap-3">
                   <button type="button" onClick={() => { setEditing(false); setCurrent(null); }} className="px-4 py-2 rounded-lg border">Cancel</button>
-                  <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#0b2540] text-white">{saving ? 'Saving...' : 'Save'}</button>
+                  <button type="submit" disabled={saving || title.trim() === ''} className="px-4 py-2 rounded-lg bg-[#0b2540] text-white">{saving ? 'Saving...' : 'Save'}</button>
                 </div>
               </form>
             </div>
