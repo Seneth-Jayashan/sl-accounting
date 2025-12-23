@@ -54,11 +54,10 @@ export default function TicketChatAdmin() {
         const paramId = params.id;
         if (paramId && sorted.some((t) => t._id === paramId)) {
           setSelectedId(paramId);
-        } else if (sorted.length > 0) {
-          setSelectedId(sorted[0]._id);
-          // keep URL aligned by navigating to first ticket when none selected
-          if (!paramId)
-            navigate(`/admin/chat/ticket/${sorted[0]._id}`, { replace: true });
+        } else {
+          // Do not auto-select or navigate when visiting the ticket list page
+          // (leave selection empty so `/admin/chat` shows the list without opening a chat)
+          setSelectedId(null);
         }
       })
       .catch((e) => {
