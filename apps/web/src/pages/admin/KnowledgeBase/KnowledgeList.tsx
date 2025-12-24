@@ -404,7 +404,7 @@ const AdminKnowledgeList: React.FC = () => {
       const form = new FormData();
       form.append("title", title);
       form.append("description", description || "");
-      form.append("catageory", category);
+      form.append("category", category);
       form.append("isPublished", String(isPublished));
       if (publishAt) form.append("publishAt", publishAt);
       if (file) form.append("file", file as Blob, (file as File).name);
