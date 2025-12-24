@@ -1,4 +1,3 @@
-(function (){})();
 import fs from 'fs';
 import path from 'path';
 import KnowledgeBase from '../models/KnowledgeBase.js';
@@ -63,7 +62,7 @@ export const getAllKnowledge = async (req, res) => {
 		}
 
 		if (req.query.class && req.query.class !== 'All') query.class = req.query.class;
-		if (req.query.catageory) query.catageory = req.query.catageory;
+		if (req.query.category) query.category = req.query.category;
 		if (req.query.search) {
 			const s = new RegExp(req.query.search, 'i');
 			query.$or = [{ title: s }, { description: s }, { fileName: s }];
@@ -100,12 +99,12 @@ export const updateKnowledge = async (req, res) => {
 		const item = await KnowledgeBase.findById(id);
 		if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
 
-	const { title, description, isPublished, class: classId, catageory, publishAt } = req.body;
+	const { title, description, isPublished, class: classId, category, publishAt } = req.body;
 		if (title) item.title = title;
 		if (description) item.description = description;
 		if (typeof isPublished !== 'undefined') item.isPublished = isPublished === 'true' || isPublished === true;
 		if (classId) item.class = classId;
-		if (catageory) item.catageory = catageory;
+		if (category) item.category = category;
 
 		if (req.file) {
 			// delete old file if exists
@@ -125,7 +124,7 @@ export const updateKnowledge = async (req, res) => {
 				if (dt > new Date()) item.isPublished = false;
 				else item.isPublished = true;
 			}
-		} else if (typeof publishAt !== 'undefined' && !publishAt) {
+		} else if (typeof publishAt !== 'undefined') {
 			item.publishAt = undefined;
 		}
 

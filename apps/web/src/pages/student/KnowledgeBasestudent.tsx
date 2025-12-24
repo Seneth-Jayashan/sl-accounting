@@ -13,7 +13,7 @@ type KBItem = {
   fileMime?: string;
   uploadedBy?: any;
   createdAt?: string;
-  catageory?: string;
+  category?: string;
   fileSize?: number | null;
 };
 
@@ -173,7 +173,7 @@ const StudentKnowledgeBase: React.FC = () => {
   }, [previewOpen]);
 
   const filteredItems = items.filter((it) => {
-    const byCategory = filter === "All" ? true : (it.catageory || "Other") === filter;
+    const byCategory = filter === "All" ? true : (it.category || "Other") === filter;
     const q = (search || "").trim().toLowerCase();
     const bySearch =
       q === ""
@@ -269,7 +269,7 @@ const StudentKnowledgeBase: React.FC = () => {
                   </div>
                   {it.description && <div className="text-sm text-gray-500 truncate mt-1">{it.description}</div>}
                   <div className="mt-3 flex items-center gap-3">
-                    <div className="text-xs px-2 py-1 rounded-full bg-slate-50 border border-gray-100 text-gray-700">{it.catageory || 'Other'}</div>
+                    <div className="text-xs px-2 py-1 rounded-full bg-slate-50 border border-gray-100 text-gray-700">{it.category || 'Other'}</div>
                     <div className="text-xs px-2 py-1 rounded-full bg-white border border-gray-100 text-gray-500">{typeLabel}</div>
                     <div className="text-xs text-gray-400">{it.createdAt ? new Date(it.createdAt).toLocaleDateString() : ''}</div>
                   </div>

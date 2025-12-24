@@ -115,8 +115,8 @@ const AdminKnowledgeBase: React.FC = () => {
       const form = new FormData();
       form.append("title", title.trim());
       if (description) form.append("description", description.trim());
-      // NOTE: backend expects the misspelled field name `catageory`
-      form.append("catageory", category);
+      // NOTE: backend expects the misspelled field name `category`
+      form.append("category", category);
       // If scheduled, send publishAt and ensure isPublished=false
       if (schedulePublish && publishAt) {
         form.append("publishAt", publishAt);
@@ -128,17 +128,15 @@ const AdminKnowledgeBase: React.FC = () => {
       if (displayName) form.append("fileName", displayName);
 
       // ensure uploaded file includes filename (preserve/override extension)
-      if (file) {
-        const originalName = file.name || "";
-        const ext = originalName.includes(".")
-          ? originalName.substring(originalName.lastIndexOf("."))
-          : "";
-        let sendName = displayName || originalName;
-        if (displayName && !displayName.includes("."))
-          sendName = displayName + ext;
-        form.delete("file");
-        form.append("file", file as Blob, sendName);
-      }
+      // `file` is guaranteed non-null by the earlier guard (if (!file) return ...)
+      const originalName = file!.name || "";
+      const ext = originalName.includes(".")
+        ? originalName.substring(originalName.lastIndexOf("."))
+        : "";
+      let sendName = displayName || originalName;
+      if (displayName && !displayName.includes(".")) sendName = displayName + ext;
+      // Use `set` to replace any existing `file` field in the FormData
+      form.set("file", file as Blob, sendName);
 
       // Do not set Content-Type header manually; let Axios set boundary
       const res = await KnowledgeBaseAdminService.create(form);

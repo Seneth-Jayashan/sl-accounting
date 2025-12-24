@@ -16,10 +16,8 @@ import Verification from "./pages/Verification";
 
 import Chat from "./components/Chat";
 
-
-
 import AuthProvider from "./contexts/AuthContext";
-import ProtectedRoute from "./routes/ProtectedRoute"; 
+import ProtectedRoute from "./routes/ProtectedRoute";
 
 import StudentDashboardPage from "./pages/student/Dashboard";
 import StudentTicketPage from "./pages/student/Ticket";
@@ -75,10 +73,7 @@ function App() {
         {/* Splash intro */}
         <AnimatePresence mode="wait">
           {showSplash && (
-            <SplashScreen
-              key="splash"
-              onComplete={handleSplashComplete}
-            />
+            <SplashScreen key="splash" onComplete={handleSplashComplete} />
           )}
         </AnimatePresence>
 
@@ -95,9 +90,6 @@ function App() {
             <Route path="/verification" element={<Verification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/chat/:ticketId" element={<Chat />} />
-            
-            
-            
           </Route>
 
           {/* Protected routes */}
@@ -117,7 +109,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
 
           <Route
             path="/student/enrollment"
@@ -199,22 +190,22 @@ function App() {
           />
 
           <Route
-          path="/admin/knowledge-base"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminKnowledgeBasePage />
-              </ProtectedRoute> 
-          }
-        /> 
+            path="/admin/knowledge-base"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminKnowledgeBasePage />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/admin/knowledge-list"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminKnowledgeListPage />
-              </ProtectedRoute> 
-          }
-        />        
+          <Route
+            path="/admin/knowledge-list"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminKnowledgeListPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/admin/students/:id"
@@ -312,9 +303,7 @@ function App() {
                 <AdminPaymentsPage />
               </ProtectedRoute>
             }
-          /> 
-
-
+          />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

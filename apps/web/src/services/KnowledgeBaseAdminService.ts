@@ -4,7 +4,7 @@ import api from './api';
 export interface KnowledgePayload {
   title: string;
   description?: string;
-  catageory?: string;
+  category?: string;
   isPublished?: boolean;
   publishAt?: string | Date;
   // file should be attached as FormData when uploading
@@ -14,7 +14,7 @@ export interface KnowledgeItem {
   _id: string;
   title: string;
   description?: string;
-  catageory?: string;
+  category?: string;
   fileName?: string;
   fileMime?: string;
   filePath?: string;

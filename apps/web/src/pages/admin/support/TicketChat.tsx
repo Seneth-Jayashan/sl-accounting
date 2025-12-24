@@ -552,6 +552,3 @@ export default function TicketChatAdmin() {
     </DashboardLayout>
   );
 }
-
-
-// ConfirmDialog render is inserted inside component return; below export remains unchanged

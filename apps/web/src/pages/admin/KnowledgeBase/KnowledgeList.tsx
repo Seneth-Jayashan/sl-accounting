@@ -112,7 +112,7 @@ const AdminKnowledgeList: React.FC = () => {
   };
 
   const getDisplayCategory = (item: any) =>
-    item?.catageory || item?.category || "Other";
+    item?.category || item?.category || "Other";
 
   const fetchItems = async () => {
     setLoading(true);
@@ -277,7 +277,7 @@ const AdminKnowledgeList: React.FC = () => {
     setCurrent(item);
     setTitle(item.title || "");
     setDescription(item.description || "");
-    setCategory(item.catageory || item.category || CATEGORIES[0]);
+    setCategory(item.category || item.category || CATEGORIES[0]);
     setIsPublished(Boolean(item.isPublished));
     setPublishAt(
       item.publishAt
