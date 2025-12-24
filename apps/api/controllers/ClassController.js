@@ -48,6 +48,8 @@ export const createClass = async (req, res) => {
       ...rest // This contains text fields (name, description, etc.)
     } = req.body;
 
+    console.log("Received createClass request with body:", req.body);
+
     // --- FIX START: Extract files from req.files ---
     const coverImage = getFilePath(req.files, 'coverImage');
     const images = getGalleryPaths(req.files, 'images');

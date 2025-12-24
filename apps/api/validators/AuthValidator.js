@@ -37,6 +37,7 @@ export const registerSchema = z.object({
       .max(100, "Password is too long"),
       
     address: addressSchema.optional(),
+    batch: z.string().length(24, "Invalid batch ID"),
   }),
 });
 

@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
 
     phoneNumber: { type: String, required: true, trim: true },
 
-    batch: { type: mongoose.Schema.Types.ObjectId, ref: "Batch" },
+    batch: { type: mongoose.Schema.Types.ObjectId, ref: "Batch"},
 
     password: { type: String, required: true, minlength: 6, select: false },
 

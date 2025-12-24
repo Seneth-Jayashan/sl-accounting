@@ -60,10 +60,11 @@ async function fetchAccessTokenServerToServer() {
   }
 }
 
+
 /**
  * createMeeting(sessionMeta)
  * sessionMeta: {
- *   topic, start_time (ISO string), duration (minutes), timezone (e.g. "Asia/Colombo"), password (optional), settings: {}
+ * topic, start_time (ISO string), duration (minutes), timezone (e.g. "Asia/Colombo"), password (optional), settings: {}
  * }
  */
 export async function createMeeting(sessionMeta = {}) {
@@ -72,18 +73,46 @@ export async function createMeeting(sessionMeta = {}) {
   const userId = process.env.ZOOM_USER_ID;
   if (!userId) throw new Error("ZOOM_USER_ID not configured");
 
+  // 1. Force Timezone to Colombo
+  const meetingTimezone = sessionMeta.timezone || "Asia/Colombo";
+
+  // 2. Format the date to local "YYYY-MM-DDTHH:mm:ss"
+  const dateObj = new Date(sessionMeta.start_time);
+  
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Colombo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(dateObj);
+  const getPart = (type) => parts.find((p) => p.type === type).value;
+  
+  const formattedStartTime = `${getPart("year")}-${getPart("month")}-${getPart("day")}T${getPart("hour")}:${getPart("minute")}:${getPart("second")}`;
+
   const body = {
     topic: sessionMeta.topic || "Class Session",
-    type: 2, // scheduled meeting
-    start_time: sessionMeta.start_time, // ISO 8601
+    type: 2, 
+    start_time: formattedStartTime, 
     duration: sessionMeta.duration || 120,
-    timezone: sessionMeta.timezone || "UTC",
+    timezone: meetingTimezone,
     password: sessionMeta.password || undefined,
+    // ============================================================
+    // UPDATED SETTINGS SECTION
+    // ============================================================
     settings: sessionMeta.settings || {
       join_before_host: false,
-      host_video: false,
+      host_video: true,
       participant_video: false,
-      approval_type: 0, // automatically accept
+      approval_type: 2, 
+      mute_upon_entry: true,
+      waiting_room: true,
+      auto_recording: "cloud",
     },
   };
 
@@ -98,14 +127,9 @@ export async function createMeeting(sessionMeta = {}) {
         },
       }
     );
-
-    // resp.data contains .id, .join_url, .start_url, etc.
     return resp.data;
   } catch (err) {
-    console.error(
-      "Zoom createMeeting error:",
-      err.response?.data || err.message
-    );
+    console.error("Zoom createMeeting error:", err.response?.data || err.message);
     throw new Error("Failed to create Zoom meeting");
   }
 }

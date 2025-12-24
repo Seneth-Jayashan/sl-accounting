@@ -139,7 +139,7 @@ export default function EnrollmentPage() {
               merchant_id: signatureData.merchant_id,
               return_url: `${window.location.origin}/student/dashboard?payment=success`,
               cancel_url: `${window.location.origin}/student/enrollment/${id}?payment=cancel`,
-              notify_url: "http://your-backend-domain.com/api/v1/payments/payhere-webhook", // Replace with your Public URL
+              notify_url: " https://eufemia-chromic-treasa.ngrok-free.dev/api/v1/payments/payhere-webhook", // Replace with your Public URL
               
               order_id: orderId,
               items: classData.name,

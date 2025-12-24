@@ -89,6 +89,7 @@ export const createPayHereSignature = async (req, res) => {
     }
 };
 export const payHereWebhook = async (req, res) => {
+  console.log("🔔 PayHere Webhook Hit!", req.body); // <--- ADD THIS
   try {
     const body = req.body; // payhere posts urlencoded body
     // Example fields from PayHere: merchant_id, order_id, payhere_amount, payhere_currency, status_code, md5sig, etc.
