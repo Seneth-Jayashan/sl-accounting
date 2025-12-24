@@ -287,7 +287,7 @@ const AdminKnowledgeBase: React.FC = () => {
                     setSchedulePublish(false);
                     setPublishAt(null);
                   }}
-                  className={`w-40 py-2 rounded-xl w- text-base font-semibold ${
+                  className={`w-40 py-2 rounded-xl text-base font-semibold ${
                     isPublished
                       ? "bg-[#0b2540] text-white"
                       : "bg-gray-100 text-gray-700"
@@ -376,7 +376,7 @@ const AdminKnowledgeBase: React.FC = () => {
                 </div>
                 {filePreviewUrl ? (
                   <div>
-                    {file && file.type === "application/pdf" ? (
+                    {file?.type === "application/pdf" ? (
                       <iframe
                         src={filePreviewUrl}
                         title="PDF preview"
@@ -400,8 +400,8 @@ const AdminKnowledgeBase: React.FC = () => {
                           {displayName || file?.name}
                         </div>
                         <div className="text-xs text-gray-400">
-                          {file?.type ? file.type : ""}{" "}
-                          {file ? `• ${formatBytes(file.size)}` : ""}
+                          {file?.type || ""}{" "}
+                          {`• ${formatBytes(file.size)}`}
                         </div>
                         <div className="mt-2">
                           <input
@@ -458,7 +458,7 @@ const AdminKnowledgeBase: React.FC = () => {
                       <div className="text-sm font-medium">{file?.name}</div>
                       <div className="text-xs text-gray-400">
                         {file?.type ? file.type : ""}{" "}
-                        {file ? `• ${formatBytes(file.size)}` : ""}
+                        • {formatBytes(file.size)}
                       </div>
                     </div>
                     <div className="text-right">
