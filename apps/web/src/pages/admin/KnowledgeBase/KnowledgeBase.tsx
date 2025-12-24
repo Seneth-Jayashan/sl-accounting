@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
@@ -28,10 +28,19 @@ const AdminKnowledgeBase: React.FC = () => {
   const [displayName, setDisplayName] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const fileAreaRef = useRef<HTMLDivElement | null>(null);
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const descRef = useRef<HTMLTextAreaElement | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
+    setFileError(null);
+    setTitleError(null);
+    setDescriptionError(null);
     setMessage(null);
     if (e.target.files && e.target.files[0]) {
       const f = e.target.files[0];
@@ -103,12 +112,30 @@ const AdminKnowledgeBase: React.FC = () => {
     e.preventDefault();
     setError(null);
     setMessage(null);
+    setFileError(null);
+    setTitleError(null);
+    setDescriptionError(null);
 
-    if (!title.trim()) return setError("Title is required");
-    if (!file)
-      return setError(
-        "Please attach a file (pdf/doc/docx/xls/xlsx/ppt/pptx/zip/csv)"
-      );
+    if (!title.trim()) {
+      setTitleError("Title is required");
+      setTimeout(() => {
+        if (titleRef.current) titleRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+      return;
+    }
+
+    if (!file) {
+      // show inline/file-area focused error instead of only top banner
+      setFileError("Please attach a file (pdf/doc/docx/xls/xlsx/ppt/pptx/zip/csv)");
+      setError(null);
+      // scroll file area into view
+      setTimeout(() => {
+        if (fileAreaRef.current) {
+          fileAreaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -202,7 +229,19 @@ const AdminKnowledgeBase: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err?.response?.data?.message || err.message || "Upload error");
+      const serverMessage = err?.response?.data?.message || err.message || "Upload error";
+      setError(serverMessage);
+      // map server field errors if present (common shape: { errors: { title: '...', description: '...' } })
+      const fieldErrors = err?.response?.data?.errors;
+      if (fieldErrors) {
+        if (fieldErrors.title) setTitleError(fieldErrors.title as string);
+        if (fieldErrors.description) setDescriptionError(fieldErrors.description as string);
+        // scroll to first field error
+        setTimeout(() => {
+          if (fieldErrors.title && titleRef.current) titleRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+          else if (fieldErrors.description && descRef.current) descRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 50);
+      }
     } finally {
       setLoading(false);
     }
@@ -236,11 +275,19 @@ const AdminKnowledgeBase: React.FC = () => {
               Title <span className="text-red-500">*</span>
             </label>
             <input
+              ref={titleRef}
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (titleError) setTitleError(null);
+                setError(null);
+              }}
               placeholder="e.g. Chapter 1 - Introduction"
-              className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20 shadow-sm"
+              className={`w-full px-4 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20 shadow-sm ${
+                titleError ? "border-red-300" : "border border-gray-200"
+              }`}
             />
+            {titleError && <p className="text-sm text-red-600 mt-1">{titleError}</p>}
           </div>
 
           <div className="space-y-1">
@@ -248,11 +295,19 @@ const AdminKnowledgeBase: React.FC = () => {
               Description
             </label>
             <textarea
+              ref={descRef}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                if (descriptionError) setDescriptionError(null);
+                setError(null);
+              }}
               rows={4}
-              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20 resize-none"
+              className={`w-full px-4 py-2 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20 resize-none ${
+                descriptionError ? "border-red-300" : "border border-gray-200"
+              }`}
             />
+            {descriptionError && <p className="text-sm text-red-600 mt-1">{descriptionError}</p>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -330,7 +385,12 @@ const AdminKnowledgeBase: React.FC = () => {
               File (pdf/doc/docx/ppt/pptx/xls/xlsx/zip/csv)
             </label>
             {!file ? (
-              <div className="mt-2 relative w-full aspect-video bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer">
+              <div
+                ref={fileAreaRef}
+                className={`mt-2 relative w-full aspect-video bg-gray-50 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer border-2 border-dashed ${
+                  fileError ? "border-red-400 bg-red-50" : "border-gray-300"
+                }`}
+              >
                 <div className="text-center p-4">
                   <ArrowUpTrayIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-600 font-medium">
@@ -358,9 +418,14 @@ const AdminKnowledgeBase: React.FC = () => {
                   onChange={handleFileChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
+                {fileError && (
+                  <p className="text-sm text-red-600 mt-2 absolute bottom-3 left-4">
+                    {fileError}
+                  </p>
+                )}
               </div>
             ) : (
-              <div className="mt-2 w-full">
+              <div ref={fileAreaRef} className="mt-2 w-full">
                 <div className="mb-2 flex justify-end">
                   <label className="px-3 py-1 rounded-xl border border-gray-200 text-sm cursor-pointer bg-white">
                     Update file
