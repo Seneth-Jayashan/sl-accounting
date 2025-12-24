@@ -1,6 +1,7 @@
 // student/Dashboard.tsx
 import DashboardLayout from "../../layouts/DashboardLayout";
 import SidebarStudent from "../../components/sidebar/SidebarStudent";
+import BottomNavStudent from "../../components/bottomNavbar/BottomNavStudent";
 
 function StatCard({ title, value, hint }: { title: string; value: string | number; hint?: string }) {
   return (
@@ -25,7 +26,7 @@ export default function StudentDashboardPage() {
   ];
 
   return (
-    <DashboardLayout Sidebar={SidebarStudent}>
+    <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -43,49 +43,51 @@ function computePayHereMd5sig({ merchant_id, order_id, payhere_amount, payhere_c
 
 
 export const createPayHereSignature = async (req, res) => {
-  try {
-    const { amount, order_id, currency } = req.body;
-    
-    if (!amount || !order_id) {
-        return res.status(400).json({ message: "Amount and Order ID required" });
+    try {
+        const { amount, order_id, currency } = req.body;
+        const merchantId = process.env.PAYHERE_MERCHANT_ID;
+        const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
+        console.log("Generating PayHere signature for:", { amount, order_id, currency });
+        console.log("Using Merchant ID:", merchantId);
+        console.log("Using Merchant Secret:", merchantSecret);
+
+        if (!merchantId || !merchantSecret) {
+            return res.status(500).json({ error: "PayHere merchant credentials not configured" });
+        }
+        // Step 1: Format Amount to exactly 2 decimal places (No commas)
+        // Example: 2500 -> "2500.00"
+        const amountFormatted = parseFloat(amount)
+            .toLocaleString('en-us', { minimumFractionDigits: 2 })
+            .replace(/,/g, '');
+
+        // Step 2: Generate the UPPERCASE MD5 of the Merchant Secret
+        const hashedSecret = crypto.createHash('md5')
+            .update(merchantSecret)
+            .digest('hex')
+            .toUpperCase();
+
+        // Step 3: Concatenate exactly as per docs: ID + ORDER + AMOUNT + CURRENCY + HASHED_SECRET
+        const mainString = merchantId + order_id + amountFormatted + currency + hashedSecret;
+
+        // Step 4: Generate final UPPERCASE MD5 hash
+        const hash = crypto.createHash('md5')
+            .update(mainString)
+            .digest('hex')
+            .toUpperCase();
+
+        res.json({
+            merchant_id: merchantId,
+            hash: hash,
+            amount: amountFormatted,
+            order_id: order_id,
+            currency: currency
+        });
+
+    } catch (err) {
+        console.error("Signature Generation Error:", err);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-
-    const merchantId = process.env.PAYHERE_MERCHANT_ID;
-    const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET; // Ensure this is in your .env
-
-    if (!merchantId || !merchantSecret) {
-        return res.status(500).json({ message: "PayHere config missing on server" });
-    }
-
-    // Format amount to 2 decimal places exactly
-    const formattedAmount = Number(amount).toFixed(2);
-
-    // Hashing Logic: md5(merchant_id + order_id + amount + currency + strtoupper(md5(merchant_secret))) 
-    // *Note: PayHere hash generation for the REQUEST is different from the RESPONSE verification.*
-    
-    // 1. Hash the secret
-    const hashedSecret = crypto.createHash("md5").update(merchantSecret).digest("hex").toUpperCase();
-
-    // 2. Create the string
-    const hashString = `${merchantId}${order_id}${formattedAmount}${currency}${hashedSecret}`;
-
-    // 3. Final Hash
-    const hash = crypto.createHash("md5").update(hashString).digest("hex").toUpperCase();
-
-    res.json({
-        merchant_id: merchantId,
-        hash: hash,
-        amount: formattedAmount,
-        currency: currency
-    });
-
-  } catch (err) {
-    console.error("Error generating signature:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
-
-
 export const payHereWebhook = async (req, res) => {
   try {
     const body = req.body; // payhere posts urlencoded body

@@ -163,11 +163,14 @@ export default function EnrollmentPage() {
           form.setAttribute("method", "POST");
           form.setAttribute("action", PAYHERE_URL);
 
+          // Inside handleProcess...
           Object.keys(payHereParams).forEach(key => {
               const input = document.createElement("input");
               input.setAttribute("type", "hidden");
               input.setAttribute("name", key);
-              input.setAttribute("value", (payHereParams as any)[key]);
+              // Force toString() and trim() to avoid hidden characters
+              const value = (payHereParams as any)[key]?.toString().trim();
+              input.setAttribute("value", value);
               form.appendChild(input);
           });
 

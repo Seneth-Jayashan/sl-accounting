@@ -24,15 +24,7 @@ export default function DashboardLayout({ Sidebar, BottomNav, rightSidebar, chil
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* ... Header Code ... */}
-        {showHeader && (
-          <header className="flex items-center justify-between px-4 lg:px-6 py-4 bg-white border-b sticky top-0 z-30 shadow-sm">
-             {/* ... header content ... */}
-             <div className="flex items-center gap-4">
-               <div className="text-sm text-gray-600">Welcome</div>
-             </div>
-          </header>
-        )}
+
 
         <main className="p-4 lg:p-6 pb-24 lg:pb-6 flex gap-6 overflow-x-hidden">
           
