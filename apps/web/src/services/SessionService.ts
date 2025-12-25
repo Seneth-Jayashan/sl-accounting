@@ -15,7 +15,7 @@ export interface SessionData {
   zoomMeetingId?: string;
   zoomStartUrl?: string; // Only visible to instructors/admin
   zoomJoinUrl?: string;
-  recordingUrl?: string; // Added recordingUrl as it's used in the frontend
+  youtubeVideoId?: string; // Added recordingUrl as it's used in the frontend
   isCancelled: boolean;
   cancelledAt?: string;
   cancellationReason?: string;
@@ -126,6 +126,11 @@ const SessionService = {
    */
   deleteSession: async (id: string) => {
     const response = await api.delete<SessionResponse>(`${BASE_URL}/${id}`);
+    return response.data;
+  },
+
+  getSessionById: async (sessionId: string) => {
+    const response = await api.get<SessionData>(`${BASE_URL}/${sessionId}`);
     return response.data;
   },
 };

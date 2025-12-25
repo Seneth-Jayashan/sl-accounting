@@ -2,6 +2,7 @@ import express from 'express';
 import { protect, restrictTo } from '../middlewares/AuthMiddleware.js';
 import {
     createSessionForClass,
+    getSessionById,
     getAllSessions,
     updateSession,
     deleteSession,
@@ -19,7 +20,8 @@ router.use(protect);
 
 // GET /api/v1/sessions
 // Supports query params: ?classId=...&from=...&to=...
-router.get('/', getAllSessions);
+router.get('/', protect, getAllSessions);
+router.get('/:id', protect, getSessionById);
 
 // Operations on specific Session ID
 router.route('/:id')

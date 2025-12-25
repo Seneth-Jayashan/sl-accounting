@@ -1,33 +1,63 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import moment from "moment";
+import {
+  BookOpen,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  CreditCard,
+  UploadCloud,
+  Search,
+  Calendar,
+  Layers,
+  GraduationCap
+} from "lucide-react";
+
+// Components & Layouts
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarStudent from "../../../components/sidebar/SidebarStudent";
 import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent";
+
+// Services & Context
 import EnrollmentService from "../../../services/EnrollmentService";
 import type { EnrollmentResponse, EnrolledClass } from "../../../services/EnrollmentService";
-import { useAuth } from "../../../contexts/AuthContext"; // Adjust path to your context
-import moment from "moment";
-import {
-  AcademicCapIcon,
-  CheckBadgeIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
-  ArrowRightIcon,
-  CurrencyDollarIcon,
-  DocumentArrowUpIcon,
-  FunnelIcon
-} from "@heroicons/react/24/outline";
+import { useAuth } from "../../../contexts/AuthContext";
 
-// Helper to safely get class details even if population fails
+// --- Configuration ---
+const API_BASE_URL = "http://localhost:3000";
+
+// Helper to safely get class details
 const getClassDetails = (cls: EnrolledClass | string) => {
     if (typeof cls === 'string') return { name: "Unknown Class", _id: cls, price: 0, coverImage: "" };
-    return cls; // It's an object (EnrolledClass)
+    return cls;
+};
+
+// Helper for Image URLs
+const getImageUrl = (path?: string) => {
+    if (!path) return null;
+    if (path.startsWith("http")) return path;
+    const cleanPath = path.replace(/\\/g, "/");
+    return `${API_BASE_URL}/${cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath}`;
+};
+
+// Animation Variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
 };
 
 export default function ViewEnrollments() {
   const navigate = useNavigate();
   const { user } = useAuth();
   
+  // State
   const [enrollments, setEnrollments] = useState<EnrollmentResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "paid" | "pending">("all");
@@ -36,8 +66,8 @@ export default function ViewEnrollments() {
     const fetchEnrollments = async () => {
       if (!user) return;
       try {
-        // This fetches ONLY the logged-in student's enrollments
         const data = await EnrollmentService.getMyEnrollments();
+        console.log("Fetched Enrollments:", data); // Debug Log
         setEnrollments(data);
       } catch (error) {
         console.error("Failed to fetch enrollments", error);
@@ -49,173 +79,206 @@ export default function ViewEnrollments() {
     fetchEnrollments();
   }, [user]);
 
-  // Filter Logic
+  // --- ROBUST FILTER LOGIC ---
   const filteredEnrollments = enrollments.filter(e => {
+      // Normalize status to lowercase for comparison
+      const status = e.paymentStatus ? e.paymentStatus.toLowerCase() : "pending";
+      
       if (filter === "all") return true;
-      if (filter === "paid") return e.paymentStatus === "paid";
-      if (filter === "pending") return e.paymentStatus !== "paid";
+      if (filter === "paid") return status === "paid";
+      if (filter === "pending") return status !== "paid";
+      
       return true;
   });
 
   return (
     <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
-      <div className="p-6 max-w-7xl mx-auto pb-24 min-h-screen bg-gray-50">
+      <div className="p-6 max-w-7xl mx-auto pb-24 min-h-screen bg-brand-aliceBlue/30">
         
         {/* --- Header Section --- */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">My Classes</h1>
-                <p className="text-gray-500 text-sm mt-1">Track your active courses and payment status.</p>
+                <h1 className="text-3xl font-black text-brand-prussian font-sinhala">My Classes</h1>
+                <p className="text-gray-500 mt-2 font-sans">Manage your active courses and track payments.</p>
             </div>
             
-            <div className="flex gap-2">
-                {/* Filter Buttons */}
-                <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 flex">
+            <div className="flex flex-col sm:flex-row gap-3">
+                {/* Filter Tabs */}
+                <div className="bg-white p-1.5 rounded-xl shadow-sm border border-gray-200 flex overflow-x-auto">
                     {(['all', 'paid', 'pending'] as const).map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg capitalize transition-all ${
+                            className={`px-4 py-2 text-sm font-bold rounded-lg capitalize transition-all whitespace-nowrap ${
                                 filter === f 
-                                ? "bg-[#0b2540] text-white shadow-sm" 
-                                : "text-gray-500 hover:bg-gray-50"
+                                ? "bg-brand-prussian text-white shadow-md" 
+                                : "text-gray-500 hover:bg-brand-aliceBlue hover:text-brand-cerulean"
                             }`}
                         >
-                            {f}
+                            {f === 'all' ? 'All Classes' : f}
                         </button>
                     ))}
                 </div>
 
                 <button 
                     onClick={() => navigate("/classes")}
-                    className="bg-[#0b2540] text-white px-5 py-2 rounded-xl font-medium hover:bg-[#153454] transition-colors shadow-lg shadow-blue-900/10 flex items-center gap-2"
+                    className="bg-brand-cerulean text-white px-5 py-2.5 rounded-xl font-bold hover:bg-brand-prussian transition-colors shadow-lg shadow-brand-cerulean/20 flex items-center justify-center gap-2 whitespace-nowrap"
                 >
-                    <AcademicCapIcon className="w-5 h-5" /> 
-                    <span className="hidden sm:inline">Browse New</span>
+                    <Search size={18} /> 
+                    <span className="hidden sm:inline">Browse Catalog</span>
+                    <span className="sm:hidden">Browse</span>
                 </button>
             </div>
         </div>
 
         {/* --- Content Grid --- */}
         {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {[1, 2, 3].map(i => (
-                    <div key={i} className="bg-white h-64 rounded-2xl animate-pulse"></div>
+                    <div key={i} className="bg-white h-[400px] rounded-[2rem] animate-pulse border border-gray-100 shadow-sm"></div>
                 ))}
             </div>
         ) : filteredEnrollments.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl p-16 text-center flex flex-col items-center">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                    <AcademicCapIcon className="w-10 h-10 text-gray-400" />
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-[2.5rem] p-16 text-center flex flex-col items-center border border-gray-100 shadow-xl"
+            >
+                <div className="w-24 h-24 bg-brand-aliceBlue rounded-full flex items-center justify-center mb-6">
+                    <BookOpen className="w-10 h-10 text-brand-cerulean/50" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No Classes Found</h3>
-                <p className="text-gray-500 mb-8 max-w-sm">
+                <h3 className="text-2xl font-bold text-brand-prussian mb-2">No Classes Found</h3>
+                <p className="text-gray-500 mb-8 max-w-md font-sans">
                     {filter === 'all' 
-                        ? "You haven't enrolled in any classes yet. Start your learning journey today!" 
-                        : `You don't have any ${filter} classes.`}
+                        ? "You haven't enrolled in any classes yet. Start your journey to A/L success today!" 
+                        : `You don't have any ${filter} classes at the moment.`}
                 </p>
                 <button 
                     onClick={() => navigate("/classes")}
-                    className="text-[#0b2540] font-bold hover:underline"
+                    className="text-brand-cerulean font-bold hover:text-brand-prussian hover:underline flex items-center gap-2 transition-colors"
                 >
-                    Browse All Classes &rarr;
+                    Browse All Classes <ArrowRight size={18} />
                 </button>
-            </div>
+            </motion.div>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-                {filteredEnrollments.map((enrollment) => {
-                    // Type Guard / Extraction
-                    const classData = enrollment.class as any; // Cast to any to access fields safely if interface is loose
-                    const className = classData?.name || "Unknown Class";
-                    const classId = classData?._id || (typeof enrollment.class === 'string' ? enrollment.class : "");
-                    const classImage = classData?.coverImage; // Assuming populated
+            <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            >
+                <AnimatePresence mode="popLayout">
+                    {filteredEnrollments.map((enrollment) => {
+                        // Extract Data
+                        const classObj = getClassDetails(enrollment.class);
+                        const className = classObj.name;
+                        const classId = classObj._id;
+                        const classImage = getImageUrl(classObj.coverImage);
+                        const isPaid = (enrollment.paymentStatus || "").toLowerCase() === 'paid';
+                        const isExpired = enrollment.accessEndDate && new Date(enrollment.accessEndDate) < new Date();
 
-                    const isPaid = enrollment.paymentStatus === 'paid';
-                    const isExpired = enrollment.accessEndDate && new Date(enrollment.accessEndDate) < new Date();
+                        return (
+                            <motion.div 
+                                key={enrollment._id} 
+                                variants={itemVariants}
+                                layout
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="group bg-white rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:border-brand-cerulean/20 transition-all duration-300 overflow-hidden flex flex-col h-full relative"
+                            >
+                                {/* Card Image / Header */}
+                                <div className="h-40 bg-brand-prussian relative overflow-hidden">
+                                    {classImage ? (
+                                        <img src={classImage} alt={className} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                    ) : (
+                                        <div className={`w-full h-full ${isPaid ? 'bg-gradient-to-br from-brand-cerulean to-brand-prussian' : 'bg-gradient-to-br from-brand-coral to-red-500'}`}></div>
+                                    )}
+                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
 
-                    return (
-                        <div key={enrollment._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col h-full group">
-                            
-                            {/* Card Image / Header Color */}
-                            <div className="h-32 bg-gray-200 relative overflow-hidden">
-                                {classImage ? (
-                                    <img src={classImage} alt={className} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                ) : (
-                                    <div className={`w-full h-full ${isPaid ? 'bg-gradient-to-r from-green-500 to-emerald-600' : 'bg-gradient-to-r from-yellow-400 to-orange-500'}`}></div>
-                                )}
-                                
-                                {/* Status Badge */}
-                                <div className="absolute top-3 right-3">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-sm ${
-                                        isPaid 
-                                        ? "bg-white text-green-700" 
-                                        : "bg-white text-yellow-700"
-                                    }`}>
-                                        {isPaid ? "Active" : "Payment Pending"}
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div className="p-6 flex-1 flex flex-col">
-                                <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 leading-tight">
-                                    {className}
-                                </h3>
-
-                                <div className="space-y-3 mt-2 text-sm text-gray-500 mb-6">
-                                    <div className="flex justify-between border-b border-gray-50 pb-2">
-                                        <span>Joined</span>
-                                        <span className="font-medium text-gray-900">{moment(enrollment.createdAt).format("MMM DD, YYYY")}</span>
-                                    </div>
-                                    <div className="flex justify-between border-b border-gray-50 pb-2">
-                                        <span>Access Ends</span>
-                                        <span className={`font-medium ${isExpired ? "text-red-500" : "text-gray-900"}`}>
-                                            {enrollment.accessEndDate ? moment(enrollment.accessEndDate).format("MMM DD") : "N/A"}
+                                    {/* Status Badge */}
+                                    <div className="absolute top-4 right-4 z-10">
+                                        <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg flex items-center gap-1.5 ${
+                                            isPaid 
+                                            ? "bg-white text-green-600" 
+                                            : "bg-white text-brand-coral"
+                                        }`}>
+                                            {isPaid ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
+                                            {isPaid ? "Active" : "Pending"}
                                         </span>
                                     </div>
-                                    
+                                </div>
+                                
+                                {/* Card Body */}
+                                <div className="p-6 flex-1 flex flex-col relative">
+                                    {/* Overlapping Icon (Optional decoration) */}
+                                    <div className="absolute -top-6 left-6 w-12 h-12 bg-white rounded-2xl shadow-md flex items-center justify-center text-brand-prussian border border-gray-50">
+                                        <GraduationCap size={24} />
+                                    </div>
+
+                                    <div className="mt-6 mb-4">
+                                        <h3 className="text-xl font-bold text-brand-prussian mb-2 line-clamp-2 leading-tight font-sinhala group-hover:text-brand-cerulean transition-colors">
+                                            {className}
+                                        </h3>
+                                    </div>
+
+                                    {/* Info Grid */}
+                                    <div className="space-y-3 mb-6 bg-brand-aliceBlue/30 p-4 rounded-xl">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500 flex items-center gap-2"><Calendar size={14}/> Joined</span>
+                                            <span className="font-bold text-brand-prussian">{moment(enrollment.createdAt).format("MMM DD, YYYY")}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500 flex items-center gap-2"><Layers size={14}/> Access Ends</span>
+                                            <span className={`font-bold ${isExpired ? "text-red-500" : "text-brand-prussian"}`}>
+                                                {enrollment.accessEndDate ? moment(enrollment.accessEndDate).format("MMM DD") : "Unlimited"}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Warning for Unpaid */}
                                     {!isPaid && (
-                                        <div className="flex items-start gap-2 text-yellow-700 bg-yellow-50 p-2.5 rounded-lg text-xs mt-2">
-                                            <ExclamationTriangleIcon className="w-4 h-4 mt-0.5 shrink-0" />
-                                            <span>Complete payment to access course materials.</span>
+                                        <div className="mb-6 bg-yellow-50 text-yellow-700 text-xs p-3 rounded-lg border border-yellow-100 flex gap-2">
+                                            <AlertTriangle size={16} className="shrink-0" />
+                                            <span>Please complete your payment to unlock class materials and zoom links.</span>
                                         </div>
                                     )}
-                                </div>
 
-                                <div className="mt-auto pt-4 border-t border-gray-50 flex gap-2">
-                                    {isPaid ? (
-                                        // --- PAID: Go to Classroom ---
-                                        <button 
-                                            onClick={() => navigate(`/student/class/${classId}`)}
-                                            className="w-full bg-[#0b2540] text-white py-2.5 rounded-xl font-medium hover:bg-[#153454] transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10"
-                                        >
-                                            Enter Classroom <ArrowRightIcon className="w-4 h-4" />
-                                        </button>
-                                    ) : (
-                                        // --- UNPAID: Pay or Upload ---
-                                        <>
+                                    {/* Action Buttons */}
+                                    <div className="mt-auto flex gap-3">
+                                        {isPaid ? (
                                             <button 
-                                                onClick={() => navigate(`/student/enrollment/${classId}`)}
-                                                className="flex-1 bg-yellow-500 text-white py-2.5 rounded-xl font-medium hover:bg-yellow-600 transition-colors flex items-center justify-center gap-1 shadow-lg shadow-yellow-500/20"
-                                                title="Pay Online"
+                                                onClick={() => navigate(`/student/class/${classId}`)}
+                                                className="w-full bg-brand-prussian text-white py-3.5 rounded-xl font-bold hover:bg-brand-cerulean transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-prussian/20 group-hover:scale-[1.02] duration-200"
                                             >
-                                                <CurrencyDollarIcon className="w-5 h-5" /> Pay Now
+                                                Enter Classroom <ArrowRight size={18} />
                                             </button>
-                                            
-                                            <button 
-                                                onClick={() => navigate(`/student/payment/upload/${enrollment._id}`)}
-                                                className="flex-1 border-2 border-gray-100 text-gray-600 py-2.5 rounded-xl font-medium hover:border-[#0b2540] hover:text-[#0b2540] transition-colors flex items-center justify-center gap-1 bg-white"
-                                                title="Upload Bank Slip"
-                                            >
-                                                <DocumentArrowUpIcon className="w-5 h-5" /> Slip
-                                            </button>
-                                        </>
-                                    )}
+                                        ) : (
+                                            <>
+                                                <button 
+                                                    onClick={() => navigate(`/student/enrollment/${classId}`)}
+                                                    className="flex-1 bg-brand-coral text-white py-3 rounded-xl font-bold hover:bg-red-500 transition-colors flex items-center justify-center gap-1 shadow-lg shadow-brand-coral/20"
+                                                    title="Pay Online"
+                                                >
+                                                    <CreditCard size={18} /> Pay
+                                                </button>
+                                                
+                                                <button 
+                                                    onClick={() => navigate(`/student/payment/upload/${enrollment._id}`)}
+                                                    className="flex-1 bg-white border border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:border-brand-prussian hover:text-brand-prussian transition-colors flex items-center justify-center gap-1"
+                                                    title="Upload Bank Slip"
+                                                >
+                                                    <UploadCloud size={18} /> Slip
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+                            </motion.div>
+                        );
+                    })}
+                </AnimatePresence>
+            </motion.div>
         )}
       </div>
     </DashboardLayout>

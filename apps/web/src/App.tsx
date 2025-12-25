@@ -27,6 +27,7 @@ import StudentTicketPage from "./pages/student/Ticket";
 
 import StudentClassPage from "./pages/student/class/Classes";
 import StudentViewClassPage from "./pages/student/class/ViewClass";
+import StudentViewRecordingPage from "./pages/student/class/ViewRecording";
 
 import EnrollmentPage from "./pages/student/enrollment/Enrollment";
 import ViewEnrollmentPage from "./pages/student/enrollment/ViewEnrollment";
@@ -134,6 +135,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <StudentViewClassPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/student/class/recording/:sessionId"
+            element={
+              <ProtectedRoute allowedRoles={["student"]}>
+                <StudentViewRecordingPage />
               </ProtectedRoute>
             }
           />

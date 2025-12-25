@@ -238,6 +238,18 @@ export const getAllSessions = async (req, res) => {
   }
 };
 
+export const getSessionById = async (req, res) => {
+  const sessionId = req.params.id;
+  try {
+    const sessionDoc = await Session.findById(sessionId);
+    if (!sessionDoc) return res.status(404).json({ message: "Session not found" });
+    return res.status(200).json({ session:sessionDoc });
+  } catch (err) {
+    console.error("getSessionById error:", err);
+    return res.status(500).json({ message: "Failed to fetch session", error: err?.message || err });
+  }
+};
+
 
 /**
  * PUT /sessions/:id
