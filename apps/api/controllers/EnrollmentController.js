@@ -169,7 +169,8 @@ export const deleteEnrollment = async (req, res) => {
 
 export const checkEnrollment = async (req, res) => {
   try {
-    const { studentId, classId } = req.query;
+    const {classId } = req.query;
+    const studentId = req.user._id;
     if (!studentId || !classId) return res.status(400).json({ message: "Missing params" });
 
     const exists = await Enrollment.findOne({ student: studentId, class: classId });

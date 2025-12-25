@@ -1,5 +1,5 @@
 import api from "./api";
-
+const BASE_URL = "/enrollments";
 // --- Interfaces ---
 
 // Detailed Student Type (Populated)
@@ -16,99 +16,118 @@ export interface EnrolledClass {
   _id: string;
   name: string;
   price: number;
+  coverImage?: string; // Added useful field for UI
 }
 
 // Main Response Interface
 export interface EnrollmentResponse {
   _id: string;
-  student: EnrolledStudent | string; // Can be object (populated) or string (ID)
-  class: EnrolledClass | string;     // Can be object (populated) or string (ID)
+  student: EnrolledStudent | string; // Object if populated, String ID if not
+  class: EnrolledClass | string;     // Object if populated, String ID if not
   paymentStatus: "paid" | "unpaid" | "pending";
   isActive: boolean;
+  enrollmentDate: string;
   accessEndDate?: string;
   createdAt: string;
   updatedAt: string;
 }
 
+// Interface for the Check Status response
+interface CheckStatusResponse {
+  isEnrolled: boolean;
+  enrollment?: EnrollmentResponse;
+}
+
 const EnrollmentService = {
   /**
-   * Enroll the current user in a specific class
+   * 1. Enroll the current user in a specific class
    * Endpoint: POST /api/v1/enrollments
    */
-  enrollInClass: async (classId: string, studentId: string) => {
-    if (!studentId) {
-      throw "User ID is missing. Please login again.";
-    }
-
+  enrollInClass: async (classId: string, studentId?: string) => {
     const payload = {
-      student: studentId,
       class: classId,
+      student: studentId, // Backend might take this from Token (req.user), but sending it is safe
       subscriptionType: "monthly",
-      accessStartDate: new Date().toISOString()
+      // accessStartDate is usually handled by backend to ensure server time, but can be sent if needed
     };
 
     try {
-      const response = await api.post<EnrollmentResponse>("/enrollments", payload);
+      const response = await api.post<EnrollmentResponse>(`${BASE_URL}`, payload);
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 409) {
-        throw "You are already enrolled in this class.";
+        throw new Error("You are already enrolled in this class.");
       }
-      throw error.response?.data?.message || "Enrollment failed. Please try again.";
+      throw new Error(error.response?.data?.message || "Enrollment failed. Please try again.");
     }
   },
 
   /**
-   * Check if user is already enrolled
+   * 2. Check if user is already enrolled (Uses the new Router Endpoint)
+   * Endpoint: GET /api/v1/enrollments/check/status?classId=...
    */
-  checkEnrollmentStatus: async (classId: string) => {
+  checkEnrollmentStatus: async (classId: string): Promise<boolean> => {
     try {
-      // Fallback if no dedicated check endpoint exists
-      return false; 
+      // Sending classId as a query parameter
+      const response = await api.get<CheckStatusResponse>(`${BASE_URL}/check/status`, {
+        params: { classId }
+      });
+      return response.data.isEnrolled;
     } catch (error) {
+      // If 404 or other error, assume not enrolled
       return false;
     }
   },
 
   /**
-   * Get a specific enrollment by ID
+   * 3. Get my enrollments (Student Side)
+   * Endpoint: GET /api/v1/enrollments/my-enrollments
+   */
+  getMyEnrollments: async () => { 
+    const response = await api.get<EnrollmentResponse[]>(`${BASE_URL}/my-enrollments`);
+    return response.data;
+  },
+
+  /**
+   * 4. Get a specific enrollment by ID
    * Endpoint: GET /api/v1/enrollments/:id
    */
   getEnrollmentById: async (id: string) => {
-    const response = await api.get<EnrollmentResponse>(`/enrollments/${id}`);
+    const response = await api.get<EnrollmentResponse>(`${BASE_URL}/${id}`);
     return response.data;
   },
 
   /**
-   * Get all enrollments (Admin)
+   * 5. Get all enrollments (Admin Side)
+   * Endpoint: GET /api/v1/enrollments
    */
-  getAllEnrollments: async (filters: { classId?: string; paymentStatus?: string } = {}) => {
-    const response = await api.get<EnrollmentResponse[]>("/enrollments", { params: filters });
+  getAllEnrollments: async (filters: { classId?: string; paymentStatus?: string; studentId?: string } = {}) => {
+    const response = await api.get<EnrollmentResponse[]>(`${BASE_URL}`, { params: filters });
     return response.data;
   },
 
   /**
-   * Get my enrollments (Student)
+   * 6. Update Enrollment (Admin - e.g., Mark Paid, Disable Access)
+   * Endpoint: PUT /api/v1/enrollments/:id
    */
-  getMyEnrollments: async () => { 
-    const response = await api.get<EnrollmentResponse[]>("/enrollments/my-enrollments");
+  updateEnrollment: async (id: string, updateData: Partial<EnrollmentResponse>) => {
+    const response = await api.put<EnrollmentResponse>(`${BASE_URL}/${id}`, updateData);
     return response.data;
   },
 
   /**
-   * Mark an enrollment as PAID (Admin)
+   * Helper: Specifically mark as paid (Uses updateEnrollment)
    */
-  markPaymentAsPaid: async (enrollmentId: string) => {
-    const payload = { paymentStatus: 'paid' };
-    const response = await api.put<EnrollmentResponse>(`/enrollments/${enrollmentId}`, payload);
-    return response.data;
+  markPaymentAsPaid: async (id: string) => {
+    return EnrollmentService.updateEnrollment(id, { paymentStatus: 'paid', isActive: true });
   },
 
   /**
-   * Cancel Enrollment (Delete)
+   * 7. Delete/Cancel Enrollment (Admin)
+   * Endpoint: DELETE /api/v1/enrollments/:id
    */
-  cancelEnrollment: async (id: string) => {
-    const response = await api.delete(`/enrollments/${id}`);
+  deleteEnrollment: async (id: string) => {
+    const response = await api.delete<{ message: string }>(`${BASE_URL}/${id}`);
     return response.data;
   },
 };

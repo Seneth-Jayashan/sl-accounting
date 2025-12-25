@@ -1,4 +1,5 @@
 import api from "./api";
+const BASE_URL = "/payments";
 
 interface PayHereInitResponse {
   merchant_id: string;
@@ -35,7 +36,7 @@ const PaymentService = {
    * Get the necessary Hash and Merchant ID from backend to start PayHere payment
    */
   initiatePayHere: async (amount: number, orderId: string, currency: string = "LKR") => {
-    const response = await api.post<PayHereInitResponse>("/payments/initiate", {
+    const response = await api.post<PayHereInitResponse>(`${BASE_URL}/initiate`, {
       amount,
       order_id: orderId,
       currency
@@ -50,7 +51,7 @@ const PaymentService = {
    * you might need to adjust backend to default to 'pending' for 'bank_transfer'.
    */
   submitBankTransfer: async (enrollmentId: string, amount: number, notes?: string) => {
-    const response = await api.post("/payments", {
+    const response = await api.post(`${BASE_URL}`, {
       enrollment: enrollmentId,
       amount,
       method: "bank_transfer",
@@ -66,13 +67,13 @@ const PaymentService = {
     if (notes) formData.append("notes", notes);
 
     // REMOVED manual header. Let Axios handle the boundary.
-    const response = await api.post("/payments/upload-slip", formData);
+    const response = await api.post(`${BASE_URL}/upload-slip`, formData);
     return response.data;
   },
 
   getAllPayments: async (status?: string) => {
     const params = status && status !== "all" ? { status } : {};
-    const response = await api.get<PaymentData[]>("/payments", { params });
+    const response = await api.get<PaymentData[]>(`${BASE_URL}`, { params });
     return response.data;
   },
 
@@ -87,7 +88,7 @@ const PaymentService = {
     // api.put(`/payments/${id}`, { status: action === 'approve' ? 'completed' : 'failed' })
     
     const status = action === "approve" ? "completed" : "failed";
-    const response = await api.put(`/payments/${id}`, { status }); 
+    const response = await api.put(`${BASE_URL}/${id}`, { status }); 
     return response.data;
   },
 };

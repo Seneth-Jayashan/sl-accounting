@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
 import Home from "./pages/Home";
+import About from "./pages/About";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Contacts from "./pages/Contacts";
@@ -49,7 +50,7 @@ import AdminCreateSessionPage from "./pages/admin/sessions/AddSession";
 import AdminBatchPage from "./pages/admin/batches/Batch";
 import AdminBatchViewPage from "./pages/admin/batches/ViewBatch";
 
-import AdminEnrollmentPage from "./pages/admin/enrollments/Enrollment";
+// import AdminEnrollmentPage from "./pages/admin/enrollments/Enrollment";
 // import AdminEnrollmentViewPage from "./pages/admin/enrollments/ViewEnrollment";
 
 import AdminPaymentsPage from "./pages/admin/payments/Payments";
@@ -86,6 +87,7 @@ function App() {
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/contacts" element={<Contacts />} />

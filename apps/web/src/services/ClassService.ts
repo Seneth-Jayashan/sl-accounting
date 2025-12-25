@@ -1,5 +1,4 @@
 // services/ClassService.ts
-import axios from "axios";
 import { api } from "./api";
 
 const BASE_URL = "/classes";

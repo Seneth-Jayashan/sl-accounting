@@ -109,9 +109,13 @@ export const createSessionForClass = async (req, res) => {
           timezone: tz,
           settings: {
             join_before_host: false,
-            approval_type: 0,
-            host_video: false,
+            host_video: true,
             participant_video: false,
+            approval_type: 2, 
+            mute_upon_entry: true,
+            waiting_room: true,
+            auto_recording: "cloud",
+            
           },
         };
 
