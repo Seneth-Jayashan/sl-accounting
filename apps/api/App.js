@@ -1,3 +1,4 @@
+import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -8,6 +9,7 @@ import createError from 'http-errors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+dotenv.config();
 // Import Router synchronously to avoid top-level await issues in some environments
 import apiRouter from './Router.js';
 
