@@ -22,11 +22,11 @@ import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent"
 
 // Services & Context
 import EnrollmentService from "../../../services/EnrollmentService";
-import type { EnrollmentResponse, EnrolledClass } from "../../../services/EnrollmentService";
+import type { EnrollmentResponse , EnrolledClass } from "../../../services/EnrollmentService";
 import { useAuth } from "../../../contexts/AuthContext";
 
 // --- Configuration ---
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = import.meta.env.API_BASE_URL || "http://localhost:3000";
 
 // Helper to safely get class details
 const getClassDetails = (cls: EnrolledClass | string) => {
@@ -125,7 +125,7 @@ export default function ViewEnrollments() {
                     className="bg-brand-cerulean text-white px-5 py-2.5 rounded-xl font-bold hover:bg-brand-prussian transition-colors shadow-lg shadow-brand-cerulean/20 flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                     <Search size={18} /> 
-                    <span className="hidden sm:inline">Browse Catalog</span>
+                    <span className="hidden sm:inline">Browse Classes</span>
                     <span className="sm:hidden">Browse</span>
                 </button>
             </div>

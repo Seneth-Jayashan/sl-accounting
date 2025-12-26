@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
-import UserService from "../../../services/userService";
+import UserService from "../../../services/UserService";
 import type { User } from "../../../contexts/AuthContext";
 import {
   ArrowLeftIcon,

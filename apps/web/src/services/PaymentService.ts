@@ -1,11 +1,27 @@
-import api from "./api";
+import { api } from "./api";
+
 const BASE_URL = "/payments";
 
-interface PayHereInitResponse {
+// --- TYPES ---
+
+// Full PayHere configuration object expected by the frontend checkout script
+export interface PayHereInitResponse {
   merchant_id: string;
   hash: string;
+  order_id: string;
   amount: string;
   currency: string;
+  // Backend often returns these pre-filled for the SDK
+  return_url?: string;
+  cancel_url?: string;
+  notify_url?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
 }
 
 export interface PaymentData {
@@ -13,84 +29,104 @@ export interface PaymentData {
   enrollment: {
     _id: string;
     student: {
+      _id: string;
       firstName: string;
       lastName: string;
       email: string;
+      phoneNumber?: string;
     };
     class: {
+      _id: string;
       name: string;
+      price?: number;
     };
   };
   amount: number;
+  currency: string;
   method: "payhere" | "bank_transfer" | "manual";
-  status: "completed" | "pending" | "failed";
-  paymentDate: string;
-  rawPayload?: {
-    slipUrl?: string; // Where the uploaded image path is stored
-  };
+  status: "completed" | "pending" | "failed" | "refunded";
+  paymentDate: string; // ISO String
+  
+  // Specific data for different methods
+  slipUrl?: string;       // For Bank Transfers
+  transactionId?: string; // For PayHere
   notes?: string;
 }
 
+export interface ManualPaymentPayload {
+  enrollment: string; // Enrollment ID
+  amount: number;
+  notes?: string;
+}
+
+// --- SERVICE ---
+
 const PaymentService = {
   /**
-   * Get the necessary Hash and Merchant ID from backend to start PayHere payment
+   * Step 1: Request Payment Hash from Backend
+   * The backend generates the secure hash using the Merchant Secret
    */
-  initiatePayHere: async (amount: number, orderId: string, currency: string = "LKR") => {
+  initiatePayHere: async (enrollmentId: string, amount: number) => {
+    // Note: We send enrollmentId so backend can verify the correct price
     const response = await api.post<PayHereInitResponse>(`${BASE_URL}/initiate`, {
-      amount,
-      order_id: orderId,
-      currency
+      enrollmentId,
+      amount, 
+      currency: "LKR"
     });
     return response.data;
   },
 
   /**
-   * Submit a manual payment (Bank Transfer Record)
-   * Note: Usually students upload a slip. 
-   * If your backend 'createPayment' sets status='completed', 
-   * you might need to adjust backend to default to 'pending' for 'bank_transfer'.
+   * Submit a Bank Transfer Slip (Multipart)
+   * This handles both creating the payment record AND uploading the file
    */
-  submitBankTransfer: async (enrollmentId: string, amount: number, notes?: string) => {
-    const response = await api.post(`${BASE_URL}`, {
-      enrollment: enrollmentId,
-      amount,
-      method: "bank_transfer",
-      notes
-    });
-    return response.data;
-  },
-
- uploadPaymentSlip: async (enrollmentId: string, file: File, notes?: string) => {
+  uploadPaymentSlip: async (enrollmentId: string, file: File, notes?: string) => {
     const formData = new FormData();
     formData.append("enrollmentId", enrollmentId);
-    formData.append("slip", file); // Must match upload.single("slip") in backend
+    formData.append("slip", file); 
     if (notes) formData.append("notes", notes);
 
-    // REMOVED manual header. Let Axios handle the boundary.
-    const response = await api.post(`${BASE_URL}/upload-slip`, formData);
-    return response.data;
-  },
-
-  getAllPayments: async (status?: string) => {
-    const params = status && status !== "all" ? { status } : {};
-    const response = await api.get<PaymentData[]>(`${BASE_URL}`, { params });
+    // Axios automatically sets 'Content-Type': 'multipart/form-data'
+    const response = await api.post<{ success: boolean; payment: PaymentData }>(
+      `${BASE_URL}/upload-slip`, 
+      formData
+    );
     return response.data;
   },
 
   /**
-   * Verify (Approve/Reject) a Bank Transfer
-   * Endpoint: PUT /api/v1/payments/:id/verify
-   * (You need to ensure your backend supports this, or use a generic update)
+   * Get all payments (Admin Dashboard)
    */
-  verifyBankSlip: async (id: string, action: "approve" | "reject") => {
-    // Assuming you have a backend route for verification
-    // If not, you might use a generic update: 
-    // api.put(`/payments/${id}`, { status: action === 'approve' ? 'completed' : 'failed' })
-    
-    const status = action === "approve" ? "completed" : "failed";
-    const response = await api.put(`${BASE_URL}/${id}`, { status }); 
+  getAllPayments: async (status?: string) => {
+    const params = status && status !== "all" ? { status } : {};
+    const response = await api.get<PaymentData[]>(BASE_URL, { params });
     return response.data;
   },
+
+  /**
+   * Verify a Bank Transfer (Admin Only)
+   * Security: Backend MUST check for Admin Role
+   */
+  verifyPayment: async (paymentId: string, action: "approve" | "reject") => {
+    const status = action === "approve" ? "completed" : "failed";
+    
+    const response = await api.put<{ success: boolean; payment: PaymentData }>(
+      `${BASE_URL}/${paymentId}`, 
+      { status }
+    ); 
+    return response.data;
+  },
+
+  /**
+   * Helper to format currency
+   */
+  formatCurrency: (amount: number) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 2
+    }).format(amount);
+  }
 };
 
 export default PaymentService;

@@ -1,33 +1,55 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useRef } from "react";
-import axios, { AxiosError } from "axios";
-import { api, setAccessToken } from "../services/api"; 
+import React, { createContext, useContext, useEffect, useMemo, useState, useRef, useCallback } from "react";
+import axios from "axios";
+import { api, setAccessToken } from "../services/api";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
 // ------------ Types ------------
-export type User = {
+export interface User {
   _id: string;
-  firstName?: string;
-  lastName?: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  role?: string;
-  profileImage?: string | null;
-  [k: string]: any;
-};
+  role: "student" | "admin";
+  profileImage?: string;
+  batch?: string; // --- UPDATE: Added batch here likely needed for UI
+}
 
-type AuthContextType = {
+export interface RegisterPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phoneNumber: string;
+  batch: string;
+  profileImageFile?: File | null;
+}
+
+interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+interface AuthContextType {
   user: User | null;
   accessToken: string | null;
   loading: boolean;
-  login: (payload: { email: string; password: string }) => Promise<void>;
-  register: (payload: any) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   fetchMe: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
-};
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Base URL for direct axios calls (skipping interceptors)
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1";
+// ------------ Helper: Error Parser ------------
+const getErrorMessage = (error: unknown, defaultMessage: string): string => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message || error.message || defaultMessage;
+  }
+  return (error as Error).message || defaultMessage;
+};
 
 // ------------ Provider ------------
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,24 +57,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Prevent double execution in React Strict Mode
-  const isCheckingAuth = useRef(false);
+  // Ref to prevent double-firing in React Strict Mode
+  const isInitialized = useRef(false);
 
-  // Sync module-level token whenever state changes
+  // Sync the Token Helper whenever state changes
   useEffect(() => {
     setAccessToken(accessToken);
   }, [accessToken]);
 
-  // INITIALIZATION: Check for Refresh Token Cookie ONCE on mount
+  // --- NEW: LOGOUT FUNCTION (Memoized) ---
+  // We memoize this so it can be used in the event listener effect below
+  const logout = useCallback(async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (err) {
+      // Ignore errors
+    } finally {
+      setAccessTokenState(null);
+      setAccessToken(null);
+      setUser(null);
+      window.location.href = "/login"; 
+    }
+  }, []);
+
+  // --- NEW: SESSION EXPIRY LISTENER ---
+  // This connects the AuthContext to the Axios Interceptor
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      logout();
+    };
+
+    window.addEventListener("auth:session-expired", handleSessionExpired);
+    return () => window.removeEventListener("auth:session-expired", handleSessionExpired);
+  }, [logout]);
+
+  // INITIALIZATION: Restore Session
   useEffect(() => {
     const initializeAuth = async () => {
-      if (isCheckingAuth.current) return;
-      isCheckingAuth.current = true;
-
-      console.log("AuthContext: Starting Initialization...");
+      if (isInitialized.current) return;
+      isInitialized.current = true;
 
       try {
-        // Use base 'axios' to avoid interceptor loops during initialization
         const res = await axios.post(
           `${API_BASE}/auth/refresh`,
           {},
@@ -62,22 +107,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newAccessToken = res.data?.accessToken;
 
         if (newAccessToken) {
-          console.log("AuthContext: Session Restored");
-          setAccessToken(newAccessToken); 
           setAccessTokenState(newAccessToken);
+          setAccessToken(newAccessToken); 
           
-          // Now fetch user details using the authenticated 'api' instance
-          // We call api.get directly here to avoid circular dependency in fetchMe
+          // Fetch user details
           const userRes = await api.get("/auth/me");
-          if(userRes.data?.success) {
+          if (userRes.data?.success) {
             setUser(userRes.data.user);
+          } else {
+             // If we have a token but can't get user, something is wrong. Logout.
+             throw new Error("Failed to fetch user");
           }
-        } else {
-          setUser(null);
         }
-      } catch (err: any) {
-        // Silent fail: User is simply not logged in.
-        console.log("AuthContext: No active session."); 
+      } catch (err) {
+        setAccessTokenState(null);
         setUser(null);
       } finally {
         setLoading(false);
@@ -88,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // --------- Actions ----------
-  
+
   const fetchMe = async () => {
     try {
       const res = await api.get("/auth/me");
@@ -96,22 +139,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(res.data.user);
       }
     } catch (error) {
-      console.error("AuthContext: fetchMe failed", error);
-      // Optional: If fetchMe fails with 401, the interceptor handles logout usually
+      console.error("Failed to fetch user details", error);
     }
   };
 
-  const login = async (payload: { email: string; password: string }) => {
+  const login = async (payload: LoginPayload) => {
     try {
-      // 🔴 CHANGE: Use 'axios' instead of 'api'.
-      // This bypasses the interceptor. If password is wrong (401), 
-      // it throws immediately instead of trying to /refresh.
       const res = await axios.post(`${API_BASE}/auth/login`, payload, {
-        withCredentials: true // Important: To set the HttpOnly cookie
+        withCredentials: true,
       });
 
       if (res.data?.success) {
-        const token: string | null = res.data.accessToken ?? null;
+        const token = res.data.accessToken;
         setAccessTokenState(token);
         setAccessToken(token);
 
@@ -120,77 +159,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           await fetchMe();
         }
-      } else {
-        throw new Error(res.data?.message ?? "Login failed");
       }
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const axiosErr = error as AxiosError;
-        // This will now correctly show "Invalid Credentials" instead of "No token provided"
-        throw new Error(
-          (axiosErr.response?.data as any)?.message ?? axiosErr.message ?? "Login error"
-        );
-      }
-      throw error;
+      throw new Error(getErrorMessage(error, "Login failed"));
     }
   };
 
-  const register = async (payload: any) => {
+  const register = async (payload: RegisterPayload) => {
     try {
       const form = new FormData();
-      // ... (Your FormData logic remains the same)
+      
       form.append("firstName", payload.firstName);
-      if (payload.lastName) form.append("lastName", payload.lastName);
+      form.append("lastName", payload.lastName);
       form.append("email", payload.email);
       form.append("password", payload.password);
-      if (payload.phoneNumber) form.append("phoneNumber", payload.phoneNumber);
-      if (payload.profileImageFile) form.append("profileImage", payload.profileImageFile);
+      form.append("phoneNumber", payload.phoneNumber);
+      form.append("batch", payload.batch);
 
-      Object.keys(payload).forEach((key) => {
-        if (!["firstName", "lastName", "email", "password", "phoneNumber", "profileImageFile"].includes(key)) {
-          const val = (payload as any)[key];
-          if (val !== undefined && val !== null) form.append(key, String(val));
-        }
-      });
+      if (payload.profileImageFile) {
+        form.append("profileImage", payload.profileImageFile);
+      }
 
-      // 🔴 CHANGE: Use 'axios' here too for safety
-      const res = await axios.post(`${API_BASE}/auth/register`, form, {
+      await axios.post(`${API_BASE}/auth/register`, form, {
         headers: { "Content-Type": "multipart/form-data" },
         withCredentials: true 
       });
-
-      if (res.data?.success) {
-        return;
-      } else {
-        throw new Error(res.data?.message ?? "Registration failed");
-      }
+      
     } catch (error) {
-       // ... (Error handling remains the same)
-       if (axios.isAxiosError(error)) {
-        const axiosErr = error as AxiosError;
-        const errorData = axiosErr.response?.data as any;
-        const msg = errorData?.message || "Registration error";
-        throw new Error(msg);
-      }
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      // Use 'api' here because we want to send the token if we have it
-      await api.post("/auth/logout");
-    } catch (err) {
-      console.warn("Logout API call failed, clearing local state anyway.");
-    } finally {
-      setAccessTokenState(null);
-      setAccessToken(null);
-      setUser(null);
+      throw new Error(getErrorMessage(error, "Registration failed"));
     }
   };
 
   const updateUser = (patch: Partial<User>) => {
-    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+    setUser((prev) => (prev ? { ...prev, ...patch } : null));
   };
 
   const value = useMemo(
@@ -204,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       fetchMe,
       updateUser,
     }),
-    [user, accessToken, loading]
+    [user, accessToken, loading, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

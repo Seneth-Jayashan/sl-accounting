@@ -1,11 +1,22 @@
 import User from '../models/User.js';
-import bcrypt from 'bcryptjs';
 import { sendVerificationEmail } from '../utils/email/Template.js';
+
+// --- HELPER: Escape Regex Characters ---
+// Prevents server crashes if user searches for symbols like "(", "[", "*"
+const escapeRegex = (text) => {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+};
+
+// ==========================================
+// PUBLIC / PROTECTED ROUTES
+// ==========================================
 
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).select('-password');
+    // Security: Ensure we don't return soft-deleted users
+    const user = await User.findOne({ _id: id, isDeleted: false }).select('-password');
+    
     if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
     }
@@ -16,68 +27,24 @@ export const getUserById = async (req, res) => {
   }
 };
 
-export const getAllUsers = async (req, res) => {
-  try {
-    // 1. Extract parameters sent by the frontend
-    // Example URL: /users?role=student&search=Sahan&batch=2024 A/L
-    const { search, batch, role } = req.query;
-
-    // 2. Start with a base query (never show deleted users)
-    const query = { isDeleted: false };
-
-    // 3. Filter by Role (if provided)
-    if (role) {
-      query.role = role;
-    }
-
-    // 4. Filter by Batch (if provided and isn't "All")
-    if (batch && batch !== "All") {
-      query.batch = batch;
-    }
-
-    // 5. Search Logic (if search term exists)
-    // Uses Regex for partial matching (case-insensitive)
-    if (search) {
-      const searchRegex = new RegExp(search, 'i'); 
-      query.$or = [
-        { firstName: searchRegex },
-        { lastName: searchRegex },
-        { email: searchRegex },
-        { regNo: searchRegex },      // Matches Registration Number
-        { phoneNumber: searchRegex } // Matches Phone Number
-      ];
-    }
-
-    // 6. Execute Query
-    // .sort({ createdAt: -1 }) ensures the newest students appear first
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 });
-
-    return res.status(200).json({ success: true, users });
-
-  } catch (error) {
-    console.error("Get All Users Error:", error);
-    return res.status(500).json({ 
-      success: false, 
-      message: "Internal Server Error" 
-    });
-  }
-};
-
 export const updateUserProfile = async (req, res) => {
   try {
-    const { id } = req.user._id;
-    const user = await User.findById(id);
+    const userId = req.user._id;
+    // Security: Check isDeleted to prevent updates to deactivated accounts
+    const user = await User.findOne({ _id: userId, isDeleted: false });
+
     if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
     }
+
     const { firstName, lastName, phoneNumber, address } = req.body;
+
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (address) user.address = address;
     if (phoneNumber) user.phoneNumber = phoneNumber;
 
+    // Handle File Upload (Multer middleware usually adds req.file)
     if (req.file) {
       user.profileImage = req.file.path;
     }
@@ -92,30 +59,41 @@ export const updateUserProfile = async (req, res) => {
 
 export const updateUserEmail = async (req, res) => {
   try {
-    const { id } = req.user._id;
-    const user = await User.findById(id);
+    const userId = req.user._id;
+    const user = await User.findOne({ _id: userId, isDeleted: false });
+
     if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
     }
+
     const { email } = req.body;
-    if (email) {
+
+    if (email && email.toLowerCase() !== user.email) {
       const emailExists = await User.findOne({ email: email.toLowerCase() });
       if (emailExists) {
         return res.status(400).json({ success: false, message: "Email already in use" });
       } 
+      
+      // Update email and reset verification status
       user.email = email.toLowerCase();
       user.isVerified = false; 
+      
+      // Generate OTP using Model Method (Consistency)
+      const otpCode = user.generateOtpCode(); 
+      await user.save();
+
+      // Send Verification Email
+      await sendVerificationEmail(user.email, otpCode);
+      
+      return res.status(200).json({ 
+        success: true, 
+        user, 
+        message: "Email updated. Verification code sent." 
+      });
     }
-    await user.save();
 
-    //TODO : Send Whatapp Verification Message 
+    return res.status(400).json({ success: false, message: "No changes made to email" });
 
-    await sendVerificationEmail(
-      user.email,
-      user.generateOtpCode()
-    );
-    
-    return res.status(200).json({ success: true, user , message: "Email updated. Please verify your new email." });
   } catch (error) {
     console.error("Update User Email Error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });
@@ -124,18 +102,23 @@ export const updateUserEmail = async (req, res) => {
 
 export const updateUserPassword = async (req, res) => {
   try {
-    const { id } = req.user._id;
-    const user = await User.findById(id).select('+password');
+    const userId = req.user._id;
+    const user = await User.findOne({ _id: userId, isDeleted: false }).select('+password');
+
     if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
     }
+
     const { currentPassword, newPassword } = req.body;
+
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: "Current password is incorrect" });
     }
-    user.password = newPassword;
+
+    user.password = newPassword; // Mongoose pre-save hook will hash this
     await user.save();
+
     return res.status(200).json({ success: true, message: "Password updated successfully" });
   } catch (error) {
     console.error("Update User Password Error:", error);
@@ -143,134 +126,102 @@ export const updateUserPassword = async (req, res) => {
   }
 };
 
-export const forgetUserPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ email: email.toLowerCase() });
-
-    if (!user) {
-      // For security, it's often better to return success even if user not found 
-      // to prevent email enumeration, but for now we keep your 404 logic.
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    // 1. Generate a 6-digit OTP string
-    const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // 2. Save to the specific RESET fields (Expires in 10 minutes)
-    user.resetPasswordToken = resetOtp;
-    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 Minutes from now
-
-    await user.save();
-
-    // 3. Send the email (Pass the resetOtp)
-    // Ensure your sendVerificationEmail function accepts the subject or type
-    await sendVerificationEmail(user.email, resetOtp);
-
-    return res.status(200).json({ success: true, message: "Password reset code sent to email" });
-  } catch (error) {
-    console.error("Forget User Password Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
-
-export const resetUserPassword = async (req, res) => {
-  try {
-    const { email, otp, newPassword } = req.body;
-
-    // 1. Find user and select the hidden reset fields
-    const user = await User.findOne({ email: email.toLowerCase() })
-      .select('+resetPasswordToken +resetPasswordExpires');
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    // 2. Verify Token Existence
-    if (!user.resetPasswordToken || !user.resetPasswordExpires) {
-      return res.status(400).json({ success: false, message: "No password reset requested" });
-    }
-
-    // 3. Check if OTP matches
-    // Note: If you hash tokens in the DB, you need to hash 'otp' here before comparing
-    if (user.resetPasswordToken !== otp) {
-      return res.status(400).json({ success: false, message: "Invalid reset code" });
-    }
-
-    // 4. Check if Token has expired
-    if (user.resetPasswordExpires < Date.now()) {
-      return res.status(400).json({ success: false, message: "Reset code has expired" });
-    }
-
-    // 5. Update Password and Clear Tokens
-    user.password = newPassword; // Mongoose pre-save hook should handle hashing
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-
-    await user.save();
-
-    return res.status(200).json({ success: true, message: "Password reset successfully" });
-  } catch (error) {
-    console.error("Reset User Password Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
-
-export const verifyUserEmail = async (req, res) => {
-  try {
-    const { email, otpCode } = req.body; 
-    const user = await User.findOne({ email: email.toLowerCase() })
-      .select('+otp +otpExpiresAt +otpAttempts +isVerified');
-
-    if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    const otpResult = await user.verifyOtpCode(otpCode); 
-    if (!otpResult.ok) {
-      return res.status(400).json({ 
-        success: false, 
-        message: otpResult.reason === "expired" ? "OTP has expired" : "Invalid OTP code" 
-      });
-    }
-    return res.status(200).json({ success: true, message: "Email verified successfully" });
-
-  } catch (error) {
-    console.error("Verify User Email Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
-
-export const resendVerificationOtp = async (req, res) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
-    }
-    const otpCode = user.generateOtpCode();
-    await user.save();
-    await sendVerificationEmail(user.email, otpCode);
-    return res.status(200).json({ success: true, message: "OTP code resent to email" });
-  } catch (error) {
-    console.error("Resend Verification OTP Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
-
-
 export const deleteUserAccount = async (req, res) => {
   try {
+    // Soft Delete: We don't actually remove the record, just hide it.
     const user = await User.findById(req.user._id);
     if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
     }
     user.isDeleted = true;
     await user.save();
-    return res.status(200).json({ success: true, message: "User account deleted successfully" });
+    return res.status(200).json({ success: true, message: "User account deactivated successfully" });
   } catch (error) {
     console.error("Delete User Account Error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
+// ==========================================
+// ADMIN ROUTES (Ideally)
+// ==========================================
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const { search, batch, role } = req.query;
+
+    // 1. Base Query: Hide deleted users
+    const query = { isDeleted: false };
+
+    // 2. Filters
+    if (role) query.role = role;
+    if (batch && batch !== "All") query.batch = batch;
+
+    // 3. Search Logic with SAFETY ESCAPE
+    if (search) {
+      const safeSearch = escapeRegex(search); // <--- FIXED: Prevents Regex Crashes
+      const searchRegex = new RegExp(safeSearch, 'i'); 
+      
+      query.$or = [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+        { regNo: searchRegex },      
+        { phoneNumber: searchRegex } 
+      ];
+    }
+
+    // 4. Execute
+    const users = await User.find(query)
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ success: true, users });
+
+  } catch (error) {
+    console.error("Get All Users Error:", error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// ==========================================
+// AUTH / RECOVERY ROUTES
+// ==========================================
+
+export const forgetUserPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email.toLowerCase(), isDeleted: false });
+
+    // SECURITY: Prevent Email Enumeration
+    // Even if user not found, we return 200 OK.
+    if (!user) {
+      return res.status(200).json({ 
+        success: true, 
+        message: "If an account exists with this email, a reset code has been sent." 
+      });
+    }
+
+    // 1. Generate OTP (Reuse consistent logic)
+    // If you don't have this method on User model, use: Math.floor(100000 + Math.random() * 900000).toString();
+    // But it's better to reuse the Model logic.
+    const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.resetPasswordToken = resetOtp;
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 Minutes
+
+    await user.save();
+
+    // 2. Send Email
+    await sendVerificationEmail(user.email, resetOtp);
+
+    return res.status(200).json({ 
+      success: true, 
+      message: "If an account exists with this email, a reset code has been sent." 
+    });
+
+  } catch (error) {
+    console.error("Forget User Password Error:", error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};

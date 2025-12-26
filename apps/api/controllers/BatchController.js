@@ -1,5 +1,5 @@
 import Batch from "../models/Batch.js";
-import Class from "../models/Class.js"; // Importing Class model if you need to verify existence
+import Class from "../models/Class.js"; 
 
 // ---------------------------------------------------------
 // 1. CREATE BATCH
@@ -8,24 +8,29 @@ export const createBatch = async (req, res) => {
   try {
     const { name, description, startDate, endDate, classes, isActive } = req.body;
 
-    // 1. Basic Validation
+    // 1. Validation & Sanitization
+    if (!name) return res.status(400).json({ message: "Batch name is required" });
+    
+    // Security: Convert name to string to prevent NoSQL Injection
+    const safeName = String(name).trim();
+
     if (new Date(startDate) >= new Date(endDate)) {
       return res.status(400).json({ message: "End date must be after start date." });
     }
 
     // 2. Check for duplicate name
-    const existingBatch = await Batch.findOne({ name });
+    const existingBatch = await Batch.findOne({ name: safeName });
     if (existingBatch) {
-      return res.status(400).json({ message: "A batch with this name already exists." });
+      return res.status(409).json({ message: "A batch with this name already exists." });
     }
 
     // 3. Create
     const newBatch = new Batch({
-      name,
+      name: safeName,
       description,
       startDate,
       endDate,
-      classes: classes || [], // Array of Class IDs
+      classes: classes || [], 
       isActive: isActive !== undefined ? isActive : true,
     });
 
@@ -44,40 +49,17 @@ export const createBatch = async (req, res) => {
 };
 
 // ---------------------------------------------------------
-// 2. GET ALL BATCHES
+// 2. GET ALL BATCHES (Admin/Internal)
 // ---------------------------------------------------------
 export const getAllBatches = async (req, res) => {
   try {
     const { activeOnly } = req.query;
     
-    // Filter logic: if ?activeOnly=true is passed, show only active batches
     const query = activeOnly === 'true' ? { isActive: true } : {};
 
     const batches = await Batch.find(query)
-      .populate("classes", "name subject level") // Only fetch specific fields from Class
-      .sort({ createdAt: -1 }); // Newest first
-
-    return res.status(200).json({
-      success: true,
-      count: batches.length,
-      batches,
-    });
-
-  } catch (error) {
-    console.error("getAllBatches error:", error);
-    return res.status(500).json({ message: "Error fetching batches", error: error.message });
-  }
-};
-
-export const getAllPublicBatches = async (req, res) => {
-  try {
-    const { activeOnly } = req.query;
-    
-    const query = activeOnly === 'true' ? { isActive: true } : {};
-
-    const batches = await Batch.find(query)
-      .populate("classes", "name subject level") // Only fetch specific fields from Class
-      .sort({ createdAt: -1 }); // Newest first
+      .populate("classes", "name subject level") 
+      .sort({ createdAt: -1 }); 
 
     return res.status(200).json({
       success: true,
@@ -92,7 +74,32 @@ export const getAllPublicBatches = async (req, res) => {
 };
 
 // ---------------------------------------------------------
-// 3. GET BATCH BY ID
+// 3. GET PUBLIC BATCHES (For Dropdowns)
+// ---------------------------------------------------------
+export const getAllPublicBatches = async (req, res) => {
+  try {
+    // Only fetch active batches for the public interface
+    const query = { isActive: true };
+
+    // Security: Select only necessary fields. Do not leak internal data.
+    const batches = await Batch.find(query)
+      .select("_id name startDate endDate") 
+      .sort({ startDate: -1 }); // Sort by start date usually makes more sense for users
+
+    return res.status(200).json({
+      success: true,
+      count: batches.length,
+      batches,
+    });
+
+  } catch (error) {
+    console.error("getAllPublicBatches error:", error);
+    return res.status(500).json({ message: "Error fetching public batches" });
+  }
+};
+
+// ---------------------------------------------------------
+// 4. GET BATCH BY ID
 // ---------------------------------------------------------
 export const getBatchById = async (req, res) => {
   try {
@@ -108,45 +115,48 @@ export const getBatchById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("getBatchById error:", error);
     return res.status(500).json({ message: "Error fetching batch", error: error.message });
   }
 };
 
 // ---------------------------------------------------------
-// 4. UPDATE BATCH
+// 5. UPDATE BATCH
 // ---------------------------------------------------------
 export const updateBatch = async (req, res) => {
   try {
     const { name, description, startDate, endDate, classes, isActive } = req.body;
-
-    // Validate dates if both are provided
-    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
-        return res.status(400).json({ message: "End date must be after start date." });
-    }
 
     const batch = await Batch.findById(req.params.id);
     if (!batch) {
       return res.status(404).json({ message: "Batch not found" });
     }
 
-    // Check Name Uniqueness (if name is changing)
+    // Validate Dates
+    const sDate = startDate ? new Date(startDate) : new Date(batch.startDate);
+    const eDate = endDate ? new Date(endDate) : new Date(batch.endDate);
+
+    if (sDate >= eDate) {
+        return res.status(400).json({ message: "End date must be after start date." });
+    }
+
+    // Check Name Uniqueness
     if (name && name !== batch.name) {
-       const duplicate = await Batch.findOne({ name });
-       if (duplicate) return res.status(400).json({ message: "Batch name already taken" });
+       const safeName = String(name).trim();
+       const duplicate = await Batch.findOne({ name: safeName });
+       if (duplicate) return res.status(409).json({ message: "Batch name already taken" });
+       batch.name = safeName;
     }
 
     // Update fields
-    if (name) batch.name = name;
-    if (description) batch.description = description;
+    if (description !== undefined) batch.description = description;
     if (startDate) batch.startDate = startDate;
     if (endDate) batch.endDate = endDate;
-    if (classes) batch.classes = classes; // Replaces existing array
+    if (classes) batch.classes = classes; 
     if (isActive !== undefined) batch.isActive = isActive;
 
     const updatedBatch = await batch.save();
     
-    // Populate after save to return full details
+    // Re-populate for frontend consistency
     await updatedBatch.populate("classes", "name");
 
     return res.status(200).json({
@@ -162,18 +172,28 @@ export const updateBatch = async (req, res) => {
 };
 
 // ---------------------------------------------------------
-// 5. DELETE BATCH
+// 6. DELETE BATCH
 // ---------------------------------------------------------
 export const deleteBatch = async (req, res) => {
   try {
-    const batch = await Batch.findById(req.params.id);
-    if (!batch) {
-      return res.status(404).json({ message: "Batch not found" });
+    const batchId = req.params.id;
+
+    // 1. Referential Integrity Check
+    // Prevent deletion if classes are linked to this batch
+    const linkedClasses = await Class.countDocuments({ batch: batchId });
+    if (linkedClasses > 0) {
+        return res.status(400).json({ 
+            success: false, 
+            message: `Cannot delete batch. It is linked to ${linkedClasses} active classes. Please delete or reassign them first.` 
+        });
     }
 
-    // Optional: Logic to prevent deleting if students or classes are active?
-    // For now, we just delete the batch document.
-    await Batch.findByIdAndDelete(req.params.id);
+    // 2. Perform Deletion
+    const deletedBatch = await Batch.findByIdAndDelete(batchId);
+    
+    if (!deletedBatch) {
+      return res.status(404).json({ message: "Batch not found" });
+    }
 
     return res.status(200).json({
       success: true,
@@ -187,7 +207,7 @@ export const deleteBatch = async (req, res) => {
 };
 
 // ---------------------------------------------------------
-// 6. TOGGLE STATUS (Helper)
+// 7. TOGGLE STATUS
 // ---------------------------------------------------------
 export const toggleBatchStatus = async (req, res) => {
     try {
@@ -203,6 +223,6 @@ export const toggleBatchStatus = async (req, res) => {
             isActive: batch.isActive 
         });
     } catch (error) {
-        return res.status(500).json(error);
+        return res.status(500).json({ message: "Error toggling status" });
     }
 }

@@ -14,30 +14,23 @@ const router = express.Router();
 // Apply authentication to all session routes
 router.use(protect);
 
-// ---------------------------------------------------------
-// 1. General Session Operations
-// ---------------------------------------------------------
+// ==========================================
+// 1. READ OPERATIONS (Available to Students & Admin)
+// ==========================================
+router.get('/', getAllSessions);
+router.get('/:id', getSessionById);
 
-// GET /api/v1/sessions
-// Supports query params: ?classId=...&from=...&to=...
-router.get('/', protect, getAllSessions);
-router.get('/:id', protect, getSessionById);
+// ==========================================
+// 2. WRITE OPERATIONS (Admin ONLY)
+// ==========================================
 
-// Operations on specific Session ID
+// Create a session for a specific class
+router.post('/class/:classId', restrictTo('admin'), createSessionForClass);
+
 router.route('/:id')
-    .put(restrictTo('admin', 'instructor'), updateSession)   // Update details/zoom
-    .delete(restrictTo('admin', 'instructor'), deleteSession); // Hard delete
+    .put(restrictTo('admin'), updateSession)
+    .delete(restrictTo('admin'), deleteSession);
 
-// Special Action: Cancel Session
-router.post('/:id/cancel', restrictTo('admin', 'instructor'), cancelSession);
-
-
-// ---------------------------------------------------------
-// 2. Creation (Class Scoped)
-// ---------------------------------------------------------
-
-// POST /api/v1/sessions/class/:classId
-// Create a manual/extra session for a specific class
-router.post('/class/:classId', restrictTo('admin', 'instructor'), createSessionForClass);
+router.post('/:id/cancel', restrictTo('admin'), cancelSession);
 
 export default router;

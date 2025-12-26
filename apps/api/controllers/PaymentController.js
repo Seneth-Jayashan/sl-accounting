@@ -1,80 +1,70 @@
-// controllers/paymentController.js
 import crypto from "crypto";
 import Payment from "../models/Payment.js";
 import Enrollment from "../models/Enrollment.js";
 
+// --- HELPERS ---
+
 /**
- * Helper: compute PayHere md5sig verification string
- * Formula from PayHere docs:
- * md5sig = strtoupper(
- *   md5 (
- *     merchant_id +
- *     order_id +
- *     payhere_amount +
- *     payhere_currency +
- *     status_code +
- *     strtoupper(md5(merchant_secret))
- *   )
- * )
- *
- * Make sure to cast numbers/strings exactly as PayHere sends them (strings)
+ * Compute PayHere md5sig for verification
  */
 function computePayHereMd5sig({ merchant_id, order_id, payhere_amount, payhere_currency, status_code, merchant_secret }) {
-  const secretHash = crypto.createHash("md5").update(merchant_secret).digest("hex").toUpperCase();
+  const secretHash = crypto.createHash("md5")
+    .update(merchant_secret)
+    .digest("hex")
+    .toUpperCase();
+
   const payload = `${merchant_id}${order_id}${payhere_amount}${payhere_currency}${status_code}${secretHash}`;
-  const md5 = crypto.createHash("md5").update(payload).digest("hex").toUpperCase();
-  return md5;
+  
+  return crypto.createHash("md5")
+    .update(payload)
+    .digest("hex")
+    .toUpperCase();
 }
 
 /**
- * PayHere IPN / notify_url handler
- * Endpoint: POST /api/payments/payhere-webhook
- *
- * Notes:
- * - PayHere sends urlencoded form data.
- * - Use express.urlencoded() middleware on the route.
- * - The function verifies md5sig, creates (or updates) a Payment record,
- *   and updates Enrollment (markPaid) when appropriate.
- *
- * Important: ensure process.env.PAYHERE_MERCHANT_ID and process.env.PAYHERE_MERCHANT_SECRET are configured.
- *
- * Documentation reference: PayHere md5sig & IPN verification. :contentReference[oaicite:2]{index=2}
+ * Helper to ensure amount is always "1000.00" format
  */
+const formatPayHereAmount = (amount) => {
+    return parseFloat(amount)
+        .toLocaleString('en-us', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        .replace(/,/g, '');
+};
 
+// --- CONTROLLERS ---
 
+/**
+ * 1. Generate PayHere Hash (Student Side)
+ * Called before opening the PayHere popup
+ */
 export const createPayHereSignature = async (req, res) => {
     try {
-        const { amount, order_id, currency } = req.body;
+        const { amount, order_id, currency = "LKR" } = req.body;
         const merchantId = process.env.PAYHERE_MERCHANT_ID;
         const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
-        console.log("Generating PayHere signature for:", { amount, order_id, currency });
-        console.log("Using Merchant ID:", merchantId);
-        console.log("Using Merchant Secret:", merchantSecret);
 
         if (!merchantId || !merchantSecret) {
-            return res.status(500).json({ error: "PayHere merchant credentials not configured" });
+            return res.status(500).json({ error: "Server misconfiguration: PayHere credentials missing" });
         }
-        // Step 1: Format Amount to exactly 2 decimal places (No commas)
-        // Example: 2500 -> "2500.00"
-        const amountFormatted = parseFloat(amount)
-            .toLocaleString('en-us', { minimumFractionDigits: 2 })
-            .replace(/,/g, '');
 
-        // Step 2: Generate the UPPERCASE MD5 of the Merchant Secret
+        // 1. Strict Formatting (Crucial for Hash Matching)
+        const amountFormatted = formatPayHereAmount(amount);
+
+        // 2. Hash Secret
         const hashedSecret = crypto.createHash('md5')
             .update(merchantSecret)
             .digest('hex')
             .toUpperCase();
 
-        // Step 3: Concatenate exactly as per docs: ID + ORDER + AMOUNT + CURRENCY + HASHED_SECRET
+        // 3. Create String: merchant_id + order_id + amount + currency + hashed_secret
         const mainString = merchantId + order_id + amountFormatted + currency + hashedSecret;
 
-        // Step 4: Generate final UPPERCASE MD5 hash
+        // 4. Final Hash
         const hash = crypto.createHash('md5')
             .update(mainString)
             .digest('hex')
             .toUpperCase();
 
+        // Return exact data needed by frontend PayHere SDK
         res.json({
             merchant_id: merchantId,
             hash: hash,
@@ -88,32 +78,32 @@ export const createPayHereSignature = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
+/**
+ * 2. PayHere Webhook (Server-to-Server)
+ * Validates payment and updates DB
+ */
 export const payHereWebhook = async (req, res) => {
-  console.log("🔔 PayHere Webhook Hit!", req.body); // <--- ADD THIS
+  // console.log("🔔 PayHere Webhook:", req.body); // Uncomment for debugging
   try {
-    const body = req.body; // payhere posts urlencoded body
-    // Example fields from PayHere: merchant_id, order_id, payhere_amount, payhere_currency, status_code, md5sig, etc.
     const {
       merchant_id,
       order_id,
       payhere_amount,
       payhere_currency,
-      status_code, // integer code
+      status_code,
       md5sig,
-      // optional fields PayHere may include:
-      payhere_payment_id,
-      custom_1, // if you passed custom fields (useful to include enrollment id)
-      custom_2,
-    } = body;
+      custom_1, // We assume custom_1 holds 'enrollment_id'
+      payhere_payment_id
+    } = req.body;
 
-    // minimal validation
-    if (!merchant_id || !order_id || !payhere_amount || !payhere_currency || typeof status_code === "undefined" || !md5sig) {
-      console.warn("PayHere: missing required fields in IPN", body);
-      return res.status(400).send("Missing fields");
+    // 1. Validate Payload
+    if (!merchant_id || !md5sig) {
+      return res.status(400).send("Invalid Payload");
     }
 
-    // compute expected md5sig (uses your merchant secret)
-    const computed = computePayHereMd5sig({
+    // 2. Verify Signature
+    const computedSig = computePayHereMd5sig({
       merchant_id,
       order_id,
       payhere_amount,
@@ -122,142 +112,202 @@ export const payHereWebhook = async (req, res) => {
       merchant_secret: process.env.PAYHERE_MERCHANT_SECRET,
     });
 
-    const verified = computed === md5sig.toUpperCase();
+    if (computedSig !== md5sig.toUpperCase()) {
+      console.error(`PayHere Signature Mismatch! Order: ${order_id}`);
+      return res.status(400).send("Signature verification failed");
+    }
 
-    // find payment by payhere_order_id OR create new
+    // 3. Determine Payment Status
+    // 2 = Success, 0 = Pending, -1 = Canceled, -2 = Failed
+    const isSuccess = Number(status_code) === 2;
+    const paymentStatus = isSuccess ? "completed" : Number(status_code) === 0 ? "pending" : "failed";
+
+    // 4. Find or Create Payment
     let payment = await Payment.findOne({ payhere_order_id: order_id });
-
-    const enrollmentId = custom_1 || body.enrollment_id || null; // if you included enrollment_id in the form
-    const amount = Number(payhere_amount);
+    const enrollmentId = custom_1 || req.body.enrollment_id;
 
     if (!payment) {
       payment = new Payment({
-        enrollment: enrollmentId, // may be null; we try to attach later
-        amount,
+        enrollment: enrollmentId || undefined,
+        amount: Number(payhere_amount),
         gateway: "payhere",
         payhere_order_id: order_id,
-        payhere_payment_id: payhere_payment_id || undefined,
         payhere_currency,
-        payhere_status_code: Number(status_code),
-        payhere_md5sig: md5sig,
         paymentDate: new Date(),
         method: "payhere",
-        status: Number(status_code) === 2 ? "completed" : Number(status_code) === 0 ? "pending" : "failed",
-        rawPayload: body,
-        verified,
+        verified: isSuccess, // Auto-verify if success
       });
-    } else {
-      // update existing
-      payment.payhere_payment_id = payhere_payment_id || payment.payhere_payment_id;
-      payment.payhere_currency = payhere_currency;
-      payment.payhere_status_code = Number(status_code);
-      payment.payhere_md5sig = md5sig;
-      payment.status = Number(status_code) === 2 ? "completed" : Number(status_code) === 0 ? "pending" : "failed";
-      payment.rawPayload = body;
-      payment.verified = verified;
-      payment.amount = amount || payment.amount;
     }
 
-    // If enrollment not attached, try to find by order_id mapping:
-    if ((!payment.enrollment || !payment.enrollment.toString()) && enrollmentId) {
-      // attach observed enrollment
-      payment.enrollment = enrollmentId;
-    }
+    // Update fields
+    payment.status = paymentStatus;
+    payment.payhere_status_code = Number(status_code);
+    payment.payhere_payment_id = payhere_payment_id;
+    payment.payhere_md5sig = md5sig;
+    payment.rawPayload = req.body;
+
+    // Attach enrollment if found late
+    if (!payment.enrollment && enrollmentId) payment.enrollment = enrollmentId;
 
     await payment.save();
 
-    // If verified and successful (status_code === 2) -> mark enrollment as paid
-    // (this uses your Enrollment model method markPaid which you provided earlier)
-    if (verified && Number(status_code) === 2) {
-      try {
-        if (payment.enrollment) {
-          const enrollment = await Enrollment.findById(payment.enrollment);
-          if (enrollment) {
-            // use the convenience method markPaid you added to the Enrollment model
-            // set nextPaymentDate to end of next month logic or however you wish
-            await enrollment.markPaid(new Date(), payment.paymentDate);
-          } else {
-            console.warn("PayHere webhook: enrollment id attached to payment not found:", payment.enrollment);
-          }
-        } else {
-          console.warn("PayHere webhook: payment has no enrollment attached (order_id => %s)", order_id);
+    // 5. Update Enrollment Access (If Success)
+    if (isSuccess && payment.enrollment) {
+        try {
+            const enrollment = await Enrollment.findById(payment.enrollment);
+            if (enrollment) {
+                await enrollment.markPaid(new Date(), payment.paymentDate);
+            }
+        } catch (e) {
+            console.error("Failed to update enrollment from webhook:", e.message);
         }
-      } catch (e) {
-        console.error("Error updating enrollment after payment:", e);
-      }
     }
 
-    // Always return 200 to PayHere so they won't retry (unless you want PayHere to retry)
-    // But only mark verified payments as trusted in DB. Non-verified saved for audit.
     return res.status(200).send("OK");
+
   } catch (err) {
-    console.error("Error in PayHere webhook:", err);
-    // respond 500 so PayHere may retry depending on configuration
-    return res.status(500).send("Server error");
+    console.error("PayHere Webhook Error:", err);
+    return res.status(500).send("Server Error");
   }
 };
 
+/**
+ * 3. Upload Bank Slip (Student Side)
+ */
+export const uploadPaymentSlip = async (req, res) => {
+  try {
+    const { enrollmentId, notes } = req.body;
+    
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    if (!enrollmentId) return res.status(400).json({ message: "Enrollment ID required" });
+
+    // Path relative to public/uploads
+    const filePath = `/uploads/images/payments/${req.file.filename}`;
+
+    const payment = new Payment({
+        enrollment: enrollmentId,
+        amount: 0, // Amount is unknown until admin verifies slip
+        method: "bank_transfer",
+        status: "pending", 
+        verified: false,
+        paymentDate: new Date(),
+        notes: notes,
+        rawPayload: { slipUrl: filePath } // Storing slip path here
+    });
+
+    await payment.save();
+
+    res.status(201).json({ 
+        success: true, 
+        message: "Slip uploaded. Pending Admin approval.", 
+        payment 
+    });
+
+  } catch (err) {
+    console.error("Upload Slip Error:", err);
+    res.status(500).json({ message: "Upload failed" });
+  }
+};
 
 /**
- * Create payment (admin/manual)
- * POST /api/payments
+ * 4. Create Manual Payment (Admin Only)
+ * Used for Cash payments or manual overrides
  */
 export const createPayment = async (req, res) => {
   try {
-    const { enrollment, amount, method = "manual", transactionId, notes } = req.body;
-    if (!enrollment || typeof amount === "undefined") {
-      return res.status(400).json({ message: "enrollment and amount are required" });
+    const { enrollment, amount, transactionId, notes } = req.body;
+    
+    // Validate
+    if (!enrollment || amount === undefined) {
+      return res.status(400).json({ message: "Enrollment and Amount required" });
     }
 
-    const p = new Payment({
+    const payment = new Payment({
       enrollment,
       amount,
-      method,
+      method: "manual",
       transactionId,
       notes,
-      gateway: method === "payhere" ? "payhere" : "manual",
+      gateway: "manual",
       status: "completed",
-      verified: method !== "payhere", // manual payments considered verified by admin
+      verified: true, // Admin created = Verified
       paymentDate: new Date(),
     });
 
-    const saved = await p.save();
+    await payment.save();
 
-    // update Enrollment if needed
-    try {
-      const enrollmentDoc = await Enrollment.findById(enrollment);
-      if (enrollmentDoc) {
+    // Auto-update enrollment
+    const enrollmentDoc = await Enrollment.findById(enrollment);
+    if (enrollmentDoc) {
         await enrollmentDoc.markPaid(new Date(), null);
-      }
-    } catch (e) {
-      // log but don't fail response
-      console.warn("Failed to update enrollment after manual payment:", e);
     }
 
-    return res.status(201).json(saved);
+    return res.status(201).json({ success: true, payment });
+
   } catch (err) {
-    console.error("Error creating payment:", err);
+    console.error("Create Payment Error:", err);
     return res.status(500).json({ message: "Server error" });
   }
 };
 
 /**
- * GET /api/payments/:id
+ * 5. Update Payment Status (Admin Only)
+ * Used to Approve/Reject Bank Slips
  */
-export const getPaymentById = async (req, res) => {
+export const updatePaymentStatus = async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id).populate("enrollment");
+    const { id } = req.params;
+    const { status } = req.body; // "completed" or "failed"
+
+    if (!["completed", "failed", "pending"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const payment = await Payment.findById(id);
     if (!payment) return res.status(404).json({ message: "Payment not found" });
-    res.json(payment);
+
+    payment.status = status;
+    payment.verified = (status === "completed");
+    
+    await payment.save();
+
+    // If Approved -> Grant Access
+    if (status === "completed" && payment.enrollment) {
+        const enrollment = await Enrollment.findById(payment.enrollment);
+        if (enrollment) {
+            await enrollment.markPaid(new Date(), payment.paymentDate);
+        }
+    }
+
+    res.json({ success: true, payment });
+
   } catch (err) {
-    console.error("Error fetching payment:", err);
+    console.error("Update Status Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
 /**
- * GET /api/payments
- * Query params: ?enrollment=...&status=completed&gateway=payhere
+ * 6. Get Payment By ID
+ */
+export const getPaymentById = async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id)
+        .populate({
+            path: "enrollment",
+            select: "student class",
+            populate: { path: "class", select: "name price" }
+        });
+
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
+    res.json(payment);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+/**
+ * 7. List Payments (Admin Only)
  */
 export const listPayments = async (req, res) => {
   try {
@@ -269,108 +319,17 @@ export const listPayments = async (req, res) => {
     const payments = await Payment.find(filter)
       .sort({ createdAt: -1 })
       .limit(200)
-      // FIX: Use nested population to get Student AND Class details inside Enrollment
       .populate({
         path: "enrollment",
         populate: [
-          { path: "student", select: "firstName lastName email" }, // Get Student Info
-          { path: "class", select: "name" }                        // Get Class Name
+          { path: "student", select: "firstName lastName email" },
+          { path: "class", select: "name" }
         ]
       });
 
     res.json(payments);
   } catch (err) {
-    console.error("Error listing payments:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-export const uploadPaymentSlip = async (req, res) => {
-  try {
-    const { enrollmentId, notes } = req.body;
-    
-    // 1. Check if file exists
-    if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-    }
-
-    if (!enrollmentId) {
-        return res.status(400).json({ message: "Enrollment ID is required" });
-    }
-
-    // 2. Construct File Path (Store relative path)
-    // Assuming you serve the 'uploads' folder statically
-    const filePath = `/uploads/images/payments/${req.file.filename}`;
-
-    // 3. Create Payment Record (Pending Verification)
-    const payment = new Payment({
-        enrollment: enrollmentId,
-        amount: 0, // Admin will verify amount from slip
-        method: "bank_transfer",
-        status: "pending", // Pending admin approval
-        verified: false,
-        paymentDate: new Date(),
-        notes: notes,
-        // You might need to add a 'slipImage' field to your Payment Model
-        // Or store it in 'rawPayload' if you don't want to change schema yet
-        rawPayload: { slipUrl: filePath } 
-    });
-
-    await payment.save();
-
-    res.status(201).json({ 
-        success: true, 
-        message: "Slip uploaded successfully", 
-        payment 
-    });
-
-  } catch (err) {
-    console.error("Error uploading slip:", err);
-    res.status(500).json({ message: "Server error during upload" });
-  }
-};
-
-/**
- * Update Payment Status (Admin Verify)
- * PUT /api/v1/payments/:id
- * Body: { status: "completed" | "failed" }
- */
-export const updatePaymentStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!["completed", "failed", "pending"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    const payment = await Payment.findById(id);
-    if (!payment) {
-      return res.status(404).json({ message: "Payment not found" });
-    }
-
-    // Update status
-    payment.status = status;
-    payment.verified = status === "completed"; // Mark verified if completed
-    await payment.save();
-
-    // IF APPROVED: Update Enrollment to "Paid"
-    if (status === "completed" && payment.enrollment) {
-        try {
-            const enrollment = await Enrollment.findById(payment.enrollment);
-            if (enrollment) {
-                // Use your existing markPaid logic
-                await enrollment.markPaid(new Date(), payment.paymentDate);
-            }
-        } catch (err) {
-            console.error("Error updating enrollment status:", err);
-            // Don't fail the response, just log the error
-        }
-    }
-
-    res.json({ success: true, payment });
-  } catch (err) {
-    console.error("Error updating payment:", err);
+    console.error("List Payments Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

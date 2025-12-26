@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom"; // Import useNavigate
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
-import UserService from "../../../services/userService"; 
-import type { StudentUser } from "../../../services/userService";
+import UserService from "../../../services/UserService"; 
+import type { StudentUser } from "../../../services/UserService";
 import {
   PlusIcon,
   MagnifyingGlassIcon,

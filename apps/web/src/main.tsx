@@ -2,18 +2,14 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
-import { AuthProvider } from "./contexts/AuthContext";
 
+// Note: Do NOT import AuthProvider here. 
+// It is already inside App.tsx
 
 const rootElement = document.getElementById('root') as HTMLElement;
 
-if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
-    <React.StrictMode>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </React.StrictMode>
-  );
-}
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
