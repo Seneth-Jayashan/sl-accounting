@@ -12,23 +12,28 @@ import {
 
 const router = express.Router();
 
-// --- 1. Read Routes (Accessible to Authenticated Users) ---
-router.get('/', protect, getAllBatches);
-
+// ==========================================
+// 1. PUBLIC ROUTES
+// ==========================================
 router.get('/public', getAllPublicBatches);
 
+// ==========================================
+// 2. PROTECTED ROUTES (Logged in Users)
+// ==========================================
+// Students need to see batches to know what they are enrolled in
+router.get('/', protect, getAllBatches);
 router.get('/:id', protect, getBatchById);
-// --- 2. Admin Only Routes (Create, Update, Delete) ---
-// All routes below this line require 'admin' role
+
+// ==========================================
+// 3. ADMIN ROUTES (Strict Access)
+// ==========================================
 router.use(protect, restrictTo('admin'));
 
 router.post('/', createBatch);
+router.patch('/:id/toggle', toggleBatchStatus); // Toggle is an update action
 
 router.route('/:id')
     .put(updateBatch)
     .delete(deleteBatch);
-
-// Quick helper to activate/deactivate
-router.patch('/:id/toggle', toggleBatchStatus);
 
 export default router;

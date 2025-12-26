@@ -1,7 +1,6 @@
-// services/ClassService.ts
-import axios from "axios";
 import { api } from "./api";
 
+// --- TYPES ---
 const BASE_URL = "/classes";
 
 export interface SchedulePayload {
@@ -14,8 +13,8 @@ export interface SchedulePayload {
 export interface CreateClassPayload {
   name: string;
   description?: string;
-  price?: number | string;
-  batch?: string | null; // 24-char ObjectId string (Zod schema expects 'batch')
+  price?: number; // kept strict as number
+  batch?: string; // ObjectId string
   timeSchedules?: SchedulePayload[];
   firstSessionDate?: string; // ISO string
   recurrence?: "weekly" | "daily" | "none";
@@ -24,131 +23,128 @@ export interface CreateClassPayload {
   level?: "general" | "ordinary" | "advanced";
   tags?: string[];
   isPublished?: boolean;
+  // File objects
   coverImage?: File | null;
   images?: File[] | null;
 }
 
 export type UpdateClassPayload = Partial<CreateClassPayload>;
 
+// Response Type (prevents using 'any')
+export interface ClassData {
+  _id: string;
+  name: string;
+  description: string;
+  price: number;
+  batch: string | any; // Depending on if your backend populates it
+  coverImage?: string;
+  images: string[];
+  isPublished: boolean;
+  // ... add other fields returned by backend
+}
+
+interface ClassResponse {
+  success: boolean;
+  message?: string;
+  class?: ClassData;
+  classes?: ClassData[];
+}
+
+// --- HELPER: FormData Builder ---
+// Centralizes logic to prevent code duplication
+const buildClassFormData = (data: UpdateClassPayload): FormData => {
+  const formData = new FormData();
+
+  // Text Fields
+  if (data.name) formData.append("name", data.name);
+  if (data.description) formData.append("description", data.description);
+  if (data.price !== undefined) formData.append("price", String(data.price));
+  if (data.batch) formData.append("batch", data.batch); // Removed "bacth" typo
+  if (data.firstSessionDate) formData.append("firstSessionDate", data.firstSessionDate);
+  if (data.recurrence) formData.append("recurrence", data.recurrence);
+  if (data.totalSessions !== undefined) formData.append("totalSessions", String(data.totalSessions));
+  if (data.sessionDurationMinutes !== undefined) formData.append("sessionDurationMinutes", String(data.sessionDurationMinutes));
+  if (data.level) formData.append("level", data.level);
+  if (data.isPublished !== undefined) formData.append("isPublished", String(Boolean(data.isPublished)));
+
+  // Array Fields (Must be stringified for FormData)
+  if (data.tags && Array.isArray(data.tags)) {
+    formData.append("tags", JSON.stringify(data.tags));
+  }
+  if (data.timeSchedules && Array.isArray(data.timeSchedules)) {
+    formData.append("timeSchedules", JSON.stringify(data.timeSchedules));
+  }
+
+  // File Fields
+  if (data.coverImage) {
+    formData.append("coverImage", data.coverImage);
+  }
+  
+  if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+    data.images.forEach((file) => {
+      formData.append("images", file); 
+    });
+  }
+
+  return formData;
+};
+
+// --- SERVICE ---
+
 const ClassService = {
-  // Create (multipart/form-data) — do NOT set Content-Type header manually
+  // CREATE
   createClass: async (data: CreateClassPayload) => {
-    const formData = new FormData();
-
-    formData.append("name", String(data.name));
-    if (data.description) formData.append("description", String(data.description));
-    if (data.price !== undefined) formData.append("price", String(data.price));
-    if (data.batch) {
-      // primary correct field name (Zod / new API)
-      formData.append("batch", String(data.batch));
-      // compatibility: also append 'bacth' for older backend expecting the typo
-      formData.append("bacth", String(data.batch));
-    }
-    if (data.firstSessionDate) formData.append("firstSessionDate", String(data.firstSessionDate));
-    if (data.recurrence) formData.append("recurrence", data.recurrence);
-    if (data.totalSessions !== undefined) formData.append("totalSessions", String(data.totalSessions));
-    if (data.sessionDurationMinutes !== undefined)
-      formData.append("sessionDurationMinutes", String(data.sessionDurationMinutes));
-    if (data.level) formData.append("level", data.level);
-    if (data.tags && Array.isArray(data.tags)) formData.append("tags", JSON.stringify(data.tags));
-    if (data.timeSchedules && Array.isArray(data.timeSchedules))
-      formData.append("timeSchedules", JSON.stringify(data.timeSchedules));
-    if (data.isPublished !== undefined) formData.append("isPublished", String(Boolean(data.isPublished)));
-
-    if (data.coverImage) {
-      formData.append("coverImage", data.coverImage, data.coverImage.name);
-    }
-    if (data.images && Array.isArray(data.images)) {
-      data.images.forEach((file, idx) => {
-        formData.append("images", file, file.name || `image-${idx}`);
-      });
-    }
-
-    // Important: do NOT set Content-Type manually.
-    const response = await api.post<{ success: boolean; message?: string; class?: any }>(
-      BASE_URL,
-      formData
-    );
+    const formData = buildClassFormData(data);
+    
+    // Axios handles Content-Type: multipart/form-data automatically
+    const response = await api.post<ClassResponse>(BASE_URL, formData);
     return response.data;
   },
 
-  // GET all
+  // READ
   getAllClasses: async () => {
-    const response = await api.get(BASE_URL);
+    const response = await api.get<ClassResponse>(BASE_URL);
     return response.data;
   },
 
-  // GET by id
   getClassById: async (id: string) => {
-    const response = await api.get<{ success: boolean; class?: any }>(`${BASE_URL}/${id}`);
+    const response = await api.get<ClassResponse>(`${BASE_URL}/${id}`);
     return response.data;
   },
 
-  // GET all public classes
   getAllPublicClasses: async () => {
-    const response = await api.get(`${BASE_URL}/public`);
+    const response = await api.get<ClassResponse>(`${BASE_URL}/public`);
     return response.data;
   },
 
-    // GET all public classes
   getPublicClassById: async (id: string) => {
-    // This hits: http://localhost:3000/api/v1/classes/public/:id
-    const response = await api.get(`${BASE_URL}/public/${id}`);
+    const response = await api.get<ClassResponse>(`${BASE_URL}/public/${id}`);
     return response.data;
+  },
+
+  // UPDATE
+  updateClass: async (id: string, data: UpdateClassPayload) => {
+    // Check if we need Multipart (Files exist) or Standard JSON
+    const hasFiles = !!(data.coverImage || (data.images && data.images.length));
+
+    if (hasFiles) {
+      const formData = buildClassFormData(data);
+      const response = await api.patch<ClassResponse>(`${BASE_URL}/${id}`, formData);
+      return response.data;
+    } else {
+      // Send as JSON if no files are involved (Cleaner network request)
+      const response = await api.patch<ClassResponse>(`${BASE_URL}/${id}`, data);
+      return response.data;
+    }
   },
 
   // DELETE
   deleteClass: async (id: string) => {
-    const response = await api.delete<{ success: boolean; message?: string }>(`${BASE_URL}/${id}`);
+    const response = await api.delete<ClassResponse>(`${BASE_URL}/${id}`);
     return response.data;
   },
 
-  // PUT update (handles JSON or FormData depending on presence of files)
-  updateClass: async (id: string, data: UpdateClassPayload) => {
-    const hasFile = !!(data.coverImage || (data.images && data.images.length));
-    if (hasFile) {
-      const formData = new FormData();
-      if (data.name) formData.append("name", data.name);
-      if (data.description) formData.append("description", String(data.description));
-      if (data.price !== undefined) formData.append("price", String(data.price));
-      if (data.batch) { formData.append("batch", String(data.batch)); formData.append("bacth", String(data.batch)); }
-      if (data.firstSessionDate) formData.append("firstSessionDate", String(data.firstSessionDate));
-      if (data.recurrence) formData.append("recurrence", data.recurrence);
-      if (data.totalSessions !== undefined) formData.append("totalSessions", String(data.totalSessions));
-      if (data.sessionDurationMinutes !== undefined) formData.append("sessionDurationMinutes", String(data.sessionDurationMinutes));
-      if (data.level) formData.append("level", data.level);
-      if (data.tags && Array.isArray(data.tags)) formData.append("tags", JSON.stringify(data.tags));
-      if (data.timeSchedules && Array.isArray(data.timeSchedules)) formData.append("timeSchedules", JSON.stringify(data.timeSchedules));
-      if (data.isPublished !== undefined) formData.append("isPublished", String(Boolean(data.isPublished)));
-
-      if (data.coverImage) formData.append("coverImage", data.coverImage, data.coverImage.name);
-      if (data.images && Array.isArray(data.images)) {
-        data.images.forEach((file, idx) => formData.append("images", file, file.name || `image-${idx}`));
-      }
-
-      const response = await api.patch(`${BASE_URL}/${id}`, formData);
-      return response.data;
-    } else {
-      const payload: any = {};
-      if (data.name !== undefined) payload.name = data.name;
-      if (data.description !== undefined) payload.description = data.description;
-      if (data.price !== undefined) payload.price = data.price;
-      if (data.batch !== undefined) { payload.batch = data.batch; payload.bacth = data.batch; }
-      if (data.firstSessionDate !== undefined) payload.firstSessionDate = data.firstSessionDate;
-      if (data.recurrence !== undefined) payload.recurrence = data.recurrence;
-      if (data.totalSessions !== undefined) payload.totalSessions = data.totalSessions;
-      if (data.sessionDurationMinutes !== undefined) payload.sessionDurationMinutes = data.sessionDurationMinutes;
-      if (data.level !== undefined) payload.level = data.level;
-      if (data.tags !== undefined) payload.tags = data.tags;
-      if (data.timeSchedules !== undefined) payload.timeSchedules = data.timeSchedules;
-      if (data.isPublished !== undefined) payload.isPublished = Boolean(data.isPublished);
-
-      const response = await api.patch(`${BASE_URL}/${id}`, payload);
-      return response.data;
-    }
-  },
-
-  // quick PATCH helpers
+  // HELPERS
   setActive: async (id: string, active: boolean) => {
     const response = await api.patch(`${BASE_URL}/${id}`, { isActive: active });
     return response.data;

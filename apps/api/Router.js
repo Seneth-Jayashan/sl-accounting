@@ -1,52 +1,49 @@
 import express from 'express';
+
+// Import Route Handlers
 import authRoutes from './routes/AuthRoutes.js';
-import classRoutes from './routes/ClassRoutes.js';
 import userRoutes from './routes/UserRoutes.js';
 import adminRoutes from './routes/AdminRoutes.js';
-import contactRoutes from './routes/ContactRoutes.js';
-import ticketRoutes from './routes/TicketRoutes.js';
-import chatRoutes from './routes/ChatRoutes.js';
+import classRoutes from './routes/ClassRoutes.js';
 import batchRoutes from './routes/BatchRoutes.js';
 import sessionRoutes from './routes/SessionRoutes.js';
 import enrollmentRoutes from './routes/EnrollmentRoutes.js';
 import paymentRoutes from './routes/PaymentRoutes.js';
+import zoomRoutes from './routes/ZoomRoutes.js';
+import chatRoutes from './routes/ChatRoutes.js';
+import ticketRoutes from './routes/TicketRoutes.js';
+import contactRoutes from './routes/ContactRoutes.js';
 
 const router = express.Router();
 
+// Health Check
 router.get('/', (req, res) => {
-    res.json({ message: 'Welcome to the LMS API v1' });
+    res.json({ 
+        message: 'LMS API v1 is active', 
+        timestamp: new Date().toISOString() 
+    });
 });
 
-// Authentication routes
+// --- ROUTE MOUNTING ---
+
+// 1. Core System
 router.use('/auth', authRoutes);
-
-// User routes
 router.use('/users', userRoutes);
-
-// Admin routes
 router.use('/admin', adminRoutes);
 
-// Class routes
+// 2. Academic Management
 router.use('/classes', classRoutes);
-
-//contact routes
-router.use('/contact', contactRoutes);
-
-// Ticket routes
-router.use('/tickets', ticketRoutes);
-
-// Chat routes
-router.use('/chats', chatRoutes);
-// Batch routes
 router.use('/batches', batchRoutes);
-
-// Session routes
 router.use('/sessions', sessionRoutes);
-
-// Enrollment routes
 router.use('/enrollments', enrollmentRoutes);
 
-// Payment routes
-router.use('/payments', paymentRoutes); 
+// 3. Finance
+router.use('/payments', paymentRoutes);
+
+// 4. Integrations & Tools
+router.use('/zoom', zoomRoutes);
+router.use('/chats', chatRoutes);
+router.use('/tickets', ticketRoutes);
+router.use('/contact', contactRoutes);
 
 export default router;

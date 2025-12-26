@@ -1,50 +1,91 @@
-import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
-  HomeIcon,
-  AcademicCapIcon,
-  MagnifyingGlassIcon,
-  UserCircleIcon,
-} from "@heroicons/react/24/outline";
-
-// Helper to determine active state
-const getLinkClass = (isActive: boolean) =>
-  `flex flex-col items-center justify-center w-full h-full space-y-1 ${
-    isActive ? "text-[#0b2540]" : "text-gray-400 hover:text-gray-600"
-  }`;
+  LayoutDashboard,
+  CalendarDays,
+  Search,
+  UserCircle,
+  CreditCard
+} from "lucide-react";
 
 export default function BottomNavStudent() {
   const location = useLocation();
   const path = location.pathname;
 
+  const tabs = [
+    { 
+      key: "dashboard", 
+      label: "Home", 
+      href: "/student/dashboard", 
+      icon: LayoutDashboard 
+    },
+    { 
+      key: "classes", 
+      label: "My Classes", 
+      href: "/student/classes", 
+      icon: CalendarDays 
+    },
+    { 
+      key: "browse", 
+      label: "Browse", 
+      href: "/classes", // Public catalog
+      icon: Search 
+    },
+    { 
+        key: "enrollments", 
+        label: "Enrollments", 
+        href: "/student/enrollment", 
+        icon: CreditCard 
+      },
+    { 
+      key: "profile", 
+      label: "Profile", 
+      href: "/student/profile", 
+      icon: UserCircle 
+    },
+  ];
+
   return (
-    <div className="fixed bottom-0 left-0 w-full h-16 bg-white border-t border-gray-200 lg:hidden z-50">
-      <div className="grid grid-cols-4 h-full">
-        
-        {/* 1. Dashboard */}
-        <Link to="/student/dashboard" className={getLinkClass(path === "/student/dashboard")}>
-          <HomeIcon className={`w-6 h-6 ${path === "/student/dashboard" ? "stroke-2" : "stroke-1.5"}`} />
-          <span className="text-[10px] font-medium">Home</span>
-        </Link>
+    <div className="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-lg border-t border-gray-200 lg:hidden z-50 pb-safe">
+      <div className="flex justify-around items-center h-16 px-2">
+        {tabs.map((tab) => {
+          // Check if tab is active (exact match for dashboard, startsWith for others)
+          const isActive = tab.href === "/student/dashboard" 
+            ? path === "/student/dashboard"
+            : path.startsWith(tab.href);
 
-        {/* 2. My Classes (Enrollments) */}
-        <Link to="/student/enrollments" className={getLinkClass(path.startsWith("/student/enrollments"))}>
-          <AcademicCapIcon className={`w-6 h-6 ${path.startsWith("/student/enrollments") ? "stroke-2" : "stroke-1.5"}`} />
-          <span className="text-[10px] font-medium">My enrollments</span>
-        </Link>
+          return (
+            <Link 
+              key={tab.key} 
+              to={tab.href} 
+              className="relative flex-1 flex flex-col items-center justify-center h-full space-y-1 group"
+            >
+              {/* Active Indicator Background */}
+              {isActive && (
+                <motion.div
+                  layoutId="bottom-nav-active"
+                  className="absolute -top-[1px] w-12 h-[3px] bg-brand-cerulean rounded-full shadow-[0_0_10px_rgba(5,102,138,0.5)]"
+                  initial={false}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
 
-        {/* 3. Browse (Public Catalog) */}
-        <Link to="/student/classes" className={getLinkClass(path.startsWith("/classes"))}>
-          <MagnifyingGlassIcon className={`w-6 h-6 ${path.startsWith("/classes") ? "stroke-2" : "stroke-1.5"}`} />
-          <span className="text-[10px] font-medium">Classes</span>
-        </Link>
+              {/* Icon with Animation */}
+              <div className={`relative p-1 rounded-xl transition-colors duration-300 ${isActive ? "text-brand-cerulean" : "text-gray-400 group-hover:text-gray-600"}`}>
+                <tab.icon 
+                  size={24} 
+                  strokeWidth={isActive ? 2.5 : 2}
+                  className={`transition-transform duration-300 ${isActive ? "-translate-y-0.5" : ""}`}
+                />
+              </div>
 
-        {/* 4. Profile */}
-        <Link to="/student/profile" className={getLinkClass(path.startsWith("/student/profile"))}>
-          <UserCircleIcon className={`w-6 h-6 ${path.startsWith("/student/profile") ? "stroke-2" : "stroke-1.5"}`} />
-          <span className="text-[10px] font-medium">Profile</span>
-        </Link>
-
+              {/* Label */}
+              <span className={`text-[10px] font-bold transition-colors duration-300 ${isActive ? "text-brand-prussian" : "text-gray-400"}`}>
+                {tab.label}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

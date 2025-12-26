@@ -6,33 +6,60 @@ import {
   payHereWebhook,
   createPayHereSignature,
   uploadPaymentSlip,
-  updatePaymentStatus
-} from "../controllers/PaymentController.js"; // Adjust path matches your structure
+  updatePaymentStatus,
+  getMyPayments // <--- Imported New Controller
+} from "../controllers/PaymentController.js"; 
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import createUploader from "../middlewares/UploadMiddleware.js";
+import { 
+  validate, 
+  initiatePayHereSchema, 
+  uploadSlipSchema, 
+  createPaymentSchema, 
+  updatePaymentStatusSchema,
+  paymentIdSchema
+} from "../validators/PaymentValidator.js";
+
 const PaymentSlipUploader = createUploader('images/payments', 'slip');
+
 const router = express.Router();
 
-// --- Public / Callback Routes ---
-// PayHere sends data here (No auth middleware!)
+// ==========================================
+// 1. PUBLIC / CALLBACKS
+// ==========================================
+// No validation middleware here; PayHere sends specific form-data we manually verify in controller
 router.post("/payhere-webhook", express.urlencoded({ extended: true }), payHereWebhook);
 
-// --- Protected Routes ---
+// ==========================================
+// 2. PROTECTED ROUTES (Logged In Users)
+// ==========================================
+router.use(protect);
 
-// Generate Hash for PayHere (Student clicking "Pay Now")
-router.post("/initiate", protect, createPayHereSignature);
+// Get My Payment History 
+// IMPORTANT: Must be defined BEFORE /:id to prevent route collision
+router.get("/my-payments", getMyPayments);
 
-// Manual Bank Transfer Upload (Or Admin Manual Add)
-router.post("/", protect, createPayment);
+// PayHere: Step 1 (Student clicks "Pay Now")
+router.post("/initiate", validate(initiatePayHereSchema), createPayHereSignature);
 
-// Get Payment Details
-router.get("/:id", protect, getPaymentById);
+// Bank Transfer: Step 1 (Student uploads slip)
+// NOTE: Uploader MUST run before Validator to parse the FormData body
+router.post("/upload-slip", PaymentSlipUploader, validate(uploadSlipSchema), uploadPaymentSlip);
 
-// List Payments (Admin Only)
-router.get("/", protect, restrictTo("admin"), listPayments);
+// View Payment Details (Dynamic ID)
+router.get("/:id", validate(paymentIdSchema), getPaymentById);
 
-router.post("/upload-slip", protect, PaymentSlipUploader,  uploadPaymentSlip);
+// ==========================================
+// 3. ADMIN ROUTES
+// ==========================================
+router.use(restrictTo("admin"));
 
-router.put("/:id", protect, restrictTo("admin"), updatePaymentStatus); // <--- Add this line
+router.get("/", listPayments); // Query params validation optional, usually safe
+
+// Manual "Cash" payment entry
+router.post("/", validate(createPaymentSchema), createPayment);
+
+// Approve/Reject slips
+router.put("/:id", validate(updatePaymentStatusSchema), updatePaymentStatus);
 
 export default router;

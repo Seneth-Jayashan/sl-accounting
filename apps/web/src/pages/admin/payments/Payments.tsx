@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
@@ -13,7 +13,6 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  FunnelIcon,
   XMarkIcon
 } from "@heroicons/react/24/outline";
 
@@ -52,7 +51,7 @@ export default function PaymentsPage() {
     if (!window.confirm(confirmMsg)) return;
 
     try {
-      await PaymentService.verifyBankSlip(id, action);
+      await PaymentService.verifyPayment(id, action);
       // Optimistic Update
       setPayments(prev => prev.map(p => 
         p._id === id ? { ...p, status: action === "approve" ? "completed" : "failed" } : p

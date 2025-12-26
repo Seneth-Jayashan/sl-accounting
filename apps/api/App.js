@@ -8,80 +8,97 @@ import createError from 'http-errors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const app = express();
+// Import Router synchronously to avoid top-level await issues in some environments
+import apiRouter from './Router.js';
 
+const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- Core Middleware ---
+// ==========================================
+// 1. SECURITY & PROXY CONFIG
+// ==========================================
 
-// 1. FIX HELMET: Allow images to be loaded by your React App (Cross-Origin)
+// Trust the first proxy (NGINX/Heroku/Vercel)
+app.set('trust proxy', 1);
+
+// Helmet: Secure HTTP Headers
+// Cross-Origin Resource Policy: "cross-origin" allows frontend to load images/videos from this API
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+// CORS: Restrict access to your frontend only
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+app.use(cors({
+  origin: CLIENT_ORIGIN,
+  credentials: true, // Allow cookies
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Rate Limiting: Prevent Brute Force / DDoS
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Limit each IP to 300 requests per window
+  standardHeaders: true, // Return RateLimit-* headers
+  legacyHeaders: false, // Disable X-RateLimit-* headers
+  message: { message: "Too many requests from this IP, please try again later." }
+});
+app.use('/api', limiter); // Apply only to API routes, not static files
+
+// ==========================================
+// 2. PARSERS & LOGGING
+// ==========================================
+
+app.use(express.json({ limit: '10mb' })); // Increased limit for base64/files if needed
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Logging
+// Development Logging
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 
-// CORS Configuration
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
-app.use(
-  cors({
-    origin: CLIENT_ORIGIN,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-  })
-);
+// ==========================================
+// 3. STATIC FILES
+// ==========================================
 
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 200 requests per window
-});
-app.use(limiter);
-
-// 2. FIX STATIC PATH: Remove '..' so it looks inside 'apps/api/uploads'
-// Current: .../apps/api/App.js
-// Target:  .../apps/api/uploads
+// Serve uploaded files publicly (e.g., Profile Pictures)
+// Security Note: Ensure no sensitive docs (NICs/Slips) are stored here.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// --- API Router Mounting ---
-app.use('/api/v1', (await import('./Router.js')).default);
+// ==========================================
+// 4. ROUTING
+// ==========================================
 
-// --- Base System Routes ---
-app.get('/system', (req, res) => {
-  res.json({ message: 'SL Accounting API - Running', env: process.env.NODE_ENV });
-});
+// System Health Checks (No Rate Limit)
+app.get('/health', (req, res) => res.status(200).json({ status: 'UP', timestamp: new Date() }));
+app.get('/api/version', (req, res) => res.json({ name: 'LMS-API', version: process.env.LMS_API_VERSION || '1.0.0' }));
 
-app.get('/health', (req, res) => {
-  res.json({ up: true });
-});
+// Main API Router
+app.use('/api/v1', apiRouter);
 
-app.get('/api/version', (req, res) => {
-  res.json({ name: 'sl-accounting-api', version: process.env.LMS_API_VERSION || '1.0.0' });
-});
+// ==========================================
+// 5. ERROR HANDLING
+// ==========================================
 
-// --- Error Handling Middleware ---
-// 404 Not Found Handler
+// 404 Handler
 app.use((req, res, next) => {
-  next(createError(404, 'Not Found'));
+  next(createError(404, `Route not found: ${req.originalUrl}`));
 });
 
 // Global Error Handler
 app.use((err, req, res, next) => {
   const status = err.status || 500;
+  
+  // Log critical server errors
+  if (status === 500) console.error("🔥 Server Error:", err);
 
   res.status(status).json({
-    message: err.message,
-    // Only send stack trace in development
-    ...(process.env.NODE_ENV !== 'production' ? { stack: err.stack } : {}),
+    success: false,
+    message: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
   });
 });
 

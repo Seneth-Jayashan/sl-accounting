@@ -1,82 +1,83 @@
 import { z } from "zod";
 
-// Helper Zod schema for a single schedule entry (matching Mongoose timeSchedule schema)
+// --- HELPERS ---
+
+// Helper to parse JSON strings from FormData (e.g. "[{'day':1...}]")
+const jsonString = (schema) =>
+  z.preprocess((val) => {
+    if (typeof val === "string") {
+      try { return JSON.parse(val); } catch (e) { return val; }
+    }
+    return val;
+  }, schema);
+
+// Helper to parse Numbers from FormData strings (e.g. "1500")
+const numeric = () => z.number().or(z.string().transform((val) => Number(val)));
+
+// Helper to parse Booleans from FormData strings (e.g. "true")
+const boolean = () => z.boolean().or(z.string().transform((val) => val === "true"));
+
+// Strict MongoDB ObjectId Regex
+const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");
+
+
+// --- SUB-SCHEMAS ---
+
 const timeScheduleSchema = z.object({
-  // Mongoose day type is Number (0=Sunday to 6=Saturday)
-  day: z.number()
-    .int("Day must be an integer (0-6)")
-    .min(0, "Day must be between 0 (Sunday) and 6 (Saturday)")
-    .max(6, "Day must be between 0 (Sunday) and 6 (Saturday)"),
-    
-  // Time validation using regex for HH:mm format
-  startTime: z.string()
-    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Start time must be in HH:mm format (24-hour)"),
-    
-  endTime: z.string()
-    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "End time must be in HH:mm format (24-hour)"),
-    
+  day: numeric().pipe(z.number().int().min(0).max(6)), // 0-6
+  startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format HH:mm"),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format HH:mm"),
   timezone: z.string().optional(),
 });
 
 
+// --- MAIN SCHEMAS ---
+
 export const createClassSchema = z.object({
   body: z.object({
-    name: z.string() // Updated from className
-      .trim()
-      .min(3, "Class name must be at least 3 characters long")
-      .max(100, "Class name is too long"),
-      
-    description: z.string()
-      .trim()
-      .min(10, "Description must be at least 10 characters long"),
-      
-    // New complex schedule array validation
-    timeSchedules: z.array(timeScheduleSchema)
-      .min(1, "At least one schedule (day/time) is required"),
-      
-    firstSessionDate: z.string() // Use string for validation, convert to Date in controller
-      .refine((val) => !isNaN(Date.parse(val)), { message: "Invalid first session date format" }),
-      
+    name: z.string().trim().min(3).max(100),
+    description: z.string().trim().min(10),
+    
+    // Handle complex array parsing from FormData
+    timeSchedules: jsonString(z.array(timeScheduleSchema).min(1, "At least one schedule required")),
+    
+    firstSessionDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
     recurrence: z.enum(["weekly", "daily", "none"]),
     
-    totalSessions: z.number()
-      .int("Total sessions must be an integer")
-      .min(1, "Total sessions must be at least 1"),
-
-    sessionDurationMinutes: z.number()
-      .int("Duration must be an integer")
-      .min(15, "Session duration must be at least 15 minutes"),
-      
-    price: z.number().min(0, "Price cannot be negative").default(0),
+    // Handle numeric conversion
+    totalSessions: numeric().pipe(z.number().int().min(1)),
+    sessionDurationMinutes: numeric().pipe(z.number().int().min(15)),
+    price: numeric().pipe(z.number().min(0)),
     
     level: z.enum(["general", "ordinary", "advanced"]).default("general"),
     
-    batch: z.string().min(24).max(24, "Invalid Batch ID format (must be 24 hex characters)").optional(),
+    batch: objectIdSchema.optional(), // Strict ID check
 
-    tags: z.array(z.string().trim().min(1)).optional(),
+    // Handle tags array (JSON string in FormData)
+    tags: jsonString(z.array(z.string().trim()).optional()),
     
-    isPublished: z.boolean().default(false),
+    isPublished: boolean().default(false),
   }),
 });
 
 export const updateClassSchema = z.object({
   params: z.object({
-    classId: z.string().min(24).max(24, "Invalid Class ID format (must be 24 hex characters)"),
+    classId: objectIdSchema,
   }),
   body: createClassSchema.shape.body.partial().extend({
-    // Explicitly allow changes to isActive, isPublished, and isDeleted
-    isActive: z.boolean().optional(),
-    isPublished: z.boolean().optional(),
-    isDeleted: z.boolean().optional(),
+    isActive: boolean().optional(),
+    isPublished: boolean().optional(),
+    isDeleted: boolean().optional(),
   }),
 });
-
 
 export const classIdSchema = z.object({
   params: z.object({
-    classId: z.string().min(24).max(24, "Invalid Class ID format (must be 24 hex characters)"),
+    classId: objectIdSchema,
   }),
 });
+
+// --- MIDDLEWARE ---
 
 export const validate = (schema) => (req, res, next) => {
   try {
@@ -86,35 +87,29 @@ export const validate = (schema) => (req, res, next) => {
       params: req.params,
     });
 
-    if ("body" in schema.shape && parsed.body !== undefined) {
-      req.body = parsed.body;
-    }
-
-    // params
-    if ("params" in schema.shape && parsed.params !== undefined) {
-      req.params = parsed.params;
-    }
-
-    // query – DO NOT reassign, just merge into existing object
-    if ("query" in schema.shape && parsed.query !== undefined) {
-      // req.query is usually an object already created by the framework
-      Object.assign(req.query, parsed.query);
-    }
+    // Safely assign parsed data back to request
+    // Note: We use Object.assign for query/params to avoid breaking Express internals
+    if (parsed.body) req.body = parsed.body;
+    if (parsed.params) Object.assign(req.params, parsed.params);
+    if (parsed.query) Object.assign(req.query, parsed.query);
 
     return next();
   } catch (error) {
-    if (error.name === "ZodError") {
-      console.error("Class Validation Error:", error);
+    if (error instanceof z.ZodError) {
+      // Format errors nicely
+      const formattedErrors = error.errors.map(e => ({
+        field: e.path.join('.'),
+        message: e.message
+      }));
+
       return res.status(400).json({
         success: false,
-        message: "Class Validation Error: " + error.message,
-        errors: error.errors,
+        message: "Validation Error",
+        errors: formattedErrors,
       });
     }
 
-    console.error("Class Validation Middleware Error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal server error" });
+    console.error("Validation Middleware Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

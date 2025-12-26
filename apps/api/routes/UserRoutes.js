@@ -5,23 +5,17 @@ import {
   updateUserProfile,
   updateUserEmail,
   updateUserPassword,
-  forgetUserPassword,
-  resetUserPassword,
-  verifyUserEmail,
-  resendVerificationOtp,
   deleteUserAccount,
-} from "../controllers/UserController.js";
+} from "../controllers/UserController.js"; // Removed Auth controllers
+
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import {
   validate,
   updateProfileSchema,
   updateEmailSchema,
   updatePasswordSchema,
-  forgetPasswordSchema,
-  resetPasswordSchema,
-  verifyEmailSchema,
-  resendOtpSchema,
-} from "../validators/UserValidator.js";
+} from "../validators/UserValidator.js"; // Removed Auth validators
+
 import createUploader from "../middlewares/UploadMiddleware.js";
 
 const profileUploadMiddleware = createUploader(
@@ -31,8 +25,17 @@ const profileUploadMiddleware = createUploader(
 
 const router = express.Router();
 
+// ==========================================
+// ADMIN ROUTES (Manage Users)
+// ==========================================
 router.get("/", protect, restrictTo("admin"), getAllUsers);
 router.get("/:id", protect, restrictTo("admin"), getUserById);
+
+// ==========================================
+// PROFILE ROUTES (Self-Management)
+// ==========================================
+
+// Update Profile Info (with Image Upload)
 router.put(
   "/profile",
   protect,
@@ -40,25 +43,24 @@ router.put(
   validate(updateProfileSchema),
   updateUserProfile
 );
-router.put("/email", protect, validate(updateEmailSchema), updateUserEmail);
+
+// Update Email (Triggers Re-verification)
+router.put(
+  "/email", 
+  protect, 
+  validate(updateEmailSchema), 
+  updateUserEmail
+);
+
+// Update Password (Authenticated)
 router.put(
   "/password",
   protect,
   validate(updatePasswordSchema),
   updateUserPassword
 );
-router.post(
-  "/forget-password",
-  validate(forgetPasswordSchema),
-  forgetUserPassword
-);
-router.post(
-  "/reset-password",
-  validate(resetPasswordSchema),
-  resetUserPassword
-);
-router.post("/verify-email", validate(verifyEmailSchema), verifyUserEmail);
-router.post("/resend-otp", validate(resendOtpSchema), resendVerificationOtp);
+
+// Delete Account (Soft Delete)
 router.delete("/delete-account", protect, deleteUserAccount);
 
 export default router;

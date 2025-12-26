@@ -1,6 +1,6 @@
-import api from "./api"; // Your configured axios instance
+import api from "./api";
 
-// --- Interfaces ---
+// --- INTERFACES ---
 
 export interface SessionData {
   _id: string;
@@ -12,36 +12,47 @@ export interface SessionData {
   title?: string;
   notes?: string;
   materials?: string[];
+  
+  // Zoom Details
   zoomMeetingId?: string;
-  zoomStartUrl?: string; // Only visible to instructors/admin
-  zoomJoinUrl?: string;
-  recordingUrl?: string; // Added recordingUrl as it's used in the frontend
+  zoomJoinUrl?: string;     // Safe for students
+  zoomStartUrl?: string;    // DANGER: Admin/Instructor ONLY. Backend must filter this.
+  
+  // Recordings
+  youtubeVideoId?: string; 
+  recordingUrl?: string;    // Added for frontend compatibility
+
+  // Status
   isCancelled: boolean;
   cancelledAt?: string;
   cancellationReason?: string;
+  
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateSessionPayload {
-  // Option A: ISO String
-  startAt?: string; 
-  // Option B: Date + Time parts
-  date?: string; // YYYY-MM-DD
-  time?: string; // HH:mm
+  // Preferred: Full ISO string to prevent timezone ambiguity
+  startAt: string; 
+  durationMinutes: number;
+  
   timezone?: string;
-
-  durationMinutes?: number;
   title?: string;
   notes?: string;
   skipZoom?: boolean;
   materials?: string[];
+  
+  // Optional Legacy support (Backend handles logic)
+  date?: string; 
+  time?: string; 
 }
 
 export interface UpdateSessionPayload extends Partial<CreateSessionPayload> {
   isCancelled?: boolean;
-  cancelReason?: string;
+  cancellationReason?: string; // Standardized name
   abortOnZoomFail?: boolean;
+  youtubeVideoId?: string;
+  recordingUrl?: string;
 }
 
 export interface SessionFilterParams {
@@ -54,43 +65,52 @@ export interface SessionFilterParams {
   sort?: string; // e.g. "startAt" or "-startAt"
 }
 
+// Standardized API Response Wrapper
 export interface SessionResponse {
+  success: boolean;
   message?: string;
   session?: SessionData;
-  // Based on your controller, GET requests return SessionData[] directly
-  // POST/PUT requests return an object with message/session
-  error?: string;
+  sessions?: SessionData[]; // Used if backend returns list inside wrapper
 }
 
-// --- Service Definition ---
+// --- SERVICE DEFINITION ---
 
 const BASE_URL = "/sessions";
 
 const SessionService = {
   /**
-   * Get all sessions with optional filters (date range, class, etc.)
+   * Get all sessions with filters
    * Endpoint: GET /api/v1/sessions
    */
   getAllSessions: async (params: SessionFilterParams = {}) => {
-    // Backend returns SessionData[] directly
+    // Note: If backend returns raw array, keep as SessionData[]. 
+    // If it returns { success: true, data: [...] }, change to SessionResponse.
     const response = await api.get<SessionData[]>(BASE_URL, { params });
     return response.data;
   },
 
   /**
-   * Get all sessions specific to a class (Convenience wrapper for getAllSessions)
+   * Get sessions by Class ID
    * Endpoint: GET /api/v1/sessions?classId=...
    */
   getSessionsByClassId: async (classId: string) => {
-    // FIX: Changed param 'class' to 'classId' to match backend route
     const response = await api.get<SessionData[]>(BASE_URL, {
-        params: { classId: classId } 
+        params: { classId } 
     });
     return response.data;
   },
 
   /**
-   * Create a new custom session for a specific class
+   * Get single session details
+   * Endpoint: GET /api/v1/sessions/:id
+   */
+  getSessionById: async (sessionId: string) => {
+    const response = await api.get<SessionData>(`${BASE_URL}/${sessionId}`);
+    return response.data;
+  },
+
+  /**
+   * Create a new session
    * Endpoint: POST /api/v1/sessions/class/:classId
    */
   createSession: async (classId: string, data: CreateSessionPayload) => {
@@ -99,7 +119,7 @@ const SessionService = {
   },
 
   /**
-   * Update an existing session
+   * Update session details
    * Endpoint: PUT /api/v1/sessions/:id
    */
   updateSession: async (id: string, data: UpdateSessionPayload) => {
@@ -108,12 +128,12 @@ const SessionService = {
   },
 
   /**
-   * Cancel a session (Soft Delete / Status Change)
+   * Cancel a session (Soft Delete)
    * Endpoint: POST /api/v1/sessions/:id/cancel
    */
   cancelSession: async (id: string, reason?: string, deleteZoom: boolean = true) => {
     const payload = { 
-      cancellationReason: reason, 
+      cancellationReason: reason || "No reason provided", 
       deleteZoomMeeting: deleteZoom 
     };
     const response = await api.post<SessionResponse>(`${BASE_URL}/${id}/cancel`, payload);
@@ -121,7 +141,7 @@ const SessionService = {
   },
 
   /**
-   * Hard Delete a session
+   * Permanently Delete a session
    * Endpoint: DELETE /api/v1/sessions/:id
    */
   deleteSession: async (id: string) => {

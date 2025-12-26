@@ -1,12 +1,20 @@
-import api from "./api"; // Your configured axios instance (e.g., with interceptors)
+import api from "./api";
 
 // --- Types ---
+
+// Lightweight type for Class relations to avoid circular dependencies or 'any'
+export interface ClassSummary {
+  _id: string;
+  className: string;
+  subject?: string;
+}
+
 export interface BatchPayload {
   name: string;
   description?: string;
-  startDate: string | Date; // Using string (ISO) or Date object
+  startDate: string | Date;
   endDate: string | Date;
-  classes?: string[];       // Array of Class IDs to link
+  classes?: string[]; // Array of Class IDs to link
   isActive?: boolean;
 }
 
@@ -16,7 +24,7 @@ export interface BatchData {
   description?: string;
   startDate: string;
   endDate: string;
-  classes: any[]; // You can replace 'any' with a partial Class interface if needed
+  classes: ClassSummary[]; 
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -26,7 +34,7 @@ interface BatchResponse {
   success: boolean;
   message?: string;
   batch?: BatchData;
-  batches?: BatchData[]; // For the getAll response
+  batches?: BatchData[];
   count?: number;
 }
 
@@ -35,7 +43,7 @@ const BASE_URL = "/batches";
 
 const BatchService = {
   /**
-   * Create a new batch
+   * Create a new batch (Admin Only)
    */
   createBatch: async (data: BatchPayload) => {
     const response = await api.post<BatchResponse>(BASE_URL, data);
@@ -43,12 +51,13 @@ const BatchService = {
   },
 
   /**
-   * Get all batches
-   * @param activeOnly If true, returns only active batches
+   * Get all batches (Admin filters)
+   * Uses 'params' for safe URL encoding
    */
   getAllBatches: async (activeOnly: boolean = false) => {
-    const queryString = activeOnly ? "?activeOnly=true" : "";
-    const response = await api.get<BatchResponse>(`${BASE_URL}${queryString}`);
+    const response = await api.get<BatchResponse>(BASE_URL, {
+      params: { activeOnly }
+    });
     return response.data;
   },
 
@@ -60,14 +69,19 @@ const BatchService = {
     return response.data;
   },
 
-  getAllPublicBatches: async (activeOnly: boolean = false) => {
-    const queryString = activeOnly ? "?activeOnly=true" : "";
-    const response = await api.get<BatchResponse>(`${BASE_URL}/public/${queryString}`);
+  /**
+   * Public endpoint for registration dropdowns
+   * Usually unsecured or requires minimal generic token
+   */
+  getAllPublicBatches: async (activeOnly: boolean = true) => {
+    const response = await api.get<BatchResponse>(`${BASE_URL}/public`, {
+      params: { activeOnly }
+    });
     return response.data;
   },
 
   /**
-   * Update existing batch
+   * Update existing batch (Admin Only)
    */
   updateBatch: async (id: string, data: Partial<BatchPayload>) => {
     const response = await api.put<BatchResponse>(`${BASE_URL}/${id}`, data);
@@ -75,7 +89,7 @@ const BatchService = {
   },
 
   /**
-   * Delete a batch
+   * Delete a batch (Admin Only)
    */
   deleteBatch: async (id: string) => {
     const response = await api.delete<BatchResponse>(`${BASE_URL}/${id}`);
@@ -92,9 +106,10 @@ const BatchService = {
     return response.data;
   },
 
+  /**
+   * Get Students in a Batch
+   */
   getBatchStudents: async (batchId: string) => {
-    // Assumes you have an endpoint like: GET /api/v1/batches/:id/students
-    // If not, you might filter users by batchId in your user service
     const response = await api.get(`${BASE_URL}/${batchId}/students`); 
     return response.data;
   },
