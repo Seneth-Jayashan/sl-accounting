@@ -21,16 +21,32 @@ export const updateUserProfile = async (req, res) => {
     
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
-    if (address) user.address = address;
     if (phoneNumber) user.phoneNumber = phoneNumber;
 
+    // --- FIX START ---
+    if (address) {
+      try {
+        // FormData sends address as a JSON string. We must parse it back to an Object.
+        user.address = typeof address === 'string' ? JSON.parse(address) : address;
+      } catch (e) {
+        console.error("Address parsing error:", e);
+        return res.status(400).json({ success: false, message: "Invalid address format" });
+      }
+    }
+    // --- FIX END ---
+
     if (req.file) {
+      // Normalize path separators for Windows compatibility
       user.profileImage = req.file.path.replace(/\\/g, "/");
     }
 
     await user.save();
     return res.status(200).json({ success: true, user });
   } catch (error) {
+    // Check if it's still a validation error after parsing
+    if (error.name === 'ValidationError') {
+        return res.status(400).json({ success: false, message: error.message });
+    }
     console.error("Admin Update Profile Error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });
   }

@@ -122,7 +122,7 @@ export const getAllEnrollments = async (req, res) => {
 
     const enrollments = await Enrollment.find(filter)
       .populate("student", "firstName lastName email phoneNumber")
-      .populate("class", "name price")
+      .populate("class", "name price coverImage description ")
       .sort({ createdAt: -1 });
 
     res.json(enrollments);

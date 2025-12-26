@@ -11,6 +11,7 @@ export interface User {
   lastName: string;
   email: string;
   role: "student" | "admin";
+  phoneNumber?: string;
   profileImage?: string;
   batch?: string; // --- UPDATE: Added batch here likely needed for UI
 }

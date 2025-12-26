@@ -15,7 +15,7 @@ export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
     // Security: Ensure we don't return soft-deleted users
-    const user = await User.findOne({ _id: id, isDeleted: false }).select('-password');
+    const user = await User.findOne({ _id: id, isDeleted: false }).select('-password').populate('batch', 'name');
     
     if (!user) {
         return res.status(404).json({ success: false, message: "User not found" });
@@ -174,7 +174,8 @@ export const getAllUsers = async (req, res) => {
     // 4. Execute
     const users = await User.find(query)
       .select('-password')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .populate('batch', 'name');
 
     return res.status(200).json({ success: true, users });
 

@@ -6,7 +6,8 @@ import {
   payHereWebhook,
   createPayHereSignature,
   uploadPaymentSlip,
-  updatePaymentStatus
+  updatePaymentStatus,
+  getMyPayments // <--- Imported New Controller
 } from "../controllers/PaymentController.js"; 
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import createUploader from "../middlewares/UploadMiddleware.js";
@@ -30,9 +31,13 @@ const router = express.Router();
 router.post("/payhere-webhook", express.urlencoded({ extended: true }), payHereWebhook);
 
 // ==========================================
-// 2. PROTECTED ROUTES
+// 2. PROTECTED ROUTES (Logged In Users)
 // ==========================================
 router.use(protect);
+
+// Get My Payment History 
+// IMPORTANT: Must be defined BEFORE /:id to prevent route collision
+router.get("/my-payments", getMyPayments);
 
 // PayHere: Step 1 (Student clicks "Pay Now")
 router.post("/initiate", validate(initiatePayHereSchema), createPayHereSignature);
@@ -41,7 +46,7 @@ router.post("/initiate", validate(initiatePayHereSchema), createPayHereSignature
 // NOTE: Uploader MUST run before Validator to parse the FormData body
 router.post("/upload-slip", PaymentSlipUploader, validate(uploadSlipSchema), uploadPaymentSlip);
 
-// View Payment Details
+// View Payment Details (Dynamic ID)
 router.get("/:id", validate(paymentIdSchema), getPaymentById);
 
 // ==========================================

@@ -14,7 +14,11 @@ import {
   Lock,
   Clock,
   LayoutDashboard,
-  FolderOpen
+  FolderOpen,
+  Eye,
+  EyeOff,
+  Copy,
+  Check
 } from "lucide-react";
 
 // Components & Layouts
@@ -22,22 +26,31 @@ import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarStudent from "../../../components/sidebar/SidebarStudent";
 import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent";
 
-// Services & Context
+// Services
 import ClassService from "../../../services/ClassService";
 import SessionService from "../../../services/SessionService";
 
-// --- Type-Only Import ---
-import type { SessionData } from "../../../services/SessionService";
-
-// --- Interfaces ---
+// --- Types ---
 interface ClassData {
   _id: string;
   name: string;
   description: string;
+  // Sensitive fields (Ensure backend only sends these to enrolled students)
   zoomLink?: string;
   zoomMeetingId?: string;
-  zoomPassword?: string;
-  timeSchedules?: { day: number; startTime: string; endTime: string }[];
+  zoomPassword?: string; 
+}
+
+// Ensure SessionData matches your service definition
+interface SessionData {
+  _id: string;
+  title?: string;
+  startAt: string;
+  endAt: string;
+  zoomJoinUrl?: string;
+  zoomMeetingId?: string;
+  youtubeVideoId?: string;
+  index: number;
 }
 
 // Animation Variants
@@ -50,14 +63,21 @@ export default function ViewClass() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  // State
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "recordings" | "resources" | "chat">("overview");
+  
+  // UI State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // --- Fetch Data ---
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -69,64 +89,78 @@ export default function ViewClass() {
       }
 
       try {
+        // Parallel Fetch
         const [classRes, sessionsRes] = await Promise.all([
-            ClassService.getPublicClassById(id),
+            ClassService.getClassById(id),
             SessionService.getSessionsByClassId(id)
         ]);
 
-        const classObj = Array.isArray(classRes) ? classRes[0] : classRes;
-        if (!classObj) throw new Error("Class data not found");
-        setClassData(classObj);
+        if (isMounted) {
+            // Handle inconsistencies in API returns (Array vs Object)
+            const classObj = Array.isArray(classRes) ? classRes[0] : classRes;
+            if (!classObj) throw new Error("Class data not found");
+            setClassData(classObj);
 
-        const sessionList = Array.isArray(sessionsRes) ? sessionsRes : (sessionsRes as any).data || [];
-        setSessions(sessionList);
-
-      } catch (err: any) {
+            // Handle session list
+            const sessionList = Array.isArray(sessionsRes) ? sessionsRes : (sessionsRes as any)?.data || [];
+            setSessions(sessionList);
+        }
+      } catch (err: unknown) {
         console.error("Fetch Error:", err);
-        setError("Unable to load classroom.");
+        if (isMounted) setError("Unable to load classroom. Please check your connection.");
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
+
+    return () => { isMounted = false; };
   }, [id]);
 
   // --- Derived Data ---
+  
+  // Find the next upcoming session
   const upcomingSession = useMemo(() => {
     const now = new Date();
     return sessions
-        .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-        .find(s => new Date(s.endAt) > now);
+      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+      .find(s => new Date(s.endAt) > now);
   }, [sessions]);
 
+  // Determine active connection details (Session overrides Class default)
   const activeZoomLink = upcomingSession?.zoomJoinUrl || classData?.zoomLink;
   const activeMeetingId = upcomingSession?.zoomMeetingId || classData?.zoomMeetingId;
   const activePassword = classData?.zoomPassword;
 
-  // 1. Filter Recordings (Securely)
+  // Filter & Sort Recordings
   const recordings = useMemo(() => {
     return sessions
-      .filter(s => (s as any).youtubeVideoId || s.youtubeVideoId) // Check if recording exists
-      .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime()); // Descending
+      .filter(s => s.youtubeVideoId) // Only sessions with recordings
+      .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime()); // Newest first
   }, [sessions]);
 
-  // 2. Group Recordings by Month
+  // Group Recordings by Month
   const groupedRecordings = useMemo(() => {
       const groups: Record<string, SessionData[]> = {};
-      
       recordings.forEach(session => {
           const monthKey = moment(session.startAt).format("MMMM YYYY");
-          if (!groups[monthKey]) {
-              groups[monthKey] = [];
-          }
+          if (!groups[monthKey]) groups[monthKey] = [];
           groups[monthKey].push(session);
       });
-
       return groups;
   }, [recordings]);
 
-  // --- Render Loading/Error ---
+  // --- Actions ---
+  const handleCopyPassword = () => {
+      if (activePassword) {
+          navigator.clipboard.writeText(activePassword);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+      }
+  };
+
+  // --- Render: Loading ---
   if (loading) {
     return (
         <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
@@ -140,6 +174,7 @@ export default function ViewClass() {
     );
   }
 
+  // --- Render: Error ---
   if (error || !classData) {
     return (
         <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
@@ -148,7 +183,7 @@ export default function ViewClass() {
                     <AlertTriangle className="w-10 h-10 text-red-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-brand-prussian mb-2">Access Issue</h3>
-                <p className="text-gray-500 mb-8 max-w-sm">{error}</p>
+                <p className="text-gray-500 mb-8 max-w-sm">{error || "Class data unavailable."}</p>
                 <button 
                     onClick={() => navigate("/student/enrollment")} 
                     className="bg-brand-prussian text-white px-8 py-3 rounded-xl font-bold hover:bg-brand-cerulean transition-colors"
@@ -178,7 +213,7 @@ export default function ViewClass() {
                 
                 {/* Title Row */}
                 <div className="py-4 flex items-center gap-4">
-                    <button onClick={() => navigate("/student/enrollment")} className="p-2 rounded-full hover:bg-brand-aliceBlue text-gray-400 hover:text-brand-prussian transition-colors">
+                    <button onClick={() => navigate("/student/classes")} className="p-2 rounded-full hover:bg-brand-aliceBlue text-gray-400 hover:text-brand-prussian transition-colors">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
@@ -187,7 +222,7 @@ export default function ViewClass() {
                     </div>
                 </div>
 
-                {/* --- TABS --- */}
+                {/* Tabs */}
                 <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-2 md:pb-0">
                     {tabs.map((tab) => (
                         <button
@@ -212,18 +247,18 @@ export default function ViewClass() {
             </div>
         </div>
 
-        {/* --- Tab Content Area --- */}
+        {/* --- Main Content Area --- */}
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
             <AnimatePresence mode="wait">
                 
-                {/* TAB: OVERVIEW */}
+                {/* 1. OVERVIEW TAB */}
                 {activeTab === 'overview' && (
                     <motion.div key="overview" variants={fadeInUp} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
-                        {/* Live Class Card Code (Same as previous) */}
+                        {/* Live Class Card */}
                         <div className="bg-gradient-to-br from-brand-prussian to-[#022c3d] rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden">
                             {/* Decorative Blobs */}
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-cerulean/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
-                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-coral/10 rounded-full blur-3xl -ml-10 -mb-10"></div>
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-cerulean/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-coral/10 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none"></div>
 
                             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
                                 <div>
@@ -260,7 +295,7 @@ export default function ViewClass() {
                                         <a 
                                             href={activeZoomLink} 
                                             target="_blank" 
-                                            rel="noreferrer"
+                                            rel="noopener noreferrer" // Security Fix
                                             className="inline-flex items-center gap-3 bg-brand-cerulean hover:bg-[#067aa3] text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-brand-cerulean/30 transform hover:-translate-y-1 w-full sm:w-auto justify-center"
                                         >
                                             <Video size={20} /> Join Live Class
@@ -272,19 +307,46 @@ export default function ViewClass() {
                                     )}
                                 </div>
 
+                                {/* Secure Zoom Details Panel */}
                                 <div className="bg-white/5 rounded-3xl p-6 backdrop-blur-md border border-white/10">
                                     <h3 className="text-sm font-bold text-brand-jasmine mb-4 uppercase tracking-wider border-b border-white/10 pb-2">Zoom Details</h3>
                                     <div className="space-y-4">
+                                        {/* Meeting ID */}
                                         <div>
                                             <p className="text-xs text-brand-aliceBlue/50 mb-1 uppercase font-bold">Meeting ID</p>
                                             <div className="flex items-center gap-3">
-                                                <p className="font-mono text-xl font-bold tracking-wide">{activeMeetingId || "---"}</p>
+                                                <p className="font-mono text-xl font-bold tracking-wide select-all">{activeMeetingId || "---"}</p>
                                             </div>
                                         </div>
+                                        
+                                        {/* Passcode (Secured) */}
                                         <div>
                                             <p className="text-xs text-brand-aliceBlue/50 mb-1 uppercase font-bold">Passcode</p>
                                             <div className="flex items-center gap-3">
-                                                <p className="font-mono text-xl font-bold tracking-wide">{activePassword || "---"}</p>
+                                                <p className="font-mono text-xl font-bold tracking-wide">
+                                                    {activePassword 
+                                                        ? (showPassword ? activePassword : "••••••") 
+                                                        : "---"
+                                                    }
+                                                </p>
+                                                {activePassword && (
+                                                    <div className="flex items-center gap-1">
+                                                        <button 
+                                                            onClick={() => setShowPassword(!showPassword)}
+                                                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-brand-aliceBlue"
+                                                            title={showPassword ? "Hide" : "Show"}
+                                                        >
+                                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                        </button>
+                                                        <button 
+                                                            onClick={handleCopyPassword}
+                                                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-brand-aliceBlue"
+                                                            title="Copy"
+                                                        >
+                                                            {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -295,7 +357,7 @@ export default function ViewClass() {
                             </div>
                         </div>
 
-                        {/* Announcements */}
+                        {/* Announcements Section */}
                         <div>
                             <h3 className="text-xl font-bold text-brand-prussian flex items-center gap-2 mb-4">
                                 <Megaphone className="text-brand-coral" /> Announcements
@@ -315,13 +377,12 @@ export default function ViewClass() {
                     </motion.div>
                 )}
 
-                {/* TAB: RECORDINGS (Monthly Grouped) */}
+                {/* 2. RECORDINGS TAB */}
                 {activeTab === 'recordings' && (
                     <motion.div key="recordings" variants={fadeInUp} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
                         {recordings.length > 0 ? (
                             Object.entries(groupedRecordings).map(([month, sessionsInMonth]) => (
                                 <div key={month} className="space-y-4">
-                                    {/* Month Header */}
                                     <div className="flex items-center gap-4">
                                         <div className="h-px bg-gray-200 flex-1"></div>
                                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest bg-brand-aliceBlue/50 px-4 py-1 rounded-full">
@@ -330,7 +391,6 @@ export default function ViewClass() {
                                         <div className="h-px bg-gray-200 flex-1"></div>
                                     </div>
 
-                                    {/* Sessions Grid */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {sessionsInMonth.map((session) => (
                                             <div key={session._id} className="group bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:border-brand-cerulean/20 transition-all duration-300 flex flex-col h-full">
@@ -350,7 +410,6 @@ export default function ViewClass() {
                                                 </div>
                                                 
                                                 <div className="mt-auto">
-                                                    {/* SECURE NAVIGATION BUTTON */}
                                                     <button 
                                                         onClick={() => navigate(`/student/class/recording/${session._id}`)}
                                                         className="w-full flex items-center justify-center gap-2 text-sm font-bold text-brand-prussian bg-brand-aliceBlue py-3 rounded-xl hover:bg-brand-prussian hover:text-white transition-all group-hover:shadow-md"
@@ -375,7 +434,7 @@ export default function ViewClass() {
                     </motion.div>
                 )}
 
-                {/* TAB: RESOURCES */}
+                {/* 3. RESOURCES TAB */}
                 {activeTab === 'resources' && (
                     <motion.div key="resources" variants={fadeInUp} initial="hidden" animate="visible" exit="hidden">
                         <div className="bg-white rounded-[2.5rem] p-16 text-center border border-dashed border-gray-200">
@@ -388,7 +447,7 @@ export default function ViewClass() {
                     </motion.div>
                 )}
 
-                {/* TAB: CHAT */}
+                {/* 4. CHAT TAB */}
                 {activeTab === 'chat' && (
                     <motion.div key="chat" variants={fadeInUp} initial="hidden" animate="visible" exit="hidden">
                         <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-12 text-center max-w-2xl mx-auto">

@@ -21,16 +21,20 @@ import SidebarStudent from "../../../components/sidebar/SidebarStudent";
 import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent";
 
 // Services & Context
-import EnrollmentService from "../../../services/EnrollmentService";
-import type { EnrollmentResponse , EnrolledClass } from "../../../services/EnrollmentService";
+// Now this import works because we renamed the interface in the Service file
+import EnrollmentService, { type EnrollmentResponse, type EnrolledClass } from "../../../services/EnrollmentService";
 import { useAuth } from "../../../contexts/AuthContext";
 
 // --- Configuration ---
-const API_BASE_URL = import.meta.env.API_BASE_URL || "http://localhost:3000";
+// Security Fix: Ensure we fallback to a valid URL if env is missing
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.API_BASE_URL || "http://localhost:4000";
 
 // Helper to safely get class details
-const getClassDetails = (cls: EnrolledClass | string) => {
-    if (typeof cls === 'string') return { name: "Unknown Class", _id: cls, price: 0, coverImage: "" };
+const getClassDetails = (cls: EnrolledClass | string): EnrolledClass => {
+    if (typeof cls === 'string') {
+        // Return a dummy object if population failed
+        return { _id: cls, name: "Unknown Class", price: 0, coverImage: "" };
+    }
     return cls;
 };
 
@@ -38,8 +42,9 @@ const getClassDetails = (cls: EnrolledClass | string) => {
 const getImageUrl = (path?: string) => {
     if (!path) return null;
     if (path.startsWith("http")) return path;
-    const cleanPath = path.replace(/\\/g, "/");
-    return `${API_BASE_URL}/${cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath}`;
+    // Normalize path to handle Windows backslashes
+    const cleanPath = path.replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${API_BASE_URL}/${cleanPath}`;
 };
 
 // Animation Variants
@@ -63,25 +68,30 @@ export default function ViewEnrollments() {
   const [filter, setFilter] = useState<"all" | "paid" | "pending">("all");
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchEnrollments = async () => {
       if (!user) return;
       try {
         const data = await EnrollmentService.getMyEnrollments();
-        console.log("Fetched Enrollments:", data); // Debug Log
-        setEnrollments(data);
+        if (isMounted) {
+            // Security Fix: Removed console.log of user data
+            setEnrollments(data);
+        }
       } catch (error) {
-        console.error("Failed to fetch enrollments", error);
+        console.error("Failed to fetch enrollments");
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchEnrollments();
+
+    return () => { isMounted = false; };
   }, [user]);
 
   // --- ROBUST FILTER LOGIC ---
   const filteredEnrollments = enrollments.filter(e => {
-      // Normalize status to lowercase for comparison
       const status = e.paymentStatus ? e.paymentStatus.toLowerCase() : "pending";
       
       if (filter === "all") return true;
@@ -169,7 +179,6 @@ export default function ViewEnrollments() {
             >
                 <AnimatePresence mode="popLayout">
                     {filteredEnrollments.map((enrollment) => {
-                        // Extract Data
                         const classObj = getClassDetails(enrollment.class);
                         const className = classObj.name;
                         const classId = classObj._id;
@@ -190,7 +199,15 @@ export default function ViewEnrollments() {
                                 {/* Card Image / Header */}
                                 <div className="h-40 bg-brand-prussian relative overflow-hidden">
                                     {classImage ? (
-                                        <img src={classImage} alt={className} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                        <img 
+                                          src={classImage} 
+                                          alt={className} 
+                                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                          onError={(e) => {
+                                            (e.target as HTMLImageElement).style.display = 'none'; 
+                                            (e.target as HTMLImageElement).parentElement!.classList.add('bg-gradient-to-br', 'from-brand-cerulean', 'to-brand-prussian');
+                                          }}
+                                        />
                                     ) : (
                                         <div className={`w-full h-full ${isPaid ? 'bg-gradient-to-br from-brand-cerulean to-brand-prussian' : 'bg-gradient-to-br from-brand-coral to-red-500'}`}></div>
                                     )}
@@ -211,7 +228,6 @@ export default function ViewEnrollments() {
                                 
                                 {/* Card Body */}
                                 <div className="p-6 flex-1 flex flex-col relative">
-                                    {/* Overlapping Icon (Optional decoration) */}
                                     <div className="absolute -top-6 left-6 w-12 h-12 bg-white rounded-2xl shadow-md flex items-center justify-center text-brand-prussian border border-gray-50">
                                         <GraduationCap size={24} />
                                     </div>

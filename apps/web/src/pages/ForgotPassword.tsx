@@ -231,8 +231,9 @@ export default function ForgotPassword() {
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <div className="text-center mt-6 mb-6">
               <h2 className="text-2xl font-bold text-[#053A4E]">Reset Password</h2>
-              <p className="text-gray-500 mt-2 text-xs">
-                Code sent to <span className="font-semibold text-[#05668A]">{formData.email}</span>
+              <p className="text-brand-coral mt-2 text-xs">
+                
+                If account exists, reset code sent to <span className="font-semibold text-[#05668A]">{formData.email}</span> <br/> or sent to user's phone number
               </p>
             </div>
 

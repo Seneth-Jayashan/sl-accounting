@@ -365,14 +365,14 @@ export const getPublicClass = async (req, res) => {
     .populate("batch", "name")
     .populate({
         path: "sessions",
-        // SECURITY: CRITICAL - Hide Zoom Links
-        select: "index startAt endAt title durationMinutes -zoomStartUrl -zoomJoinUrl -zoomMeetingId -youtubeVideoId" 
+        select: "index startAt endAt title durationMinutes timezone", 
     });
 
     if (!classDoc) return res.status(404).json({ message: "Class not found" });
 
     return res.status(200).json(classDoc);
   } catch (error) {
+    console.log("getPublicClass error:", error);
     return res.status(500).json({ message: "Error fetching class details" });
   }
 };

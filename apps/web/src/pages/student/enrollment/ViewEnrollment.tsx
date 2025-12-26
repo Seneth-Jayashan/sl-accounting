@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarStudent from "../../../components/sidebar/SidebarStudent"; 
@@ -55,7 +55,7 @@ export default function ViewEnrollments() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">My Classes</h1>
+                <h1 className="text-2xl font-bold text-gray-900">My Enrollments</h1>
                 <p className="text-gray-500 text-sm">Manage your active subscriptions and learning progress.</p>
             </div>
             <button 

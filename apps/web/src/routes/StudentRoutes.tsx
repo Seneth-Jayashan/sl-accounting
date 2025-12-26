@@ -10,7 +10,8 @@ const ViewClass = lazy(() => import("../pages/student/class/ViewClass"));
 const ViewRecording = lazy(() => import("../pages/student/class/ViewRecording"));
 const Enrollment = lazy(() => import("../pages/student/enrollment/Enrollment"));
 const ViewEnrollment = lazy(() => import("../pages/student/enrollment/ViewEnrollment"));
-const UploadSlip = lazy(() => import("../pages/student/enrollment/UploadPaymentSlip"));
+const UploadSlip = lazy(() => import("../pages/student/payments/UploadPaymentSlip"));
+const PaymentHistory = lazy(() => import("../pages/student/payments/PaymentHistory"));
 
 export const StudentRoutes = () => {
   return (
@@ -28,6 +29,7 @@ export const StudentRoutes = () => {
         <Route path="enrollment" element={<ViewEnrollment />} />
         <Route path="enrollment/:id" element={<Enrollment />} />
         <Route path="payment/upload/:enrollmentId" element={<UploadSlip />} />
+        <Route path="payments" element={<PaymentHistory />} />
 
         {/* Default Student Route */}
         <Route path="*" element={<Navigate to="/student/" replace />} />

@@ -28,7 +28,7 @@ export default function SidebarStudent({ collapsed = false, onToggle }: Props) {
     { key: "overview", label: "Overview", href: "/student/dashboard", icon: LayoutDashboard },
     { key: "classes", label: "My Classes", href: "/student/classes", icon: CalendarDays },
     { key: "materials", label: "Study Materials", href: "/student/materials", icon: BookOpen },
-    { key: "enrollment", label: "Enrollments", href: "/student/enrollment", icon: CreditCard },
+    { key: "payments", label: "Payments", href: "/student/payments", icon: CreditCard },
     { key: "community", label: "Community", href: "/student/community", icon: Users },
     { key: "tickets", label: "Support", href: "/student/tickets", icon: HelpCircle }
   ];

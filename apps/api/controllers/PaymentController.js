@@ -34,7 +34,6 @@ const formatPayHereAmount = (amount) => {
 
 /**
  * 1. Generate PayHere Hash (Student Side)
- * Called before opening the PayHere popup
  */
 export const createPayHereSignature = async (req, res) => {
     try {
@@ -46,25 +45,20 @@ export const createPayHereSignature = async (req, res) => {
             return res.status(500).json({ error: "Server misconfiguration: PayHere credentials missing" });
         }
 
-        // 1. Strict Formatting (Crucial for Hash Matching)
         const amountFormatted = formatPayHereAmount(amount);
 
-        // 2. Hash Secret
         const hashedSecret = crypto.createHash('md5')
             .update(merchantSecret)
             .digest('hex')
             .toUpperCase();
 
-        // 3. Create String: merchant_id + order_id + amount + currency + hashed_secret
         const mainString = merchantId + order_id + amountFormatted + currency + hashedSecret;
 
-        // 4. Final Hash
         const hash = crypto.createHash('md5')
             .update(mainString)
             .digest('hex')
             .toUpperCase();
 
-        // Return exact data needed by frontend PayHere SDK
         res.json({
             merchant_id: merchantId,
             hash: hash,
@@ -81,10 +75,8 @@ export const createPayHereSignature = async (req, res) => {
 
 /**
  * 2. PayHere Webhook (Server-to-Server)
- * Validates payment and updates DB
  */
 export const payHereWebhook = async (req, res) => {
-  // console.log("🔔 PayHere Webhook:", req.body); // Uncomment for debugging
   try {
     const {
       merchant_id,
@@ -93,16 +85,14 @@ export const payHereWebhook = async (req, res) => {
       payhere_currency,
       status_code,
       md5sig,
-      custom_1, // We assume custom_1 holds 'enrollment_id'
+      custom_1, 
       payhere_payment_id
     } = req.body;
 
-    // 1. Validate Payload
     if (!merchant_id || !md5sig) {
       return res.status(400).send("Invalid Payload");
     }
 
-    // 2. Verify Signature
     const computedSig = computePayHereMd5sig({
       merchant_id,
       order_id,
@@ -117,12 +107,9 @@ export const payHereWebhook = async (req, res) => {
       return res.status(400).send("Signature verification failed");
     }
 
-    // 3. Determine Payment Status
-    // 2 = Success, 0 = Pending, -1 = Canceled, -2 = Failed
     const isSuccess = Number(status_code) === 2;
     const paymentStatus = isSuccess ? "completed" : Number(status_code) === 0 ? "pending" : "failed";
 
-    // 4. Find or Create Payment
     let payment = await Payment.findOne({ payhere_order_id: order_id });
     const enrollmentId = custom_1 || req.body.enrollment_id;
 
@@ -135,23 +122,20 @@ export const payHereWebhook = async (req, res) => {
         payhere_currency,
         paymentDate: new Date(),
         method: "payhere",
-        verified: isSuccess, // Auto-verify if success
+        verified: isSuccess, 
       });
     }
 
-    // Update fields
     payment.status = paymentStatus;
     payment.payhere_status_code = Number(status_code);
     payment.payhere_payment_id = payhere_payment_id;
     payment.payhere_md5sig = md5sig;
     payment.rawPayload = req.body;
 
-    // Attach enrollment if found late
     if (!payment.enrollment && enrollmentId) payment.enrollment = enrollmentId;
 
     await payment.save();
 
-    // 5. Update Enrollment Access (If Success)
     if (isSuccess && payment.enrollment) {
         try {
             const enrollment = await Enrollment.findById(payment.enrollment);
@@ -176,23 +160,23 @@ export const payHereWebhook = async (req, res) => {
  */
 export const uploadPaymentSlip = async (req, res) => {
   try {
-    const { enrollmentId, notes } = req.body;
+    const { enrollmentId, amount, notes } = req.body;
     
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     if (!enrollmentId) return res.status(400).json({ message: "Enrollment ID required" });
+    if (!amount) return res.status(400).json({ message: "Paid Amount required" });
 
-    // Path relative to public/uploads
     const filePath = `/uploads/images/payments/${req.file.filename}`;
 
     const payment = new Payment({
         enrollment: enrollmentId,
-        amount: 0, // Amount is unknown until admin verifies slip
+        amount: amount, 
         method: "bank_transfer",
         status: "pending", 
         verified: false,
         paymentDate: new Date(),
         notes: notes,
-        rawPayload: { slipUrl: filePath } // Storing slip path here
+        rawPayload: { slipUrl: filePath } 
     });
 
     await payment.save();
@@ -211,13 +195,11 @@ export const uploadPaymentSlip = async (req, res) => {
 
 /**
  * 4. Create Manual Payment (Admin Only)
- * Used for Cash payments or manual overrides
  */
 export const createPayment = async (req, res) => {
   try {
     const { enrollment, amount, transactionId, notes } = req.body;
     
-    // Validate
     if (!enrollment || amount === undefined) {
       return res.status(400).json({ message: "Enrollment and Amount required" });
     }
@@ -230,13 +212,12 @@ export const createPayment = async (req, res) => {
       notes,
       gateway: "manual",
       status: "completed",
-      verified: true, // Admin created = Verified
+      verified: true, 
       paymentDate: new Date(),
     });
 
     await payment.save();
 
-    // Auto-update enrollment
     const enrollmentDoc = await Enrollment.findById(enrollment);
     if (enrollmentDoc) {
         await enrollmentDoc.markPaid(new Date(), null);
@@ -252,12 +233,11 @@ export const createPayment = async (req, res) => {
 
 /**
  * 5. Update Payment Status (Admin Only)
- * Used to Approve/Reject Bank Slips
  */
 export const updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // "completed" or "failed"
+    const { status } = req.body; 
 
     if (!["completed", "failed", "pending"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
@@ -271,7 +251,6 @@ export const updatePaymentStatus = async (req, res) => {
     
     await payment.save();
 
-    // If Approved -> Grant Access
     if (status === "completed" && payment.enrollment) {
         const enrollment = await Enrollment.findById(payment.enrollment);
         if (enrollment) {
@@ -331,5 +310,37 @@ export const listPayments = async (req, res) => {
   } catch (err) {
     console.error("List Payments Error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ==========================================
+// 8. NEW: Get My Payments (Logged In User)
+// ==========================================
+export const getMyPayments = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // 1. Find all Enrollments belonging to the user
+    const myEnrollments = await Enrollment.find({ student: userId }).select('_id');
+    const enrollmentIds = myEnrollments.map(e => e._id);
+
+    if (enrollmentIds.length === 0) {
+        return res.json([]); // No enrollments = No payments
+    }
+
+    // 2. Find Payments linked to those enrollments
+    const payments = await Payment.find({ enrollment: { $in: enrollmentIds } })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "enrollment",
+        select: "class", 
+        populate: { path: "class", select: "name" } // Show class name in history
+      });
+
+    res.json(payments);
+
+  } catch (err) {
+    console.error("Get My Payments Error:", err);
+    res.status(500).json({ message: "Server error fetching payment history" });
   }
 };
