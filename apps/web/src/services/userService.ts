@@ -1,4 +1,5 @@
-import { api } from "./api"; // Shared Axios instance
+import { api } from "./api"; 
+
 
 // --- CONFIGURATION ---
 const USERS_BASE = "/users"; // Public/Shared endpoints

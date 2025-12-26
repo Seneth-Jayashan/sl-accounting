@@ -16,7 +16,7 @@ import {
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
-import UserService, {type StudentUser } from "../../../services/UserService";
+import UserService, {type StudentUser } from "../../../services/UserService.ts";
 import BatchService, { type BatchData } from "../../../services/BatchService";
 import { useAuth } from "../../../contexts/AuthContext";
 

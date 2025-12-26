@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck, ArrowRight, RefreshCw, CheckCircle2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import UserService from "../services/UserService";
+import UserService from "../services/UserService.ts";
 
 // --- BACKGROUND COMPONENT ---
 const BackgroundGradient = () => (

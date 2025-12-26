@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Send, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import UserService from "../../services/UserService"; 
+import UserService from "../../services/UserService.ts"; 
 
 // --- 1. PROPS INTERFACE ---
 interface ResendVerificationModalProps {
