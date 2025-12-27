@@ -1,5 +1,4 @@
-// src/pages/admin/classes/UpdateClassPage.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import moment from "moment";
 import DashboardLayout from "../../../layouts/DashboardLayout";
@@ -14,19 +13,14 @@ import {
   ClockIcon,
   AcademicCapIcon,
   CheckCircleIcon,
-  TrashIcon
+  ArrowPathIcon
 } from "@heroicons/react/24/outline";
 
-// Helper to Map Day Names to Index
-const DAY_TO_INDEX: Record<string, number> = {
+const DAY_INDEX: Record<string, number> = {
   Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6,
 };
-
-// Helper to Reverse Index to Day Name
-const INDEX_TO_DAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-// Configuration
-const API_BASE_URL = "http://localhost:3000"; // Ensure this matches your backend port
+const INDEX_TO_DAY = Object.keys(DAY_INDEX);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export default function UpdateClassPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,413 +29,256 @@ export default function UpdateClassPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // --- 1. Batch Data State ---
   const [batches, setBatches] = useState<any[]>([]);
-  const [loadingBatches, setLoadingBatches] = useState(true);
-
-  // Form State
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    batch: "", 
-    day: "Saturday",
-    startTime: "08:00",
-    endTime: "10:00",
-    firstSessionDate: "",
-    recurrence: "weekly",
-    totalSessions: 4,
-    sessionDurationMinutes: 60,
-    level: "general",
-    tags: "",
-    isPublished: false
-  });
-
-  // Image State
+  const [formData, setFormData] = useState<any>(null);
+  
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // --- 2. Fetch Batches ---
-  useEffect(() => {
-    const fetchBatches = async () => {
-      try {
-        const data = await BatchService.getAllBatches(false); 
-        if (data.batches) {
-          setBatches(data.batches);
-        }
-      } catch (err) {
-        console.error("Failed to fetch batches", err);
-      } finally {
-        setLoadingBatches(false);
-      }
-    };
-    fetchBatches();
-  }, []);
-
-  // --- 3. Fetch Existing Class Data ---
-  useEffect(() => {
+  // --- 1. Load Initial Data ---
+  const initPage = useCallback(async () => {
     if (!id) return;
-    const fetchClass = async () => {
-      setIsLoading(true);
-      try {
-        const data = await ClassService.getClassById(id);
-        
-        // --- FIX START ---
-        // Your controller returns the object directly, so 'data' IS the class.
-        // We handle both cases just to be safe (wrapped vs unwrapped).
-        const c = data.class || data; 
-        
-        if (c && c._id) {
-          // Extract Schedule
-          const schedule = c.timeSchedules && c.timeSchedules.length > 0 ? c.timeSchedules[0] : {};
-          const dayName = schedule.day !== undefined ? INDEX_TO_DAY[schedule.day] : "Saturday";
+    setIsLoading(true);
+    try {
+      const [batchRes, classRes] = await Promise.all([
+        BatchService.getAllBatches(false),
+        ClassService.getClassById(id)
+      ]);
 
-          // Format Date (YYYY-MM-DD)
-          let dateStr = "";
-          if (c.firstSessionDate) {
-            dateStr = new Date(c.firstSessionDate).toISOString().split('T')[0];
-          }
+      setBatches(batchRes.batches || []);
+      
+      const c = classRes.class || (Array.isArray(classRes) ? classRes[0] : classRes);
+      if (!c) throw new Error("Module not found.");
 
-          setFormData({
-            name: c.name || "",
-            description: c.description || "",
-            price: c.price !== undefined ? String(c.price) : "",
-            // Handle populated batch object or raw ID string
-            batch: c.batch ? (typeof c.batch === 'object' ? c.batch._id : c.batch) : "", 
-            day: dayName,
-            startTime: schedule.startTime || "08:00",
-            endTime: schedule.endTime || "10:00", // Fix: map endTime correctly
-            firstSessionDate: dateStr,
-            recurrence: c.recurrence || "weekly",
-            totalSessions: c.totalSessions || 4,
-            sessionDurationMinutes: c.sessionDurationMinutes || 60,
-            level: c.level || "general",
-            tags: c.tags ? c.tags.join(", ") : "",
-            isPublished: c.isPublished || false
-          });
+      const schedule = c.timeSchedules?.[0] || {};
+      
+      setFormData({
+        name: c.name || "",
+        description: c.description || "",
+        price: c.price ?? "",
+        batch: c.batch?._id || c.batch || "", 
+        day: schedule.day !== undefined ? INDEX_TO_DAY[schedule.day] : "Saturday",
+        startTime: schedule.startTime || "08:00",
+        endTime: schedule.endTime || "10:00",
+        firstSessionDate: c.firstSessionDate ? moment(c.firstSessionDate).format("YYYY-MM-DD") : "",
+        recurrence: c.recurrence || "weekly",
+        level: c.level || "general",
+        type: c.type || "theory",
+        tags: c.tags?.join(", ") || "",
+        isPublished: c.isPublished || false
+      });
 
-          // Handle Image URL
-          if (c.coverImage) {
-             const cleanPath = c.coverImage.replace(/\\/g, "/");
-             // If path is already absolute (http...), use it; otherwise prepend base URL
-             const fullUrl = cleanPath.startsWith("http") 
-                ? cleanPath 
-                : `${API_BASE_URL}/${cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath}`;
-             setCurrentImageUrl(fullUrl);
-          }
-        } else {
-          setError("Class not found.");
-        }
-        // --- FIX END ---
-
-      } catch (err: any) {
-        console.error(err);
-        setError("Failed to load class details.");
-      } finally {
-        setIsLoading(false);
+      if (c.coverImage) {
+        const fullUrl = c.coverImage.startsWith("http") 
+          ? c.coverImage 
+          : `${API_BASE_URL}/${c.coverImage.replace(/\\/g, "/").replace(/^\/+/, "")}`;
+        setCurrentImageUrl(fullUrl);
       }
-    };
-    fetchClass();
+    } catch (err: any) {
+      setError(err.message || "Failed to synchronize data.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [id]);
 
-  // Handle Inputs
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => { initPage(); }, [initPage]);
 
-  // Handle Image Selection
+  useEffect(() => {
+    return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
+  }, [imagePreview]);
+
+  // --- Handlers ---
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedImage(file);
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  };
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleRemoveNewImage = () => {
-    setSelectedImage(null);
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) return setError("Use JPG, PNG, or WebP formats only.");
+    if (file.size > 5 * 1024 * 1024) return setError("File too large (Max 5MB).");
+
+    setSelectedImage(file);
     if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImagePreview(null);
+    setImagePreview(URL.createObjectURL(file));
   };
 
-  // Submit Update
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
-    
+
+    if (moment(formData.startTime, "HH:mm").isSameOrAfter(moment(formData.endTime, "HH:mm"))) {
+      return setError("The session end time must be later than the start time.");
+    }
+
     setIsSaving(true);
     setError(null);
 
-    const timeSchedules = [
-        {
-          day: DAY_TO_INDEX[formData.day] ?? 0,
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
-        }
-    ];
-
     const payload = {
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        price: formData.price ? Number(formData.price) : 0,
-        batch: formData.batch,
-        timeSchedules,
-        firstSessionDate: formData.firstSessionDate,
-        recurrence: formData.recurrence as "weekly" | "daily" | "none",
-        totalSessions: Number(formData.totalSessions),
-        sessionDurationMinutes: Number(formData.sessionDurationMinutes),
-        level: formData.level as "general" | "ordinary" | "advanced",
-        tags: formData.tags ? formData.tags.split(",").map(t => t.trim()).filter(Boolean) : undefined,
-        isPublished: Boolean(formData.isPublished),
-        coverImage: selectedImage || undefined,
+      ...formData,
+      price: Number(formData.price) || 0,
+      timeSchedules: [{
+        day: DAY_INDEX[formData.day],
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      }],
+      tags: formData.tags.split(",").map((t: string) => t.trim()).filter(Boolean),
+      coverImage: selectedImage || undefined,
     };
 
     try {
       await ClassService.updateClass(id, payload as any);
-      alert("Class updated successfully!");
       navigate(`/admin/classes`); 
     } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.message || "Failed to update class.");
+      setError(err.response?.data?.message || "Internal update failure.");
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
-        <div className="flex h-screen items-center justify-center text-gray-400">
-          Loading class data...
-        </div>
-      </DashboardLayout>
-    );
-  }
+  if (isLoading) return <LoadingSkeleton />;
 
   return (
     <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
-      <div className="max-w-4xl mx-auto space-y-6 pb-20">
+      <div className="max-w-5xl mx-auto space-y-6 pb-24 p-6 animate-in fade-in duration-500">
         
-        {/* Navigation */}
-        <button 
-          onClick={() => navigate(-1)} 
-          className="flex items-center text-gray-500 hover:text-[#0b2540] transition-colors"
-        >
-          <ArrowLeftIcon className="w-4 h-4 mr-1" /> Cancel & Go Back
-        </button>
+        <header className="flex flex-col gap-2">
+          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest">
+            <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Discard Changes
+          </button>
+          <h1 className="text-3xl font-semibold text-brand-prussian tracking-tight">Modify Class Module</h1>
+        </header>
 
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Class</h1>
-          <p className="text-gray-500 text-sm mt-1">Update course details and settings.</p>
-        </div>
-
-        {/* Error Alert */}
         {error && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 flex items-center">
-            <span className="mr-2">⚠️</span> {error}
+          <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 text-sm font-medium">
+            ⚠️ {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Left Column: Form Fields */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <AcademicCapIcon className="w-5 h-5 text-gray-400" /> Class Information
-                </h2>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Class Name</label>
-                  <input
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  
-                  {/* --- REAL BATCH SELECTOR --- */}
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Batch</label>
-                    <select 
-                        name="batch" 
-                        value={formData.batch} 
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer"
-                        required
-                        disabled={loadingBatches}
-                    >
-                        <option value="">{loadingBatches ? "Loading..." : "Select Batch"}</option>
-                        {batches.map((batch) => (
-                            <option key={batch._id} value={batch._id}>
-                                {batch.name} ({moment(batch.startDate).format('YYYY')})
-                            </option>
-                        ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Tags (comma sep)</label>
-                    <input 
-                        name="tags" 
-                        value={formData.tags} 
-                        onChange={handleChange} 
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Description</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none resize-none"
-                  />
-                </div>
-              </div>
-
-              {/* Schedule Section */}
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <ClockIcon className="w-5 h-5 text-gray-400" /> Schedule & Fees
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Monthly Fee (LKR)</label>
-                    <div className="relative">
-                      <CurrencyDollarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"/>
-                      <input name="price" type="number" value={formData.price} onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Day</label>
-                    <select name="day" value={formData.day} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer">
-                      <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
-                      <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Start Time</label>
-                    <input name="startTime" type="time" value={formData.startTime} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">End Time</label>
-                    <input name="endTime" type="time" value={formData.endTime} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">First Session Date</label>
-                    <input name="firstSessionDate" type="date" value={formData.firstSessionDate} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
-                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Level</label>
-                    <select name="level" value={formData.level} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer">
-                      <option value="general">General</option><option value="ordinary">Ordinary</option><option value="advanced">Advanced</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column: Image Upload */}
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <PhotoIcon className="w-5 h-5 text-gray-400" /> Class Banner
-                </h2>
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          <div className="lg:col-span-2 space-y-6">
+            <Section title="Identity & Curriculum" icon={<AcademicCapIcon />}>
+              <div className="space-y-4">
+                <Input label="Class Name" name="name" value={formData.name} 
+                  onChange={(e: any) => setFormData({...formData, name: e.target.value})} required />
                 
-                {/* Image Preview Logic */}
-                <div className="relative w-full aspect-video bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer">
-                  
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="New Preview" className="w-full h-full object-cover" />
-                  ) : currentImageUrl ? (
-                    <img src={currentImageUrl} alt="Current Banner" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center p-4">
-                      <PhotoIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                      <p className="text-xs text-gray-500">No cover image</p>
-                    </div>
-                  )}
-
-                  <input 
-                    type="file" 
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <span className="text-white text-xs font-medium bg-black/50 px-3 py-1 rounded-full">
-                      {imagePreview || currentImageUrl ? "Change Image" : "Upload Image"}
-                    </span>
-                  </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Select label="Batch Intake" name="batch" value={formData.batch} 
+                    onChange={(e: any) => setFormData({...formData, batch: e.target.value})}>
+                    {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                  </Select>
+                  <Select label="Module Type" name="type" value={formData.type}
+                    onChange={(e: any) => setFormData({...formData, type: e.target.value})}>
+                    <option value="theory">Theory</option>
+                    <option value="revision">Revision</option>
+                    <option value="paper">Paper Discussion</option>
+                  </Select>
                 </div>
 
-                {imagePreview && (
-                  <button 
-                    type="button"
-                    onClick={handleRemoveNewImage}
-                    className="mt-3 text-xs text-red-600 flex items-center gap-1 hover:underline"
-                  >
-                    <TrashIcon className="w-3 h-3" /> Revert to original
-                  </button>
-                )}
+                <Textarea label="Course Outline" name="description" value={formData.description} 
+                  onChange={(e: any) => setFormData({...formData, description: e.target.value})} rows={4} />
               </div>
+            </Section>
+
+            <Section title="Timing & Investment" icon={<ClockIcon />}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Input label="Monthly Fee (LKR)" name="price" type="number" value={formData.price} 
+                    onChange={(e: any) => setFormData({...formData, price: e.target.value})} />
+                  <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
+                </div>
+                <Select label="Weekly Schedule" name="day" value={formData.day} 
+                  onChange={(e: any) => setFormData({...formData, day: e.target.value})}>
+                  {INDEX_TO_DAY.map(d => <option key={d} value={d}>{d}</option>)}
+                </Select>
+                <Input label="Starts At" name="startTime" type="time" value={formData.startTime} 
+                  onChange={(e: any) => setFormData({...formData, startTime: e.target.value})} />
+                <Input label="Ends At" name="endTime" type="time" value={formData.endTime} 
+                  onChange={(e: any) => setFormData({...formData, endTime: e.target.value})} />
+              </div>
+            </Section>
+          </div>
+
+          <aside className="space-y-6">
+            <Section title="Banner Media" icon={<PhotoIcon />}>
+              <div className="group relative aspect-video bg-brand-aliceBlue/50 rounded-2xl border border-dashed border-gray-200 overflow-hidden hover:border-brand-cerulean transition-all">
+                {imagePreview ? (
+                  <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                ) : currentImageUrl ? (
+                  <img src={currentImageUrl} className="w-full h-full object-cover" alt="Current" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                     <PhotoIcon className="w-8 h-8 opacity-20" />
+                     <p className="text-[10px] uppercase font-bold tracking-widest mt-2">No Cover Image</p>
+                  </div>
+                )}
+                <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+              </div>
+            </Section>
+
+            <div className="bg-brand-prussian p-6 rounded-3xl text-white shadow-xl shadow-brand-prussian/20">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-brand-jasmine mb-4">Settings</h3>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className={`w-10 h-6 rounded-full transition-colors relative ${formData.isPublished ? 'bg-brand-cerulean' : 'bg-white/10'}`}>
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.isPublished ? 'left-5' : 'left-1'}`} />
+                </div>
+                <input type="checkbox" className="hidden" checked={formData.isPublished} 
+                  onChange={(e) => setFormData({...formData, isPublished: e.target.checked})} />
+                <span className="text-xs font-semibold uppercase tracking-wider">Visible to Public</span>
+              </label>
             </div>
-          </div>
 
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-             <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-             >
-              Cancel
-             </button>
-             <button
-              type="submit"
-              disabled={isSaving}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0b2540] text-white font-medium hover:bg-[#153454] transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-             >
-              {isSaving ? (
-                <>Saving...</>
-              ) : (
-                <>
-                  <CheckCircleIcon className="w-5 h-5" />
-                  Save Changes
-                </>
-              )}
-             </button>
-          </div>
-
+            <button type="submit" disabled={isSaving} className="w-full bg-brand-cerulean hover:bg-brand-prussian text-white py-4 rounded-2xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
+              {isSaving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <><CheckCircleIcon className="w-5 h-5" /> Commit Changes</>}
+            </button>
+          </aside>
         </form>
       </div>
     </DashboardLayout>
   );
 }
+
+// --- Smooth UI Sub-components ---
+
+const Section = ({ title, icon, children }: any) => (
+  <div className="bg-white p-8 rounded-[2rem] border border-brand-aliceBlue shadow-sm">
+    <div className="flex items-center gap-3 mb-8 border-b border-brand-aliceBlue pb-4">
+      <div className="text-brand-cerulean p-2 bg-brand-aliceBlue rounded-xl">{icon}</div>
+      <h2 className="text-xs font-bold text-brand-prussian uppercase tracking-widest">{title}</h2>
+    </div>
+    {children}
+  </div>
+);
+
+const Input = ({ label, ...props }: any) => (
+  <div className="flex flex-col gap-2">
+    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] ml-1">{label}</label>
+    <input {...props} className="w-full bg-brand-aliceBlue/20 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium" />
+  </div>
+);
+
+const Select = ({ label, children, ...props }: any) => (
+  <div className="flex flex-col gap-2">
+    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] ml-1">{label}</label>
+    <select {...props} className="w-full bg-brand-aliceBlue/20 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium cursor-pointer">
+      {children}
+    </select>
+  </div>
+);
+
+const Textarea = ({ label, ...props }: any) => (
+  <div className="flex flex-col gap-2">
+    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] ml-1">{label}</label>
+    <textarea {...props} className="w-full bg-brand-aliceBlue/20 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium resize-none" />
+  </div>
+);
+
+const LoadingSkeleton = () => (
+  <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
+    <div className="flex flex-col h-[70vh] items-center justify-center space-y-4">
+      <ArrowPathIcon className="w-12 h-12 text-brand-cerulean animate-spin" />
+      <p className="text-brand-prussian font-bold uppercase tracking-widest animate-pulse">Synchronizing Curriculum...</p>
+    </div>
+  </DashboardLayout>
+);

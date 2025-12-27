@@ -1,4 +1,3 @@
-import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Lock, ShieldAlert, LogIn } from "lucide-react"; // Changed ChevronRight to LogIn
 import { Link, useNavigate } from "react-router-dom";
@@ -90,7 +89,7 @@ export default function AccessDeniedModal({
                   {/* Secondary Link -> Also acts as Login fallback */}
                   <Link 
                     to="/login" 
-                    className="block w-full py-3 text-sm text-[#05668A] font-bold hover:text-[#053A4E] transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-3 text-sm text-[#05668A] font-bold hover:text-[#053A4E] transition-colors flex items-center justify-center gap-2"
                   >
                     Switch Account <LogIn size={16} />
                   </Link>

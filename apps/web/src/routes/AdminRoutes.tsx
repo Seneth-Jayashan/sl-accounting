@@ -17,6 +17,7 @@ const AddSession = lazy(() => import("../pages/admin/sessions/AddSession"));
 const Batches = lazy(() => import("../pages/admin/batches/Batch"));
 const ViewBatch = lazy(() => import("../pages/admin/batches/ViewBatch"));
 const Payments = lazy(() => import("../pages/admin/payments/Payments"));
+const CreatePayment = lazy(() => import("../pages/admin/payments/CreatePaymentPage"));
 const SupportReply = lazy(() => import("../pages/admin/support/SupportReply"));
 const TicketChat = lazy(() => import("../pages/admin/support/TicketChat"));
 
@@ -47,6 +48,7 @@ export const AdminRoutes = () => {
 
         {/* Payments & Support */}
         <Route path="payments" element={<Payments />} />
+        <Route path="payments/create" element={<CreatePayment />} />
         <Route path="support" element={<SupportReply />} />
         <Route path="chat" element={<TicketChat />} />
         <Route path="chat/ticket/:id" element={<TicketChat />} />

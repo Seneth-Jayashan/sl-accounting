@@ -13,7 +13,7 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-export default function DashboardLayout({ Sidebar, BottomNav, rightSidebar, children, showHeader = true }: LayoutProps) {
+export default function DashboardLayout({ Sidebar, BottomNav, rightSidebar, children = true }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (

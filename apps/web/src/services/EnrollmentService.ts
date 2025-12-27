@@ -10,6 +10,7 @@ export interface EnrolledStudent {
   lastName: string;
   email: string;
   phoneNumber?: string;
+  profilePic?: string; // Added for UI avatar compatibility
 }
 
 export interface EnrolledClass {
@@ -17,20 +18,26 @@ export interface EnrolledClass {
   name: string;
   price: number;
   coverImage?: string;
-  subject?: string; // Added subject based on usage in GetEnrollmentById
+  subject?: string;
 }
 
-// RENAME: Changed 'EnrollmentData' to 'EnrollmentResponse' to match Component
 export interface EnrollmentResponse {
   _id: string;
-  student: EnrolledStudent | string;
-  class: EnrolledClass | string;
+  student: EnrolledStudent | string; // Can be populated object or ID string
+  class: EnrolledClass | string;     // Can be populated object or ID string
   paymentStatus: "paid" | "unpaid" | "pending" | "refunded";
   isActive: boolean;
-  enrollmentDate: string; // ISO String
+  enrollmentDate: string;
   accessEndDate?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// Wrapper for list responses (Handling { success: true, enrollments: [] })
+export interface EnrollmentListResponse {
+  success: boolean;
+  enrollments?: EnrollmentResponse[]; // API might return this
+  message?: string;
 }
 
 interface CheckStatusResponse {
@@ -91,7 +98,8 @@ const EnrollmentService = {
    * 3. Get current user's enrollments
    */
   getMyEnrollments: async () => {
-    // Returns EnrollmentResponse[]
+    // API might return array directly OR object. We use 'any' cast to be safe 
+    // or you can define a specific MyEnrollmentResponse if known.
     const response = await api.get<EnrollmentResponse[]>(`${BASE_URL}/my-enrollments`);
     return response.data;
   },
@@ -106,9 +114,11 @@ const EnrollmentService = {
 
   /**
    * 5. Get all enrollments (Admin)
+   * UPDATED: Returns a Union Type or 'any' to handle the flexibility
    */
   getAllEnrollments: async (params: EnrollmentFilterParams = {}) => {
-    const response = await api.get<EnrollmentResponse[]>(BASE_URL, { params });
+    // We allow the response to be EITHER an Array OR the Wrapper Object
+    const response = await api.get<EnrollmentListResponse | EnrollmentResponse[]>(BASE_URL, { params });
     return response.data;
   },
 

@@ -10,6 +10,15 @@ export interface SchedulePayload {
   timezone?: string;
 }
 
+export interface EnrolledStudent {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  profilePic?: string;
+  phoneNumber?: string;
+}
+
 export interface CreateClassPayload {
   name: string;
   description?: string;
@@ -21,6 +30,7 @@ export interface CreateClassPayload {
   totalSessions?: number;
   sessionDurationMinutes?: number;
   level?: "general" | "ordinary" | "advanced";
+  type?: "theory" | "revision" | "paper";
   tags?: string[];
   isPublished?: boolean;
   // File objects
@@ -37,11 +47,15 @@ export interface ClassData {
   description: string;
   price: number;
   batch: string | any; // Depending on if your backend populates it
+  type: "theory" | "revision" | "paper";
   coverImage?: string;
   images: string[];
   isPublished: boolean;
+  students?: EnrolledStudent[];
   // ... add other fields returned by backend
 }
+
+
 
 interface ClassResponse {
   success: boolean;
@@ -62,6 +76,7 @@ const buildClassFormData = (data: UpdateClassPayload): FormData => {
   if (data.batch) formData.append("batch", data.batch); // Removed "bacth" typo
   if (data.firstSessionDate) formData.append("firstSessionDate", data.firstSessionDate);
   if (data.recurrence) formData.append("recurrence", data.recurrence);
+  if (data.type) formData.append("type", data.type);
   if (data.totalSessions !== undefined) formData.append("totalSessions", String(data.totalSessions));
   if (data.sessionDurationMinutes !== undefined) formData.append("sessionDurationMinutes", String(data.sessionDurationMinutes));
   if (data.level) formData.append("level", data.level);
