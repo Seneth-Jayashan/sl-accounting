@@ -5,6 +5,7 @@ import DashboardLayout from "../../layouts/DashboardLayout";
 import SidebarStudent from "../../components/sidebar/SidebarStudent";
 import { useAuth } from "../../contexts/AuthContext";
 import TicketService from "../../services/TicketService";
+import ChatService from "../../services/ChatService";
 import Chat from "../../components/Chat";
 
 type TicketFormState = {
@@ -25,7 +26,7 @@ const CATEGORY_OPTIONS = [
 
 const PRIORITY_OPTIONS = ["Low", "Medium", "High"];
 export default function StudentTicketPage(): React.ReactElement {
-  const { user, loading: authLoading } = useAuth();
+  const { user, accessToken, loading: authLoading } = useAuth();
   const [ticketId, setTicketId] = useState<string | null>(null);
   const [ticketInfo, setTicketInfo] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -163,6 +164,21 @@ export default function StudentTicketPage(): React.ReactElement {
       cancelled = true;
     };
   }, [ticketId]);
+
+  // Real-time status updates for the student's ticket
+  useEffect(() => {
+    if (!ticketId || !accessToken) return;
+
+    ChatService.joinTicket(ticketId);
+
+    const handleStatus = (payload: any) => {
+      if (!payload?._id || payload._id !== ticketId) return;
+      setTicketInfo((prev: any) => (prev ? { ...prev, ...payload } : payload));
+    };
+
+    ChatService.onTicketStatusUpdated(handleStatus);
+    return () => ChatService.offTicketStatusUpdated(handleStatus);
+  }, [ticketId, accessToken]);
 
   const handleMarkResolved = async () => {
     if (!ticketId) return;

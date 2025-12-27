@@ -30,10 +30,24 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS: Restrict access to your frontend only
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+// CORS: Allow configured frontend origins (supports comma-separated list)
+const parseOrigins = (raw) =>
+  (raw || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+const CLIENT_ORIGINS = parseOrigins(process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN) || ["http://localhost:5173"];
+
+const corsOrigin = (origin, callback) => {
+  // Allow same-origin / tools with no Origin header (e.g., curl, health checks)
+  if (!origin) return callback(null, true);
+  if (CLIENT_ORIGINS.includes(origin)) return callback(null, true);
+  return callback(new Error(`CORS blocked for origin: ${origin}`));
+};
+
 app.use(cors({
-  origin: CLIENT_ORIGIN,
+  origin: corsOrigin,
   credentials: true, // Allow cookies
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

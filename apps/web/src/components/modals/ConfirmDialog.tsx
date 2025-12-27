@@ -8,6 +8,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
+  hideCancel?: boolean;
   onClose: () => void; // treated as cancel
   onConfirm: () => void;
 }
@@ -19,6 +20,7 @@ export default function ConfirmDialog({
   confirmLabel = "OK",
   cancelLabel = "Cancel",
   loading = false,
+  hideCancel = false,
   onClose,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -53,13 +55,15 @@ export default function ConfirmDialog({
                 <p className="text-sm text-gray-600 mb-6">{message}</p>
 
                 <div className="flex gap-3 justify-center">
-                  <button
-                    onClick={onClose}
-                    disabled={loading}
-                    className="px-4 py-2 rounded-xl border bg-white text-gray-700 disabled:opacity-60"
-                  >
-                    {cancelLabel}
-                  </button>
+                  {!hideCancel && (
+                    <button
+                      onClick={onClose}
+                      disabled={loading}
+                      className="px-4 py-2 rounded-xl border bg-white text-gray-700 disabled:opacity-60"
+                    >
+                      {cancelLabel}
+                    </button>
+                  )}
                   <button
                     onClick={onConfirm}
                     disabled={loading}

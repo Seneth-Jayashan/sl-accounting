@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import api , { getAccessToken} from "./api";
+import api, { getAccessToken } from "./api";
 
 
 export interface ChatMessage {
@@ -21,15 +21,18 @@ class ChatService {
   // Resolve the socket base URL and strip any /api/* suffix that may be set for REST
   private getSocketUrl() {
     const fallback = typeof window !== "undefined" ? window.location.origin : "";
+
+    // Prefer explicitly set socket URL, else reuse API baseURL to stay on same host/port
     const raw =
       (import.meta as any).env?.VITE_SOCKET_URL ||
       (import.meta as any).env?.VITE_SERVER_URL ||
+      api?.defaults?.baseURL ||
       (import.meta as any).env?.VITE_API_URL ||
       fallback;
 
     try {
       const url = new URL(raw, fallback || "http://localhost");
-      //  Socket.IO handshake hits /socket.io at the root
+      // Socket.IO handshake hits /socket.io at the root; strip any /api/v1 suffix
       url.pathname = url.pathname.replace(/\/api(\/v\d+)?\/?$/i, "");
       return url.toString().replace(/\/$/, "");
     } catch {
@@ -40,8 +43,7 @@ class ChatService {
 
 
   init() {
-
-    const token = getAccessToken(); 
+    const token = getAccessToken();
     if (!token) {
       console.warn("ChatService: No access token found. Delaying connection...");
       return;
@@ -69,13 +71,39 @@ class ChatService {
   }
 
   onReceiveMessage(cb: (msg: ChatMessage) => void) {
+    this.init();
     this.socket?.on("receive_message", cb);
   }
 
   offReceiveMessage(cb?: (msg: ChatMessage) => void) {
+    this.init();
     if (!this.socket) return;
     if (cb) this.socket.off("receive_message", cb);
     else this.socket.off("receive_message");
+  }
+
+  onTicketCreated(cb: (ticket: any) => void) {
+    this.init();
+    this.socket?.on("ticket_created", cb);
+  }
+
+  offTicketCreated(cb?: (ticket: any) => void) {
+    this.init();
+    if (!this.socket) return;
+    if (cb) this.socket.off("ticket_created", cb);
+    else this.socket.off("ticket_created");
+  }
+
+  onTicketStatusUpdated(cb: (payload: any) => void) {
+    this.init();
+    this.socket?.on("ticket_status_updated", cb);
+  }
+
+  offTicketStatusUpdated(cb?: (payload: any) => void) {
+    this.init();
+    if (!this.socket) return;
+    if (cb) this.socket.off("ticket_status_updated", cb);
+    else this.socket.off("ticket_status_updated");
   }
 
   onTyping(cb: (data: { isTyping: boolean; senderId: string }) => void) {

@@ -6,10 +6,12 @@ import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import TicketService, { type Ticket } from "../../../services/TicketService";
 import { useAuth } from "../../../contexts/AuthContext";
 import Chat from "../../../components/Chat";
+import ChatService from "../../../services/ChatService";
+import ConfirmDialog from "../../../components/modals/ConfirmDialog";
 
 export default function TicketChatAdmin() {
   const STATUS_OPTIONS = ["Open", "In Progress", "Resolved", "Closed"];
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -20,6 +22,17 @@ export default function TicketChatAdmin() {
   const [error, setError] = useState<string>("");
   const [statusUpdating, setStatusUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [infoDialog, setInfoDialog] = useState<{ title: string; message: string } | null>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+
+  const sortTicketsDesc = (items: Ticket[]) =>
+    [...items].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
 
   const loadTicketDetails = async (id: string) => {
     setLoadingTicket(true);
@@ -43,21 +56,15 @@ export default function TicketChatAdmin() {
       .then((items) => {
         if (!mounted) return;
         // Newest first when createdAt is available
-        const sorted = [...items].sort((a, b) => {
-          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return bTime - aTime;
-        });
+        const sorted = sortTicketsDesc(items);
         setTickets(sorted);
         // Prefer URL param if present
         const paramId = params.id;
         if (paramId && sorted.some((t) => t._id === paramId)) {
           setSelectedId(paramId);
-        } else if (sorted.length > 0) {
-          setSelectedId(sorted[0]._id);
-          // keep URL aligned by navigating to first ticket when none selected
-          if (!paramId)
-            navigate(`/admin/chat/ticket/${sorted[0]._id}`, { replace: true });
+        } else {
+          // Leave selection empty when landing without a ticket id
+          setSelectedId(null);
         }
       })
       .catch((e) => {
@@ -89,6 +96,37 @@ export default function TicketChatAdmin() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedId]);
 
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const handleTicketCreated = (ticket: Ticket) => {
+      setTickets((prev) => {
+        if (!ticket?._id || prev.some((t) => t._id === ticket._id)) return prev;
+        return sortTicketsDesc([ticket, ...prev]);
+      });
+    };
+
+    ChatService.onTicketCreated(handleTicketCreated);
+    return () => ChatService.offTicketCreated(handleTicketCreated);
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!selectedId || !accessToken) return;
+
+    ChatService.joinTicket(selectedId);
+
+    const handleStatus = (payload: any) => {
+      if (!payload?._id || payload._id !== selectedId) return;
+
+      setSelectedTicket((prev) => (prev ? { ...prev, ...payload } : payload));
+      setTickets((prev) =>
+        prev.map((t) => (t._id === payload._id ? { ...t, status: payload.status } : t))
+      );
+    };
+
+    ChatService.onTicketStatusUpdated(handleStatus);
+    return () => ChatService.offTicketStatusUpdated(handleStatus);
+  }, [selectedId, accessToken]);
   const stats = useMemo(() => {
     const total = tickets.length;
     const open = tickets.filter(
@@ -119,33 +157,8 @@ export default function TicketChatAdmin() {
     );
   };
 
-  const handleStatusChange = async (nextStatus: string) => {
+  const applyStatusChange = async (nextStatus: string) => {
     if (!selectedTicket || !selectedId) return;
-
-    const currentStatus = String(selectedTicket.status || "Open");
-    const isResolved = currentStatus === "Resolved";
-
-    // Admin cannot set status to Resolved directly
-    if (nextStatus === "Resolved" && !isResolved) {
-      window.alert("Only the user can mark this ticket as Resolved.");
-      return;
-    }
-
-    // When ticket is Resolved, admin may only Close it
-    if (isResolved && nextStatus !== "Closed" && nextStatus !== currentStatus) {
-      window.alert(
-        "This ticket was marked Resolved by the user. You can only Close it."
-      );
-      return;
-    }
-
-    // Confirm before closing
-    if (nextStatus === "Closed") {
-      const ok = window.confirm(
-        "Close this ticket? This will prevent further updates unless reopened by an admin."
-      );
-      if (!ok) return;
-    }
     setStatusUpdating(true);
     setError("");
     try {
@@ -181,16 +194,52 @@ export default function TicketChatAdmin() {
       setError("Failed to update status");
     } finally {
       setStatusUpdating(false);
+      setPendingStatus(null);
+      setShowCloseConfirm(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedId) return;
-    const confirmed = window.confirm(
-      "Delete this ticket and its chat messages?"
-    );
-    if (!confirmed) return;
+  const handleStatusChange = (nextStatus: string) => {
+    if (!selectedTicket || !selectedId) return;
 
+    const currentStatus = String(selectedTicket.status || "Open");
+    const isResolved = currentStatus === "Resolved";
+
+    // Admin cannot set status to Resolved directly
+    if (nextStatus === "Resolved" && !isResolved) {
+      setInfoDialog({
+        title: "User-only change",
+        message: "Only the user can mark this ticket as Resolved.",
+      });
+      return;
+    }
+
+    // When ticket is Resolved, admin may only Close it
+    if (isResolved && nextStatus !== "Closed" && nextStatus !== currentStatus) {
+      setInfoDialog({
+        title: "Close required",
+        message: "This ticket was marked Resolved by the user. You can only Close it.",
+      });
+      return;
+    }
+
+    // Confirm before closing
+    if (nextStatus === "Closed") {
+      setPendingStatus("Closed");
+      setShowCloseConfirm(true);
+      return;
+    }
+
+    void applyStatusChange(nextStatus);
+  };
+
+  const openDeleteConfirm = () => {
+    if (!selectedId) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedId) return;
     setDeleting(true);
     setError("");
     try {
@@ -208,6 +257,7 @@ export default function TicketChatAdmin() {
       setError("Failed to delete ticket");
     } finally {
       setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -385,7 +435,7 @@ export default function TicketChatAdmin() {
                         "closed" ? (
                           <button
                             className="text-sm px-3 py-2 rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60"
-                            onClick={handleDelete}
+                            onClick={openDeleteConfirm}
                             disabled={deleting || statusUpdating}
                           >
                             {deleting ? "Deleting..." : "Delete"}
@@ -447,6 +497,44 @@ export default function TicketChatAdmin() {
           </div>
         </main>
       </div>
+
+      {/* Info dialog for non-blocking alerts */}
+      <ConfirmDialog
+        isOpen={Boolean(infoDialog)}
+        title={infoDialog?.title}
+        message={infoDialog?.message}
+        confirmLabel="OK"
+        hideCancel
+        onClose={() => setInfoDialog(null)}
+        onConfirm={() => setInfoDialog(null)}
+      />
+
+      {/* Close confirmation */}
+      <ConfirmDialog
+        isOpen={showCloseConfirm}
+        title="Close ticket"
+        message="Close this ticket? This will prevent further updates unless reopened by an admin."
+        confirmLabel={statusUpdating ? "Closing..." : "Close"}
+        cancelLabel="Cancel"
+        loading={statusUpdating}
+        onClose={() => {
+          setShowCloseConfirm(false);
+          setPendingStatus(null);
+        }}
+        onConfirm={() => pendingStatus && applyStatusChange(pendingStatus)}
+      />
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete ticket"
+        message="Delete this ticket and its chat messages?"
+        confirmLabel={deleting ? "Deleting..." : "Delete"}
+        cancelLabel="Cancel"
+        loading={deleting}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDelete}
+      />
     </DashboardLayout>
   );
 }
