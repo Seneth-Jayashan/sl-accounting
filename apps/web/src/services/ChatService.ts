@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
-import api from "./api";
+import api , { getAccessToken} from "./api";
+
 
 export interface ChatMessage {
   _id?: string;
@@ -36,10 +37,20 @@ class ChatService {
     }
   }
 
+
+
   init() {
+
+    const token = getAccessToken(); 
+    if (!token) {
+      console.warn("ChatService: No access token found. Delaying connection...");
+      return;
+    }
+
     if (this.socket) return;
     const baseUrl = this.getSocketUrl();
     this.socket = io(baseUrl, {
+      auth: { token },
       transports: ["websocket", "polling"],
       withCredentials: true,
     });
