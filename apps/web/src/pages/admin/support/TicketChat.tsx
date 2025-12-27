@@ -4,11 +4,8 @@ import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import TicketService, { type Ticket } from "../../../services/TicketService";
-import ChatService from "../../../services/ChatService";
 import { useAuth } from "../../../contexts/AuthContext";
 import Chat from "../../../components/Chat";
-import Dropdown from "../../../components/Dropdown";
-import ConfirmDialog from "../../../components/modals/ConfirmDialog";
 
 export default function TicketChatAdmin() {
   const STATUS_OPTIONS = ["Open", "In Progress", "Resolved", "Closed"];
@@ -23,22 +20,6 @@ export default function TicketChatAdmin() {
   const [error, setError] = useState<string>("");
   const [statusUpdating, setStatusUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
-  const [confirmConfig, setConfirmConfig] = useState<{
-    isOpen: boolean;
-    title?: string;
-    message?: string;
-    confirmLabel?: string;
-    cancelLabel?: string;
-    loading?: boolean;
-    resolve?: (v: boolean) => void;
-  }>({ isOpen: false });
-
-  const sortTicketsDesc = (items: Ticket[]) =>
-    [...items].sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
 
   const loadTicketDetails = async (id: string) => {
     setLoadingTicket(true);
@@ -62,16 +43,21 @@ export default function TicketChatAdmin() {
       .then((items) => {
         if (!mounted) return;
         // Newest first when createdAt is available
-        const sorted = sortTicketsDesc(items);
+        const sorted = [...items].sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
         setTickets(sorted);
         // Prefer URL param if present
         const paramId = params.id;
         if (paramId && sorted.some((t) => t._id === paramId)) {
           setSelectedId(paramId);
-        } else {
-          // Do not auto-select or navigate when visiting the ticket list page
-          // (leave selection empty so `/admin/chat` shows the list without opening a chat)
-          setSelectedId(null);
+        } else if (sorted.length > 0) {
+          setSelectedId(sorted[0]._id);
+          // keep URL aligned by navigating to first ticket when none selected
+          if (!paramId)
+            navigate(`/admin/chat/ticket/${sorted[0]._id}`, { replace: true });
         }
       })
       .catch((e) => {
@@ -82,19 +68,6 @@ export default function TicketChatAdmin() {
     return () => {
       mounted = false;
     };
-  }, []);
-
-  // Listen for real-time ticket creations and prepend new items
-  useEffect(() => {
-    const handleTicketCreated = (ticket: Ticket) => {
-      setTickets((prev) => {
-        if (!ticket?._id || prev.some((t) => t._id === ticket._id)) return prev;
-        return sortTicketsDesc([ticket, ...prev]);
-      });
-    };
-
-    ChatService.onTicketCreated(handleTicketCreated);
-    return () => ChatService.offTicketCreated(handleTicketCreated);
   }, []);
 
   // Load selected ticket details for header meta
@@ -114,25 +87,6 @@ export default function TicketChatAdmin() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId]);
-
-  // Listen for real-time status changes (e.g., student marks Resolved)
-  useEffect(() => {
-    if (!selectedId) return;
-
-    ChatService.joinTicket(selectedId);
-
-    const handleStatus = (payload: any) => {
-      if (!payload?._id || payload._id !== selectedId) return;
-
-      setSelectedTicket((prev) => (prev ? { ...prev, ...payload } : payload));
-      setTickets((prev) =>
-        prev.map((t) => (t._id === payload._id ? { ...t, status: payload.status } : t))
-      );
-    };
-
-    ChatService.onTicketStatusUpdated(handleStatus);
-    return () => ChatService.offTicketStatusUpdated(handleStatus);
   }, [selectedId]);
 
   const stats = useMemo(() => {
@@ -173,57 +127,23 @@ export default function TicketChatAdmin() {
 
     // Admin cannot set status to Resolved directly
     if (nextStatus === "Resolved" && !isResolved) {
-      await new Promise<void>((res) => {
-        setConfirmConfig({
-          isOpen: true,
-          title: "Action not allowed",
-          message: "Only the user can mark this ticket as Resolved.",
-          confirmLabel: "OK",
-          cancelLabel: "",
-          resolve: () => {
-            res();
-            setConfirmConfig({ isOpen: false });
-          },
-        });
-      });
+      window.alert("Only the user can mark this ticket as Resolved.");
       return;
     }
 
     // When ticket is Resolved, admin may only Close it
     if (isResolved && nextStatus !== "Closed" && nextStatus !== currentStatus) {
-      await new Promise<void>((res) => {
-        setConfirmConfig({
-          isOpen: true,
-          title: "Cannot change status",
-          message:
-            "This ticket was marked Resolved by the user. You can only Close it.",
-          confirmLabel: "OK",
-          cancelLabel: "",
-          resolve: () => {
-            res();
-            setConfirmConfig({ isOpen: false });
-          },
-        });
-      });
+      window.alert(
+        "This ticket was marked Resolved by the user. You can only Close it."
+      );
       return;
     }
 
     // Confirm before closing
     if (nextStatus === "Closed") {
-      const ok = await new Promise<boolean>((resolve) => {
-        setConfirmConfig({
-          isOpen: true,
-          title: "Close ticket",
-          message:
-            "Close this ticket? This will prevent further updates unless reopened by an admin.",
-          confirmLabel: "Close",
-          cancelLabel: "Cancel",
-          resolve: (v: boolean) => {
-            resolve(!!v);
-            setConfirmConfig({ isOpen: false });
-          },
-        });
-      });
+      const ok = window.confirm(
+        "Close this ticket? This will prevent further updates unless reopened by an admin."
+      );
       if (!ok) return;
     }
     setStatusUpdating(true);
@@ -266,19 +186,9 @@ export default function TicketChatAdmin() {
 
   const handleDelete = async () => {
     if (!selectedId) return;
-    const confirmed = await new Promise<boolean>((resolve) => {
-      setConfirmConfig({
-        isOpen: true,
-        title: "Delete ticket",
-        message: "Delete this ticket and its chat messages?",
-        confirmLabel: "Delete",
-        cancelLabel: "Cancel",
-        resolve: (v: boolean) => {
-          resolve(!!v);
-          setConfirmConfig({ isOpen: false });
-        },
-      });
-    });
+    const confirmed = window.confirm(
+      "Delete this ticket and its chat messages?"
+    );
     if (!confirmed) return;
 
     setDeleting(true);
@@ -420,8 +330,8 @@ export default function TicketChatAdmin() {
 
                 {/* Chat area */}
                 <div className="lg:col-span-2 space-y-3">
-                  <div className="rounded-2xl border bg-white shadow-sm p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between relative">
-                    <div className="min-w-0">
+                  <div className="rounded-2xl border bg-white shadow-sm p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
                       <div className="text-xs text-gray-500">Ticket detail</div>
                       {loadingTicket ? (
                         <div className="text-sm text-gray-600">
@@ -435,36 +345,46 @@ export default function TicketChatAdmin() {
                         </div>
                       )}
                     </div>
-                      {selectedTicket && (
-                      <div className="flex flex-col items-end md:flex-row gap-2 md:items-center md:flex-nowrap">
+                    {selectedTicket && (
+                      <div className="flex flex-col md:flex-row gap-2 md:items-center">
                         <label className="text-sm text-gray-600 flex items-center gap-2">
                           <span className="text-xs uppercase tracking-wide text-gray-500">
                             Status
                           </span>
-                            <div className="min-w-[140px] w-full md:w-[180px] max-w-[240px]">
-                            <Dropdown
-                              value={selectedTicket.status || "Open"}
-                              onChange={(v) => handleStatusChange(v)}
-                              options={STATUS_OPTIONS.filter((opt) => {
-                                const current = selectedTicket.status || "Open";
-                                if (opt === "Resolved" && current !== "Resolved") return false;
-                                if (opt === "Closed" && current !== "Resolved" && current !== "Closed") return false;
-                                return true;
-                              }).map((opt) => ({ value: opt, label: opt }))}
-                              disabled={
-                                statusUpdating ||
-                                deleting ||
-                                String(selectedTicket.status || "").toLowerCase() === "closed"
-                              }
-                                wrapperClassName="w-full md:w-[180px]"
-                              className="px-3 py-2"
-                            />
-                          </div>
+                          <select
+                            className="border rounded-lg px-3 py-2 text-sm bg-white"
+                            value={selectedTicket.status || "Open"}
+                            onChange={(e) => handleStatusChange(e.target.value)}
+                            disabled={
+                              statusUpdating ||
+                              deleting ||
+                              String(
+                                selectedTicket.status || ""
+                              ).toLowerCase() === "closed"
+                            }
+                          >
+                            {STATUS_OPTIONS.filter((opt) => {
+                              const current = selectedTicket.status || "Open";
+                              if (opt === "Resolved" && current !== "Resolved")
+                                return false; // admin can't set to Resolved
+                              if (
+                                opt === "Closed" &&
+                                current !== "Resolved" &&
+                                current !== "Closed"
+                              )
+                                return false; // show Closed only after Resolved
+                              return true;
+                            }).map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                         {(selectedTicket.status || "").toLowerCase() ===
                         "closed" ? (
                           <button
-                            className="text-sm px-3 py-2 rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60 shrink-0 self-end md:self-auto"
+                            className="text-sm px-3 py-2 rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60"
                             onClick={handleDelete}
                             disabled={deleting || statusUpdating}
                           >
@@ -527,28 +447,6 @@ export default function TicketChatAdmin() {
           </div>
         </main>
       </div>
-      <ConfirmDialog
-        isOpen={!!confirmConfig.isOpen}
-        title={confirmConfig.title}
-        message={confirmConfig.message}
-        confirmLabel={confirmConfig.confirmLabel}
-        cancelLabel={confirmConfig.cancelLabel || "Cancel"}
-        loading={confirmConfig.loading}
-        onConfirm={() => {
-          try {
-            confirmConfig.resolve?.(true);
-          } finally {
-            setConfirmConfig({ isOpen: false });
-          }
-        }}
-        onClose={() => {
-          try {
-            confirmConfig.resolve?.(false);
-          } finally {
-            setConfirmConfig({ isOpen: false });
-          }
-        }}
-      />
     </DashboardLayout>
   );
 }

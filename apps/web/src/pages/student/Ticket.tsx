@@ -5,9 +5,7 @@ import DashboardLayout from "../../layouts/DashboardLayout";
 import SidebarStudent from "../../components/sidebar/SidebarStudent";
 import { useAuth } from "../../contexts/AuthContext";
 import TicketService from "../../services/TicketService";
-import ChatService from "../../services/ChatService";
 import Chat from "../../components/Chat";
-import Dropdown from "../../components/Dropdown";
 
 type TicketFormState = {
   name: string;
@@ -42,7 +40,7 @@ export default function StudentTicketPage(): React.ReactElement {
 
   useEffect(() => {
     if (!user) return;
-
+    // restore an open ticket for this user from the server (no localStorage)
     (async () => {
       try {
         const open = await TicketService.getOpenTicketForUser(user._id);
@@ -151,7 +149,7 @@ export default function StudentTicketPage(): React.ReactElement {
         const t = await TicketService.getTicketById(ticketId);
         if (cancelled) return;
         setTicketInfo(t ?? null);
-      
+        // if ticket closed, reset local state (no localStorage used)
         if (t && isTicketClosed(t)) {
           setTicketId(null);
           setTicketInfo(null);
@@ -164,27 +162,6 @@ export default function StudentTicketPage(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [ticketId]);
-
-  // Reflect ticket status changes in real time (e.g., admin closes the ticket)
-  useEffect(() => {
-    if (!ticketId) return;
-
-    ChatService.joinTicket(ticketId);
-
-    const handleStatus = (payload: any) => {
-      if (!payload?._id || payload._id !== ticketId) return;
-
-      setTicketInfo(payload);
-
-      if (isTicketClosed(payload)) {
-        setTicketId(null);
-        setTicketInfo(null);
-      }
-    };
-
-    ChatService.onTicketStatusUpdated(handleStatus);
-    return () => ChatService.offTicketStatusUpdated(handleStatus);
   }, [ticketId]);
 
   const handleMarkResolved = async () => {
@@ -303,14 +280,18 @@ export default function StudentTicketPage(): React.ReactElement {
                 Category
                 <div className="relative">
                   <FaClipboardList className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                  <Dropdown
+                  <select
                     name="category"
                     value={form.category}
-                    onChange={(v) => setForm((prev) => ({ ...prev, category: v }))}
-                    options={CATEGORY_OPTIONS.map((opt) => ({ value: opt, label: opt }))}
-                    className="pl-10 pr-12 py-3 focus:border-[#05668A] focus:ring-[#05668A]/15"
-                    wrapperClassName="w-full"
-                  />
+                    onChange={handleChange}
+                    className="w-full bg-white border border-gray-200 pl-10 pr-3 py-3 rounded-xl focus:border-[#05668A] focus:ring-1 focus:ring-[#05668A]"
+                  >
+                    {CATEGORY_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </label>
 
@@ -318,14 +299,18 @@ export default function StudentTicketPage(): React.ReactElement {
                 Priority
                 <div className="relative">
                   <FaFlag className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
-                  <Dropdown
+                  <select
                     name="priority"
                     value={form.priority}
-                    onChange={(v) => setForm((prev) => ({ ...prev, priority: v }))}
-                    options={PRIORITY_OPTIONS.map((opt) => ({ value: opt, label: opt }))}
-                    className="pl-10 pr-12 py-3 focus:border-[#05668A] focus:ring-[#05668A]/15"
-                    wrapperClassName="w-full"
-                  />
+                    onChange={handleChange}
+                    className="w-full bg-white border border-gray-200 pl-10 pr-3 py-3 rounded-xl focus:border-[#05668A] focus:ring-1 focus:ring-[#05668A]"
+                  >
+                    {PRIORITY_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </label>
             </div>

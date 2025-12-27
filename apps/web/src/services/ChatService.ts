@@ -15,7 +15,6 @@ export interface ChatMessage {
 
 class ChatService {
   private socket: Socket | null = null;
-  private readonly joinedRooms = new Set<string>();
   // Timeout (ms) to wait for socket ack before falling back to REST
   private readonly SOCKET_ACK_TIMEOUT_MS = 2000;
 
@@ -56,13 +55,6 @@ class ChatService {
       withCredentials: true,
     });
 
-    // Rejoin any ticket rooms after reconnect so chat continues seamlessly
-    this.socket.on("connect", () => {
-      this.joinedRooms.forEach((room) => {
-        this.socket?.emit("join_ticket", { ticketId: room });
-      });
-    });
-
     this.socket.on("connect_error", (err) =>
       console.error("ChatService socket connect_error", err?.message || err)
     );
@@ -73,31 +65,7 @@ class ChatService {
 
   joinTicket(ticketId: string) {
     this.init();
-    if (!ticketId) return;
-    this.joinedRooms.add(ticketId);
     this.socket?.emit("join_ticket", { ticketId });
-  }
-
-  onTicketStatusUpdated(cb: (data: any) => void) {
-    this.init();
-    this.socket?.on("ticket_status_updated", cb);
-  }
-
-  offTicketStatusUpdated(cb?: (data: any) => void) {
-    if (!this.socket) return;
-    if (cb) this.socket.off("ticket_status_updated", cb);
-    else this.socket.off("ticket_status_updated");
-  }
-
-  onTicketCreated(cb: (ticket: Ticket) => void) {
-    this.init();
-    this.socket?.on("ticket_created", cb);
-  }
-
-  offTicketCreated(cb?: (ticket: Ticket) => void) {
-    if (!this.socket) return;
-    if (cb) this.socket.off("ticket_created", cb);
-    else this.socket.off("ticket_created");
   }
 
   onReceiveMessage(cb: (msg: ChatMessage) => void) {
