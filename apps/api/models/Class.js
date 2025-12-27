@@ -58,6 +58,7 @@ const classSchema = new mongoose.Schema({
   batch: { type: mongoose.Schema.Types.ObjectId, ref: "Batch", required: true, index: true },
   
   level: { type: String, enum: ["general", "ordinary", "advanced"], default: "general" },
+  type: { type: String, enum: ["theory", "revision", "paper"], default: "theory" },
   tags: [{ type: String, index: true }], // 'index: true' here is sufficient
 
   // Status flags

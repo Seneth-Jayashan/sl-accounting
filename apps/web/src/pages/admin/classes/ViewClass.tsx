@@ -1,424 +1,256 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import moment from "moment";
+import { motion, AnimatePresence } from "framer-motion";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import ClassService from "../../../services/ClassService";
-import moment from "moment";
+import SessionService from "../../../services/SessionService"; // Import Session Service
 import {
   ArrowLeftIcon,
-  PencilSquareIcon,
-  TrashIcon,
-  CalendarDaysIcon,
-  ClockIcon,
-  CurrencyDollarIcon,
   UserGroupIcon,
   AcademicCapIcon,
-  MapPinIcon,
+  ClockIcon,
+  ArrowPathIcon,
   VideoCameraIcon,
-  CheckBadgeIcon,
-  XCircleIcon
+  TrashIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
-
-// --- Configuration ---
-// IMPORTANT: Point this to your BACKEND port (usually 5000), not the Frontend port.
-const API_BASE_URL = "http://localhost:3000"; 
-
-// --- Interfaces ---
-interface Session {
-  _id: string;
-  index: number;
-  startAt: string;
-  endAt: string;
-  zoomMeetingId?: string;
-  zoomJoinUrl?: string;
-  recordingShared: boolean;
-}
-
-interface Schedule {
-  day: number; // 0=Sunday, 1=Monday...
-  startTime: string;
-  timezone: string;
-}
-
-interface ClassData {
-  _id: string;
-  name: string;
-  description?: string;
-  price?: number;
-  batch?: string;
-  level?: string;
-  coverImage?: string;
-  images?: string[];
-  tags?: string[];
-  firstSessionDate?: string;
-  recurrence?: string;
-  totalSessions?: number;
-  sessionDurationMinutes?: number;
-  timeSchedules?: Schedule[];
-  sessions?: Session[];
-  isActive: boolean;
-  isPublished: boolean;
-  studentCount?: number; 
-  createdAt?: string;
-}
 
 export default function ViewClassPage() {
   const { id } = useParams<{ id: string }>();
-  console.log("Class ID from URL:", id);
   const navigate = useNavigate();
-  
-  const [classData, setClassData] = useState<ClassData | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [classData, setClassData] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<"students" | "sessions">("sessions");
+  
+  // Cancellation Modal State
+  const [cancelModal, setCancelModal] = useState<{ isOpen: boolean; sessionId: string | null }>({
+    isOpen: false,
+    sessionId: null
+  });
+  const [cancelReason, setCancelReason] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Helper to format image URLs
-  const getImageUrl = (path?: string) => {
-    if (!path) return null;
-    if (path.startsWith("http")) return path; // Already an absolute URL
-    
-    // Replace backslashes (Windows) with forward slashes
-    const cleanPath = path.replace(/\\/g, "/");
-    
-    // Ensure we don't double slash (e.g., base/ + /uploads)
-    const normalizedPath = cleanPath.startsWith("/") ? cleanPath.slice(1) : cleanPath;
-    
-    return `${API_BASE_URL}/${normalizedPath}`;
-  };
-
-  const getDayName = (dayIndex: number) => {
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    return days[dayIndex] || "Unknown";
-  };
-
-  // 1. Fetch Class Data
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!id) return;
-
-    const fetchClass = async () => {
-      setIsLoading(true);
-      try {
-        // Response is expected to be: { success: boolean; class: ClassData }
-        const response: any = await ClassService.getClassById(id);
-        console.log("Fetched Class Data:", response);
-        // --- FIX IS HERE: Check success and set 'response.class' ---
-        if (response) {
-          setClassData(response);
-        } else {
-          setError("Class not found.");
-        }
-      } catch (err: any) {
-        console.error(err);
-        setError("Failed to fetch class details.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchClass();
+    setIsLoading(true);
+    try {
+      const res = await ClassService.getClassById(id);
+      setClassData(res.class || res);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [id]);
 
-  console.log("Class Data State:", classData);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // 2. Handle Delete
-  const handleDelete = async () => {
-    if (!id) return;
-    if (!window.confirm("Are you sure? This will remove the class and all associated sessions.")) return;
+  // --- Handlers ---
 
+  const handleCancelClick = (sessionId: string) => {
+    setCancelModal({ isOpen: true, sessionId });
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!cancelModal.sessionId || !cancelReason.trim()) return;
+    
+    setIsProcessing(true);
     try {
-      await ClassService.deleteClass(id);
-      navigate("/admin/classes");
+      await SessionService.cancelSession(cancelModal.sessionId, cancelReason);
+      
+      // Update UI locally (Optimistic Update)
+      setClassData((prev: any) => ({
+        ...prev,
+        sessions: prev.sessions.map((s: any) => 
+          s._id === cancelModal.sessionId 
+            ? { ...s, isCancelled: true, cancellationReason: cancelReason } 
+            : s
+        )
+      }));
+      
+      setCancelModal({ isOpen: false, sessionId: null });
+      setCancelReason("");
     } catch (err) {
-      alert("Failed to delete class.");
+      alert("Failed to cancel session. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  // --- Right Sidebar (Actions) ---
-  const ActionSidebar = (
-    <div className="space-y-4">
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-900 mb-4">Class Actions</h3>
-        
-        {/* Status Indicators */}
-        <div className="flex gap-2 mb-4">
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${classData?.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                {classData?.isActive ? <CheckBadgeIcon className="w-3 h-3"/> : <XCircleIcon className="w-3 h-3"/>}
-                {classData?.isActive ? "Active" : "Inactive"}
-            </span>
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${classData?.isPublished ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                {classData?.isPublished ? "Published" : "Draft"}
-            </span>
-        </div>
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!window.confirm("Permanent Action: This will delete the session record and the Zoom meeting. Proceed?")) return;
+    try {
+      await SessionService.deleteSession(sessionId);
+      setClassData((prev: any) => ({
+        ...prev,
+        sessions: prev.sessions.filter((s: any) => s._id !== sessionId)
+      }));
+    } catch (err) {
+      alert("Delete failed.");
+    }
+  };
 
-        <button 
-          onClick={() => navigate(`/admin/classes/edit/${id}`)}
-          className="w-full flex items-center justify-center gap-2 bg-[#0b2540] text-white py-2.5 rounded-xl mb-3 hover:bg-[#153454] transition-colors"
-        >
-          <PencilSquareIcon className="w-5 h-5" /> Edit Details
-        </button>
-        <button 
-          onClick={handleDelete}
-          className="w-full flex items-center justify-center gap-2 bg-white text-red-600 border border-red-100 py-2.5 rounded-xl hover:bg-red-50 transition-colors"
-        >
-          <TrashIcon className="w-5 h-5" /> Delete Class
-        </button>
-      </div>
-
-      <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
-        <h3 className="font-semibold text-blue-800 mb-2">Quick Stats</h3>
-        <div className="flex justify-between items-center text-sm text-blue-700 mb-2">
-          <span>Active Students</span>
-          <span className="font-bold">{classData?.studentCount || 0}</span>
-        </div>
-        <div className="flex justify-between items-center text-sm text-blue-700">
-          <span>Total Revenue</span>
-          <span className="font-bold">LKR {((classData?.studentCount || 0) * (classData?.price || 0)).toLocaleString()}</span>
-        </div>
-      </div>
-    </div>
-  );
-
-  // --- Loading / Error States ---
-  if (isLoading) {
-    return (
-      <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
-        <div className="flex h-screen items-center justify-center text-gray-400 animate-pulse">
-          Loading Class Details...
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (error || !classData) {
-    return (
-      <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
-        <div className="text-center py-20">
-          <h2 className="text-xl font-bold text-gray-800">Error</h2>
-          <p className="text-gray-500">{error || "Class not found"}</p>
-          <button onClick={() => navigate(-1)} className="mt-4 text-[#0b2540] underline">Go Back</button>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  const coverUrl = getImageUrl(classData.coverImage);
+  if (isLoading) return <LoadingState />;
+  if (!classData) return <NotFoundState onBack={() => navigate("/admin/classes")} />;
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={ActionSidebar}>
-      <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
+      <div className="max-w-6xl mx-auto space-y-6 p-6 pb-24 animate-in fade-in duration-500">
         
-        {/* Back Button */}
-        <button 
-          onClick={() => navigate("/admin/classes")}
-          className="flex items-center text-gray-500 hover:text-[#0b2540] transition-colors"
-        >
-          <ArrowLeftIcon className="w-4 h-4 mr-1" /> Back to Classes
-        </button>
+        {/* --- HEADER --- */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="space-y-1">
+            <button onClick={() => navigate("/admin/classes")} className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest">
+              <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Curriculum
+            </button>
+            <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">{classData.name}</h1>
+          </div>
+          <button onClick={() => navigate(`/admin/classes/edit/${id}`)} className="bg-brand-aliceBlue text-brand-prussian px-4 py-2 rounded-lg text-xs font-semibold hover:bg-brand-cerulean hover:text-white transition-all shadow-sm">
+             Edit Module
+          </button>
+        </header>
 
-        {/* HERO BANNER */}
-        <div className="relative w-full h-48 sm:h-72 rounded-3xl overflow-hidden shadow-sm border border-gray-100 group">
-          {/* Background Image */}
-          {coverUrl ? (
-             <img 
-               src={coverUrl} 
-               alt={classData.name} 
-               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-             />
-          ) : (
-             <div className="w-full h-full bg-gradient-to-r from-[#0b2540] to-[#1a3b5c] flex items-center justify-center">
-                <AcademicCapIcon className="w-24 h-24 text-white/20" />
-             </div>
-          )}
-          
-          {/* Overlay Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+        {/* --- STATS --- */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <DetailCard icon={<AcademicCapIcon />} label="Intake" value={classData.batch?.name || "N/A"} />
+          <DetailCard icon={<ClockIcon />} label="Timing" value={classData.timeSchedules?.[0] ? `${moment().day(classData.timeSchedules[0].day).format("dddd")} @ ${classData.timeSchedules[0].startTime}` : "TBA"} />
+          <DetailCard icon={<UserGroupIcon />} label="Enrolled" value={`${classData.studentCount || 0} Students`} />
+        </div>
 
-          {/* Title & Batch Badges */}
-          <div className="absolute bottom-0 left-0 p-6 sm:p-8 w-full">
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-                {classData.batch && (
-                    <span className="bg-blue-500/30 backdrop-blur-md text-blue-50 border border-blue-400/30 px-3 py-1 rounded-full text-xs font-semibold">
-                    Batch: {classData.batch}
-                    </span>
-                )}
-                {classData.level && (
-                    <span className="bg-purple-500/30 backdrop-blur-md text-purple-50 border border-purple-400/30 px-3 py-1 rounded-full text-xs font-semibold">
-                    {classData.level}
-                    </span>
-                )}
-                {classData.tags && classData.tags.map((tag, idx) => (
-                    <span key={idx} className="bg-white/20 backdrop-blur-md text-white border border-white/30 px-3 py-1 rounded-full text-xs font-semibold">
-                    #{tag}
-                    </span>
+        {/* --- SESSIONS TAB --- */}
+        <div className="space-y-4">
+          <div className="flex p-1 bg-brand-aliceBlue/50 rounded-lg w-fit border border-brand-aliceBlue">
+            <TabTrigger active={activeTab === "sessions"} onClick={() => setActiveTab("sessions")} label="Session Controls" />
+            <TabTrigger active={activeTab === "students"} onClick={() => setActiveTab("students")} label="Enrollment" />
+          </div>
+
+          <AnimatePresence mode="wait">
+            {activeTab === "sessions" ? (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                {classData.sessions?.map((session: any) => (
+                  <SessionRow 
+                    key={session._id} 
+                    session={session} 
+                    onCancel={() => handleCancelClick(session._id)}
+                    onDelete={() => handleDeleteSession(session._id)}
+                  />
                 ))}
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-bold text-white tracking-tight mb-1">
-              {classData.name}
-            </h1>
-            <p className="text-gray-300 text-sm sm:text-base max-w-2xl line-clamp-1">
-                Starts on {moment(classData.firstSessionDate).format("MMMM Do, YYYY")} • {classData.recurrence}
-            </p>
-          </div>
+              </motion.div>
+            ) : (
+                <div className="bg-white border border-brand-aliceBlue rounded-xl p-20 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                Student Enrollment View
+              </div>
+            )}
+          </AnimatePresence>
         </div>
-
-        {/* DETAILS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Card 1: Schedule */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-             <div className="flex items-center gap-3 mb-3">
-                 <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-                    <CalendarDaysIcon className="w-6 h-6" />
-                 </div>
-                 <h4 className="font-semibold text-gray-900">Class Schedule</h4>
-             </div>
-             <div className="space-y-2">
-                 {classData.timeSchedules && classData.timeSchedules.length > 0 ? (
-                     classData.timeSchedules.map((sch, i) => (
-                         <div key={i} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded-lg">
-                             <span className="font-medium text-gray-700">{getDayName(sch.day)}</span>
-                             <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-xs font-bold">{sch.startTime}</span>
-                         </div>
-                     ))
-                 ) : (
-                     <p className="text-sm text-gray-400 italic">No specific schedule set.</p>
-                 )}
-             </div>
-          </div>
-
-          {/* Card 2: Pricing & Sessions */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-             <div className="flex items-center gap-3 mb-3">
-                 <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                    <CurrencyDollarIcon className="w-6 h-6" />
-                 </div>
-                 <h4 className="font-semibold text-gray-900">Payment & Plan</h4>
-             </div>
-             <div className="space-y-2">
-                <div className="flex justify-between items-end">
-                   <span className="text-sm text-gray-500">Price</span>
-                   <span className="text-xl font-bold text-gray-900">LKR {classData.price?.toLocaleString()}</span>
-                </div>
-                <div className="w-full h-px bg-gray-100 my-2"></div>
-                <div className="flex justify-between text-sm">
-                   <span className="text-gray-500">Total Sessions</span>
-                   <span className="font-medium text-gray-900">{classData.totalSessions}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                   <span className="text-gray-500">Duration</span>
-                   <span className="font-medium text-gray-900">{classData.sessionDurationMinutes} mins</span>
-                </div>
-             </div>
-          </div>
-
-          {/* Card 3: Location */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-             <div className="flex items-center gap-3 mb-3">
-                 <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                    <MapPinIcon className="w-6 h-6" />
-                 </div>
-                 <h4 className="font-semibold text-gray-900">Location</h4>
-             </div>
-             <div className="text-sm text-gray-600">
-                 <p className="mb-2">This class is conducted online via Zoom.</p>
-                 <div className="flex items-center gap-2 text-xs bg-blue-50 text-blue-700 p-2 rounded-lg border border-blue-100">
-                    <VideoCameraIcon className="w-4 h-4"/>
-                    <span>Auto-generated Zoom links</span>
-                 </div>
-             </div>
-          </div>
-        </div>
-
-        {/* TWO COLUMN SECTION: Description & Sessions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* LEFT: Description & Gallery */}
-            <div className="lg:col-span-2 space-y-6">
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                    <h2 className="text-lg font-bold text-gray-900 mb-4">About this Class</h2>
-                    <div className="prose prose-sm text-gray-600 max-w-none whitespace-pre-wrap">
-                        {classData.description || <span className="italic text-gray-400">No description provided.</span>}
-                    </div>
-                </div>
-
-                {/* Gallery */}
-                {classData.images && classData.images.length > 0 && (
-                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                        <h2 className="text-lg font-bold text-gray-900 mb-4">Gallery</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                            {classData.images.map((img, idx) => (
-                                <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group">
-                                    <img 
-                                        src={getImageUrl(img)!} 
-                                        alt={`Gallery ${idx}`}
-                                        className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* RIGHT: Sessions List */}
-            <div className="lg:col-span-1">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-full">
-                    <div className="flex items-center justify-between mb-4">
-                       <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                          <ClockIcon className="w-5 h-5 text-gray-400" /> 
-                          Sessions
-                       </h2>
-                       <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
-                           {classData.sessions?.length || 0} Total
-                       </span>
-                    </div>
-
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                        {classData.sessions && classData.sessions.length > 0 ? (
-                            classData.sessions.map((session) => (
-                                <div key={session._id} className="p-3 border border-gray-100 rounded-xl hover:border-blue-200 transition-colors group">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                                            Session {session.index}
-                                        </span>
-                                        {session.zoomMeetingId ? (
-                                            <span className="w-2 h-2 rounded-full bg-green-500" title="Zoom Created"></span>
-                                        ) : (
-                                            <span className="w-2 h-2 rounded-full bg-red-300" title="No Zoom Link"></span>
-                                        )}
-                                    </div>
-                                    <p className="text-sm font-semibold text-gray-800">
-                                        {moment(session.startAt).format("MMM Do, YYYY")}
-                                    </p>
-                                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                                        <ClockIcon className="w-3 h-3"/>
-                                        {moment(session.startAt).format("h:mm A")} - {moment(session.endAt).format("h:mm A")}
-                                    </p>
-                                    
-                                    {session.zoomJoinUrl && (
-                                        <a 
-                                            href={session.zoomJoinUrl} 
-                                            target="_blank" 
-                                            rel="noreferrer"
-                                            className="mt-2 block text-center text-xs bg-[#0b2540] text-white py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            Join Meeting
-                                        </a>
-                                    )}
-                                </div>
-                            ))
-                        ) : (
-                            <div className="text-center py-8 text-gray-400 text-sm">
-                                No sessions generated yet.
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
       </div>
+
+      {/* --- CANCELLATION MODAL --- */}
+      <AnimatePresence>
+        {cancelModal.isOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => !isProcessing && setCancelModal({ isOpen: false, sessionId: null })} className="absolute inset-0 bg-brand-prussian/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-2xl p-6 w-full max-w-md relative z-10 shadow-2xl border border-brand-aliceBlue">
+              <h2 className="text-lg font-semibold text-brand-prussian mb-1">Cancel Session</h2>
+              <p className="text-xs text-gray-500 mb-4 font-medium">Please provide a reason. This will be visible to students.</p>
+              <textarea 
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="E.g. Technical maintenance, Instructor unavailable..."
+                className="w-full bg-brand-aliceBlue/50 border border-brand-aliceBlue rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-brand-cerulean outline-none transition-all h-28 resize-none mb-4"
+              />
+              <div className="flex gap-2">
+                <button disabled={isProcessing} onClick={() => setCancelModal({ isOpen: false, sessionId: null })} className="flex-1 py-2.5 text-xs font-bold text-gray-400 uppercase hover:bg-gray-50 rounded-lg transition-colors">Dismiss</button>
+                <button 
+                    disabled={isProcessing || !cancelReason.trim()} 
+                    onClick={handleCancelConfirm}
+                    className="flex-1 py-2.5 bg-red-500 text-white rounded-lg text-xs font-bold uppercase hover:bg-red-600 transition-colors shadow-lg shadow-red-200"
+                >
+                  {isProcessing ? "Processing..." : "Confirm Cancellation"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }
+
+// --- SUB-COMPONENTS ---
+
+const SessionRow = ({ session, onCancel, onDelete }: any) => {
+  const isPast = moment(session.startAt).isBefore(moment());
+  const isCancelled = session.isCancelled;
+
+  return (
+    <div className={`bg-white border ${isCancelled ? 'border-red-100 bg-red-50/20 opacity-80' : 'border-brand-aliceBlue'} rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 transition-all shadow-sm`}>
+      <div className="flex items-center gap-4 w-full md:w-auto">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold ${isCancelled ? 'bg-red-100 text-red-500' : isPast ? 'bg-gray-100 text-gray-400' : 'bg-brand-cerulean text-white'}`}>
+          {session.index}
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-brand-prussian">{moment(session.startAt).format("DD MMM YYYY")}</p>
+            {isCancelled && <span className="text-[8px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded uppercase">Cancelled</span>}
+          </div>
+          <p className="text-[11px] text-gray-400 font-medium">{moment(session.startAt).format("hh:mm A")} - {moment(session.endAt).format("hh:mm A")}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 w-full md:w-auto">
+        {/* START MEETING BUTTON */}
+        {!isCancelled && !isPast && session.zoomStartUrl && (
+          <a 
+            href={session.zoomStartUrl} target="_blank" rel="noopener noreferrer"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-cerulean text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-brand-prussian transition-all shadow-sm"
+          >
+            <VideoCameraIcon className="w-4 h-4 stroke-2" /> Start Meeting
+          </a>
+        )}
+
+        {/* CANCEL MEETING BUTTON */}
+        {!isCancelled && !isPast && (
+          <button onClick={onCancel} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Cancel Meeting">
+            <XCircleIcon className="w-5 h-5" />
+          </button>
+        )}
+
+        {isCancelled && (
+            <div className="flex-1 md:flex-none text-[10px] font-medium text-red-400 italic px-3">
+                Reason: {session.cancellationReason || "No reason specified"}
+            </div>
+        )}
+
+        <button onClick={onDelete} className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete Permanent">
+          <TrashIcon className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/* --- SHARED COMPONENTS (Simplified for brevity) --- */
+const DetailCard = ({ icon, label, value }: any) => (
+    <div className="bg-white p-4 rounded-xl border border-brand-aliceBlue shadow-sm flex items-center gap-3">
+      <div className="p-2 bg-brand-aliceBlue rounded-lg text-brand-cerulean">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">{label}</p>
+        <p className="text-sm font-semibold text-brand-prussian truncate">{value}</p>
+      </div>
+    </div>
+  );
+  
+const TabTrigger = ({ active, onClick, label }: any) => (
+    <button onClick={onClick} className={`px-4 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider ${active ? "bg-white text-brand-cerulean shadow-sm" : "text-gray-400 hover:text-brand-prussian"}`}>
+      {label}
+    </button>
+);
+
+const LoadingState = () => (<DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}><div className="flex h-[70vh] items-center justify-center"><ArrowPathIcon className="w-8 h-8 text-brand-cerulean animate-spin" /></div></DashboardLayout>);
+
+const NotFoundState = ({ onBack }: any) => (<DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}><div className="text-center py-32 space-y-4"><h2 className="text-lg font-semibold text-brand-prussian">Record data unavailable</h2><button onClick={onBack} className="bg-brand-prussian text-white px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest">Return to portal</button></div></DashboardLayout>);

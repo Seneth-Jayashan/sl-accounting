@@ -6,6 +6,12 @@ import Ticket from "../models/Ticket.js"; // Required for permission checks
 
 let ioInstance;
 
+const parseOrigins = (raw) =>
+    (raw || "")
+        .split(",")
+        .map((o) => o.trim())
+        .filter(Boolean);
+
 const getTicketRoom = (ticketId) => `ticket_${ticketId}`;
 
 // --- MIDDLEWARE: Socket Authentication ---
@@ -41,11 +47,11 @@ const authenticateSocket = async (socket, next) => {
 };
 
 export const initSocket = (server) => {
-    const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+    const origins = parseOrigins(process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN) || ["http://localhost:5173"]; 
 
     ioInstance = new Server(server, {
         cors: {
-            origin: CLIENT_ORIGIN,
+            origin: origins,
             credentials: true,
             methods: ["GET", "POST"],
         },
@@ -70,8 +76,8 @@ export const initSocket = (server) => {
                 // SECURITY: Verify Permission
                 // Admins can join any ticket. Students can only join their own.
                 if (socket.user.role !== 'admin') {
-                    const ticket = await Ticket.findById(ticketId).select('student');
-                    if (!ticket || ticket.student.toString() !== socket.user._id.toString()) {
+                    const ticket = await Ticket.findById(ticketId).select('user_id');
+                    if (!ticket || ticket.user_id.toString() !== socket.user._id.toString()) {
                         console.warn(`⚠️ Security Alert: User ${socket.user._id} tried to join unauthorized ticket ${ticketId}`);
                         socket.emit("error", { message: "Unauthorized access to this ticket" });
                         return;

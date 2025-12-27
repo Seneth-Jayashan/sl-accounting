@@ -2,60 +2,46 @@ import { z } from "zod";
 
 // --- HELPERS ---
 
-// Helper to parse JSON strings from FormData (e.g. "[{'day':1...}]")
+// Sharp Helper: Only parses if it's actually a string
 const jsonString = (schema) =>
   z.preprocess((val) => {
     if (typeof val === "string") {
-      try { return JSON.parse(val); } catch (e) { return val; }
+      try {
+        return JSON.parse(val);
+      } catch (e) {
+        return val; // Let Zod handle the type error
+      }
     }
-    return val;
+    return val; // It's already an object/array, return as is
   }, schema);
 
-// Helper to parse Numbers from FormData strings (e.g. "1500")
 const numeric = () => z.number().or(z.string().transform((val) => Number(val)));
-
-// Helper to parse Booleans from FormData strings (e.g. "true")
 const boolean = () => z.boolean().or(z.string().transform((val) => val === "true"));
-
-// Strict MongoDB ObjectId Regex
 const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");
 
-
-// --- SUB-SCHEMAS ---
+// --- SCHEMAS ---
 
 const timeScheduleSchema = z.object({
-  day: numeric().pipe(z.number().int().min(0).max(6)), // 0-6
+  day: numeric().pipe(z.number().int().min(0).max(6)),
   startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format HH:mm"),
   endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format HH:mm"),
   timezone: z.string().optional(),
 });
 
-
-// --- MAIN SCHEMAS ---
-
 export const createClassSchema = z.object({
   body: z.object({
     name: z.string().trim().min(3).max(100),
     description: z.string().trim().min(10),
-    
-    // Handle complex array parsing from FormData
     timeSchedules: jsonString(z.array(timeScheduleSchema).min(1, "At least one schedule required")),
-    
     firstSessionDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
     recurrence: z.enum(["weekly", "daily", "none"]),
-    
-    // Handle numeric conversion
     totalSessions: numeric().pipe(z.number().int().min(1)),
     sessionDurationMinutes: numeric().pipe(z.number().int().min(15)),
     price: numeric().pipe(z.number().min(0)),
-    
     level: z.enum(["general", "ordinary", "advanced"]).default("general"),
-    
-    batch: objectIdSchema.optional(), // Strict ID check
-
-    // Handle tags array (JSON string in FormData)
-    tags: jsonString(z.array(z.string().trim()).optional()),
-    
+    type: z.enum(["theory", "revision", "paper"]).default("theory"),
+    batch: objectIdSchema.optional().nullable(), // Allow null for independent classes
+    tags: jsonString(z.array(z.string().trim()).optional().default([])),
     isPublished: boolean().default(false),
   }),
 });

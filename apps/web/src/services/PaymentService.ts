@@ -125,6 +125,18 @@ const PaymentService = {
   },
 
   /**
+   * 6. Create Manual Payment (Admin Only)
+   * Endpoint: POST /api/v1/payments
+   */
+  createManualPayment: async (data: { enrollment: string; amount: number; transactionId?: string; notes?: string }) => {
+    const response = await api.post<{ success: boolean; payment: PaymentData }>(
+      BASE_URL, 
+      data
+    );
+    return response.data;
+  },
+
+  /**
    * Helper to format currency
    */
   formatCurrency: (amount: number) => {

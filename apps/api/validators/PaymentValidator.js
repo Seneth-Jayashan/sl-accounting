@@ -46,7 +46,7 @@ export const createPaymentSchema = z.object({
     amount: numeric().pipe(z.number().nonnegative("Amount cannot be negative")),
     transactionId: z.string().optional(),
     notes: z.string().optional(),
-    method: z.enum(["manual", "bank_transfer", "payhere"]).default("manual"),
+    method: z.enum(["manual", "bank_transfer", "payhere"]).default("payhere"),
   }),
 });
 

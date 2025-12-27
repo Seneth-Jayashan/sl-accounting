@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
@@ -87,7 +87,7 @@ export default function EnrollmentsPage() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to remove this student?")) return;
     try {
-      await EnrollmentService.cancelEnrollment(id);
+      await EnrollmentService.deleteEnrollment(id);
       setEnrollments(prev => prev.filter(e => e._id !== id));
     } catch (error) {
       alert("Failed to delete enrollment");

@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import { sendVerificationEmail } from "../utils/email/Template.js";
+import { sendVerificationSms } from "../utils/sms/Template.js";
 
 // Helper to find valid users (Not deleted)
 const findActiveUser = async (id) => {
@@ -77,7 +78,7 @@ export const updateUserEmail = async (req, res) => {
 
       // Send Verification
       try {
-        await sendVerificationEmail(user.email, otpCode);
+        await sendVerificationEmail(user.email, otpCode) && await sendVerificationSms(user.phoneNumber, otpCode);
       } catch (err) {
         console.error("Failed to send verification email:", err);
       }

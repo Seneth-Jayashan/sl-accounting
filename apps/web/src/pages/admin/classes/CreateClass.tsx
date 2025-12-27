@@ -1,80 +1,68 @@
-// src/pages/admin/classes/CreateClass.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
+import { motion } from "framer-motion";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
-import ClassService from "../../../services/ClassService";
-import BatchService from "../../../services/BatchService"; // Import BatchService
+import ClassService, { type CreateClassPayload } from "../../../services/ClassService";
+import BatchService from "../../../services/BatchService";
 import {
   ArrowLeftIcon,
   PhotoIcon,
   CurrencyDollarIcon,
   ClockIcon,
   AcademicCapIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  InformationCircleIcon,
+  TagIcon,
+  HashtagIcon
 } from "@heroicons/react/24/outline";
 
-const DAY_TO_INDEX: Record<string, number> = {
-  Sunday: 0,
-  Monday: 1,
-  Tuesday: 2,
-  Wednesday: 3,
-  Thursday: 4,
-  Friday: 5,
-  Saturday: 6,
+const DAY_INDEX: Record<string, number> = {
+  Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6,
+};
+
+const INITIAL_FORM = {
+  name: "",
+  description: "",
+  price: "2000",
+  batch: "",
+  type: "theory",
+  day: "Saturday",
+  startTime: "08:00",
+  endTime: "10:00",
+  firstSessionDate: "",
+  recurrence: "weekly",
+  totalSessions: "4", // Added as string for input handling
+  sessionDurationMinutes: "120", // Added as string for input handling
+  level: "advanced",
+  tags: "",
 };
 
 export default function CreateClassPage() {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // --- 1. Batch Data State ---
   const [batches, setBatches] = useState<any[]>([]);
   const [loadingBatches, setLoadingBatches] = useState(true);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    batch: "", 
-    day: "Saturday",
-    startTime: "08:00",
-    endTime: "10:00",
-    firstSessionDate: "",
-    recurrence: "weekly",
-    totalSessions: 4,
-    sessionDurationMinutes: 60,
-    level: "general",
-    tags: "",
-    isPublished: false
-  });
-
+  const [formData, setFormData] = useState(INITIAL_FORM);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // --- 2. Fetch Batches on Mount ---
-  useEffect(() => {
-    const fetchBatches = async () => {
-      try {
-        // Fetch only active batches for new classes
-        const data = await BatchService.getAllBatches(true); 
-        if (data.batches) {
-          setBatches(data.batches);
-        }
-      } catch (err) {
-        console.error("Failed to fetch batches", err);
-        setError("Failed to load batch list. Please refresh.");
-      } finally {
-        setLoadingBatches(false);
-      }
-    };
-
-    fetchBatches();
+  const fetchBatches = useCallback(async () => {
+    try {
+      setLoadingBatches(true);
+      const data = await BatchService.getAllBatches(true);
+      setBatches(data.batches || []);
+    } catch (err) {
+      setError("System was unable to load intake batches.");
+    } finally {
+      setLoadingBatches(false);
+    }
   }, []);
+
+  useEffect(() => { fetchBatches(); }, [fetchBatches]);
 
   useEffect(() => {
     return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
@@ -86,275 +74,221 @@ export default function CreateClassPage() {
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedImage(file);
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  };
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) return setError("Invalid format. Use JPG, PNG or WebP.");
+    if (file.size > 5 * 1024 * 1024) return setError("File too large. Max 5MB allowed.");
+
+    setSelectedImage(file);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(URL.createObjectURL(file));
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
     setError(null);
 
-    // Validation
-    if (!formData.name.trim() || formData.name.trim().length < 3) {
-      setError("Class name must be at least 3 characters.");
-      setIsSaving(false); return;
-    }
-    if (!formData.description || formData.description.trim().length < 10) {
-      setError("Description must be at least 10 characters.");
-      setIsSaving(false); return;
-    }
-    if (!timeRegex.test(formData.startTime) || !timeRegex.test(formData.endTime)) {
-      setError("Start and end times must be valid (HH:mm).");
-      setIsSaving(false); return;
-    }
-    if (!formData.firstSessionDate || isNaN(Date.parse(formData.firstSessionDate))) {
-      setError("Please provide a valid First Session Date.");
-      setIsSaving(false); return;
-    }
-    if (!formData.batch) {
-        setError("Please select a Batch.");
-        setIsSaving(false); return;
+    // Logic Validations
+    if (moment(formData.startTime, "HH:mm").isSameOrAfter(moment(formData.endTime, "HH:mm"))) {
+      return setError("The session end time must be later than the start time.");
     }
 
-    const timeSchedules = [
-      {
-        day: DAY_TO_INDEX[formData.day] ?? 0,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
-      }
-    ];
+    const dateDay = moment(formData.firstSessionDate).format("dddd");
+    if (formData.firstSessionDate && dateDay !== formData.day) {
+      return setError(`Date conflict: ${formData.firstSessionDate} is a ${dateDay}, but you selected ${formData.day}.`);
+    }
 
-    const payload = {
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      price: formData.price ? Number(formData.price) : 0,
-      batch: formData.batch,
-      timeSchedules,
-      firstSessionDate: formData.firstSessionDate,
-      recurrence: formData.recurrence as "weekly" | "daily" | "none",
-      totalSessions: Number(formData.totalSessions),
-      sessionDurationMinutes: Number(formData.sessionDurationMinutes),
-      level: formData.level as "general" | "ordinary" | "advanced",
-      tags: formData.tags ? formData.tags.split(",").map(t => t.trim()).filter(Boolean) : undefined,
-      isPublished: Boolean(formData.isPublished),
-      coverImage: selectedImage || undefined,
-    };
-
+    setIsSaving(true);
     try {
-      await ClassService.createClass(payload as any);
-      alert("Class created successfully.");
+      const payload: CreateClassPayload = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        price: Number(formData.price) || 0,
+        batch: formData.batch,
+        type: formData.type as any,
+        level: formData.level as any,
+        recurrence: formData.recurrence as any,
+        firstSessionDate: formData.firstSessionDate,
+        // --- CRITICAL FIX: Explicitly include these numeric values ---
+        totalSessions: Number(formData.totalSessions),
+        sessionDurationMinutes: Number(formData.sessionDurationMinutes),
+        timeSchedules: [{
+          day: DAY_INDEX[formData.day],
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }],
+        tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
+        coverImage: selectedImage || null,
+      };
+
+      await ClassService.createClass(payload);
       navigate("/admin/classes");
     } catch (err: any) {
-      console.error("Create class error:", err);
-      const msg = err?.response?.data?.message || err?.message || "Failed to create class";
-      setError(String(msg));
+      setError(err?.response?.data?.message || "Internal server error occurred.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const TipsSidebar = (
-    <div className="space-y-4">
-      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-        <h3 className="font-semibold text-gray-800 mb-2">Class Setup Tips</h3>
-        <ul className="text-sm text-gray-500 space-y-3 list-disc pl-4">
-          <li><strong>Naming:</strong> Use a clear format like "Subject - Year".</li>
-          <li><strong>Batch:</strong> Select the active intake this class belongs to.</li>
-          <li><strong>Banner:</strong> 1200x600px recommended, PNG/JPG up to 5MB.</li>
-        </ul>
-      </div>
-    </div>
-  );
-
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={TipsSidebar}>
-      <div className="max-w-4xl mx-auto space-y-6 pb-20">
-        <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-[#0b2540] transition-colors">
-          <ArrowLeftIcon className="w-4 h-4 mr-1" /> Back to Classes
-        </button>
-
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Create New Class</h1>
-          <p className="text-gray-500 text-sm mt-1">Set up a new course module for students.</p>
-        </div>
+    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={<SidebarTips />}>
+      <div className="max-w-4xl mx-auto space-y-6 pb-24">
+        
+        <header className="space-y-2">
+          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-[0.2em]">
+            <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Back to Curriculum
+          </button>
+          <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">Create Academic Module</h1>
+        </header>
 
         {error && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 flex items-center">
-            <span className="mr-2">⚠️</span> {error}
-          </div>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-xs font-medium flex items-center gap-2">
+            <InformationCircleIcon className="w-4 h-4" /> {error}
+          </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <AcademicCapIcon className="w-5 h-5 text-gray-400" /> Class Details
-                </h2>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Class Name <span className="text-red-500">*</span></label>
-                  <input name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Accounting Theory 2025" required
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <div className="lg:col-span-2 space-y-6">
+            <Section title="Module Identity" icon={<AcademicCapIcon />}>
+              <div className="space-y-4">
+                <Input label="Module Name" name="name" value={formData.name} onChange={handleChange} required placeholder="e.g. Revision: Financial Accounting" />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <Select label="Module Type" name="type" value={formData.type} onChange={handleChange}>
+                    <option value="theory">Theory Class</option>
+                    <option value="revision">Revision Class</option>
+                    <option value="paper">Paper Discussion</option>
+                  </Select>
+                  <Select label="Academic Level" name="level" value={formData.level} onChange={handleChange}>
+                    <option value="advanced">Advanced Level</option>
+                    <option value="ordinary">Ordinary Level</option>
+                    <option value="general">General</option>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  
-                  {/* --- REAL BATCH SELECTOR --- */}
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Batch <span className="text-red-500">*</span></label>
-                    <select 
-                        name="batch" 
-                        value={formData.batch} 
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer"
-                        required
-                        disabled={loadingBatches}
-                    >
-                        <option value="">{loadingBatches ? "Loading batches..." : "Select a Batch"}</option>
-                        {batches.map((batch) => (
-                            <option key={batch._id} value={batch._id}>
-                                {batch.name} ({moment(batch.startDate).format('MMM YYYY')} - {moment(batch.endDate).format('MMM YYYY')})
-                            </option>
-                        ))}
-                    </select>
-                    {batches.length === 0 && !loadingBatches && (
-                        <p className="text-xs text-red-500">No active batches found. Create a batch first.</p>
-                    )}
-                  </div>
-                  {/* ----------------------------- */}
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Tags (comma separated)</label>
-                    <input name="tags" value={formData.tags} onChange={handleChange} placeholder="accounting, theory"
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
+                  <Select label="Assigned Batch" name="batch" value={formData.batch} onChange={handleChange} required>
+                    <option value="">{loadingBatches ? "Syncing..." : "Select Batch"}</option>
+                    {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                  </Select>
+                  <Input label="Tags (SEO)" name="tags" value={formData.tags} onChange={handleChange} placeholder="comma, separated" />
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Description</label>
-                  <textarea name="description" value={formData.description} onChange={handleChange} rows={3}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none resize-none"/>
-                </div>
+                <Textarea label="Public Description" name="description" value={formData.description} onChange={handleChange} required rows={3} />
               </div>
+            </Section>
 
-              {/* Schedule Section */}
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <ClockIcon className="w-5 h-5 text-gray-400" /> Schedule & Fees
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Monthly Fee (LKR)</label>
-                    <div className="relative">
-                      <CurrencyDollarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"/>
-                      <input name="price" type="number" value={formData.price} onChange={handleChange} placeholder="2500"
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Day</label>
-                    <select name="day" value={formData.day} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer">
-                      <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
-                      <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Start Time</label>
-                    <input name="startTime" type="time" value={formData.startTime} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">End Time</label>
-                    <input name="endTime" type="time" value={formData.endTime} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">First Session Date</label>
-                    <input name="firstSessionDate" type="date" value={formData.firstSessionDate} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Recurrence</label>
-                    <select name="recurrence" value={formData.recurrence} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer">
-                      <option value="weekly">Weekly</option><option value="daily">Daily</option><option value="none">None</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Total Sessions</label>
-                    <input name="totalSessions" type="number" value={String(formData.totalSessions)} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Session Duration (minutes)</label>
-                    <input name="sessionDurationMinutes" type="number" value={String(formData.sessionDurationMinutes)} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none"/>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">Level</label>
-                    <select name="level" value={formData.level} onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/20 outline-none cursor-pointer">
-                      <option value="general">General</option><option value="ordinary">Ordinary</option><option value="advanced">Advanced</option>
-                    </select>
-                  </div>
+            <Section title="Logistics & Pricing" icon={<ClockIcon />}>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="relative">
+                  <Input label="Tuition Fee (LKR)" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="0.00" />
+                  <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
                 </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <PhotoIcon className="w-5 h-5 text-gray-400" /> Class Banner
-                </h2>
-
-                <div className="relative w-full aspect-video bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer">
-                  {imagePreview ? <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" /> : (
-                    <div className="text-center p-4">
-                      <PhotoIcon className="w-10 h-10 text-gray-300 mx-auto mb-2 group-hover:text-gray-400" />
-                      <p className="text-xs text-gray-500 font-medium">Click to upload image</p>
-                      <p className="text-[10px] text-gray-400 mt-1">PNG, JPG up to 5MB</p>
-                    </div>
-                  )}
-
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-
-                  {imagePreview && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      <span className="text-white text-xs font-medium bg-black/50 px-3 py-1 rounded-full">Change Image</span>
-                    </div>
-                  )}
+                <Select label="Schedule Day" name="day" value={formData.day} onChange={handleChange}>
+                  {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
+                </Select>
+                <Input label="Session Start" name="startTime" type="time" value={formData.startTime} onChange={handleChange} />
+                <Input label="Session End" name="endTime" type="time" value={formData.endTime} onChange={handleChange} />
+                
+                {/* --- NEW INPUTS: Sessions & Duration --- */}
+                <div className="relative">
+                    <Input label="Total Sessions" name="totalSessions" type="number" value={formData.totalSessions} onChange={handleChange} />
+                    <HashtagIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
                 </div>
+                <div className="relative">
+                    <Input label="Duration (Mins)" name="sessionDurationMinutes" type="number" value={formData.sessionDurationMinutes} onChange={handleChange} />
+                    <ClockIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
+                </div>
+
+                <Input label="Commencement Date" name="firstSessionDate" type="date" value={formData.firstSessionDate} onChange={handleChange} />
+                <Select label="Recurrence" name="recurrence" value={formData.recurrence} onChange={handleChange}>
+                  <option value="weekly">Every Week</option>
+                  <option value="daily">Daily</option>
+                  <option value="none">One-time Event</option>
+                </Select>
               </div>
-            </div>
+            </Section>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-            <button type="button" onClick={() => navigate(-1)} className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={isSaving} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#0b2540] text-white font-medium hover:bg-[#153454] transition-colors disabled:opacity-70 disabled:cursor-not-allowed">
-              {isSaving ? <>Creating...</> : <><CheckCircleIcon className="w-5 h-5" /> Create Class</>}
-            </button>
+          <div className="space-y-6">
+            <Section title="Cover Media" icon={<PhotoIcon />}>
+              <div className="group relative aspect-video bg-brand-aliceBlue/50 rounded-xl border border-dashed border-gray-200 overflow-hidden hover:border-brand-cerulean transition-all cursor-pointer">
+                {imagePreview ? (
+                  <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                    <PhotoIcon className="w-6 h-6 text-gray-300 mb-2" />
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Upload Banner</span>
+                  </div>
+                )}
+                <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+              </div>
+            </Section>
+
+            <div className="flex flex-col gap-2">
+              <button type="submit" disabled={isSaving} className="w-full bg-brand-prussian hover:bg-brand-cerulean text-white py-3.5 rounded-xl text-sm font-semibold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
+                {isSaving ? "Creating..." : <><CheckCircleIcon className="w-4 h-4" /> Initialize Module</>}
+              </button>
+              <button type="button" onClick={() => navigate(-1)} className="w-full bg-white border border-gray-100 text-gray-400 py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all">
+                Cancel
+              </button>
+            </div>
           </div>
         </form>
       </div>
     </DashboardLayout>
   );
 }
+
+// --- Internal UI Components ---
+
+const Section = ({ title, icon, children }: any) => (
+  <div className="bg-white p-6 rounded-2xl border border-brand-aliceBlue shadow-sm">
+    <div className="flex items-center gap-2 mb-6 border-b border-brand-aliceBlue pb-4">
+      <div className="text-brand-cerulean p-1.5 bg-brand-aliceBlue rounded-lg">{icon}</div>
+      <h2 className="text-xs font-bold text-brand-prussian uppercase tracking-widest">{title}</h2>
+    </div>
+    {children}
+  </div>
+);
+
+const Input = ({ label, ...props }: any) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
+    <input {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-2.5 outline-none transition-all text-sm font-medium" />
+  </div>
+);
+
+const Select = ({ label, children, ...props }: any) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
+    <select {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-2.5 outline-none transition-all text-sm font-medium cursor-pointer">
+      {children}
+    </select>
+  </div>
+);
+
+const Textarea = ({ label, ...props }: any) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
+    <textarea {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-2.5 outline-none transition-all text-sm font-medium resize-none" />
+  </div>
+);
+
+const SidebarTips = () => (
+  <div className="bg-brand-prussian text-white p-6 rounded-2xl shadow-lg border border-white/5">
+    <div className="flex items-center gap-2 mb-4">
+      <TagIcon className="w-4 h-4 text-brand-jasmine" />
+      <h3 className="text-brand-jasmine font-bold text-[10px] uppercase tracking-widest">Quick Guide</h3>
+    </div>
+    <div className="space-y-4 text-[11px] font-medium text-brand-aliceBlue/60 leading-relaxed">
+      <p>Ensure <span className="text-white">Total Sessions</span> matches the number of live meetings planned.</p>
+      <p>Recommended <span className="text-white">Duration</span> for Revision is typically 120-180 minutes.</p>
+      <p>Commencement date will trigger automated session creation in the database.</p>
+    </div>
+  </div>
+);

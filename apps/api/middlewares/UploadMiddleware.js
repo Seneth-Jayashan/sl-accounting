@@ -86,3 +86,28 @@ export const classMediaUpload = classUpload.fields([
 ]);
 
 export default createUploader;
+
+// --- Document Uploader (for PDFs, Docs, Excel, PowerPoint, ZIP, CSV etc.) ---
+const documentFileFilter = (req, file, cb) => {
+    // Allowed extensions and mimetypes for common office documents
+    const allowedExt = /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|csv)$/i;
+    const allowedMime = /pdf|msword|wordprocessingml|spreadsheetml|excel|powerpoint|presentationml|zip|csv|text\/csv/i;
+
+    const mimetypeOk = allowedMime.test(file.mimetype);
+    const extnameOk = allowedExt.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetypeOk && extnameOk) {
+        return cb(null, true);
+    } else {
+        cb(new Error('Only document files are allowed (pdf, doc, docx, xls, xlsx, ppt, pptx, zip, csv).'), false);
+    }
+};
+
+export const createDocumentUploader = (destinationFolder = 'docs', fieldName = 'file', maxFileSizeMB = 20) => {
+    const upload = multer({
+        storage: createStorage(destinationFolder),
+        limits: { fileSize: maxFileSizeMB * 1024 * 1024 },
+        fileFilter: documentFileFilter,
+    });
+    return upload.single(fieldName);
+};

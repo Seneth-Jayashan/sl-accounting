@@ -21,7 +21,7 @@ const paymentSchema = new mongoose.Schema(
     paymentDate: { type: Date, required: true, default: Date.now },
     method: {
       type: String,
-      enum: ["bank_transfer", "payhere"],
+      enum: ["bank_transfer", "payhere", "manual"],
       required: true,
       default: "payhere",
     },

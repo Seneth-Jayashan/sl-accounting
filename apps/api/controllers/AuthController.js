@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { registerSchema } from "../validators/AuthValidator.js";
-import { sendVerificationEmail } from "../utils/email/Template.js";
+import { sendVerificationEmail , sendWelcomeEmail } from "../utils/email/Template.js";
+import { sendVerificationSms, sendWelcomeSms } from "../utils/sms/Template.js";
 
 // --- CONFIGURATION ---
 
@@ -57,10 +58,9 @@ export const register = async (req, res) => {
 
     // 6. Send Email (Non-blocking usually, but await here for simplicity)
     try {
-        await sendVerificationEmail(newUser.email, otpCode);
+        await sendVerificationEmail(newUser.email, otpCode) && await sendVerificationSms(newUser.phoneNumber, otpCode);
     } catch (emailErr) {
         console.error("Failed to send verification email:", emailErr);
-        // We still return success, user can click "Resend OTP" later
     }
 
     return res.status(201).json({
@@ -252,7 +252,7 @@ export const verifyUserEmail = async (req, res) => {
     user.otpAttempts = 0;
     
     await user.save();
-
+    await sendWelcomeEmail(user.email, user.firstName) && await sendWelcomeSms(user.phoneNumber, user.firstName);
     return res.status(200).json({ success: true, message: "Email verified successfully" });
 
   } catch (error) {
@@ -278,7 +278,7 @@ export const resendVerificationOtp = async (req, res) => {
     const otpCode = user.generateOtpCode();
     await user.save();
     
-    await sendVerificationEmail(user.email, otpCode);
+    await sendVerificationEmail(user.email, otpCode) && await sendVerificationSms(user.phoneNumber, otpCode);
     
     return res.status(200).json({ success: true, message: "OTP code resent to email" });
   } catch (error) {
@@ -310,7 +310,7 @@ export const forgetUserPassword = async (req, res) => {
 
     await user.save();
 
-    await sendVerificationEmail(user.email, resetOtp); // You might want a specific "Reset Password" email template here
+    await sendVerificationEmail(user.email, resetOtp) && await sendVerificationSms(user.phoneNumber, resetOtp);
 
     return res.status(200).json({ success: true, message: "If account exists, reset code sent." });
   } catch (error) {

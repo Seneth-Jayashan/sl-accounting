@@ -49,12 +49,21 @@ export default function TicketChat({
   // Derive missing values from router params / auth context when used in a route
   const params = useParams();
   const auth = useAuth();
+  const accessToken = auth.accessToken;
 
   const ticketId = propTicketId ?? params.ticketId ?? "";
   const userId = propUserId ?? auth.user?._id ?? "";
   const role = (propRole ??
     (auth.user?.role === "admin" ? "admin" : "student")) as "student" | "admin";
   const readOnly = !!propReadOnly;
+  const cacheKey = ticketId ? `ticket_chat_cache_${ticketId}` : null;
+
+  // Ensure socket client connects once a token exists (avoids init early-return when token is still loading)
+  useEffect(() => {
+    if (accessToken) {
+      ChatService.init();
+    }
+  }, [accessToken]);
 
   // ------------------------ Emoji ------------------------
   const handleEmojiClick = (emoji: any) => {
@@ -62,6 +71,24 @@ export default function TicketChat({
   };
 
   // ------------------------ Load Messages ------------------------
+  // Warm the UI from sessionStorage so a reload does not show an empty panel
+  useEffect(() => {
+    if (!cacheKey) return;
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      if (!raw) return;
+      const cached: ChatMessage[] = JSON.parse(raw);
+      if (!Array.isArray(cached)) return;
+      const sliced = cached.slice(-MAX_MESSAGES);
+      setMessages(sliced);
+      const hadOverflow = cached.length > MAX_MESSAGES;
+      setHasOlder(hadOverflow);
+      setIsTruncated(hadOverflow);
+    } catch (err) {
+      console.warn("Chat cache hydrate failed", err);
+    }
+  }, [cacheKey]);
+
   useEffect(() => {
     if (!ticketId || !userId || !role) return;
 
@@ -106,6 +133,16 @@ export default function TicketChat({
       unsubscribe?.();
     };
   }, [ticketId, userId, role]);
+
+  // Persist recent messages per ticket so a page refresh restores the last view instantly
+  useEffect(() => {
+    if (!cacheKey) return;
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify(messages.slice(-MAX_MESSAGES)));
+    } catch (err) {
+      // ignore storage quota errors silently
+    }
+  }, [messages, cacheKey]);
 
   // Auto scroll
   useEffect(() => {

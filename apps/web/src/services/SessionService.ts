@@ -4,150 +4,128 @@ import api from "./api";
 
 export interface SessionData {
   _id: string;
-  class: string; // Class ID
+  class: string;
   index: number;
-  startAt: string; // ISO Date string
-  endAt: string;   // ISO Date string
+  startAt: string;
+  endAt: string;
   timezone: string;
   title?: string;
   notes?: string;
   materials?: string[];
-  
-  // Zoom Details
   zoomMeetingId?: string;
-  zoomJoinUrl?: string;     // Safe for students
-  zoomStartUrl?: string;    // DANGER: Admin/Instructor ONLY. Backend must filter this.
-  
-  // Recordings
-  youtubeVideoId?: string; 
-  recordingUrl?: string;    // Added for frontend compatibility
-
-  // Status
+  zoomJoinUrl?: string;
+  zoomStartUrl?: string; // SENSITIVE: Admin only
+  youtubeVideoId?: string;
+  recordingUrl?: string;
   isCancelled: boolean;
   cancelledAt?: string;
   cancellationReason?: string;
-  
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateSessionPayload {
-  // Preferred: Full ISO string to prevent timezone ambiguity
-  startAt: string; 
+  startAt: string | Date;
   durationMinutes: number;
-  
   timezone?: string;
   title?: string;
   notes?: string;
   skipZoom?: boolean;
   materials?: string[];
-  
-  // Optional Legacy support (Backend handles logic)
-  date?: string; 
-  time?: string; 
-}
-
-export interface UpdateSessionPayload extends Partial<CreateSessionPayload> {
-  isCancelled?: boolean;
-  cancellationReason?: string; // Standardized name
-  abortOnZoomFail?: boolean;
-  youtubeVideoId?: string;
-  recordingUrl?: string;
 }
 
 export interface SessionFilterParams {
   classId?: string;
-  from?: string; // ISO Date
-  to?: string;   // ISO Date
+  from?: string;
+  to?: string;
   isCancelled?: boolean;
   page?: number;
   limit?: number;
-  sort?: string; // e.g. "startAt" or "-startAt"
 }
 
-// Standardized API Response Wrapper
-export interface SessionResponse {
+// Internal Wrapper for API responses
+interface SessionResponse {
   success: boolean;
   message?: string;
   session?: SessionData;
-  sessions?: SessionData[]; // Used if backend returns list inside wrapper
+  sessions?: SessionData[];
 }
-
-// --- SERVICE DEFINITION ---
 
 const BASE_URL = "/sessions";
 
+/**
+ * Helper to extract data regardless of whether the API wraps it in a 
+ * { success, sessions: [] } object or returns the array directly.
+ */
+const unwrap = <T>(response: any, key: string): T => {
+  return response.data?.[key] || response.data || [];
+};
+
 const SessionService = {
   /**
-   * Get all sessions with filters
-   * Endpoint: GET /api/v1/sessions
+   * Fetch all sessions with filtering
+   * Returns SessionData[] directly for easier component usage
    */
-  getAllSessions: async (params: SessionFilterParams = {}) => {
-    // Note: If backend returns raw array, keep as SessionData[]. 
-    // If it returns { success: true, data: [...] }, change to SessionResponse.
-    const response = await api.get<SessionData[]>(BASE_URL, { params });
+  getAllSessions: async (params: SessionFilterParams = {}): Promise<SessionData[]> => {
+    const response = await api.get<any>(BASE_URL, { params });
+    return unwrap<SessionData[]>(response, "sessions");
+  },
+
+  /**
+   * Fetch sessions for a specific class
+   */
+  getSessionsByClassId: async (classId: string): Promise<SessionData[]> => {
+    const response = await api.get<any>(BASE_URL, { params: { classId } });
+    return unwrap<SessionData[]>(response, "sessions");
+  },
+
+  /**
+   * Fetch single session details
+   */
+  getSessionById: async (sessionId: string): Promise<SessionData | null> => {
+    const response = await api.get<any>(`${BASE_URL}/${sessionId}`);
+    return response.data?.session || response.data || null;
+  },
+
+  /**
+   * Create a new session for a specific class
+   */
+  createSession: async (classId: string, data: CreateSessionPayload) => {
+    const payload = {
+      ...data,
+      startAt: data.startAt instanceof Date ? data.startAt.toISOString() : data.startAt,
+      timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    const response = await api.post<SessionResponse>(`${BASE_URL}/class/${classId}`, payload);
     return response.data;
   },
 
   /**
-   * Get sessions by Class ID
-   * Endpoint: GET /api/v1/sessions?classId=...
+   * Update an existing session (Use PATCH for partial updates)
    */
-  getSessionsByClassId: async (classId: string) => {
-    const response = await api.get<SessionData[]>(BASE_URL, {
-        params: { classId } 
+  updateSession: async (id: string, data: Partial<SessionData>) => {
+    const response = await api.patch<SessionResponse>(`${BASE_URL}/${id}`, data);
+    return response.data;
+  },
+
+  /**
+   * Cancel a session (Logic/Soft Delete)
+   */
+  cancelSession: async (id: string, reason: string = "Admin Cancelled", deleteZoom: boolean = true) => {
+    const response = await api.post<SessionResponse>(`${BASE_URL}/${id}/cancel`, {
+      cancellationReason: reason,
+      deleteZoomMeeting: deleteZoom
     });
     return response.data;
   },
 
   /**
-   * Get single session details
-   * Endpoint: GET /api/v1/sessions/:id
-   */
-  getSessionById: async (sessionId: string) => {
-    const response = await api.get<SessionData>(`${BASE_URL}/${sessionId}`);
-    return response.data;
-  },
-
-  /**
-   * Create a new session
-   * Endpoint: POST /api/v1/sessions/class/:classId
-   */
-  createSession: async (classId: string, data: CreateSessionPayload) => {
-    const response = await api.post<SessionResponse>(`${BASE_URL}/class/${classId}`, data);
-    return response.data;
-  },
-
-  /**
-   * Update session details
-   * Endpoint: PUT /api/v1/sessions/:id
-   */
-  updateSession: async (id: string, data: UpdateSessionPayload) => {
-    const response = await api.put<SessionResponse>(`${BASE_URL}/${id}`, data);
-    return response.data;
-  },
-
-  /**
-   * Cancel a session (Soft Delete)
-   * Endpoint: POST /api/v1/sessions/:id/cancel
-   */
-  cancelSession: async (id: string, reason?: string, deleteZoom: boolean = true) => {
-    const payload = { 
-      cancellationReason: reason || "No reason provided", 
-      deleteZoomMeeting: deleteZoom 
-    };
-    const response = await api.post<SessionResponse>(`${BASE_URL}/${id}/cancel`, payload);
-    return response.data;
-  },
-
-  /**
-   * Permanently Delete a session
-   * Endpoint: DELETE /api/v1/sessions/:id
+   * Hard delete a session
    */
   deleteSession: async (id: string) => {
     const response = await api.delete<SessionResponse>(`${BASE_URL}/${id}`);
     return response.data;
-  },
+  }
 };
 
 export default SessionService;

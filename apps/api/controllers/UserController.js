@@ -1,6 +1,6 @@
 import User from '../models/User.js';
 import { sendVerificationEmail } from '../utils/email/Template.js';
-
+import { sendVerificationSms } from '../utils/sms/Template.js';
 // --- HELPER: Escape Regex Characters ---
 // Prevents server crashes if user searches for symbols like "(", "[", "*"
 const escapeRegex = (text) => {
@@ -83,7 +83,7 @@ export const updateUserEmail = async (req, res) => {
       await user.save();
 
       // Send Verification Email
-      await sendVerificationEmail(user.email, otpCode);
+      await sendVerificationEmail(user.email, otpCode) && await sendVerificationSms(user.phoneNumber, otpCode);
       
       return res.status(200).json({ 
         success: true, 
@@ -214,7 +214,7 @@ export const forgetUserPassword = async (req, res) => {
     await user.save();
 
     // 2. Send Email
-    await sendVerificationEmail(user.email, resetOtp);
+    await sendVerificationEmail(user.email, resetOtp) && await sendVerificationSms(user.phoneNumber, resetOtp);
 
     return res.status(200).json({ 
       success: true, 

@@ -9,6 +9,7 @@ import batchRoutes from './routes/BatchRoutes.js';
 import sessionRoutes from './routes/SessionRoutes.js';
 import enrollmentRoutes from './routes/EnrollmentRoutes.js';
 import paymentRoutes from './routes/PaymentRoutes.js';
+import knowledgeRoutes from './routes/KnowledgeRoutes.js';
 import zoomRoutes from './routes/ZoomRoutes.js';
 import chatRoutes from './routes/ChatRoutes.js';
 import ticketRoutes from './routes/TicketRoutes.js';
@@ -45,5 +46,8 @@ router.use('/zoom', zoomRoutes);
 router.use('/chats', chatRoutes);
 router.use('/tickets', ticketRoutes);
 router.use('/contact', contactRoutes);
+
+// Knowledge base routes
+router.use('/knowledge', knowledgeRoutes);
 
 export default router;
