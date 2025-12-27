@@ -26,47 +26,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
 import Chat from "./components/Chat";
 
-import AuthProvider from "./contexts/AuthContext";
-import ProtectedRoute from "./routes/ProtectedRoute";
-
-import StudentDashboardPage from "./pages/student/Dashboard";
-import StudentTicketPage from "./pages/student/Ticket";
-import ViewKnowledgeBasePage from "./pages/student/KnowledgeBasestudent";
-
-import StudentClassPage from "./pages/student/class/Classes";
-import StudentViewClassPage from "./pages/student/class/ViewClass";
-
-import EnrollmentPage from "./pages/student/enrollment/Enrollment";
-import ViewEnrollmentPage from "./pages/student/enrollment/ViewEnrollment";
-import UploadPaymentSlipPage from "./pages/student/enrollment/UploadPaymentSlip";
-
-import AdminDashboardPage from "./pages/admin/Dashboard";
-import AdminStudentsPage from "./pages/admin/students/Students";
-import ViewStudentPage from "./pages/admin/students/ViewStudent";
-import UpdateStudentPage from "./pages/admin/students/UpdateStudent";
-
-import AdminClassesPage from "./pages/admin/classes/Class";
-import AdminSupportPage from "./pages/admin/support/SupportReply";
-import AdminTicketReply from "./pages/admin/support/TicketChat";
-import AdminClassesCreatePage from "./pages/admin/classes/CreateClass";
-import AdminClassesViewPage from "./pages/admin/classes/ViewClass";
-import AdminClassesUpdatePage from "./pages/admin/classes/UpdateClass";
-import AdminKnowledgeBasePage from "./pages/admin/KnowledgeBase/KnowledgeBase";
-import AdminKnowledgeListPage from "./pages/admin/KnowledgeBase/KnowledgeList";
-
-import AdminSessionPage from "./pages/admin/sessions/Session";
-import AdminCreateSessionPage from "./pages/admin/sessions/AddSession";
-
-import AdminBatchPage from "./pages/admin/batches/Batch";
-import AdminBatchViewPage from "./pages/admin/batches/ViewBatch";
-
-import AdminEnrollmentPage from "./pages/admin/enrollments/Enrollment";
-// import AdminEnrollmentViewPage from "./pages/admin/enrollments/ViewEnrollment";
-
-import AdminPaymentsPage from "./pages/admin/payments/Payments";
-// import AdminViewPaymentPage from "./pages/admin/payments/ViewPayment";
-// import AdminPaymentVerificationPage from "./pages/admin/enrollments/PaymentVerification";
-
 import "./index.css";
 
 function App() {

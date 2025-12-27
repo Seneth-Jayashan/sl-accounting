@@ -29,7 +29,12 @@ const BASE = '/knowledge';
 
 const KnowledgeBaseAdminService = {
   create: async (form: FormData) => {
-    const res = await api.post(`${BASE}`, form);
+    const res = await api.post(`${BASE}`, form, {
+      headers: {
+        // Override global JSON header so the browser/axios can set multipart boundary
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return res.data;
   },
 

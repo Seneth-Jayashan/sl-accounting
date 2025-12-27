@@ -12,6 +12,7 @@ const Enrollment = lazy(() => import("../pages/student/enrollment/Enrollment"));
 const ViewEnrollment = lazy(() => import("../pages/student/enrollment/ViewEnrollment"));
 const UploadSlip = lazy(() => import("../pages/student/payments/UploadPaymentSlip"));
 const PaymentHistory = lazy(() => import("../pages/student/payments/PaymentHistory"));
+const KnowledgeBase = lazy(() => import("../pages/student/KnowledgeBasestudent"));
 
 export const StudentRoutes = () => {
   return (
@@ -33,6 +34,9 @@ export const StudentRoutes = () => {
 
         {/* Default Student Route */}
         <Route path="*" element={<Navigate to="/student/" replace />} />
+
+        {/* Knowledge Base */}
+        <Route path="knowledge-base" element={<KnowledgeBase />} />
       </Routes>
     </Suspense>
   );

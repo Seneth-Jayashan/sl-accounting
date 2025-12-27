@@ -37,6 +37,8 @@ const NAV_ITEMS: AdminNavItem[] = [
   { key: "batches", label: "Batches", href: "/admin/batches", icon: ClipboardDocumentCheckIcon },
   { key: "sessions", label: "Sessions", href: "/admin/sessions", icon: CurrencyDollarIcon },
   { key: "payments", label: "Payments", href: "/admin/payments", icon: BookOpenIcon },
+  { key: "knowledge", label: "Knowledge Base", href: "/admin/knowledge-base", icon: BookOpenIcon },
+  { key: "knowledge-list", label: "Knowledge List", href: "/admin/knowledge-list", icon: ClipboardDocumentCheckIcon },
   { key: "reports", label: "Reports", href: "/admin/reports", icon: ChartBarIcon },
   { key: "support", label: "Support", href: "/admin/support", icon: PhoneIcon },
   { key: "chat", label: "Chat", href: "/admin/chat", icon: ChatBubbleLeftRightIcon },
