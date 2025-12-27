@@ -22,6 +22,8 @@ const SupportReply = lazy(() => import("../pages/admin/support/SupportReply"));
 const TicketChat = lazy(() => import("../pages/admin/support/TicketChat"));
 const KnowledgeBase = lazy(() => import("../pages/admin/KnowledgeBase/KnowledgeBase"));
 const KnowledgeBaseList = lazy(() => import("../pages/admin/KnowledgeBase/KnowledgeList"));
+const Announcements = lazy(() => import("../pages/admin/announcements/Announcement"));
+const Materials = lazy(() => import("../pages/admin/materials/Materials"));
 
 export const AdminRoutes = () => {
   return (
@@ -47,6 +49,12 @@ export const AdminRoutes = () => {
         {/* Batches */}
         <Route path="batches" element={<Batches />} />
         <Route path="batches/view/:id" element={<ViewBatch />} />
+
+        {/* Announcements */}
+        <Route path="announcements" element={<Announcements />} />
+
+        {/* Class Materials */}
+        <Route path="materials" element={<Materials />} />
 
         {/* Payments & Support */}
         <Route path="payments" element={<Payments />} />

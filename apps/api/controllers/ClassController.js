@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import moment from "moment-timezone";
 import Class from "../models/Class.js";
 import Session from "../models/Session.js";
+import Batch from "../models/Batch.js";
 import { createMeeting, deleteMeeting } from "../services/Zoom.js";
 
 // --- HELPERS ---
@@ -134,6 +135,12 @@ export const createClass = async (req, res) => {
       path: "sessions",
       options: { sort: { index: 1 } },
     });
+
+    const batchToUpdate = await Batch.findById(rest.batch);
+    if (batchToUpdate) {
+      batchToUpdate.classes.push(savedClass._id);
+      await batchToUpdate.save();
+    }
 
     return res.status(201).json(populated);
 

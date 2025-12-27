@@ -56,6 +56,10 @@ export const register = async (req, res) => {
     const otpCode = newUser.generateOtpCode();
     await newUser.save();
 
+    const BatchEnroll = await Batch.findById(batch);
+    BatchEnroll.students.push(studentId);
+    await BatchEnroll.save();
+
     // 6. Send Email (Non-blocking usually, but await here for simplicity)
     try {
         await sendVerificationEmail(newUser.email, otpCode) && await sendVerificationSms(newUser.phoneNumber, otpCode);

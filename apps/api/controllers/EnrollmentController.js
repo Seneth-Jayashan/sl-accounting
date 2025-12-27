@@ -68,6 +68,8 @@ export const createEnrollment = async (req, res) => {
       accessEndDate,
     });
 
+    await classExists.enrollStudent(studentId);
+
     const saved = await newEnrollment.save();
     return res.status(201).json(saved);
 
