@@ -1,22 +1,42 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Mail, ArrowRight, ArrowLeft, KeyRound, CheckCircle2, AlertCircle, Hash, Lock } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import UserService from "../services/userService"; 
+import { motion, AnimatePresence } from "framer-motion";
+import { Mail, ArrowLeft, KeyRound, CheckCircle2, AlertCircle, Hash, Lock, Eye, EyeOff } from "lucide-react";
+import { Link } from "react-router-dom";
+import { z } from "zod";
+import UserService from "../services/UserService";
 
-// --- BRAND CONSTANTS ---
-const BRAND = {
-  prussian: "#053A4E",
-  cerulean: "#05668A",
-  coral: "#EF8D8E",
-  jasmine: "#FFE787",
-  alice: "#E8EFF7",
-};
+// --- 1. VALIDATION SCHEMAS ---
 
-// --- BACKGROUND COMPONENT ---
+// Step 1: Email Validation
+const emailSchema = z.object({
+  email: z.string()
+    .trim()
+    .toLowerCase()
+    .email("Please enter a valid email address")
+    .refine((val) => val.endsWith("@gmail.com"), {
+      message: "Only Gmail addresses are allowed",
+    }),
+});
+
+// Step 2: Reset Validation (Strong Password & OTP)
+const resetSchema = z.object({
+  otp: z.string().trim().length(6, "OTP must be exactly 6 digits").regex(/^\d+$/, "OTP must be numeric"),
+  newPassword: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Must contain an uppercase letter")
+    .regex(/[a-z]/, "Must contain a lowercase letter")
+    .regex(/[0-9]/, "Must contain a number")
+    .regex(/[^A-Za-z0-9]/, "Must contain a special character"),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+// --- 2. REUSABLE COMPONENTS ---
+
 const BackgroundGradient = () => (
   <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
-    {/* Animated Blobs */}
     <motion.div 
       animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3], rotate: [0, 90, 0] }}
       transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
@@ -27,73 +47,119 @@ const BackgroundGradient = () => (
       transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       className="absolute top-[40%] left-[-10%] w-[600px] h-[600px] bg-[#EF8D8E] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
     />
-    <motion.div 
-      animate={{ scale: [1, 1.3, 1], x: [0, -30, 0] }}
-      transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-      className="absolute bottom-[-10%] right-[10%] w-[600px] h-[600px] bg-[#FFE787] rounded-full mix-blend-multiply filter blur-[128px] opacity-40" 
-    />
   </div>
 );
 
+const InputField = ({ label, name, type = "text", value, onChange, icon: Icon, placeholder, error, maxLength, rightElement }: any) => (
+  <div className="space-y-1">
+    <label className="text-sm font-bold text-[#053A4E] ml-1">{label}</label>
+    <div className="relative group">
+      <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${error ? "text-red-500" : "text-[#05668A] group-focus-within:text-[#EF8D8E]"}`}>
+        <Icon size={20} />
+      </div>
+      <input 
+        name={name}
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className={`w-full bg-white/50 border ${error ? "border-red-400 focus:border-red-500" : "border-white/50 focus:border-[#05668A]"} focus:bg-white text-[#053A4E] pl-12 pr-${rightElement ? "12" : "4"} py-4 rounded-2xl outline-none transition-all shadow-sm`}
+      />
+      {rightElement && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+          {rightElement}
+        </div>
+      )}
+    </div>
+    {error && <p className="text-red-500 text-xs ml-1 flex items-center gap-1"><AlertCircle size={12} /> {error}</p>}
+  </div>
+);
+
+// --- 3. MAIN COMPONENT ---
+
 export default function ForgotPassword() {
-  const navigate = useNavigate();
   
-  // State Management
-  const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Email, 2: OTP/Pass, 3: Success
+  // State
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  const [formData, setFormData] = useState({
+    email: "",
+    otp: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
 
-  // Form Data
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  // STEP 1: Send OTP to Email
+  // Handlers
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear specific field error
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrs = { ...prev };
+        delete newErrs[name];
+        return newErrs;
+      });
+    }
+  };
+
+  // STEP 1 SUBMIT
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    setApiError(null);
+    setErrors({});
 
+    // Validate
+    const result = emailSchema.safeParse({ email: formData.email });
+    if (!result.success) {
+      setErrors({ email: result.error.issues[0].message });
+      return;
+    }
+
+    setLoading(true);
     try {
-      await UserService.forgetUserPassword(email);
-      setStep(2); // Move to next step
+      await UserService.forgetUserPassword(result.data.email);
+      setStep(2); 
     } catch (err: any) {
-      console.error("OTP Request error:", err);
-      setError(err.response?.data?.message || "Could not send OTP. Check your email/ID.");
+      setApiError(err.response?.data?.message || "Could not send OTP. Check your email.");
     } finally {
       setLoading(false);
     }
   };
 
-  // STEP 2: Verify OTP and Reset Password
+  // STEP 2 SUBMIT
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiError(null);
+    setErrors({});
+
+    // Validate
+    const result = resetSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        errors[String(issue.path[0])] = issue.message;
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
     setLoading(true);
-    setError(null);
-
-    // Basic Validation
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
-      setLoading(false);
-      return;
-    }
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters.");
-      setLoading(false);
-      return;
-    }
-
     try {
       await UserService.resetUserPassword({
-        email,
-        otp,
-        newPassword
+        email: formData.email,
+        otp: formData.otp,
+        newPassword: formData.newPassword
       });
-      setStep(3); // Move to success step
+      setStep(3);
     } catch (err: any) {
-      console.error("Reset Password error:", err);
-      setError(err.response?.data?.message || "Invalid OTP or failed to reset password.");
+      setApiError(err.response?.data?.message || "Invalid OTP or failed to reset password.");
     } finally {
       setLoading(false);
     }
@@ -114,21 +180,22 @@ export default function ForgotPassword() {
            <KeyRound size={32} className="text-[#05668A]" />
         </div>
 
-        {/* --- ERROR MESSAGE --- */}
-        {error && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2 mb-6"
-          >
-            <AlertCircle size={16} />
-            {error}
-          </motion.div>
-        )}
+        {/* --- API ERROR ALERT --- */}
+        <AnimatePresence>
+          {apiError && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm flex items-center gap-2 mb-6 border border-red-100"
+            >
+              <AlertCircle size={16} className="shrink-0" />
+              {apiError}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* =========================================================
-            STEP 1: ENTER EMAIL
-           ========================================================= */}
+        {/* ================= STEP 1: EMAIL ================= */}
         {step === 1 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="text-center mt-6 mb-8">
@@ -139,22 +206,15 @@ export default function ForgotPassword() {
             </div>
 
             <form onSubmit={handleRequestOtp} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-[#053A4E] ml-1">Email Address</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#05668A] group-focus-within:text-[#EF8D8E] transition-colors">
-                    <Mail size={20} />
-                  </div>
-                  <input 
-                    type="email" 
-                    placeholder="Enter your email"
-                    className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-12 pr-4 py-4 rounded-2xl outline-none transition-all shadow-sm"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-              </div>
+              <InputField 
+                label="Email Address" 
+                name="email" 
+                value={formData.email} 
+                onChange={handleChange} 
+                icon={Mail} 
+                placeholder="Enter your email" 
+                error={errors.email}
+              />
 
               <button 
                 disabled={loading}
@@ -166,73 +226,60 @@ export default function ForgotPassword() {
           </motion.div>
         )}
 
-        {/* =========================================================
-            STEP 2: ENTER OTP & NEW PASSWORD
-           ========================================================= */}
+        {/* ================= STEP 2: OTP & NEW PASS ================= */}
         {step === 2 && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
             <div className="text-center mt-6 mb-6">
               <h2 className="text-2xl font-bold text-[#053A4E]">Reset Password</h2>
-              <p className="text-gray-500 mt-2 text-xs">
-                Code sent to <span className="font-semibold text-[#05668A]">{email}</span>
+              <p className="text-brand-coral mt-2 text-xs">
+                
+                If account exists, reset code sent to <span className="font-semibold text-[#05668A]">{formData.email}</span> <br/> or sent to user's phone number
               </p>
             </div>
 
             <form onSubmit={handleResetPassword} className="space-y-4">
-              {/* OTP Input */}
-              <div className="space-y-1">
-                <label className="text-sm font-bold text-[#053A4E] ml-1">6-Digit Code</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#05668A]">
-                    <Hash size={20} />
-                  </div>
-                  <input 
-                    type="text" 
-                    placeholder="123456"
-                    maxLength={6}
-                    className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-12 pr-4 py-4 rounded-2xl outline-none transition-all shadow-sm tracking-widest font-mono text-lg"
-                    required
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                  />
-                </div>
-              </div>
+              
+              <InputField 
+                label="6-Digit Code" 
+                name="otp" 
+                value={formData.otp} 
+                onChange={(e: any) => {
+                    // Only allow numbers
+                    const val = e.target.value;
+                    if (/^\d*$/.test(val) && val.length <= 6) handleChange(e);
+                }} 
+                icon={Hash} 
+                placeholder="123456" 
+                error={errors.otp}
+                maxLength={6}
+              />
 
-              {/* New Password */}
-              <div className="space-y-1">
-                <label className="text-sm font-bold text-[#053A4E] ml-1">New Password</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#05668A]">
-                    <Lock size={20} />
-                  </div>
-                  <input 
-                    type="password" 
-                    placeholder="New Password"
-                    className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-12 pr-4 py-4 rounded-2xl outline-none transition-all shadow-sm"
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                </div>
-              </div>
+              <InputField 
+                label="New Password" 
+                name="newPassword" 
+                type={showPassword ? "text" : "password"} 
+                value={formData.newPassword} 
+                onChange={handleChange} 
+                icon={Lock} 
+                placeholder="Strong Password" 
+                error={errors.newPassword}
+                rightElement={
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400 hover:text-[#053A4E]">
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                }
+              />
 
-              {/* Confirm Password */}
-              <div className="space-y-1">
-                <label className="text-sm font-bold text-[#053A4E] ml-1">Confirm Password</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#05668A]">
-                    <Lock size={20} />
-                  </div>
-                  <input 
-                    type="password" 
-                    placeholder="Confirm New Password"
-                    className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-12 pr-4 py-4 rounded-2xl outline-none transition-all shadow-sm"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-              </div>
+              <InputField 
+                label="Confirm Password" 
+                name="confirmPassword" 
+                type={showPassword ? "text" : "password"} 
+                value={formData.confirmPassword} 
+                onChange={handleChange} 
+                icon={Lock} 
+                placeholder="Re-enter Password" 
+                error={errors.confirmPassword}
+              />
 
               <div className="pt-2">
                 <button 
@@ -246,17 +293,15 @@ export default function ForgotPassword() {
               <button 
                 type="button" 
                 onClick={() => setStep(1)} 
-                className="w-full text-center text-sm text-gray-500 hover:text-[#053A4E] mt-2"
+                className="w-full text-center text-sm text-gray-500 hover:text-[#053A4E] mt-2 underline decoration-transparent hover:decoration-[#053A4E] transition-all"
               >
-                Change Email
+                Change Email Address
               </button>
             </form>
           </motion.div>
         )}
 
-        {/* =========================================================
-            STEP 3: SUCCESS
-           ========================================================= */}
+        {/* ================= STEP 3: SUCCESS ================= */}
         {step === 3 && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}

@@ -1,298 +1,262 @@
-// src/pages/admin/Class.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
   UsersIcon,
   ClockIcon,
-  VideoCameraIcon,
-  MapPinIcon,
-  EllipsisVerticalIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  TrashIcon,
+  PencilIcon,
+  ArrowPathIcon
 } from "@heroicons/react/24/outline";
-import ClassService from "../../../services/ClassService"; // <-- adjust path to your project setup
-import { useNavigate } from "react-router-dom";
+import ClassService from "../../../services/ClassService";
 
-// --- Types ---
-// Minimal UI-facing shape — adapt if your API returns different field names
-type ClassItem = {
-  _id?: string;
-  id?: number; // fallback if API returns numeric id
+// --- Enforced Interfaces ---
+interface ClassListItem {
+  _id: string;
   title: string;
-  batch?: string;
-  type?: "Theory" | "Revision" | "Paper Class" | string;
-  day?: string;
-  time?: string;
-  location?: "Zoom" | "Physical" | "Hybrid" | string;
-  students?: number;
-  status?: "Active" | "Paused" | string;
-  color?: string;
-};
+  batchName: string;
+  level: string;
+  schedule: string;
+  studentCount: number;
+  isActive: boolean;
+  isPublished: boolean;
+  accentColor: string;
+}
 
 export default function ClassesPage() {
   const navigate = useNavigate();
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("All");
-
-  const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [classes, setClasses] = useState<ClassListItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load classes from service on mount
-  useEffect(() => {
-    loadClasses();
-  }, []);
-
-  async function loadClasses() {
+  const loadClasses = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await ClassService.getAllClasses();
-      // defensive: service might return array or { classes: [] } or { data: [] }
-      const list = Array.isArray(res) ? res : (res?.classes ?? res?.data ?? []);
-      // Map API fields to UI-friendly fields (modify mapping based on your API)
-      const mapped = list.map((item: any, idx: number) => ({
-        _id: item._id ?? item.id ?? `local-${idx}`,
-        id: item.id ?? idx + 1,
-        title: item.name ?? item.className ?? item.title ?? "Untitled Class",
-        batch: item.bacth ?? item.batch ?? item.batchName ?? "—",
-        type: item.type ?? (item.recurrence ? "Theory" : "Theory"),
-        day: (item.timeSchedules && item.timeSchedules[0]?.day) ?? item.day ?? "Sat",
-        time: (item.timeSchedules && `${item.timeSchedules[0]?.startTime || ""} - ${item.timeSchedules[0]?.endTime || ""}`) ?? item.time ?? "08:00 AM - 10:00 AM",
-        students: (item.students && item.students.length) ?? item.studentCount ?? item.enrollmentCount ?? 0,
-        status: item.isActive ? "Active" : (item.status ?? "Paused"),
-        color: item.color ?? (idx % 3 === 0 ? "bg-blue-600" : idx % 3 === 1 ? "bg-emerald-600" : "bg-purple-600")
-      })) as ClassItem[];
+      const response = await ClassService.getAllClasses();
+      const dataArray = Array.isArray(response) ? response : (response as any).classes || [];
+      
+      const mapped: ClassListItem[] = dataArray.map((item: any, idx: number) => ({
+        _id: item._id,
+        title: item.name ?? "Untitled Class",
+        batchName: item.batch?.name ?? "Independent",
+        level: item.level ? item.level.toUpperCase() : "GENERAL",
+        schedule: item.timeSchedules?.[0] 
+                  ? `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][item.timeSchedules[0].day]} • ${item.timeSchedules[0].startTime}`
+                  : "TBA",
+        studentCount: item.studentCount ?? 0,
+        isActive: item.isActive ?? true,
+        isPublished: item.isPublished ?? false,
+        accentColor: ["bg-brand-cerulean", "bg-brand-coral", "bg-brand-jasmine"][idx % 3]
+      }));
+      
       setClasses(mapped);
     } catch (err: any) {
-      console.error(err);
-      setError(err?.message ?? "Failed to load classes");
+      setError("Unable to sync curriculum data. Please check your network connection.");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  // Filter Logic (search + type)
+  useEffect(() => { loadClasses(); }, [loadClasses]);
+
   const filteredClasses = useMemo(() => {
-    return classes.filter((cls) => {
-      const matchesSearch =
-        cls.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (cls.batch || "").toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = filterType === "All" || cls.type === filterType;
-      return matchesSearch && matchesType;
-    });
-  }, [classes, searchTerm, filterType]);
+    const term = searchTerm.toLowerCase().trim();
+    return classes.filter(cls => 
+      cls.title.toLowerCase().includes(term) || cls.batchName.toLowerCase().includes(term)
+    );
+  }, [classes, searchTerm]);
 
-  // Actions
-  function onCreate() {
-    navigate("/admin/classes/create");
-  }
+  const handleTogglePublish = async (cls: ClassListItem) => {
+    const original = [...classes];
+    const newStatus = !cls.isPublished;
 
-  function onEdit(cls: ClassItem) {
-    if (!cls._id) return;
-    navigate(`/admin/classes/edit/${cls._id}`);
-  }
+    // Optimistic Update
+    setClasses(prev => prev.map(c => c._id === cls._id ? { ...c, isPublished: newStatus } : c));
 
-  function onManage(cls: ClassItem) {
-    if (!cls._id) return;
-    navigate(`/admin/classes/view/${cls._id}`);
-  }
-
-  async function onDelete(cls: ClassItem) {
-    if (!cls._id) return;
-    if (!confirm(`Delete "${cls.title}"? This action cannot be undone.`)) return;
-    // optimistic update
-    const prev = classes;
-    setClasses((s) => s.filter(c => c._id !== cls._id));
     try {
-      await ClassService.deleteClass(cls._id);
-    } catch (err: any) {
+      await ClassService.setPublished(cls._id, newStatus);
+    } catch (err) {
+      console.error("Publish toggle failed", err);
+      setClasses(original); // Rollback
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("System Warning: Deleting this class will remove all associated session data. Proceed?")) return;
+    
+    const original = [...classes];
+    setClasses(prev => prev.filter(c => c._id !== id));
+
+    try {
+      await ClassService.deleteClass(id);
+    } catch (err) {
       console.error("Delete failed", err);
-      alert("Delete failed: " + (err?.message ?? err));
-      setClasses(prev); // rollback
+      alert("Unauthorized or failed deletion attempt.");
+      setClasses(original); // Rollback
     }
-  }
+  };
 
-  async function toggleStatus(cls: ClassItem) {
-    if (!cls._id) return;
-    const willActivate = cls.status !== "Active";
-    // optimistic UI
-    setClasses((s) => s.map(c => c._id === cls._id ? { ...c, status: willActivate ? "Active" : "Paused" } : c));
-    try {
-      // Your ClassService.updateClass expects the form keys used by your backend.
-      // If your backend expects { isActive: boolean } then update the service or send that shape here.
-      await ClassService.updateClass(cls._id, { /* adapt payload if needed */ } as any);
-      // If backend supports { isActive }, do: await ClassService.updateClass(cls._id, { isActive: willActivate } as any);
-    } catch (err: any) {
-      console.error("Status toggle failed", err);
-      alert("Update failed: " + (err?.message ?? err));
-      // reload to refresh actual state
-      await loadClasses();
-    }
-  }
-
-  // --- Custom Right Sidebar for this Page --- (kept unchanged)
-  const ClassStatsSidebar = (
-    <div className="space-y-6">
-      {/* Widget 1: Summary */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-        <h3 className="font-semibold text-gray-800 mb-4">Class Overview</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><AcademicCapIcon className="w-5 h-5"/></div>
-              <span className="text-sm font-medium text-gray-600">Total Classes</span>
-            </div>
-            <span className="font-bold text-gray-900">{classes.length}</span>
-          </div>
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><UsersIcon className="w-5 h-5"/></div>
-              <span className="text-sm font-medium text-gray-600">Total Enrollments</span>
-            </div>
-            <span className="font-bold text-gray-900">{classes.reduce((acc, c) => acc + (c.students ?? 0), 0)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Widget 2: Quick Links */}
-      <div className="bg-[#0b2540] rounded-2xl p-5 shadow-sm text-white">
-        <h3 className="font-semibold mb-2">Need Help?</h3>
-        <p className="text-sm text-gray-300 mb-4">Check the guide on how to setup Zoom links for hybrid classes.</p>
-        <button onClick={() => navigate("/docs/zoom-setup")} className="w-full py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-colors">
-          View Documentation
-        </button>
+  const StatsSidebar = (
+    <div className="bg-white rounded-xl p-6 border border-brand-aliceBlue shadow-sm">
+      <h3 className="text-[10px] font-bold text-brand-prussian/40 uppercase tracking-[0.2em] mb-6">Class Insights</h3>
+      <div className="space-y-4">
+        <StatRow icon={<AcademicCapIcon className="w-4 h-4" />} label="Modules" value={classes.length} />
+        <StatRow icon={<UsersIcon className="w-4 h-4" />} label="Enrollments" value={classes.reduce((a, b) => a + b.studentCount, 0)} />
       </div>
     </div>
   );
 
   return (
-    <DashboardLayout 
-      Sidebar={SidebarAdmin} 
-      BottomNav={BottomNavAdmin}
-      rightSidebar={ClassStatsSidebar}
-    >
-      <div className="space-y-6">
+    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={StatsSidebar}>
+      <div className="space-y-6 pb-20 max-w-6xl mx-auto">
         
-        {/* PAGE HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Classes</h1>
-            <p className="text-gray-500 text-sm mt-1">Manage batches, schedules, and class settings.</p>
+            <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">Academic Modules</h1>
+            <p className="text-gray-500 text-sm">Configure curriculum and student access states.</p>
           </div>
-          <button onClick={onCreate} className="flex items-center justify-center gap-2 bg-[#0b2540] hover:bg-[#1a3b5c] text-white px-4 py-2.5 rounded-xl font-medium transition-colors shadow-sm">
-            <PlusIcon className="w-5 h-5" />
-            <span>Create New Class</span>
+          <button 
+            onClick={() => navigate("/admin/classes/create")}
+            className="flex items-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95"
+          >
+            <PlusIcon className="w-4 h-4 stroke-2" />
+            New Class
           </button>
+        </header>
+
+        <div className="relative group">
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-cerulean transition-colors" />
+          <input 
+            type="text"
+            placeholder="Search modules or intakes..."
+            className="w-full pl-11 pr-4 py-2.5 bg-white border border-brand-aliceBlue rounded-lg focus:ring-2 focus:ring-brand-cerulean/10 focus:border-brand-cerulean outline-none transition-all text-sm text-brand-prussian"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
-        {/* FILTERS & SEARCH */}
-        <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-          <div className="relative flex-1">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input 
-              type="text"
-              placeholder="Search by name or batch..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none text-gray-700 placeholder-gray-400"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-             <div className="relative">
-               <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-               <select 
-                 className="pl-10 pr-8 py-2 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none text-gray-700 appearance-none cursor-pointer"
-                 value={filterType}
-                 onChange={(e) => setFilterType(e.target.value)}
-               >
-                 <option value="All">All Types</option>
-                 <option value="Theory">Theory</option>
-                 <option value="Revision">Revision</option>
-                 <option value="Paper Class">Paper Class</option>
-               </select>
-             </div>
-          </div>
-        </div>
-
-        {/* CLASS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {loading && <div className="col-span-full p-6 text-center text-gray-500">Loading classes…</div>}
-          {error && <div className="col-span-full p-6 text-center text-red-600">Error: {error}</div>}
-
-          {!loading && !error && filteredClasses.map((cls) => (
-            <div key={cls._id ?? cls.id} className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col">
-              
-              {/* Card Header / Banner */}
-              <div className={`h-2 ${cls.color} w-full`}></div>
-              
-              <div className="p-5 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="px-2.5 py-1 rounded-md bg-gray-100 text-xs font-bold text-gray-600 uppercase tracking-wide">
-                    {cls.batch}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => onEdit(cls)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-50">
-                      <EllipsisVerticalIcon className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-bold text-gray-900 mb-1">{cls.title}</h3>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    cls.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {cls.status}
-                  </span>
-                  <span className="text-xs text-gray-400">•</span>
-                  <span className="text-xs text-gray-500 font-medium">{cls.type}</span>
-                </div>
-
-                {/* Details Grid */}
-                <div className="space-y-3 mt-auto">
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <ClockIcon className="w-5 h-5 text-gray-400" />
-                    <span>{cls.day}, {cls.time}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <UsersIcon className="w-5 h-5 text-gray-400" />
-                    <span>{cls.students} Students Enrolled</span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="mt-6 pt-4 border-t border-gray-50 flex gap-3">
-                  <button onClick={() => onEdit(cls)} className="flex-1 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-                    Edit
-                  </button>
-                  <button onClick={() => onManage(cls)} className="flex-1 py-2 text-sm font-medium text-white bg-[#0b2540] hover:bg-[#153454] rounded-lg transition-colors shadow-sm">
-                    Manage
-                  </button>
-                  <button onClick={() => onDelete(cls)} className="py-2 px-3 text-sm font-medium text-red-600 rounded-lg bg-red-50 hover:bg-red-100 transition-colors">
-                    Delete
-                  </button>
-                </div>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {loading ? (
+            <div className="col-span-full py-32 flex flex-col items-center gap-3">
+               <ArrowPathIcon className="w-8 h-8 text-brand-cerulean animate-spin" />
+               <p className="text-xs text-gray-400 font-medium uppercase tracking-widest animate-pulse">Syncing Curriculum...</p>
             </div>
-          ))}
-
-          {/* New Class Placeholder Card (Optional) */}
-          <button onClick={onCreate} className="border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/50 transition-all min-h-[300px]">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3 group-hover:bg-blue-100">
-              <PlusIcon className="w-6 h-6" />
+          ) : error ? (
+            <div className="col-span-full py-12 text-center bg-red-50 rounded-xl border border-red-100 text-red-600 text-sm font-medium">
+              {error}
             </div>
-            <span className="font-semibold">Add New Class</span>
-          </button>
+          ) : (
+            <AnimatePresence mode="popLayout">
+              {filteredClasses.length === 0 ? (
+                <EmptyState key="empty" onAdd={() => navigate("/admin/classes/create")} />
+              ) : (
+                filteredClasses.map((cls) => (
+                  <ClassCard 
+                    key={cls._id} 
+                    cls={cls} 
+                    onToggle={() => handleTogglePublish(cls)}
+                    onDelete={() => handleDelete(cls._id)}
+                    onEdit={() => navigate(`/admin/classes/edit/${cls._id}`)}
+                    onView={() => navigate(`/admin/classes/view/${cls._id}`)}
+                  />
+                ))
+              )}
+            </AnimatePresence>
+          )}
         </div>
-        
       </div>
     </DashboardLayout>
   );
 }
+
+// --- Precise Sub-Components ---
+
+const StatRow = ({ icon, label, value }: { icon: ReactElement, label: string, value: number }) => (
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-3">
+      <div className="text-brand-cerulean opacity-70 bg-brand-aliceBlue p-1.5 rounded-md">
+        {icon}
+      </div>
+      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{label}</span>
+    </div>
+    <span className="text-sm font-semibold text-brand-prussian">{value}</span>
+  </div>
+);
+
+const ClassCard = ({ cls, onToggle, onDelete, onEdit, onView }: any) => (
+  <motion.div 
+    layout
+    initial={{ opacity: 0, scale: 0.98 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.95 }}
+    className="group bg-white rounded-xl border border-brand-aliceBlue hover:border-brand-cerulean/20 transition-all overflow-hidden shadow-sm"
+  >
+    <div className="p-5">
+      <div className="flex justify-between items-start mb-4">
+        <span className="text-[10px] font-bold text-brand-cerulean uppercase tracking-widest bg-brand-aliceBlue px-2.5 py-1 rounded-md">
+          {cls.batchName}
+        </span>
+        <button 
+          onClick={onToggle}
+          className={`text-[9px] font-bold px-2 py-1 rounded-md border uppercase tracking-wider transition-colors ${
+            cls.isPublished 
+            ? "border-green-200 text-green-600 bg-green-50" 
+            : "border-gray-200 text-gray-400 bg-gray-50"
+          }`}
+        >
+          {cls.isPublished ? "Visible" : "Hidden"}
+        </button>
+      </div>
+
+      <h3 className="text-base font-semibold text-brand-prussian mb-0.5 leading-snug group-hover:text-brand-cerulean transition-colors">{cls.title}</h3>
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{cls.level} Curriculum</p>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="flex items-center gap-2 text-[12px] text-gray-600">
+          <ClockIcon className="w-4 h-4 text-brand-cerulean/50" />
+          <span className="font-medium">{cls.schedule}</span>
+        </div>
+        <div className="flex items-center gap-2 text-[12px] text-gray-600">
+          <UsersIcon className="w-4 h-4 text-brand-cerulean/50" />
+          <span className="font-medium">{cls.studentCount} Students</span>
+        </div>
+      </div>
+
+      <div className="mt-6 pt-5 border-t border-brand-aliceBlue flex items-center gap-2">
+        <button 
+          onClick={onView} 
+          className="flex-1 bg-brand-prussian hover:bg-brand-cerulean text-white text-[11px] font-bold uppercase tracking-widest py-2.5 rounded-lg transition-all shadow-sm active:scale-95"
+        >
+          View Class
+        </button>
+        <div className="flex gap-1">
+          <button onClick={onEdit} className="p-2 text-gray-400 hover:text-brand-cerulean hover:bg-brand-aliceBlue rounded-lg transition-all border border-transparent hover:border-brand-cerulean/10">
+            <PencilIcon className="w-4 h-4" />
+          </button>
+          <button onClick={onDelete} className="p-2 text-gray-400 hover:text-brand-coral hover:bg-red-50 rounded-lg transition-all">
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </motion.div>
+);
+
+const EmptyState = ({ onAdd }: { onAdd: () => void }) => (
+  <div className="col-span-full py-24 flex flex-col items-center justify-center bg-white rounded-xl border border-dashed border-brand-aliceBlue text-gray-400">
+    <AcademicCapIcon className="w-12 h-12 mb-4 opacity-10 text-brand-prussian" />
+    <p className="text-xs font-semibold uppercase tracking-[0.2em]">Curriculum Empty</p>
+    <button onClick={onAdd} className="mt-4 bg-brand-aliceBlue text-brand-cerulean px-6 py-2 rounded-lg text-xs font-bold hover:bg-brand-cerulean hover:text-white transition-all">
+      Initialize Module
+    </button>
+  </div>
+);

@@ -1,50 +1,83 @@
-import React, { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import moment from "moment";
+import { 
+  Video, 
+  PlayCircle, 
+  Calendar, 
+  ArrowLeft, 
+  MessageSquare,
+  AlertTriangle,
+  Megaphone,
+  Users,
+  Lock,
+  Clock,
+  LayoutDashboard,
+  FolderOpen,
+  Eye,
+  EyeOff,
+  Copy,
+  Check
+} from "lucide-react";
+
+// Components & Layouts
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import SidebarStudent from "../../../components/sidebar/SidebarStudent";
 import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent";
+
+// Services
 import ClassService from "../../../services/ClassService";
 import SessionService from "../../../services/SessionService";
-import type { SessionData } from "../../../services/SessionService";
-import moment from "moment";
-import { 
-  VideoCameraIcon, 
-  PlayCircleIcon, 
-  CalendarDaysIcon, 
-  ArrowLeftIcon, 
-  ChatBubbleLeftRightIcon,
-  ExclamationTriangleIcon,
-  MegaphoneIcon,
-  UserGroupIcon,
-  LockClosedIcon,
-  ClockIcon,
-  HomeIcon,
-  FolderOpenIcon
-} from "@heroicons/react/24/outline";
 
-// --- Interfaces ---
+// --- Types ---
 interface ClassData {
   _id: string;
   name: string;
   description: string;
+  // Sensitive fields (Ensure backend only sends these to enrolled students)
   zoomLink?: string;
   zoomMeetingId?: string;
-  zoomPassword?: string;
-  timeSchedules?: { day: number; startTime: string; endTime: string }[];
+  zoomPassword?: string; 
 }
+
+// Ensure SessionData matches your service definition
+interface SessionData {
+  _id: string;
+  title?: string;
+  startAt: string;
+  endAt: string;
+  zoomJoinUrl?: string;
+  zoomMeetingId?: string;
+  youtubeVideoId?: string;
+  index: number;
+}
+
+// Animation Variants
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
 
 export default function ViewClass() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  // State
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "recordings" | "resources" | "chat">("overview");
+  
+  // UI State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // --- Fetch Data ---
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -56,76 +89,106 @@ export default function ViewClass() {
       }
 
       try {
+        // Parallel Fetch
         const [classRes, sessionsRes] = await Promise.all([
-            ClassService.getPublicClassById(id),
+            ClassService.getClassById(id),
             SessionService.getSessionsByClassId(id)
         ]);
 
-        const classObj = Array.isArray(classRes) ? classRes[0] : classRes;
-        if (!classObj) throw new Error("Class data not found");
-        setClassData(classObj);
+        if (isMounted) {
+            // Handle inconsistencies in API returns (Array vs Object)
+            const classObj = Array.isArray(classRes) ? classRes[0] : classRes;
+            if (!classObj) throw new Error("Class data not found");
+            setClassData(classObj);
 
-        const sessionList = Array.isArray(sessionsRes) ? sessionsRes : (sessionsRes as any).data || [];
-        setSessions(sessionList);
-
-      } catch (err: any) {
+            // Handle session list
+            const sessionList = Array.isArray(sessionsRes) ? sessionsRes : (sessionsRes as any)?.data || [];
+            setSessions(sessionList);
+        }
+      } catch (err: unknown) {
         console.error("Fetch Error:", err);
-        setError("Unable to load classroom.");
+        if (isMounted) setError("Unable to load classroom. Please check your connection.");
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
+
+    return () => { isMounted = false; };
   }, [id]);
 
   // --- Derived Data ---
+  
+  // Find the next upcoming session
   const upcomingSession = useMemo(() => {
     const now = new Date();
     return sessions
-        .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-        .find(s => new Date(s.endAt) > now);
+      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+      .find(s => new Date(s.endAt) > now);
   }, [sessions]);
 
+  // Determine active connection details (Session overrides Class default)
   const activeZoomLink = upcomingSession?.zoomJoinUrl || classData?.zoomLink;
   const activeMeetingId = upcomingSession?.zoomMeetingId || classData?.zoomMeetingId;
   const activePassword = classData?.zoomPassword;
 
+  // Filter & Sort Recordings
   const recordings = useMemo(() => {
     return sessions
-      .filter(s => (s as any).youtubeVideoId || s.recordingUrl)
-      .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime())
-      .map(s => ({
-          ...s,
-          finalRecordingUrl: (s as any).youtubeVideoId 
-            ? `https://www.youtube.com/watch?v=${(s as any).youtubeVideoId}` 
-            : s.recordingUrl
-      }));
+      .filter(s => s.youtubeVideoId) // Only sessions with recordings
+      .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime()); // Newest first
   }, [sessions]);
 
-  // --- Render Loading/Error ---
+  // Group Recordings by Month
+  const groupedRecordings = useMemo(() => {
+      const groups: Record<string, SessionData[]> = {};
+      recordings.forEach(session => {
+          const monthKey = moment(session.startAt).format("MMMM YYYY");
+          if (!groups[monthKey]) groups[monthKey] = [];
+          groups[monthKey].push(session);
+      });
+      return groups;
+  }, [recordings]);
+
+  // --- Actions ---
+  const handleCopyPassword = () => {
+      if (activePassword) {
+          navigator.clipboard.writeText(activePassword);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+      }
+  };
+
+  // --- Render: Loading ---
   if (loading) {
     return (
         <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
-            <div className="flex items-center justify-center h-screen bg-gray-50">
-                <div className="animate-pulse flex flex-col items-center">
-                    <div className="h-12 w-12 bg-gray-200 rounded-full mb-4"></div>
-                    <div className="h-4 w-40 bg-gray-200 rounded">Loading Class...</div>
+            <div className="flex items-center justify-center h-screen bg-brand-aliceBlue/30">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-brand-cerulean border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-brand-prussian font-bold">Loading Classroom...</p>
                 </div>
             </div>
         </DashboardLayout>
     );
   }
 
+  // --- Render: Error ---
   if (error || !classData) {
     return (
         <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
-            <div className="flex flex-col items-center justify-center h-screen bg-gray-50 p-4 text-center">
-                <ExclamationTriangleIcon className="w-12 h-12 text-red-400 mb-3" />
-                <h3 className="text-lg font-bold text-gray-900">Access Issue</h3>
-                <p className="text-gray-500 mb-6">{error}</p>
-                <button onClick={() => navigate("/student/enrollments")} className="bg-[#0b2540] text-white px-6 py-2.5 rounded-xl">
-                    Back to Dashboard
+            <div className="flex flex-col items-center justify-center h-screen bg-brand-aliceBlue/30 p-6 text-center">
+                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+                    <AlertTriangle className="w-10 h-10 text-red-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-brand-prussian mb-2">Access Issue</h3>
+                <p className="text-gray-500 mb-8 max-w-sm">{error || "Class data unavailable."}</p>
+                <button 
+                    onClick={() => navigate("/student/enrollment")} 
+                    className="bg-brand-prussian text-white px-8 py-3 rounded-xl font-bold hover:bg-brand-cerulean transition-colors"
+                >
+                    Back to Enrollments
                 </button>
             </div>
         </DashboardLayout>
@@ -134,72 +197,47 @@ export default function ViewClass() {
 
   // --- Tab Configuration ---
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: HomeIcon },
-    { id: 'recordings', label: 'Recordings', icon: PlayCircleIcon, count: recordings.length },
-    { id: 'resources', label: 'Resources', icon: FolderOpenIcon },
-    { id: 'chat', label: 'Chat', icon: ChatBubbleLeftRightIcon },
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'recordings', label: 'Recordings', icon: PlayCircle, count: recordings.length },
+    { id: 'resources', label: 'Resources', icon: FolderOpen },
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
   ];
 
   return (
     <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
-      <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="min-h-screen bg-brand-aliceBlue/30 pb-24">
         
         {/* --- Header & Navigation --- */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-            <div className="max-w-5xl mx-auto px-4 md:px-6">
+        <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30">
+            <div className="max-w-6xl mx-auto px-4 md:px-6">
                 
                 {/* Title Row */}
-                <div className="py-4 flex items-center gap-3">
-                    <button onClick={() => navigate("/student/enrollments")} className="text-gray-400 hover:text-[#0b2540] transition-colors">
-                        <ArrowLeftIcon className="w-5 h-5" />
+                <div className="py-4 flex items-center gap-4">
+                    <button onClick={() => navigate("/student/classes")} className="p-2 rounded-full hover:bg-brand-aliceBlue text-gray-400 hover:text-brand-prussian transition-colors">
+                        <ArrowLeft className="w-5 h-5" />
                     </button>
-                    <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate">{classData.name}</h1>
+                    <div>
+                        <h1 className="text-lg md:text-xl font-black text-brand-prussian truncate font-sinhala">{classData.name}</h1>
+                        <p className="text-xs text-gray-500 hidden md:block">Classroom Dashboard</p>
+                    </div>
                 </div>
 
-                {/* --- RESPONSIVE TABS --- */}
-                {/* 1. Mobile: 2x2 Grid (No Scrolling) */}
-                <div className="grid grid-cols-2 gap-2 pb-4 sm:hidden">
+                {/* Tabs */}
+                <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-2 md:pb-0">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl text-sm font-medium transition-all ${
+                            className={`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-bold transition-all whitespace-nowrap ${
                                 activeTab === tab.id
-                                ? "bg-[#0b2540] text-white shadow-md"
-                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                ? "border-brand-cerulean text-brand-cerulean bg-brand-aliceBlue/50 rounded-t-xl"
+                                : "border-transparent text-gray-500 hover:text-brand-prussian hover:bg-gray-50 rounded-t-xl"
                             }`}
                         >
-                            <div className="flex items-center gap-2">
-                                <tab.icon className="w-5 h-5 mb-1" />
-                                {tab.count !== undefined && tab.count > 0 && (
-                                    <span className={`text-[10px] px-1.5 rounded-full font-bold ${
-                                        activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-gray-300 text-gray-700'
-                                    }`}>
-                                        {tab.count}
-                                    </span>
-                                )}
-                            </div>
-                            <span>{tab.label}</span>
-                        </button>
-                    ))}
-                </div>
-
-                {/* 2. Desktop: Horizontal Line Tabs (Hidden on Mobile) */}
-                <div className="hidden sm:flex space-x-1">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                                activeTab === tab.id
-                                ? "border-[#0b2540] text-[#0b2540]"
-                                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                            }`}
-                        >
-                            <tab.icon className="w-4 h-4" />
+                            <tab.icon size={18} />
                             {tab.label}
                             {tab.count !== undefined && tab.count > 0 && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-[#0b2540] text-white' : 'bg-gray-200 text-gray-600'}`}>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-brand-cerulean text-white' : 'bg-gray-200 text-gray-600'}`}>
                                     {tab.count}
                                 </span>
                             )}
@@ -209,169 +247,225 @@ export default function ViewClass() {
             </div>
         </div>
 
-        {/* --- Tab Content Area --- */}
-        <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-6">
+        {/* --- Main Content Area --- */}
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
+            <AnimatePresence mode="wait">
+                
+                {/* 1. OVERVIEW TAB */}
+                {activeTab === 'overview' && (
+                    <motion.div key="overview" variants={fadeInUp} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+                        {/* Live Class Card */}
+                        <div className="bg-gradient-to-br from-brand-prussian to-[#022c3d] rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden">
+                            {/* Decorative Blobs */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-brand-cerulean/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-coral/10 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none"></div>
 
-            {/* TAB: OVERVIEW */}
-            {activeTab === 'overview' && (
-                <div className="animate-fade-in space-y-6">
-                    <div className="bg-gradient-to-br from-[#0b2540] to-[#163a5c] rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-                        <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                                    <p className="text-green-300 text-xs font-bold uppercase tracking-wider">Live Class</p>
-                                </div>
-                                <h2 className="text-2xl md:text-3xl font-bold mb-4">
-                                    {upcomingSession ? upcomingSession.title || "Next Session" : "No Upcoming Session"}
-                                </h2>
-                                
-                                {upcomingSession ? (
-                                    <div className="flex flex-wrap gap-4 text-blue-100 text-sm mb-6">
-                                        <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg">
-                                            <CalendarDaysIcon className="w-4 h-4" />
-                                            {moment(upcomingSession.startAt).format("MMM DD")}
+                            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <span className="relative flex h-3 w-3">
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                                         </span>
-                                        <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg">
-                                            <ClockIcon className="w-4 h-4" />
-                                            {moment(upcomingSession.startAt).format("h:mm A")}
-                                        </span>
+                                        <p className="text-green-400 text-xs font-bold uppercase tracking-widest">Live Class Status</p>
                                     </div>
-                                ) : (
-                                    <p className="text-blue-200 text-sm mb-6">Check back later for schedule.</p>
-                                )}
-
-                                {activeZoomLink ? (
-                                    <a 
-                                        href={activeZoomLink} 
-                                        target="_blank" 
-                                        rel="noreferrer"
-                                        className="inline-flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-400 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-blue-500/30 w-full md:w-auto transform hover:-translate-y-0.5"
-                                    >
-                                        <VideoCameraIcon className="w-5 h-5" />
-                                        Join via Zoom
-                                    </a>
-                                ) : (
-                                    <button disabled className="bg-gray-600 text-gray-300 font-bold py-3 px-8 rounded-xl cursor-not-allowed w-full md:w-auto">
-                                        Link Unavailable
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="bg-white/10 rounded-2xl p-5 backdrop-blur-md border border-white/10">
-                                <div className="space-y-4">
-                                    <div>
-                                        <p className="text-xs text-blue-300 mb-1 uppercase font-bold">Meeting ID</p>
-                                        <p className="font-mono text-lg font-medium tracking-wide">{activeMeetingId || "N/A"}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-blue-300 mb-1 uppercase font-bold">Passcode</p>
-                                        <p className="font-mono text-lg font-medium tracking-wide">{activePassword || "N/A"}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
-                            <MegaphoneIcon className="w-5 h-5 text-orange-500" />
-                            Announcements
-                        </h3>
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <div className="p-5 border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded">Instructor</span>
-                                    <span className="text-xs text-gray-400">{moment().format("MMM DD")}</span>
-                                </div>
-                                <p className="text-sm text-gray-700 leading-relaxed">
-                                    Welcome to the class! Please verify your Zoom audio settings before joining the live session.
-                                </p>
-                            </div>
-                            <div className="p-3 bg-gray-50 text-center">
-                                <span className="text-xs text-gray-400">End of updates</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* TAB: RECORDINGS */}
-            {activeTab === 'recordings' && (
-                <div className="animate-fade-in space-y-4">
-                    {recordings.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {recordings.map((session) => (
-                                <div key={session._id} className="group bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-                                    <div>
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-red-500 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                                                <PlayCircleIcon className="w-6 h-6" />
+                                    
+                                    <h2 className="text-3xl md:text-4xl font-black mb-6 font-sinhala leading-tight">
+                                        {upcomingSession ? (upcomingSession.title || "Next Live Session") : "No Session Scheduled"}
+                                    </h2>
+                                    
+                                    {upcomingSession ? (
+                                        <div className="flex flex-wrap gap-4 mb-8">
+                                            <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10">
+                                                <Calendar size={18} className="text-brand-jasmine" />
+                                                <span className="text-sm font-bold">{moment(upcomingSession.startAt).format("MMM DD, YYYY")}</span>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                                                    {session.title || `Session ${session.index}`}
-                                                </h4>
-                                                <p className="text-xs text-gray-500">
-                                                    {moment(session.startAt).format("MMMM Do, YYYY")}
+                                            <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10">
+                                                <Clock size={18} className="text-brand-coral" />
+                                                <span className="text-sm font-bold">{moment(upcomingSession.startAt).format("h:mm A")}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-brand-aliceBlue/60 mb-8 max-w-md">
+                                            There are no live classes scheduled at the moment. Please check back later or review past recordings.
+                                        </p>
+                                    )}
+
+                                    {activeZoomLink ? (
+                                        <a 
+                                            href={activeZoomLink} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" // Security Fix
+                                            className="inline-flex items-center gap-3 bg-brand-cerulean hover:bg-[#067aa3] text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg shadow-brand-cerulean/30 transform hover:-translate-y-1 w-full sm:w-auto justify-center"
+                                        >
+                                            <Video size={20} /> Join Live Class
+                                        </a>
+                                    ) : (
+                                        <button disabled className="inline-flex items-center gap-3 bg-white/10 text-gray-400 font-bold py-4 px-8 rounded-xl cursor-not-allowed w-full sm:w-auto justify-center border border-white/5">
+                                            <Lock size={20} /> Link Unavailable
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Secure Zoom Details Panel */}
+                                <div className="bg-white/5 rounded-3xl p-6 backdrop-blur-md border border-white/10">
+                                    <h3 className="text-sm font-bold text-brand-jasmine mb-4 uppercase tracking-wider border-b border-white/10 pb-2">Zoom Details</h3>
+                                    <div className="space-y-4">
+                                        {/* Meeting ID */}
+                                        <div>
+                                            <p className="text-xs text-brand-aliceBlue/50 mb-1 uppercase font-bold">Meeting ID</p>
+                                            <div className="flex items-center gap-3">
+                                                <p className="font-mono text-xl font-bold tracking-wide select-all">{activeMeetingId || "---"}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Passcode (Secured) */}
+                                        <div>
+                                            <p className="text-xs text-brand-aliceBlue/50 mb-1 uppercase font-bold">Passcode</p>
+                                            <div className="flex items-center gap-3">
+                                                <p className="font-mono text-xl font-bold tracking-wide">
+                                                    {activePassword 
+                                                        ? (showPassword ? activePassword : "••••••") 
+                                                        : "---"
+                                                    }
                                                 </p>
+                                                {activePassword && (
+                                                    <div className="flex items-center gap-1">
+                                                        <button 
+                                                            onClick={() => setShowPassword(!showPassword)}
+                                                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-brand-aliceBlue"
+                                                            title={showPassword ? "Hide" : "Show"}
+                                                        >
+                                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                        </button>
+                                                        <button 
+                                                            onClick={handleCopyPassword}
+                                                            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-brand-aliceBlue"
+                                                            title="Copy"
+                                                        >
+                                                            {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                    <a 
-                                        href={session.finalRecordingUrl} 
-                                        target="_blank" 
-                                        rel="noreferrer"
-                                        className="mt-4 w-full text-center text-sm font-bold text-[#0b2540] bg-gray-50 py-2.5 rounded-xl hover:bg-[#0b2540] hover:text-white transition-colors"
-                                    >
-                                        Watch Recording
-                                    </a>
+                                    <p className="text-[10px] text-brand-aliceBlue/40 mt-6 leading-relaxed">
+                                        * Please join 5 minutes early to test your audio. Keep your microphone muted upon entry.
+                                    </p>
                                 </div>
-                            ))}
+                            </div>
                         </div>
-                    ) : (
-                        <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-gray-300">
-                            <VideoCameraIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <h3 className="text-lg font-medium text-gray-900">No Recordings</h3>
-                            <p className="text-gray-500 text-sm">Past sessions will appear here.</p>
+
+                        {/* Announcements Section */}
+                        <div>
+                            <h3 className="text-xl font-bold text-brand-prussian flex items-center gap-2 mb-4">
+                                <Megaphone className="text-brand-coral" /> Announcements
+                            </h3>
+                            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                                <div className="p-6 hover:bg-brand-aliceBlue/20 transition-colors">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <span className="bg-brand-aliceBlue text-brand-prussian text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider">Instructor</span>
+                                        <span className="text-xs text-gray-400 font-medium">{moment().format("MMM DD")}</span>
+                                    </div>
+                                    <p className="text-gray-600 leading-relaxed font-sans">
+                                        Welcome to the class! Make sure to check the <strong>Resources</strong> tab for this week's lecture notes before joining the live session.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                    )}
-                </div>
-            )}
+                    </motion.div>
+                )}
 
-            {/* TAB: RESOURCES */}
-            {activeTab === 'resources' && (
-                <div className="animate-fade-in">
-                    <div className="bg-white rounded-2xl p-12 text-center border border-dashed border-gray-300">
-                        <FolderOpenIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <h3 className="text-lg font-medium text-gray-900">No Materials</h3>
-                        <p className="text-gray-500 text-sm">Files uploaded by the instructor will appear here.</p>
-                    </div>
-                </div>
-            )}
+                {/* 2. RECORDINGS TAB */}
+                {activeTab === 'recordings' && (
+                    <motion.div key="recordings" variants={fadeInUp} initial="hidden" animate="visible" exit="hidden" className="space-y-8">
+                        {recordings.length > 0 ? (
+                            Object.entries(groupedRecordings).map(([month, sessionsInMonth]) => (
+                                <div key={month} className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-px bg-gray-200 flex-1"></div>
+                                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest bg-brand-aliceBlue/50 px-4 py-1 rounded-full">
+                                            {month}
+                                        </h3>
+                                        <div className="h-px bg-gray-200 flex-1"></div>
+                                    </div>
 
-            {/* TAB: CHAT */}
-            {activeTab === 'chat' && (
-                <div className="animate-fade-in">
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-                        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <UserGroupIcon className="w-8 h-8 text-green-600" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {sessionsInMonth.map((session) => (
+                                            <div key={session._id} className="group bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:border-brand-cerulean/20 transition-all duration-300 flex flex-col h-full">
+                                                <div className="flex items-start gap-4 mb-4">
+                                                    <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 group-hover:bg-red-500 group-hover:text-white transition-colors shadow-sm shrink-0">
+                                                        <PlayCircle size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-brand-prussian line-clamp-2 leading-tight group-hover:text-brand-cerulean transition-colors">
+                                                            {session.title || `Session ${session.index}`}
+                                                        </h4>
+                                                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                                                            <Calendar size={12} />
+                                                            {moment(session.startAt).format("MMM Do, YYYY")}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="mt-auto">
+                                                    <button 
+                                                        onClick={() => navigate(`/student/class/recording/${session._id}`)}
+                                                        className="w-full flex items-center justify-center gap-2 text-sm font-bold text-brand-prussian bg-brand-aliceBlue py-3 rounded-xl hover:bg-brand-prussian hover:text-white transition-all group-hover:shadow-md"
+                                                    >
+                                                        Watch Recording
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="bg-white rounded-[2.5rem] p-16 text-center border border-dashed border-gray-200">
+                                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Video className="w-10 h-10 text-gray-300" />
+                                </div>
+                                <h3 className="text-xl font-bold text-brand-prussian">No Recordings Yet</h3>
+                                <p className="text-gray-500 mt-2">Past class sessions will appear here automatically.</p>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+
+                {/* 3. RESOURCES TAB */}
+                {activeTab === 'resources' && (
+                    <motion.div key="resources" variants={fadeInUp} initial="hidden" animate="visible" exit="hidden">
+                        <div className="bg-white rounded-[2.5rem] p-16 text-center border border-dashed border-gray-200">
+                            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <FolderOpen className="w-10 h-10 text-gray-300" />
+                            </div>
+                            <h3 className="text-xl font-bold text-brand-prussian">No Resources Found</h3>
+                            <p className="text-gray-500 mt-2">PDFs and other study materials will be uploaded here.</p>
                         </div>
-                        <h4 className="text-xl font-bold text-gray-900 mb-2">Student Community</h4>
-                        <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
-                            Connect with your classmates, discuss topics, and share notes. This feature will be available soon.
-                        </p>
-                        <button 
-                            disabled
-                            className="inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-400 font-bold py-2.5 px-6 rounded-xl cursor-not-allowed"
-                        >
-                            <LockClosedIcon className="w-4 h-4" /> Chat Locked
-                        </button>
-                    </div>
-                </div>
-            )}
+                    </motion.div>
+                )}
 
+                {/* 4. CHAT TAB */}
+                {activeTab === 'chat' && (
+                    <motion.div key="chat" variants={fadeInUp} initial="hidden" animate="visible" exit="hidden">
+                        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-12 text-center max-w-2xl mx-auto">
+                            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Users className="w-10 h-10 text-green-600" />
+                            </div>
+                            <h4 className="text-2xl font-bold text-brand-prussian mb-3">Student Community</h4>
+                            <p className="text-gray-500 mb-8 leading-relaxed">
+                                Connect with your classmates, discuss topics, and share notes in a safe environment. This feature is currently locked for maintenance.
+                            </p>
+                            <button disabled className="inline-flex items-center gap-2 bg-gray-100 text-gray-400 font-bold py-3 px-8 rounded-xl cursor-not-allowed">
+                                <Lock size={18} /> Chat Temporarily Locked
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+
+            </AnimatePresence>
         </div>
       </div>
     </DashboardLayout>

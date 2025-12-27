@@ -10,6 +10,7 @@ import {
   deleteUserAccount,
   restoreUserAccount,
 } from "../controllers/AdminController.js";
+
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import {
   validate,
@@ -20,17 +21,19 @@ import {
 
 import createUploader from "../middlewares/UploadMiddleware.js";
 
-const profileUploadMiddleware = createUploader(
-  "images/profile",
-  "profileImage"
-);
+const profileUploadMiddleware = createUploader("images/profile", "profileImage");
 
 const router = express.Router();
 
+// Apply Global Admin Protection to all routes in this file
+// This prevents repeating protect/restrictTo on every line
+router.use(protect);
+router.use(restrictTo("admin"));
+
+// --- USER MANAGEMENT ---
+
 router.put(
   "/users/:id/profile",
-  protect,
-  restrictTo("admin"),
   profileUploadMiddleware,
   validate(updateProfileSchema),
   updateUserProfile
@@ -38,50 +41,26 @@ router.put(
 
 router.put(
   "/users/:id/email",
-  protect,
   validate(updateEmailSchema),
-  restrictTo("admin"),
   updateUserEmail
 );
 
 router.put(
   "/users/:id/password",
-  protect,
-  restrictTo("admin"),
   validate(updatePasswordSchema),
   updateUserPassword
 );
 
-router.put("/users/:id/lock", protect, restrictTo("admin"), lockUserAccount);
+// --- STATUS MANAGEMENT ---
 
-router.put(
-  "/users/:id/unlock",
-  protect,
-  restrictTo("admin"),
-  unlockUserAccount
-);
+router.put("/users/:id/lock", lockUserAccount);
+router.put("/users/:id/unlock", unlockUserAccount);
+router.put("/users/:id/activate", activateUserAccount);
+router.put("/users/:id/deactivate", deactivateUserAccount);
 
-router.put(
-  "/users/:id/activate",
-  protect,
-  restrictTo("admin"),
-  activateUserAccount
-);
+// --- DELETION ---
 
-router.put(
-  "/users/:id/deactivate",
-  protect,
-  restrictTo("admin"),
-  deactivateUserAccount
-);
-
-router.delete("/users/:id", protect, restrictTo("admin"), deleteUserAccount);
-
-router.put(
-  "/users/:id/restore",
-  protect,
-  restrictTo("admin"),
-  restoreUserAccount
-);
+router.delete("/users/:id", deleteUserAccount);
+router.put("/users/:id/restore", restoreUserAccount);
 
 export default router;

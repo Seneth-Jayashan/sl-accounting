@@ -1,7 +1,7 @@
-// services/zoomService.js
 import axios from "axios";
-import qs from "qs";
+import moment from "moment-timezone";
 
+// --- CONFIGURATION ---
 const ZOOM_TOKEN_URL = "https://zoom.us/oauth/token";
 const ZOOM_API_BASE = "https://api.zoom.us/v2";
 
@@ -10,145 +10,167 @@ const {
   ZOOM_CLIENT_SECRET,
   ZOOM_ACCOUNT_ID,
   ZOOM_USER_ID,
-  ZOOM_TOKEN_CACHE_TTL = 3500,
+  // Default to 55 minutes (3300s) to be safe (Zoom tokens last 1 hour)
+  ZOOM_TOKEN_CACHE_TTL = 3300, 
 } = process.env;
 
-// simple in-memory cache (replace with Redis if you run multiple instances)
+// In-Memory Cache
 let tokenCache = {
   access_token: null,
   expires_at: 0,
 };
 
-async function fetchAccessTokenServerToServer() {
-  // If cached and not expired, return it
+// --- HELPERS ---
+
+/**
+ * Get Server-to-Server OAuth Token
+ * Grant Type: account_credentials
+ */
+async function fetchAccessToken() {
+  // 1. Check Cache
   if (tokenCache.access_token && Date.now() < tokenCache.expires_at) {
     return tokenCache.access_token;
   }
 
-  // Server-to-Server OAuth token (account credentials grant)
-  // Note: Zoom expects Basic auth with client_id:client_secret and grant_type=account_credentials (account_id param)
-  // Some Zoom docs/examples show other variants; check your App type and docs if you created a different app.
-  const basic = Buffer.from(`${ZOOM_CLIENT_ID}:${ZOOM_CLIENT_SECRET}`).toString(
-    "base64"
-  );
+  // 2. Prepare Credentials
+  if (!ZOOM_CLIENT_ID || !ZOOM_CLIENT_SECRET || !ZOOM_ACCOUNT_ID) {
+    throw new Error("Missing Zoom API Credentials in .env");
+  }
 
+  const basicAuth = Buffer.from(`${ZOOM_CLIENT_ID}:${ZOOM_CLIENT_SECRET}`).toString("base64");
+  
   const params = new URLSearchParams();
-  // grant_type for server-to-server is "account_credentials"
   params.append("grant_type", "account_credentials");
-  if (ZOOM_ACCOUNT_ID) params.append("account_id", ZOOM_ACCOUNT_ID);
+  params.append("account_id", ZOOM_ACCOUNT_ID);
 
   try {
-    const resp = await axios.post(`${ZOOM_TOKEN_URL}`, params.toString(), {
+    const { data } = await axios.post(ZOOM_TOKEN_URL, params.toString(), {
       headers: {
-        Authorization: `Basic ${basic}`,
+        Authorization: `Basic ${basicAuth}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
     });
 
-    const data = resp.data;
-    // data.access_token, data.expires_in (seconds)
+    // 3. Update Cache
     tokenCache.access_token = data.access_token;
-    tokenCache.expires_at =
-      Date.now() + ((data.expires_in || ZOOM_TOKEN_CACHE_TTL) - 30) * 1000; // refresh 30s early
+    // Expire 30 seconds early to avoid race conditions
+    const ttlSeconds = data.expires_in || ZOOM_TOKEN_CACHE_TTL;
+    tokenCache.expires_at = Date.now() + (ttlSeconds - 30) * 1000;
+
     return tokenCache.access_token;
+
   } catch (err) {
-    console.error(
-      "Zoom token fetch failed:",
-      err.response?.data || err.message
-    );
-    throw new Error("Failed to get Zoom access token");
+    console.error("Zoom Token Error:", err.response?.data || err.message);
+    throw new Error("Failed to authenticate with Zoom");
   }
 }
 
 /**
- * createMeeting(sessionMeta)
- * sessionMeta: {
- *   topic, start_time (ISO string), duration (minutes), timezone (e.g. "Asia/Colombo"), password (optional), settings: {}
- * }
+ * Helper to make authenticated requests
+ */
+async function zoomRequest(method, endpoint, data = null) {
+  const token = await fetchAccessToken();
+  try {
+    const response = await axios({
+      method,
+      url: `${ZOOM_API_BASE}${endpoint}`,
+      data,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return response.data;
+  } catch (err) {
+    // 404 is often a valid "state" (e.g. deleting something that's gone)
+    // We let the caller handle it or throw a standardized error
+    const status = err.response?.status;
+    const errorData = err.response?.data;
+    
+    // Attach status to error object for easy checking upstream
+    const customError = new Error(errorData?.message || "Zoom API Error");
+    customError.status = status;
+    customError.details = errorData;
+    throw customError;
+  }
+}
+
+// --- EXPORTED SERVICES ---
+
+/**
+ * Create Meeting
+ * @param {Object} sessionMeta 
+ * { topic, start_time (ISO), duration (min), timezone, settings }
  */
 export async function createMeeting(sessionMeta = {}) {
-  const accessToken = await fetchAccessTokenServerToServer();
+  const userId = ZOOM_USER_ID || "me";
+  const timezone = sessionMeta.timezone || "Asia/Colombo";
 
-  const userId = process.env.ZOOM_USER_ID;
-  if (!userId) throw new Error("ZOOM_USER_ID not configured");
+  // Zoom requires "YYYY-MM-DDTHH:mm:ss" relative to the timezone provided.
+  // We use moment-tz to strip the offset and send strict "Wall Time".
+  let formattedStartTime;
+  if (sessionMeta.start_time) {
+      formattedStartTime = moment(sessionMeta.start_time).tz(timezone).format("YYYY-MM-DDTHH:mm:ss");
+  }
 
   const body = {
     topic: sessionMeta.topic || "Class Session",
-    type: 2, // scheduled meeting
-    start_time: sessionMeta.start_time, // ISO 8601
+    type: 2, // Scheduled Meeting
+    start_time: formattedStartTime, 
     duration: sessionMeta.duration || 120,
-    timezone: sessionMeta.timezone || "UTC",
-    password: sessionMeta.password || undefined,
-    settings: sessionMeta.settings || {
-      join_before_host: false,
-      host_video: false,
+    timezone: timezone,
+    settings: {
+      host_video: true,
       participant_video: false,
-      approval_type: 0, // automatically accept
+      join_before_host: false,
+      mute_upon_entry: true,
+      waiting_room: true,
+      auto_recording: "cloud", // Important for LMS
+      approval_type: 2,        // 2 = No Registration Required
+      ...sessionMeta.settings, // Allow override
     },
   };
 
   try {
-    const resp = await axios.post(
-      `${ZOOM_API_BASE}/users/${encodeURIComponent(userId)}/meetings`,
-      body,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    // resp.data contains .id, .join_url, .start_url, etc.
-    return resp.data;
+    return await zoomRequest("POST", `/users/${encodeURIComponent(userId)}/meetings`, body);
   } catch (err) {
-    console.error(
-      "Zoom createMeeting error:",
-      err.response?.data || err.message
-    );
-    throw new Error("Failed to create Zoom meeting");
+    console.error("Create Meeting Failed:", err.message);
+    throw err; // Re-throw to controller
   }
 }
 
-// inside services/zoomService.js (add near createMeeting)
+/**
+ * Delete Meeting
+ */
 export async function deleteMeeting(meetingId) {
-  if (!meetingId) throw new Error("meetingId required");
-  const accessToken = await fetchAccessTokenServerToServer();
+  if (!meetingId) return true; // Already "deleted" if null
   try {
-    // Zoom expects meeting id as path param
-    const resp = await axios.delete(
-      `${ZOOM_API_BASE}/meetings/${encodeURIComponent(meetingId)}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
-    );
-    // Zoom deletes return 204 No Content; return resp.status
-    return resp.status === 204;
+    await zoomRequest("DELETE", `/meetings/${encodeURIComponent(meetingId)}`);
+    return true;
   } catch (err) {
-    // If meeting is already deleted (404) we can treat as success
-    const status = err?.response?.status;
-    if (status === 404) {
-      return true;
-    }
-    console.error(
-      "Zoom deleteMeeting failed:",
-      err?.response?.data || err.message
-    );
+    if (err.status === 404) return true; // Treat 404 as success (already deleted)
+    console.error("Delete Meeting Failed:", err.message);
     throw err;
   }
 }
 
-
-// services/zoomService.js (add)
+/**
+ * Update Meeting
+ */
 export async function updateMeeting(meetingId, payload) {
-  const accessToken = await fetchAccessTokenServerToServer();
+  if (!meetingId) throw new Error("Meeting ID required");
+  
+  // If updating time, ensure formatting matches Zoom requirement
+  if (payload.start_time) {
+     const tz = payload.timezone || "Asia/Colombo";
+     payload.start_time = moment(payload.start_time).tz(tz).format("YYYY-MM-DDTHH:mm:ss");
+  }
+
   try {
-    const resp = await axios.patch(`${ZOOM_API_BASE}/meetings/${encodeURIComponent(meetingId)}`, payload, {
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
-    });
-    return resp.data;
+    await zoomRequest("PATCH", `/meetings/${encodeURIComponent(meetingId)}`, payload);
+    return true;
   } catch (err) {
-    console.error("Zoom updateMeeting failed:", err?.response?.data || err.message);
+    console.error("Update Meeting Failed:", err.message);
     throw err;
   }
 }

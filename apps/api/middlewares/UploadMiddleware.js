@@ -1,45 +1,66 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 
-// --- Helper 1: Ensure Directory Exists ---
+// Resolve directory paths correctly for ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// --- HELPER 1: Ensure Directory Exists ---
 const ensureDir = (dirPath) => {
-    if (!fs.existsSync(dirPath)) {
-        fs.mkdirSync(dirPath, { recursive: true });
+    // Resolve path relative to the project root (assuming this file is in /middlewares)
+    // Adjust '../uploads' if your structure is different
+    const absolutePath = path.resolve(__dirname, '..', dirPath); 
+    
+    if (!fs.existsSync(absolutePath)) {
+        fs.mkdirSync(absolutePath, { recursive: true });
     }
+    return absolutePath;
 };
 
-// --- Helper 2: Common File Filter ---
+// --- HELPER 2: Common File Filter ---
 const commonFileFilter = (req, file, cb) => {
+    // Allowed extensions
     const filetypes = /jpeg|jpg|png|webp|gif/;
-    const mimetype = filetypes.test(file.mimetype);
+    // Check extension
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    // Check mime type
+    const mimetype = filetypes.test(file.mimetype);
 
     if (mimetype && extname) {
         return cb(null, true);
     } else {
-        cb(new Error(`Only image files are allowed. Accepted types: ${filetypes}`), false);
+        // Create a proper error object
+        const error = new Error(`File upload failed. Only images are allowed (${filetypes}).`);
+        error.status = 400; // Bad Request
+        return cb(error, false);
     }
 };
 
-// --- Helper 3: Storage Generator ---
+// --- HELPER 3: Storage Generator ---
 const createStorage = (folderName) => multer.diskStorage({
     destination: (req, file, cb) => {
-        const destinationPath = path.join('uploads', folderName);
-        ensureDir(destinationPath); // Automatically create folder if missing
-        cb(null, destinationPath);
+        // e.g., 'uploads/images/classes'
+        const relativePath = path.join('uploads', folderName);
+        ensureDir(relativePath); 
+        cb(null, relativePath);
     },
     filename: (req, file, cb) => {
-        // e.g. coverImage -> cover-image-123456789.jpg
+        // Sanitize: 'coverImage' -> 'cover-image'
+        // Sanitize: 'My File.jpg' -> 'my-file.jpg' (Prevent weird char issues)
+        const safeName = file.originalname.replace(/\s+/g, '-').toLowerCase();
         const prefix = file.fieldname.replace(/([A-Z])/g, (g) => `-${g[0].toLowerCase()}`);
-        cb(null, `${prefix}-${Date.now()}${path.extname(file.originalname)}`);
+        
+        // e.g. cover-image-170123456789-my-photo.jpg
+        cb(null, `${prefix}-${Date.now()}-${safeName}`);
     },
 });
 
-/**
- * OPTION A: Generic Single Uploader (Existing)
- * Usage: createUploader('images/profile', 'profilePic')
- */
+// ==========================================
+// 1. GENERIC SINGLE UPLOADER
+// Usage: router.post('/', createUploader('images/profile', 'avatar'), controller)
+// ==========================================
 const createUploader = (destinationFolder, fieldName, maxFileSizeMB = 5) => {
     const upload = multer({
         storage: createStorage(destinationFolder),
@@ -49,14 +70,13 @@ const createUploader = (destinationFolder, fieldName, maxFileSizeMB = 5) => {
     return upload.single(fieldName);
 };
 
-/**
- * OPTION B: Class Media Uploader (New)
- * Handles 'coverImage' + 'images' (gallery)
- * Saves to 'uploads/images/classes'
- */
+// ==========================================
+// 2. CLASS MEDIA UPLOADER (Multipart)
+// Usage: Handles 'coverImage' (1) + 'images' (5)
+// ==========================================
 const classUpload = multer({
-    storage: createStorage('images/classes'), // Save specifically to classes folder
-    limits: { fileSize: 5 * 1024 * 1024 },    // 5MB limit
+    storage: createStorage('images/classes'), 
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
     fileFilter: commonFileFilter,
 });
 

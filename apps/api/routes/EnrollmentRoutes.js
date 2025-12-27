@@ -12,30 +12,41 @@ import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 
 const router = express.Router();
 
-// --- Routes ---
+// Apply authentication to all routes
+router.use(protect);
 
-router.get("/", protect, restrictTo("admin"), getAllEnrollments);
-router.get("/my-enrollments", protect, getMyEnrollments);
-// 1. Create Enrollment
+// ==========================================
+// 1. STATIC ROUTES (Must come before /:id)
+// ==========================================
+
+// Check if current user is enrolled in a specific class
+// GET /api/v1/enrollments/check/status?classId=...
+router.get("/check/status", checkEnrollment);
+
+// Get logged-in user's history
+// GET /api/v1/enrollments/my-enrollments
+router.get("/my-enrollments", getMyEnrollments);
+
+// Get All Enrollments (Admin Only)
+router.get("/", restrictTo("admin"), getAllEnrollments);
+
+
+// ==========================================
+// 2. DYNAMIC ROUTES
+// ==========================================
+
+// Create Enrollment
 // POST /api/v1/enrollments
-// Access: Authenticated Users (Students enrolling themselves)
-router.post("/", protect, createEnrollment);
+// (Students enroll themselves; Admins can enroll others)
+router.post("/", createEnrollment);
 
-// 2. Get Single Enrollment
-// GET /api/v1/enrollments/:id
-// Access: Authenticated Users (Own enrollment or Admin)
-router.get("/:id", protect, getEnrollmentById);
+// Get Single Enrollment (IDOR Protected)
+router.get("/:id", getEnrollmentById);
 
-// 3. Update Enrollment (e.g., Mark Paid)
-// PUT /api/v1/enrollments/:id
-// Access: Admin Only (Students shouldn't mark their own payments as paid)
-router.put("/:id", protect, restrictTo("admin"), updateEnrollment);
+// Update Enrollment (Admin Only)
+router.put("/:id", restrictTo("admin"), updateEnrollment);
 
-// 4. Delete Enrollment
-// DELETE /api/v1/enrollments/:id
-// Access: Admin Only
-router.delete("/:id", protect, restrictTo("admin"), deleteEnrollment);
-
-router.get("/check/status", protect, checkEnrollment);
+// Delete Enrollment (Admin Only)
+router.delete("/:id", restrictTo("admin"), deleteEnrollment);
 
 export default router;

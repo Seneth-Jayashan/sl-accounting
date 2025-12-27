@@ -3,10 +3,22 @@ import { motion } from "framer-motion";
 import { User, Lock, ArrowRight, Eye, EyeOff, ShieldCheck, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { api } from "../services/api"; // Import API to fetch role immediately
+import { api } from "../services/api";
+import { z } from "zod"; // Import Zod
 import ResendVerificationModal from "../components/modals/ResendVerification";
 
-// --- BACKGROUND COMPONENT ---
+// --- 1. SECURITY VALIDATION SCHEMA ---
+const loginSchema = z.object({
+  email: z.string()
+    .trim()
+    .toLowerCase()
+    .email("Please enter a valid email address")
+    .refine((val) => val.endsWith("@gmail.com"), {
+      message: "Please log in with your Gmail account"
+    }),
+  password: z.string().min(1, "Password is required"),
+});
+// --- BACKGROUND COMPONENT (Visuals) ---
 const BackgroundGradient = () => (
   <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
     <motion.div 
@@ -27,56 +39,112 @@ const BackgroundGradient = () => (
   </div>
 );
 
-// --- LOGIN FORM COMPONENT ---
+// --- REUSABLE INPUT COMPONENT (Cleaner Code) ---
+const InputField = ({ 
+  label, name, type = "text", value, onChange, icon: Icon, placeholder, error, rightElement 
+}: any) => (
+  <div className="space-y-2">
+    <label className="text-sm font-bold text-[#053A4E] ml-1">{label}</label>
+    <div className="relative group">
+      <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${error ? "text-red-500" : "text-[#05668A] group-focus-within:text-[#EF8D8E]"}`}>
+        <Icon size={20} />
+      </div>
+      <input
+        name={name}
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={`w-full bg-white/50 border ${error ? "border-red-400 focus:border-red-500" : "border-white/50 focus:border-[#05668A]"} focus:bg-white text-[#053A4E] pl-12 pr-${rightElement ? "12" : "4"} py-4 rounded-2xl outline-none transition-all shadow-sm`}
+      />
+      {rightElement && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+          {rightElement}
+        </div>
+      )}
+    </div>
+    {error && <p className="text-red-500 text-xs ml-1 flex items-center gap-1"><AlertCircle size={12} /> {error}</p>}
+  </div>
+);
+
+// --- MAIN LOGIN COMPONENT ---
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
+  // State
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  
+  // Status State
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generalError, setGeneralError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
 
-  // STATE FOR MODAL VISIBILITY
-  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
+  // Handlers
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear field errors on type
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const newErrs = { ...prev };
+        delete newErrs[name];
+        return newErrs;
+      });
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setGeneralError("");
+    setFieldErrors({});
+
+    // 1. Zod Validation (Client Side)
+    const validationResult = loginSchema.safeParse(formData);
+    
+    if (!validationResult.success) {
+      const errors: Record<string, string> = {};
+      validationResult.error.issues.forEach(issue => {
+        errors[String(issue.path[0])] = issue.message;
+      });
+      setFieldErrors(errors);
+      return;
+    }
+
+    // 2. Data Sanitization (Safe Parse Result contains cleaned data)
+    const { email, password } = validationResult.data;
+
     setIsSubmitting(true);
 
     try {
-      // 1. Perform Login
+      // 3. Perform Login
       await login({ email, password });
 
-      // 2. Fetch fresh user info to determine Role
-      // We call the API directly here because the 'user' from context might 
-      // not be updated in this function scope yet due to React batching.
+      // 4. Role Check & Navigation
       const res = await api.get("/auth/me");
       const role = res.data?.user?.role;
-
-      // 3. Navigate based on Role
-      if (role === "admin") {
-        navigate("/admin/dashboard");
-      } else {
-        navigate("/student/dashboard");
-      }
+      
+      // Optional: Handle 'Remember Me' logic here (e.g., persist token to localStorage vs sessionStorage)
+      
+      navigate(role === "admin" ? "/admin/dashboard" : "/student/dashboard");
 
     } catch (err: any) {
       console.error("Login Error:", err);
-      const msg = err.message || "Failed to login. Please check your credentials.";
+      const msg = err.message || "Failed to login.";
+      const status = err.response?.status;
+      const responseMsg = err.response?.data?.message || "";
 
-      // Handle Verification Required Error
-      if (err.response && err.response.status === 403 && err.response.data.message === "Please verify your email before logging in.") {
+      // 5. Intelligent Error Handling
+      if (status === 403 && (responseMsg.includes("verify") || responseMsg.includes("active"))) {
         setIsVerifyModalOpen(true);
-      }
-      
-      setError(msg);
-
-      // Auto-open modal if error text mentions verification
-      if (msg.toLowerCase().includes("verify") || msg.toLowerCase().includes("activation")) {
-         setIsVerifyModalOpen(true);
+        setGeneralError("Your account is not verified yet.");
+      } else if (status === 401) {
+        setGeneralError("Invalid email or password.");
+      } else {
+        setGeneralError(msg);
       }
     } finally {
       setIsSubmitting(false);
@@ -88,10 +156,10 @@ export default function Login() {
       
       <BackgroundGradient />
 
-      {/* RENDER THE MODAL */}
       <ResendVerificationModal 
         isOpen={isVerifyModalOpen} 
         onClose={() => setIsVerifyModalOpen(false)} 
+        emailHint={formData.email} // Pass email to modal to pre-fill if needed
       />
 
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
@@ -108,70 +176,63 @@ export default function Login() {
             <p className="text-gray-500 mt-2 font-sans">Welcome back to SL Accounting LMS</p>
           </div>
 
-          {error && (
+          {generalError && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3"
             >
               <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
-              <div className="flex-1">
-                <p className="text-sm text-red-600 font-medium">{error}</p>
-              </div>
+              <p className="text-sm text-red-600 font-medium">{generalError}</p>
             </motion.div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-6">
             
-            {/* Email Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-[#053A4E] ml-1">Email Address</label>
-              <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#05668A] group-focus-within:text-[#EF8D8E] transition-colors">
-                  <User size={20} />
-                </div>
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-12 pr-4 py-4 rounded-2xl outline-none transition-all shadow-sm"
-                  required
-                />
-              </div>
-            </div>
+            <InputField 
+              label="Email Address"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              icon={User}
+              placeholder="Enter your email"
+              error={fieldErrors.email}
+            />
 
-            {/* Password Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-[#053A4E] ml-1">Password</label>
-              <div className="relative group">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#05668A] group-focus-within:text-[#EF8D8E] transition-colors">
-                  <Lock size={20} />
-                </div>
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-white/50 border border-white/50 focus:border-[#05668A] focus:bg-white text-[#053A4E] pl-12 pr-12 py-4 rounded-2xl outline-none transition-all shadow-sm"
-                  required
-                />
+            <InputField 
+              label="Password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
+              onChange={handleChange}
+              icon={Lock}
+              placeholder="••••••••"
+              error={fieldErrors.password}
+              rightElement={
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#053A4E] transition-colors"
+                  className="text-gray-400 hover:text-[#053A4E] transition-colors focus:outline-none"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
-              </div>
-            </div>
+              }
+            />
 
             <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer text-gray-600 hover:text-[#053A4E]">
-                <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-[#05668A] focus:ring-[#05668A]" />
+              <label className="flex items-center gap-2 cursor-pointer text-gray-600 hover:text-[#053A4E] select-none">
+                <input 
+                  type="checkbox" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-[#05668A] focus:ring-[#05668A]" 
+                />
                 Remember me
               </label>
-              <Link to="/forgot-password" className="text-[#05668A] font-bold hover:text-[#EF8D8E] transition-colors">Forgot Password?</Link>
+              <Link to="/forgot-password" className="text-[#05668A] font-bold hover:text-[#EF8D8E] transition-colors">
+                Forgot Password?
+              </Link>
             </div>
 
             <button 
@@ -182,9 +243,7 @@ export default function Login() {
               {isSubmitting ? (
                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>
-                  Login to LMS <ArrowRight size={20} />
-                </>
+                <>Login to LMS <ArrowRight size={20} /></>
               )}
             </button>
           </form>
@@ -193,17 +252,6 @@ export default function Login() {
             <div>
               Don't have an account? <Link to="/register" className="text-[#05668A] font-bold hover:underline">Register Now</Link>
             </div>
-            
-            {/* Verification Link
-            <div>
-              Account not verified?{" "}
-              <button 
-                onClick={() => setIsVerifyModalOpen(true)}
-                className="text-[#EF8D8E] font-bold hover:underline cursor-pointer"
-              >
-                Resend Verification Code
-              </button>
-            </div> */}
           </div>
         </motion.div>
 

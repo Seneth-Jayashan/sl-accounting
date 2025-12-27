@@ -1,136 +1,163 @@
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 import Chat from "../models/Chat.js";
 import User from "../models/User.js";
+import Ticket from "../models/Ticket.js"; // Required for permission checks
 
 let ioInstance;
 
 const getTicketRoom = (ticketId) => `ticket_${ticketId}`;
 
+// --- MIDDLEWARE: Socket Authentication ---
+const authenticateSocket = async (socket, next) => {
+    try {
+        // 1. Extract Token (Support auth object or headers)
+        const token = 
+            socket.handshake.auth?.token || 
+            socket.handshake.headers?.authorization?.split(" ")[1];
+
+        if (!token) {
+            return next(new Error("Authentication error: No token provided"));
+        }
+
+        // 2. Verify Token
+        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+        
+        // 3. Fetch User (Lean for performance)
+        const user = await User.findById(decoded.id).select("_id role firstName lastName avatar").lean();
+        
+        if (!user) {
+            return next(new Error("Authentication error: User not found"));
+        }
+
+        // 4. Attach to Socket Object
+        socket.user = user;
+        next();
+
+    } catch (err) {
+        console.error("Socket Auth Failed:", err.message);
+        next(new Error("Authentication error: Invalid token"));
+    }
+};
+
 export const initSocket = (server) => {
-	const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
-	
-	ioInstance = new Server(server, {
-		cors: {
-			origin: CLIENT_ORIGIN,
-			credentials: true,
-			methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-			allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-		},
-		transports: ["websocket", "polling"],
-		allowEIO3: true,
-		pingTimeout: 60000,
-		pingInterval: 25000,
-	});
+    const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
-	ioInstance.on("connection", (socket) => {
-		console.log("🟢 Socket connected:", socket.id);
-		console.log("   Origin:", socket.handshake.headers.origin);
-		console.log("   Transport:", socket.conn.transport.name);
+    ioInstance = new Server(server, {
+        cors: {
+            origin: CLIENT_ORIGIN,
+            credentials: true,
+            methods: ["GET", "POST"],
+        },
+        transports: ["websocket", "polling"],
+        pingTimeout: 60000,
+        pingInterval: 25000,
+    });
 
-		socket.on("join_ticket", ({ ticketId }) => {
-			if (!ticketId) {
-				console.warn("⚠️ join_ticket called without ticketId");
-				return;
-			}
+    // Apply Authentication Middleware
+    ioInstance.use(authenticateSocket);
 
-			const room = getTicketRoom(ticketId);
-			socket.join(room);
-			console.log(`→ ${socket.id} joined room ${room}`);
-		});
+    ioInstance.on("connection", (socket) => {
+        console.log(`🟢 User connected: ${socket.user.firstName} (${socket.user.role}) - ID: ${socket.id}`);
 
-		// Backward compatibility with legacy event naming
-		socket.on("join_event", ({ eventId }) => {
-			if (!eventId) return;
-			const room = getTicketRoom(eventId);
-			socket.join(room);
-			console.log(`→ ${socket.id} joined legacy room ${room}`);
-		});
+        // --------------------------------------------------
+        // EVENT: JOIN TICKET (With Authorization)
+        // --------------------------------------------------
+        socket.on("join_ticket", async ({ ticketId }) => {
+            if (!ticketId) return;
 
-		socket.on("send_message", async (payload, ack) => {
-			const { ticketId, eventId, senderId, sender_id, senderRole, sender_role, message } = payload || {};
+            try {
+                // SECURITY: Verify Permission
+                // Admins can join any ticket. Students can only join their own.
+                if (socket.user.role !== 'admin') {
+                    const ticket = await Ticket.findById(ticketId).select('student');
+                    if (!ticket || ticket.student.toString() !== socket.user._id.toString()) {
+                        console.warn(`⚠️ Security Alert: User ${socket.user._id} tried to join unauthorized ticket ${ticketId}`);
+                        socket.emit("error", { message: "Unauthorized access to this ticket" });
+                        return;
+                    }
+                }
 
-			const resolvedTicketId = ticketId || eventId;
-			const resolvedSenderId = senderId || sender_id;
-			const resolvedSenderRole = senderRole || sender_role;
+                const room = getTicketRoom(ticketId);
+                socket.join(room);
+                console.log(`→ ${socket.user.firstName} joined room ${room}`);
+            } catch (err) {
+                console.error("Join Room Error:", err);
+            }
+        });
 
-			if (!resolvedTicketId || !resolvedSenderId || !resolvedSenderRole || !message) {
-				const error = "ticketId/eventId, senderId, senderRole, and message are required";
-				if (typeof ack === "function") ack({ ok: false, error });
-				return;
-			}
+        // --------------------------------------------------
+        // EVENT: SEND MESSAGE (Secure)
+        // --------------------------------------------------
+        socket.on("send_message", async (payload, ack) => {
+            const { ticketId, message } = payload;
 
-			try {
-				let senderName;
-				let senderAvatar;
+            if (!ticketId || !message) {
+                if (typeof ack === "function") ack({ ok: false, error: "Missing required fields" });
+                return;
+            }
 
-				const user = await User.findById(resolvedSenderId).lean();
-				if (user) {
-					senderName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || undefined;
-					senderAvatar = user.avatar  || undefined;
-				}
+            try {
+                // SECURITY: Use server-side user data, ignore client 'senderId'
+                const chat = await Chat.create({
+                    ticket: ticketId,
+                    sender: socket.user._id,
+                    senderRole: socket.user.role,
+                    senderName: `${socket.user.firstName} ${socket.user.lastName}`,
+                    senderAvatar: socket.user.avatar,
+                    message: message,
+                });
 
-				const chat = await Chat.create({
-					ticket: resolvedTicketId,
-					sender: resolvedSenderId,
-					senderRole: resolvedSenderRole,
-					senderName,
-					senderAvatar,
-					message,
-				});
+                // Prepare broadcast payload
+                const outbound = {
+                    _id: chat._id,
+                    ticket: chat.ticket,
+                    sender: chat.sender,
+                    senderRole: chat.senderRole,
+                    senderName: chat.senderName,
+                    senderAvatar: chat.senderAvatar,
+                    message: chat.message,
+                    createdAt: chat.createdAt,
+                };
 
-				const room = getTicketRoom(resolvedTicketId);
-				const outbound = {
-					_id: chat._id,
-					ticket: chat.ticket,
-					sender: chat.sender,
-					senderRole: chat.senderRole,
-					senderName: chat.senderName,
-					senderAvatar: chat.senderAvatar,
-					message: chat.message,
-					createdAt: chat.createdAt,
-				};
+                // Broadcast to room (including sender to confirm receipt if needed, 
+                // typically we broadcast to room and ack sender)
+                const room = getTicketRoom(ticketId);
+                ioInstance.to(room).emit("receive_message", outbound);
+                
+                if (typeof ack === "function") ack({ ok: true, message: outbound });
 
-				ioInstance.to(room).emit("receive_message", outbound);
-				if (typeof ack === "function") ack({ ok: true, message: outbound });
-			} catch (err) {
-				console.error("⚠️ Error saving or broadcasting chat message:", err);
-				if (typeof ack === "function") ack({ ok: false, error: "internal_error" });
-			}
-		});
+            } catch (err) {
+                console.error("⚠️ Message Error:", err);
+                if (typeof ack === "function") ack({ ok: false, error: "Internal Server Error" });
+            }
+        });
 
-			// Handle typing indicator from clients and broadcast to other users in the ticket room
-			socket.on("typing", (payload) => {
-				try {
-					const { ticketId, isTyping, senderId, eventId } = payload || {};
-					const resolvedTicketId = ticketId || eventId;
-					if (!resolvedTicketId || typeof isTyping !== "boolean" || !senderId) {
-						// ignore malformed typing events
-						return;
-					}
+        // --------------------------------------------------
+        // EVENT: TYPING INDICATOR
+        // --------------------------------------------------
+        socket.on("typing", ({ ticketId, isTyping }) => {
+            if (!ticketId) return;
+            const room = getTicketRoom(ticketId);
+            // Broadcast to everyone else in the room
+            socket.to(room).emit("typing", { 
+                isTyping, 
+                senderId: socket.user._id, // Server-verified ID
+                senderName: socket.user.firstName 
+            });
+        });
 
-					const room = getTicketRoom(resolvedTicketId);
-					// broadcast to others in the room (exclude the sender)
-					socket.to(room).emit("typing", { isTyping, senderId });
-				} catch (err) {
-					console.error("⚠️ Error handling typing event:", err);
-				}
-			});
+        socket.on("disconnect", () => {
+            console.log(`🔴 Socket disconnected: ${socket.user.firstName}`);
+        });
+    });
 
-		socket.on("disconnect", (reason) => {
-			console.log(`🔴 Socket disconnected: ${socket.id} (reason: ${reason})`);
-		});
-
-		socket.on("error", (error) => {
-			console.error("❌ Socket error:", socket.id, error);
-		});
-	});
-
-	return ioInstance;
+    return ioInstance;
 };
 
 export const getIO = () => {
-	if (!ioInstance) {
-		throw new Error("Socket.io has not been initialized. Call initSocket(server) first.");
-	}
-	return ioInstance;
+    if (!ioInstance) {
+        throw new Error("Socket.io has not been initialized. Call initSocket(server) first.");
+    }
+    return ioInstance;
 };

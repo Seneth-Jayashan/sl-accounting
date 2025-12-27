@@ -1,19 +1,29 @@
-// App.tsx
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
+// --- Context & Protected Route Wrapper ---
+import AuthProvider from "./contexts/AuthContext";
+import ProtectedRoute from "./routes/ProtectedRoute";
+
+// --- Layouts & Components ---
+import { MainLayout } from "./layouts/MainLayout";
+import { SplashScreen } from "./components/SplashScreen";
+
+// --- Route Modules ---
+import { AdminRoutes } from "./routes/AdminRoutes";
+import { StudentRoutes } from "./routes/StudentRoutes";
+
+// --- Public Pages (Keep these standard import for faster initial paint) ---
 import Home from "./pages/Home";
+import About from "./pages/About";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Contacts from "./pages/Contacts";
 import Classes from "./pages/Classes";
 import ViewClassPage from "./pages/ViewClass";
-import { MainLayout } from "./layouts/MainLayout";
-import { SplashScreen } from "./components/SplashScreen";
 import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
-
 import Chat from "./components/Chat";
 
 import AuthProvider from "./contexts/AuthContext";
@@ -60,6 +70,7 @@ import AdminPaymentsPage from "./pages/admin/payments/Payments";
 import "./index.css";
 
 function App() {
+  // Splash Screen Logic
   const [showSplash, setShowSplash] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("hasSeenSplash") !== "true";
@@ -73,261 +84,55 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        {/* Splash intro */}
+        {/* --- Splash Screen --- */}
         <AnimatePresence mode="wait">
           {showSplash && (
             <SplashScreen key="splash" onComplete={handleSplashComplete} />
           )}
         </AnimatePresence>
 
-        {/* Main app routes */}
         <Routes>
+          {/* ================= PUBLIC ROUTES ================= */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/classes/:id" element={<ViewClassPage />} />
-
             <Route path="/verification" element={<Verification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/chat/:ticketId" element={<Chat />} />
           </Route>
 
-          {/* Protected routes */}
-          <Route
-            path="/student/dashboard"
+          {/* ================= STUDENT MODULE ================= */}
+          {/* Security: We use '/*' to delegate all sub-routes to StudentRoutes.
+             The ProtectedRoute ensures only 'student' role can enter this section.
+          */}
+          <Route 
+            path="/student/*" 
             element={
               <ProtectedRoute allowedRoles={["student"]}>
-                <StudentDashboardPage />
+                <StudentRoutes />
               </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/student/tickets"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <StudentTicketPage />
-              </ProtectedRoute>
-            }
+            } 
           />
 
-          <Route
-            path="/student/classes"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <StudentClassPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/student/class/:id"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <StudentViewClassPage />
-              </ProtectedRoute>
-            }
-          />
-
-
-          <Route
-            path="/student/enrollment"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <ViewEnrollmentPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/student/enrollment/:id"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <EnrollmentPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/student/payment/upload/:enrollmentId"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <UploadPaymentSlipPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/student/knowledge-base"
-            element={
-              <ProtectedRoute allowedRoles={["student"]}>
-                <ViewKnowledgeBasePage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/dashboard"
+          {/* ================= ADMIN MODULE ================= */}
+          {/* Security: Uses '/*' to delegate. Only 'admin' role can enter.
+             The code for these pages is NOT downloaded unless the user is an admin.
+          */}
+          <Route 
+            path="/admin/*" 
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminDashboardPage />
+                <AdminRoutes />
               </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/students"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminStudentsPage />
-              </ProtectedRoute>
-            }
+            } 
           />
 
-          <Route
-            path="/admin/support"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminSupportPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/chat"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminTicketReply />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/chat/ticket/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminTicketReply />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/knowledge-base"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminKnowledgeBasePage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/knowledge-list"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminKnowledgeListPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/students/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <ViewStudentPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/students/edit/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <UpdateStudentPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/classes"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminClassesPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/classes/create"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminClassesCreatePage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/classes/view/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminClassesViewPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/classes/edit/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminClassesUpdatePage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/sessions/"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminSessionPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/sessions/create"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminCreateSessionPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/batches/"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminBatchPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/batches/view/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminBatchViewPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/payments/"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminPaymentsPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Fallback */}
+          {/* ================= FALLBACK ================= */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
