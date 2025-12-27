@@ -111,8 +111,13 @@ const ClassService = {
   createClass: async (data: CreateClassPayload) => {
     const formData = buildClassFormData(data);
     
-    // Axios handles Content-Type: multipart/form-data automatically
-    const response = await api.post<ClassResponse>(BASE_URL, formData);
+    const response = await api.post<ClassResponse>(BASE_URL, formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data" 
+        }
+      }
+    );
     return response.data;
   },
 
@@ -144,7 +149,15 @@ const ClassService = {
 
     if (hasFiles) {
       const formData = buildClassFormData(data);
-      const response = await api.patch<ClassResponse>(`${BASE_URL}/${id}`, formData);
+
+      const response = await api.patch<ClassResponse>(`${BASE_URL}/${id}`, formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data" 
+          }
+        }
+      );
+
       return response.data;
     } else {
       // Send as JSON if no files are involved (Cleaner network request)
