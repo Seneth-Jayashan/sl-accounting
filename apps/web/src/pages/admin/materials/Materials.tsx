@@ -14,10 +14,7 @@ import {
 } from "lucide-react";
 import moment from "moment";
 
-// Layouts & Services
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
+// Services
 import MaterialService, { type MaterialData } from "../../../services/MaterialService";
 import ClassService, { type ClassData } from "../../../services/ClassService";
 
@@ -42,24 +39,28 @@ export default function MaterialsAdmin() {
         ClassService.getAllClasses()
       ]);
 
-      // Handle Materials Data
-      const materialsData = matRes.data;
-      if (Array.isArray(materialsData)) {
-        setMaterials(materialsData);
-      } else if (materialsData) {
-        setMaterials([materialsData as MaterialData]);
-      } else {
-        setMaterials([]);
+      // --- 1. ROBUST CHECK FOR MATERIALS ---
+      // Handles different API response structures (Array vs Object wrapper)
+      let extractedMaterials: MaterialData[] = [];
+      if (Array.isArray(matRes)) {
+        extractedMaterials = matRes;
+      } else if ((matRes as any)?.data && Array.isArray((matRes as any).data)) {
+        extractedMaterials = (matRes as any).data;
+      } else if ((matRes as any)?.materials && Array.isArray((matRes as any).materials)) {
+        extractedMaterials = (matRes as any).materials;
       }
+      setMaterials(extractedMaterials);
 
-      // Handle Class Data - FIX: Accessing .classes from ClassResponse
-      if (classRes && classRes.classes) {
-        setClasses(classRes.classes);
+      // --- 2. ROBUST CHECK FOR CLASSES ---
+      let extractedClasses: ClassData[] = [];
+      if (classRes?.classes && Array.isArray(classRes.classes)) {
+        extractedClasses = classRes.classes;
       } else if (Array.isArray(classRes)) {
-        setClasses(classRes as any);
-      } else {
-        setClasses([]);
+        extractedClasses = classRes as unknown as ClassData[];
+      } else if ((classRes as any).data && Array.isArray((classRes as any).data)) {
+        extractedClasses = (classRes as any).data;
       }
+      setClasses(extractedClasses);
 
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -107,8 +108,6 @@ export default function MaterialsAdmin() {
 
     setIsUploading(true);
     try {
-      // Note: If you have a separate updateMaterial service, use it here.
-      // Otherwise, assume uploadMaterial handles both based on content.
       await MaterialService.uploadMaterial(data); 
       closeModal();
       loadData();
@@ -129,84 +128,87 @@ export default function MaterialsAdmin() {
     }
   };
 
+  // REMOVED <DashboardLayout> wrapper
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
-      <div className="max-w-6xl mx-auto space-y-6 pb-20 px-4">
-        
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">Academic Materials</h1>
-            <p className="text-gray-500 text-sm font-medium">Broadcast study resources and lecture notes.</p>
-          </div>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-brand-cerulean text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-brand-prussian transition-all active:scale-95 shadow-lg shadow-brand-cerulean/20"
-          >
-            <Plus size={18} /> Upload Material
-          </button>
-        </header>
-
-        <div className="bg-white p-5 rounded-[2rem] border border-brand-aliceBlue shadow-sm">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <select 
-              className="w-full pl-12 pr-4 py-3 bg-brand-aliceBlue/30 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand-cerulean/20 outline-none appearance-none"
-              value={filterClass}
-              onChange={(e) => setFilterClass(e.target.value)}
-            >
-              <option value="">Search by Class Module...</option>
-              {classes && classes.length > 0 ? (
-                classes.map(c => <option key={c._id} value={c._id}>{c.name}</option>)
-              ) : (
-                <option disabled>No classes loaded</option>
-              )}
-            </select>
-          </div>
+    <div className="max-w-6xl mx-auto space-y-6 pb-20 px-4">
+      
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">Academic Materials</h1>
+          <p className="text-gray-500 text-sm font-medium">Broadcast study resources and lecture notes.</p>
         </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 bg-brand-cerulean text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-brand-prussian transition-all active:scale-95 shadow-lg shadow-brand-cerulean/20"
+        >
+          <Plus size={18} /> Upload Material
+        </button>
+      </header>
 
-        {loading ? (
-          <div className="py-24 text-center">
-            <RotateCw className="w-8 h-8 animate-spin mx-auto text-brand-cerulean opacity-30" />
-            <p className="text-xs font-medium text-gray-400 mt-4 uppercase tracking-widest">Syncing Materials...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {materials.map((mat) => (
-              <div key={mat._id} className="bg-white p-6 rounded-[2.5rem] border border-brand-aliceBlue hover:border-brand-cerulean/10 transition-all group shadow-sm">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-12 h-12 bg-brand-aliceBlue/50 rounded-2xl flex items-center justify-center">
-                    {getFileIcon(mat.fileType)}
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => handleEditClick(mat)} className="p-2 text-gray-300 hover:text-brand-cerulean transition-colors"><Pencil size={18} /></button>
-                    <button onClick={() => MaterialService.deleteMaterial(mat._id).then(loadData)} className="p-2 text-gray-300 hover:text-brand-coral transition-colors"><Trash2 size={18} /></button>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-6">
-                  <h4 className="text-base font-semibold text-brand-prussian line-clamp-1">{mat.title}</h4>
-                  <p className="text-xs text-gray-500 line-clamp-2 min-h-[2.5rem]">{mat.description || "No description provided."}</p>
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    <span>{mat.fileSize}</span>
-                    <span>•</span>
-                    <span>{moment(mat.createdAt).format("MMM DD")}</span>
-                  </div>
-                </div>
-
-                <a 
-                   href={`${import.meta.env.VITE_API_BASE_URL}${mat.fileUrl}`} 
-                   target="_blank" 
-                   rel="noreferrer"
-                   className="flex items-center justify-center gap-2 w-full py-3 bg-brand-aliceBlue text-brand-prussian rounded-xl text-xs font-semibold hover:bg-brand-prussian hover:text-white transition-all shadow-sm active:scale-[0.98]"
-                >
-                  <Download size={14} /> Download File
-                </a>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Filter Bar */}
+      <div className="bg-white p-5 rounded-[2rem] border border-brand-aliceBlue shadow-sm">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <select 
+            className="w-full pl-12 pr-4 py-3 bg-brand-aliceBlue/30 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand-cerulean/20 outline-none appearance-none"
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+          >
+            <option value="">Search by Class Module...</option>
+            {classes && classes.length > 0 ? (
+              classes.map(c => <option key={c._id} value={c._id}>{c.name}</option>)
+            ) : (
+              <option disabled>No classes found...</option>
+            )}
+          </select>
+        </div>
       </div>
 
+      {/* Content Grid */}
+      {loading ? (
+        <div className="py-24 text-center">
+          <RotateCw className="w-8 h-8 animate-spin mx-auto text-brand-cerulean opacity-30" />
+          <p className="text-xs font-medium text-gray-400 mt-4 uppercase tracking-widest">Syncing Materials...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {materials.map((mat) => (
+            <div key={mat._id} className="bg-white p-6 rounded-[2.5rem] border border-brand-aliceBlue hover:border-brand-cerulean/10 transition-all group shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-brand-aliceBlue/50 rounded-2xl flex items-center justify-center">
+                  {getFileIcon(mat.fileType)}
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={() => handleEditClick(mat)} className="p-2 text-gray-300 hover:text-brand-cerulean transition-colors"><Pencil size={18} /></button>
+                  <button onClick={() => MaterialService.deleteMaterial(mat._id).then(loadData)} className="p-2 text-gray-300 hover:text-brand-coral transition-colors"><Trash2 size={18} /></button>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-6">
+                <h4 className="text-base font-semibold text-brand-prussian line-clamp-1">{mat.title}</h4>
+                <p className="text-xs text-gray-500 line-clamp-2 min-h-[2.5rem]">{mat.description || "No description provided."}</p>
+                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <span>{mat.fileSize}</span>
+                  <span>•</span>
+                  <span>{moment(mat.createdAt).format("MMM DD")}</span>
+                </div>
+              </div>
+
+              <a 
+                 href={`${import.meta.env.VITE_API_BASE_URL}${mat.fileUrl}`} 
+                 target="_blank" 
+                 rel="noreferrer"
+                 className="flex items-center justify-center gap-2 w-full py-3 bg-brand-aliceBlue text-brand-prussian rounded-xl text-xs font-semibold hover:bg-brand-prussian hover:text-white transition-all shadow-sm active:scale-[0.98]"
+              >
+                <Download size={14} /> Download File
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* --- CREATE / EDIT MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-prussian/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh] scrollbar-hide">
@@ -274,6 +276,6 @@ export default function MaterialsAdmin() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </div>
   );
 }

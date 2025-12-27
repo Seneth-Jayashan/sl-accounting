@@ -1,14 +1,175 @@
 import User from "../models/User.js";
+import Class from "../models/Class.js";
+import Payment from "../models/Payment.js"; // Required for Dashboard Revenue & Top Students
 import { sendVerificationEmail } from "../utils/email/Template.js";
 import { sendVerificationSms } from "../utils/sms/Template.js";
 
-// Helper to find valid users (Not deleted)
+// --- HELPER: Find Valid User ---
 const findActiveUser = async (id) => {
   return User.findOne({ _id: id, isDeleted: false });
 };
 
 // ==========================================
-// 1. PROFILE MANAGEMENT
+// 1. DASHBOARD ANALYTICS
+// ==========================================
+
+export const getDashboardSummary = async (req, res) => {
+  try {
+    // 1. Fetch Key Stats
+    const totalStudents = await User.countDocuments({ role: "student", isDeleted: false });
+    const activeClasses = await Class.countDocuments({ isPublished: true });
+
+    // Revenue Aggregation (Handle case where Payment model might be empty)
+    const revenueAgg = await Payment.aggregate([
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+    const totalRevenue = revenueAgg[0]?.total || 0;
+
+    // 2. Fetch Recent Activity (New Registrations)
+    const recentUsers = await User.find({ role: "student", isDeleted: false })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("firstName lastName createdAt");
+
+    const recentActivity = recentUsers.map((u) => ({
+      _id: u._id,
+      action: "New student registered",
+      targetName: `${u.firstName} ${u.lastName}`,
+      type: "student",
+      createdAt: u.createdAt,
+    }));
+
+    // 3. Top Performing Students (Based on Total Payments)
+    const topStudents = await Payment.aggregate([
+      { $group: { _id: "$student", totalPaid: { $sum: "$amount" } } },
+      { $sort: { totalPaid: -1 } },
+      { $limit: 5 },
+      { $lookup: { from: "users", localField: "_id", foreignField: "_id", as: "studentInfo" } },
+      { $unwind: "$studentInfo" },
+      { 
+        $project: { 
+          _id: 1, 
+          totalPaid: 1, 
+          firstName: "$studentInfo.firstName", 
+          lastName: "$studentInfo.lastName",
+          batch: "$studentInfo.batch" // Assuming batch exists on user
+        } 
+      }
+    ]);
+
+    // 4. Find Next Upcoming Class
+    // Finds the first class with a schedule. In production, you'd calculate the nearest date logic here.
+    const nextClassObj = await Class.findOne({ isPublished: true }).select("name type timeSchedules");
+    
+    let nextClass = null;
+    if (nextClassObj && nextClassObj.timeSchedules?.length > 0) {
+      nextClass = {
+        _id: nextClassObj._id,
+        name: nextClassObj.name,
+        subject: nextClassObj.type,
+        // For demo: Use current time. Implement specific schedule logic if needed.
+        startTime: new Date().toISOString() 
+      };
+    }
+
+    return res.status(200).json({
+      success: true,
+      stats: {
+        totalStudents,
+        totalRevenue,
+        activeClasses,
+        studentGrowth: 12, // Placeholder for calculated growth
+        revenueGrowth: 8,  // Placeholder for calculated growth
+      },
+      recentActivity,
+      topStudents,
+      nextClass,
+    });
+
+  } catch (error) {
+    console.error("Dashboard Summary Error:", error);
+    // Return empty/zero structure on error to prevent frontend crash
+    return res.status(500).json({ success: false, message: "Failed to load dashboard data" });
+  }
+};
+
+// ==========================================
+// 2. USER READ OPERATIONS (For Student List)
+// ==========================================
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, role } = req.query;
+    const query = { isDeleted: false };
+
+    if (role) query.role = role;
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const users = await User.find(query)
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .select("-password")
+      .sort({ createdAt: -1 });
+
+    const count = await User.countDocuments(query);
+
+    return res.status(200).json({
+      success: true,
+      users,
+      totalPages: Math.ceil(count / limit),
+      currentPage: Number(page),
+      totalUsers: count,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUserById = async (req, res) => {
+  try {
+    const user = await findActiveUser(req.params.id).select("-password");
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    return res.status(200).json({ success: true, user });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// 3. USER CREATE OPERATION
+// ==========================================
+
+export const createUser = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, phoneNumber, role } = req.body;
+
+    const userExists = await User.findOne({ email });
+    if (userExists) return res.status(400).json({ success: false, message: "Email already exists" });
+
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      password,
+      phoneNumber,
+      role: role || "student",
+      isVerified: true, // Admin created users are verified by default
+    });
+
+    return res.status(201).json({ success: true, user });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ==========================================
+// 4. PROFILE UPDATE OPERATIONS
 // ==========================================
 
 export const updateUserProfile = async (req, res) => {
@@ -19,36 +180,31 @@ export const updateUserProfile = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const { firstName, lastName, phoneNumber, address } = req.body;
-    
+
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (phoneNumber) user.phoneNumber = phoneNumber;
 
-    // --- FIX START ---
+    // Handle Address Parsing (FormData sends object as string)
     if (address) {
       try {
-        // FormData sends address as a JSON string. We must parse it back to an Object.
         user.address = typeof address === 'string' ? JSON.parse(address) : address;
       } catch (e) {
-        console.error("Address parsing error:", e);
         return res.status(400).json({ success: false, message: "Invalid address format" });
       }
     }
-    // --- FIX END ---
 
     if (req.file) {
-      // Normalize path separators for Windows compatibility
+      // Normalize path for Windows compatibility
       user.profileImage = req.file.path.replace(/\\/g, "/");
     }
 
     await user.save();
     return res.status(200).json({ success: true, user });
   } catch (error) {
-    // Check if it's still a validation error after parsing
     if (error.name === 'ValidationError') {
-        return res.status(400).json({ success: false, message: error.message });
+      return res.status(400).json({ success: false, message: error.message });
     }
-    console.error("Admin Update Profile Error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
@@ -57,44 +213,39 @@ export const updateUserEmail = async (req, res) => {
   try {
     const { id } = req.params;
     const user = await findActiveUser(id);
-
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const { email } = req.body;
-    
-    // Check if email is actually changing
+
     if (email && email.toLowerCase() !== user.email) {
       const emailExists = await User.findOne({ email: email.toLowerCase() });
-      if (emailExists) {
-        return res.status(400).json({ success: false, message: "Email already in use" });
-      } 
-      
+      if (emailExists) return res.status(400).json({ success: false, message: "Email already in use" });
+
       user.email = email.toLowerCase();
       user.isVerified = false; // Reset verification
-      
-      // Generate OTP
       const otpCode = user.generateOtpCode();
       await user.save();
 
-      // Send Verification
+      // Attempt to send verification
       try {
-        await sendVerificationEmail(user.email, otpCode) && await sendVerificationSms(user.phoneNumber, otpCode);
+        await Promise.all([
+          sendVerificationEmail(user.email, otpCode),
+          sendVerificationSms(user.phoneNumber, otpCode)
+        ]);
       } catch (err) {
-        console.error("Failed to send verification email:", err);
+        console.error("Verification send failed:", err);
       }
-      
+
       return res.status(200).json({ 
         success: true, 
         user, 
-        message: "Email updated. Verification code sent to user." 
+        message: "Email updated. Verification code sent." 
       });
     }
 
     return res.status(400).json({ success: false, message: "No changes made to email." });
-
   } catch (error) {
-    console.error("Admin Update Email Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -102,38 +253,33 @@ export const updateUserPassword = async (req, res) => {
   try {
     const { id } = req.params;
     const user = await findActiveUser(id).select('+password');
-
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const { newPassword } = req.body;
-
     user.password = newPassword; // Hashed by pre-save hook
-    
-    // Security: Invalidate existing sessions (Optional but recommended)
-    user.refreshTokens = []; 
+    user.refreshTokens = []; // Security: Invalidate sessions
     
     await user.save();
     return res.status(200).json({ success: true, message: "User password updated successfully" });
   } catch (error) {
-    console.error("Admin Update Password Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // ==========================================
-// 2. ACCOUNT STATUS MANAGEMENT
+// 5. ACCOUNT STATUS MANAGEMENT
 // ==========================================
 
 export const lockUserAccount = async (req, res) => {
   try {
     const user = await findActiveUser(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    
+
     user.isLocked = true;
     await user.save();
     return res.status(200).json({ success: true, message: "Account locked" });
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -143,11 +289,11 @@ export const unlockUserAccount = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     user.isLocked = false;
-    user.loginAttempts = 0; // Reset attempts
+    user.loginAttempts = 0;
     await user.save();
     return res.status(200).json({ success: true, message: "Account unlocked" });
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -160,7 +306,7 @@ export const activateUserAccount = async (req, res) => {
     await user.save();
     return res.status(200).json({ success: true, message: "Account activated" });
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -170,18 +316,16 @@ export const deactivateUserAccount = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     user.isActive = false;
-    // Security: Kill active sessions immediately
-    user.refreshTokens = [];
-    
+    user.refreshTokens = []; // Kill sessions
     await user.save();
     return res.status(200).json({ success: true, message: "Account deactivated" });
   } catch (error) {
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // ==========================================
-// 3. DELETION & RESTORATION
+// 6. DELETION & RESTORATION
 // ==========================================
 
 export const deleteUserAccount = async (req, res) => {
@@ -190,19 +334,18 @@ export const deleteUserAccount = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     user.isDeleted = true;
-    user.refreshTokens = []; // Kill sessions
+    user.refreshTokens = [];
     await user.save();
     
     return res.status(200).json({ success: true, message: "Account deleted (soft)" });
   } catch (error) {
-    console.error("Admin Delete User Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export const restoreUserAccount = async (req, res) => {
   try {
-    // Note: Here we explicitly look for deleted users
+    // Explicitly find deleted users
     const user = await User.findOne({ _id: req.params.id, isDeleted: true });
     
     if (!user) return res.status(404).json({ success: false, message: "Deleted user not found" });
@@ -212,7 +355,6 @@ export const restoreUserAccount = async (req, res) => {
     
     return res.status(200).json({ success: true, message: "Account restored" });
   } catch (error) {
-    console.error("Admin Restore User Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };

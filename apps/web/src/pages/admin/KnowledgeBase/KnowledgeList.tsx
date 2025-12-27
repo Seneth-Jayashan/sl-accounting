@@ -1,7 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
 import Dropdown from "../../../components/Dropdown";
 import Swal from "sweetalert2";
@@ -454,11 +451,6 @@ const AdminKnowledgeList: React.FC = () => {
   const selectionSummary = selectedIds.length > 0 ? `${selectedIds.length} selected` : "Nothing selected";
 
   return (
-    <DashboardLayout
-      Sidebar={SidebarAdmin}
-      BottomNav={BottomNavAdmin}
-      showHeader={false}
-    >
       <div className="max-w-6xl mx-auto p-6 space-y-6">
         <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -845,7 +837,6 @@ const AdminKnowledgeList: React.FC = () => {
           </div>
         )}
       </div>
-    </DashboardLayout>
   );
 };
 

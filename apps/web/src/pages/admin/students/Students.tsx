@@ -14,9 +14,6 @@ import {
 } from "@heroicons/react/24/outline";
 
 // Layouts & Services
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import UserService, { type StudentUser } from "../../../services/UserService";
 import BatchService, { type BatchData } from "../../../services/BatchService"; // Import Batch Service
 
@@ -136,31 +133,7 @@ export default function StudentsPage() {
     }
   };
 
-  // --- SUB-COMPONENT: Stats ---
-  const StatsSidebar = (
-    <div className="space-y-6">
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-           <UserIcon className="w-5 h-5 text-gray-400"/> Directory Stats
-        </h3>
-        <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 p-4 rounded-2xl text-center">
-                <span className="block text-3xl font-bold text-blue-700">{students.length}</span>
-                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Total</span>
-            </div>
-             <div className="bg-emerald-50 p-4 rounded-2xl text-center">
-                <span className="block text-3xl font-bold text-emerald-700">
-                  {students.filter(s => s.isVerified).length}
-                </span>
-                <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Active</span>
-            </div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={StatsSidebar}>
       <div className="space-y-6 font-sans">
         
         {/* Header */}
@@ -265,7 +238,6 @@ export default function StudentsPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 

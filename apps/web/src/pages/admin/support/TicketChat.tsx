@@ -1,69 +1,70 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
+import { 
+  InboxIcon, 
+  TrashIcon, 
+  ExclamationCircleIcon,
+  ChatBubbleLeftRightIcon
+} from "@heroicons/react/24/outline";
+
+// Services & Context
 import TicketService, { type Ticket } from "../../../services/TicketService";
-import { useAuth } from "../../../contexts/AuthContext";
-import Chat from "../../../components/Chat";
 import ChatService from "../../../services/ChatService";
+import { useAuth } from "../../../contexts/AuthContext";
+
+// Components
+import Chat from "../../../components/Chat";
 import ConfirmDialog from "../../../components/modals/ConfirmDialog";
 
+// --- MAIN COMPONENT ---
 export default function TicketChatAdmin() {
-  const STATUS_OPTIONS = ["Open", "In Progress", "Resolved", "Closed"];
   const { user, accessToken } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
+
+  // Data State
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  
+  // UI State
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingTicket, setLoadingTicket] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  
+  // Action State
   const [statusUpdating, setStatusUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [infoDialog, setInfoDialog] = useState<{ title: string; message: string } | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
-  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
-  const sortTicketsDesc = (items: Ticket[]) =>
+  // --- HELPERS ---
+  const sortTicketsDesc = useCallback((items: Ticket[]) =>
     [...items].sort((a, b) => {
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;
-    });
+    }), []);
 
-  const loadTicketDetails = async (id: string) => {
-    setLoadingTicket(true);
-    try {
-      const t = await TicketService.getTicketById(id);
-      setSelectedTicket(t ?? null);
-    } catch (e) {
-      console.error(e);
-      setSelectedTicket(null);
-    } finally {
-      setLoadingTicket(false);
-    }
-  };
-
-  // Load all tickets for admins
+  // --- DATA LOADING ---
+  
+  // 1. Load All Tickets
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    setError("");
+    
     TicketService.getAllTickets()
       .then((items) => {
         if (!mounted) return;
-        // Newest first when createdAt is available
         const sorted = sortTicketsDesc(items);
         setTickets(sorted);
-        // Prefer URL param if present
-        const paramId = params.id;
-        if (paramId && sorted.some((t) => t._id === paramId)) {
-          setSelectedId(paramId);
+        
+        // Handle URL Selection
+        if (params.id && sorted.some((t) => t._id === params.id)) {
+          setSelectedId(params.id);
         } else {
-          // Leave selection empty when landing without a ticket id
           setSelectedId(null);
         }
       })
@@ -72,20 +73,32 @@ export default function TicketChatAdmin() {
         setError("Failed to load tickets.");
       })
       .finally(() => mounted && setLoading(false));
-    return () => {
-      mounted = false;
-    };
+
+    return () => { mounted = false; };
   }, []);
 
-  // Load selected ticket details for header meta
+  // 2. Load Single Ticket Details
   useEffect(() => {
     if (!selectedId) {
       setSelectedTicket(null);
       return;
     }
-    void loadTicketDetails(selectedId);
 
-    // Add Escape key handler to close the selected ticket view
+    const loadDetails = async () => {
+      setLoadingTicket(true);
+      try {
+        const t = await TicketService.getTicketById(selectedId);
+        setSelectedTicket(t ?? null);
+      } catch (e) {
+        setSelectedTicket(null);
+      } finally {
+        setLoadingTicket(false);
+      }
+    };
+
+    loadDetails();
+
+    // Escape Key Handler
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSelectedId(null);
@@ -94,30 +107,28 @@ export default function TicketChatAdmin() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId]);
+  }, [selectedId, navigate]);
 
+  // 3. Socket: New Ticket
   useEffect(() => {
     if (!accessToken) return;
-
     const handleTicketCreated = (ticket: Ticket) => {
       setTickets((prev) => {
         if (!ticket?._id || prev.some((t) => t._id === ticket._id)) return prev;
         return sortTicketsDesc([ticket, ...prev]);
       });
     };
-
     ChatService.onTicketCreated(handleTicketCreated);
     return () => ChatService.offTicketCreated(handleTicketCreated);
-  }, [accessToken]);
+  }, [accessToken, sortTicketsDesc]);
 
+  // 4. Socket: Status Update
   useEffect(() => {
     if (!selectedId || !accessToken) return;
-
     ChatService.joinTicket(selectedId);
 
     const handleStatus = (payload: any) => {
       if (!payload?._id || payload._id !== selectedId) return;
-
       setSelectedTicket((prev) => (prev ? { ...prev, ...payload } : payload));
       setTickets((prev) =>
         prev.map((t) => (t._id === payload._id ? { ...t, status: payload.status } : t))
@@ -127,70 +138,29 @@ export default function TicketChatAdmin() {
     ChatService.onTicketStatusUpdated(handleStatus);
     return () => ChatService.offTicketStatusUpdated(handleStatus);
   }, [selectedId, accessToken]);
-  const stats = useMemo(() => {
-    const total = tickets.length;
-    const open = tickets.filter(
-      (t) =>
-        !String(t.status ?? "")
-          .toLowerCase()
-          .includes("close")
-    );
-    return { total, open: open.length };
-  }, [tickets]);
 
-  // Show all tickets in the left panel
-
-  const renderTicketMeta = () => {
-    if (!selectedTicket) return null;
-    return (
-      <div className="space-y-1 text-sm text-gray-600">
-        <div className="font-semibold text-[#0b2540]">
-          {selectedTicket.name}
-        </div>
-        <div className="text-xs text-gray-500">
-          {selectedTicket.email} • {selectedTicket.phoneNumber}
-        </div>
-        <div>Category: {selectedTicket.Categories || "Unspecified"}</div>
-        <div>Priority: {selectedTicket.priority || "Low"}</div>
-        <div>Status: {selectedTicket.status || "Open"}</div>
-      </div>
-    );
-  };
+  // --- ACTIONS ---
 
   const applyStatusChange = async (nextStatus: string) => {
     if (!selectedTicket || !selectedId) return;
     setStatusUpdating(true);
-    setError("");
+    
     try {
       const updated = await TicketService.updateTicket(selectedId, {
-        name: selectedTicket.name,
-        email: selectedTicket.email,
-        phoneNumber: selectedTicket.phoneNumber,
-        Categories: selectedTicket.Categories,
-        message: selectedTicket.message,
-        priority: selectedTicket.priority,
+        ...selectedTicket,
         status: nextStatus,
       });
 
       setSelectedTicket(updated);
       setTickets((prev) =>
-        prev.map((t) =>
-          t._id === updated._id ? { ...t, status: updated.status } : t
-        )
+        prev.map((t) => t._id === updated._id ? { ...t, status: updated.status } : t)
       );
 
-      // If admin closed the ticket, remove the chat view for admin
-      if (String(updated.status || "").toLowerCase() === "closed") {
-        setSelectedTicket(null);
-        const remaining = tickets.filter((t) => t._id !== selectedId);
-        const next = remaining[0]?._id ?? null;
-        setSelectedId(next);
-        navigate(`/admin/chat${next ? `/ticket/${next}` : ""}`, {
-          replace: true,
-        });
+      // If Closed, redirect away
+      if (String(updated.status).toLowerCase() === "closed") {
+        handleRedirectAfterAction(selectedId);
       }
     } catch (e) {
-      console.error(e);
       setError("Failed to update status");
     } finally {
       setStatusUpdating(false);
@@ -199,61 +169,36 @@ export default function TicketChatAdmin() {
     }
   };
 
-  const handleStatusChange = (nextStatus: string) => {
-    if (!selectedTicket || !selectedId) return;
-
+  const handleStatusRequest = (nextStatus: string) => {
+    if (!selectedTicket) return;
     const currentStatus = String(selectedTicket.status || "Open");
-    const isResolved = currentStatus === "Resolved";
 
-    // Admin cannot set status to Resolved directly
-    if (nextStatus === "Resolved" && !isResolved) {
-      setInfoDialog({
-        title: "User-only change",
-        message: "Only the user can mark this ticket as Resolved.",
-      });
+    // Validation Logic
+    if (nextStatus === "Resolved" && currentStatus !== "Resolved") {
+      setInfoDialog({ title: "Action Denied", message: "Only the user can mark this ticket as Resolved." });
       return;
     }
-
-    // When ticket is Resolved, admin may only Close it
-    if (isResolved && nextStatus !== "Closed" && nextStatus !== currentStatus) {
-      setInfoDialog({
-        title: "Close required",
-        message: "This ticket was marked Resolved by the user. You can only Close it.",
-      });
+    if (currentStatus === "Resolved" && nextStatus !== "Closed" && nextStatus !== currentStatus) {
+      setInfoDialog({ title: "Close Required", message: "This ticket is Resolved. You can only Close it." });
       return;
     }
-
-    // Confirm before closing
     if (nextStatus === "Closed") {
       setPendingStatus("Closed");
       setShowCloseConfirm(true);
       return;
     }
 
-    void applyStatusChange(nextStatus);
-  };
-
-  const openDeleteConfirm = () => {
-    if (!selectedId) return;
-    setShowDeleteConfirm(true);
+    applyStatusChange(nextStatus);
   };
 
   const confirmDelete = async () => {
     if (!selectedId) return;
     setDeleting(true);
-    setError("");
     try {
       await TicketService.deleteTicket(selectedId);
       setTickets((prev) => prev.filter((t) => t._id !== selectedId));
-      setSelectedTicket(null);
-
-      const remaining = tickets.filter((t) => t._id !== selectedId);
-      const next = remaining[0]?._id ?? null;
-      setSelectedId(next);
-      if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
-      else navigate(`/admin/chat`, { replace: true });
+      handleRedirectAfterAction(selectedId);
     } catch (e) {
-      console.error(e);
       setError("Failed to delete ticket");
     } finally {
       setDeleting(false);
@@ -261,244 +206,127 @@ export default function TicketChatAdmin() {
     }
   };
 
+  const handleRedirectAfterAction = (removedId: string) => {
+    setSelectedTicket(null);
+    const remaining = tickets.filter((t) => t._id !== removedId);
+    const next = remaining[0]?._id ?? null;
+    setSelectedId(next);
+    if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
+    else navigate(`/admin/chat`, { replace: true });
+  };
+
+  // Stats calculation
+  const stats = useMemo(() => ({
+    total: tickets.length,
+    open: tickets.filter((t) => !String(t.status).toLowerCase().includes("close")).length
+  }), [tickets]);
+
   return (
-    <DashboardLayout
-      Sidebar={SidebarAdmin}
-      BottomNav={BottomNavAdmin}
-      showHeader={false}
-    >
-      <div className="bg-[#e9f0f7] min-h-screen">
-        <main className="p-4 lg:p-8 pb-24 lg:pb-10 overflow-x-hidden flex justify-center">
-          <div className="w-full max-w-7xl space-y-6">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h1 className="text-3xl font-semibold text-[#0b2540]">
-                  Ticket Chats
-                </h1>
-                <p className="text-sm text-gray-600">
-                  Review every ticket thread and reply as admin.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <span className="px-3 py-1 rounded-full bg-white border shadow-sm">
-                  Total: {stats.total}
-                </span>
-                <span className="px-3 py-1 rounded-full bg-white border shadow-sm">
-                  Open-ish: {stats.open}
-                </span>
-              </div>
+    <div className="bg-[#e9f0f7] min-h-full"> {/* Layout wrapper removed */}
+      <main className="p-4 lg:p-8 pb-24 lg:pb-10 h-[calc(100vh-64px)] flex justify-center">
+        <div className="w-full max-w-7xl space-y-4 flex flex-col h-full">
+          
+          {/* Header */}
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between shrink-0">
+            <div>
+              <h1 className="text-2xl font-bold text-[#0b2540]">Support Tickets</h1>
+              <p className="text-xs text-gray-500">Manage user inquiries and chat history.</p>
             </div>
+            <div className="flex gap-2 text-xs font-medium">
+              <span className="bg-white px-3 py-1 rounded-full shadow-sm border text-gray-600">Total: {stats.total}</span>
+              <span className="bg-white px-3 py-1 rounded-full shadow-sm border text-blue-600">Active: {stats.open}</span>
+            </div>
+          </div>
 
-            {error && (
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
+          {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200">{error}</div>}
 
-            {loading ? (
-              <div className="flex items-center justify-center py-16 text-gray-600">
-                Loading tickets...
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Ticket list */}
-                <div className="lg:col-span-1 rounded-2xl border bg-white shadow-sm flex flex-col h-[520px] lg:h-[750px] overflow-hidden">
-                  <div className="flex items-center justify-between border-b px-4 py-3 text-sm text-gray-600">
-                    <span>All tickets</span>
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                      {tickets.length}
-                    </span>
-                  </div>
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm animate-pulse">Loading tickets...</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+              
+              {/* LEFT COLUMN: Ticket List */}
+              <div className="lg:col-span-1 bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
+                <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inbox</span>
+                </div>
+                <div className="flex-1 overflow-y-auto">
                   {tickets.length === 0 ? (
-                    <div className="p-6 text-sm text-gray-600 text-center space-y-2">
-                      <div>No tickets yet.</div>
-                      <div className="text-xs text-gray-500">
-                        New tickets will appear automatically.
-                      </div>
-                    </div>
+                    <div className="p-8 text-center text-gray-400 text-sm">No tickets found.</div>
                   ) : (
-                    <ul className="divide-y overflow-auto min-h-0">
-                      {tickets.map((t) => {
-                        const isActive = selectedId === t._id;
-                        String(t.status ?? "")
-                          .toLowerCase()
-                          .includes("close");
-                        return (
-                          <li
-                            key={t._id}
-                            className={`p-4 cursor-pointer transition hover:bg-gray-50 ${
-                              isActive
-                                ? "bg-[#0b2540]/5 border-l-4 border-[#0b2540]"
-                                : ""
-                            }`}
-                            onClick={() => {
-                              if (isActive) {
-                                // toggle off when clicking the active ticket
-                                setSelectedId(null);
-                                navigate(`/admin/chat`, { replace: true });
-                                return;
-                              }
-                              setSelectedId(t._id);
-                              navigate(`/admin/chat/ticket/${t._id}`);
-                            }}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 space-y-1">
-                                <div className="font-semibold text-[#0b2540] truncate">
-                                  {t.name}
-                                </div>
-                                <div className="text-xs text-gray-500 truncate">
-                                  {t.email}
-                                </div>
-                                <div className="text-xs text-gray-500 truncate">
-                                  {t.Categories || "Category"}
-                                </div>
-                              </div>
-                              <span
-                                className={`text-xs px-2 py-0.5 rounded-full ${
-                                  t.status === "Closed"
-                                    ? "bg-red-100 text-red-700"
-                                    : t.status === "Resolved"
-                                    ? "bg-purple-100 text-purple-700"
-                                    : t.status === "In Progress"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "bg-green-100 text-green-700"
-                                }`}
-                              >
-                                {t.status || "Open"}
-                              </span>
-                            </div>
-                            <div className="mt-2 text-xs text-gray-500">
-                              Priority: {t.priority || "Low"}
-                            </div>
-                          </li>
-                        );
-                      })}
+                    <ul className="divide-y divide-gray-100">
+                      {tickets.map((ticket) => (
+                        <TicketListItem 
+                          key={ticket._id} 
+                          ticket={ticket} 
+                          isActive={selectedId === ticket._id}
+                          onClick={(id) => {
+                            if (selectedId === id) {
+                              setSelectedId(null);
+                              navigate('/admin/chat', { replace: true });
+                            } else {
+                              setSelectedId(id);
+                              navigate(`/admin/chat/ticket/${id}`);
+                            }
+                          }}
+                        />
+                      ))}
                     </ul>
                   )}
                 </div>
+              </div>
 
-                {/* Chat area */}
-                <div className="lg:col-span-2 space-y-3">
-                  <div className="rounded-2xl border bg-white shadow-sm p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <div className="text-xs text-gray-500">Ticket detail</div>
-                      {loadingTicket ? (
-                        <div className="text-sm text-gray-600">
-                          Loading ticket...
-                        </div>
-                      ) : selectedTicket ? (
-                        renderTicketMeta()
-                      ) : (
-                        <div className="text-sm text-gray-600">
-                          Select a ticket to inspect.
-                        </div>
-                      )}
+              {/* RIGHT COLUMN: Chat Area */}
+              <div className="lg:col-span-2 flex flex-col gap-3 min-h-0">
+                {/* Meta Panel */}
+                <div className="bg-white rounded-2xl border shadow-sm p-4 shrink-0">
+                  {loadingTicket ? (
+                    <div className="text-sm text-gray-400">Loading details...</div>
+                  ) : selectedTicket ? (
+                    <TicketMetaPanel 
+                      ticket={selectedTicket} 
+                      statusUpdating={statusUpdating}
+                      deleting={deleting}
+                      onStatusChange={handleStatusRequest}
+                      onDelete={() => setShowDeleteConfirm(true)}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                      <InboxIcon className="w-5 h-5" /> Select a ticket to view details
                     </div>
-                    {selectedTicket && (
-                      <div className="flex flex-col md:flex-row gap-2 md:items-center">
-                        <label className="text-sm text-gray-600 flex items-center gap-2">
-                          <span className="text-xs uppercase tracking-wide text-gray-500">
-                            Status
-                          </span>
-                          <select
-                            className="border rounded-lg px-3 py-2 text-sm bg-white"
-                            value={selectedTicket.status || "Open"}
-                            onChange={(e) => handleStatusChange(e.target.value)}
-                            disabled={
-                              statusUpdating ||
-                              deleting ||
-                              String(
-                                selectedTicket.status || ""
-                              ).toLowerCase() === "closed"
-                            }
-                          >
-                            {STATUS_OPTIONS.filter((opt) => {
-                              const current = selectedTicket.status || "Open";
-                              if (opt === "Resolved" && current !== "Resolved")
-                                return false; // admin can't set to Resolved
-                              if (
-                                opt === "Closed" &&
-                                current !== "Resolved" &&
-                                current !== "Closed"
-                              )
-                                return false; // show Closed only after Resolved
-                              return true;
-                            }).map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        {(selectedTicket.status || "").toLowerCase() ===
-                        "closed" ? (
-                          <button
-                            className="text-sm px-3 py-2 rounded-lg border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-60"
-                            onClick={openDeleteConfirm}
-                            disabled={deleting || statusUpdating}
-                          >
-                            {deleting ? "Deleting..." : "Delete"}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-500">
-                            Delete available only when ticket is Closed
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  )}
+                </div>
 
-                  <div className="rounded-2xl border bg-white shadow-sm p-2 min-h-[520px] lg:min-h-[560px]">
-                    {selectedId && user ? (
-                      selectedTicket ? (
-                        String(selectedTicket.status || "").toLowerCase() ===
-                        "resolved" ? (
-                          <div className="h-full">
-                            <div className="p-3 text-sm text-gray-600 border-b">
-                              This ticket was marked Resolved by the user. Now
-                              you can Close the chat.
-                            </div>
-                            <Chat
-                              ticketId={selectedId}
-                              userId={user._id}
-                              role="admin"
-                              readOnly
-                            />
-                          </div>
-                        ) : String(
-                            selectedTicket.status || ""
-                          ).toLowerCase() === "closed" ? (
-                          <div className="flex items-center justify-center h-full text-gray-600 py-12">
-                            This ticket is Closed. Conversation is removed for
-                            admins.
-                          </div>
-                        ) : (
-                          <Chat
-                            ticketId={selectedId}
-                            userId={user._id}
-                            role="admin"
-                          />
-                        )
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-600 py-12">
-                          Select a ticket to view the conversation.
-                        </div>
-                      )
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-600 py-12">
-                        Select a ticket to view the conversation.
+                {/* Chat Box */}
+                <div className="flex-1 bg-white rounded-2xl border shadow-sm overflow-hidden relative">
+                  {selectedId && user && selectedTicket ? (
+                    isChatDisabled(selectedTicket.status) ? (
+                      <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                        <ExclamationCircleIcon className="w-8 h-8 opacity-50" />
+                        <span className="text-sm">This ticket is Closed. Chat is disabled.</span>
                       </div>
-                    )}
-                  </div>
+                    ) : (
+                      <Chat
+                        ticketId={selectedId}
+                        userId={user._id}
+                        role="admin"
+                        readOnly={selectedTicket.status === "Resolved"}
+                      />
+                    )
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-300 gap-3">
+                      <ChatBubbleLeftRightIcon className="w-12 h-12 opacity-20" />
+                      <span className="text-sm font-medium">Select a conversation</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </main>
-      </div>
+            </div>
+          )}
+        </div>
+      </main>
 
-      {/* Info dialog for non-blocking alerts */}
+      {/* --- MODALS --- */}
       <ConfirmDialog
         isOpen={Boolean(infoDialog)}
         title={infoDialog?.title}
@@ -509,32 +337,102 @@ export default function TicketChatAdmin() {
         onConfirm={() => setInfoDialog(null)}
       />
 
-      {/* Close confirmation */}
       <ConfirmDialog
         isOpen={showCloseConfirm}
-        title="Close ticket"
-        message="Close this ticket? This will prevent further updates unless reopened by an admin."
-        confirmLabel={statusUpdating ? "Closing..." : "Close"}
+        title="Close Ticket"
+        message="Are you sure? This prevents further updates unless reopened by an admin."
+        confirmLabel={statusUpdating ? "Closing..." : "Close Ticket"}
         cancelLabel="Cancel"
         loading={statusUpdating}
-        onClose={() => {
-          setShowCloseConfirm(false);
-          setPendingStatus(null);
-        }}
+        onClose={() => { setShowCloseConfirm(false); setPendingStatus(null); }}
         onConfirm={() => pendingStatus && applyStatusChange(pendingStatus)}
       />
 
-      {/* Delete confirmation */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Delete ticket"
-        message="Delete this ticket and its chat messages?"
-        confirmLabel={deleting ? "Deleting..." : "Delete"}
+        title="Delete Ticket"
+        message="Permanently delete this ticket and all chat history? This cannot be undone."
+        confirmLabel={deleting ? "Deleting..." : "Delete Forever"}
         cancelLabel="Cancel"
         loading={deleting}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={confirmDelete}
       />
-    </DashboardLayout>
+    </div>
   );
 }
+
+// --- SUB COMPONENTS ---
+
+const TicketListItem = ({ ticket, isActive, onClick }: { ticket: Ticket, isActive: boolean, onClick: (id: string) => void }) => (
+  <li
+    onClick={() => onClick(ticket._id)}
+    className={`p-4 cursor-pointer transition-all hover:bg-gray-50 border-l-4 ${
+      isActive ? "bg-blue-50/50 border-blue-600" : "border-transparent"
+    }`}
+  >
+    <div className="flex justify-between items-start mb-1">
+      <h3 className={`text-sm font-semibold truncate pr-2 ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
+        {ticket.name}
+      </h3>
+      <StatusBadge status={ticket.status} />
+    </div>
+    <div className="text-xs text-gray-500 truncate">{ticket.email}</div>
+    <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400 uppercase tracking-wider">
+      <span>{ticket.Categories || "General"}</span>
+      <span>{ticket.priority || "Low"} Priority</span>
+    </div>
+  </li>
+);
+
+const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onDelete }: any) => {
+  const isClosed = String(ticket.status).toLowerCase() === 'closed';
+  
+  return (
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="space-y-1">
+        <h2 className="font-bold text-[#0b2540]">{ticket.name}</h2>
+        <p className="text-xs text-gray-500">{ticket.email} • {ticket.phoneNumber}</p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <select
+          className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition-shadow disabled:opacity-50"
+          value={ticket.status || "Open"}
+          onChange={(e) => onStatusChange(e.target.value)}
+          disabled={statusUpdating || deleting || isClosed}
+        >
+          {["Open", "In Progress", "Resolved", "Closed"].map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+
+        {isClosed ? (
+          <button 
+            onClick={onDelete}
+            disabled={deleting}
+            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+            title="Delete Ticket"
+          >
+            <TrashIcon className="w-5 h-5" />
+          </button>
+        ) : (
+          <div className="w-9 h-9" /> // Spacer
+        )}
+      </div>
+    </div>
+  );
+};
+
+const StatusBadge = ({ status }: { status?: string }) => {
+  const s = String(status || "Open");
+  let colors = "bg-gray-100 text-gray-600";
+  if (s === "In Progress") colors = "bg-blue-100 text-blue-700";
+  if (s === "Resolved") colors = "bg-purple-100 text-purple-700";
+  if (s === "Closed") colors = "bg-red-100 text-red-700";
+
+  return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${colors}`}>{s}</span>;
+};
+
+// Helper to determine if chat is viewable
+const isChatDisabled = (status?: string) => String(status || "").toLowerCase() === 'closed';

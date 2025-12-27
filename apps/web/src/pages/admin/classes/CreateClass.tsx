@@ -2,9 +2,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { motion } from "framer-motion";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import ClassService, { type CreateClassPayload } from "../../../services/ClassService";
 import BatchService from "../../../services/BatchService";
 import {
@@ -15,7 +12,6 @@ import {
   AcademicCapIcon,
   CheckCircleIcon,
   InformationCircleIcon,
-  TagIcon,
   HashtagIcon
 } from "@heroicons/react/24/outline";
 
@@ -135,7 +131,6 @@ export default function CreateClassPage() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={<SidebarTips />}>
       <div className="max-w-4xl mx-auto space-y-6 pb-24">
         
         <header className="space-y-2">
@@ -240,7 +235,6 @@ export default function CreateClassPage() {
           </div>
         </form>
       </div>
-    </DashboardLayout>
   );
 }
 
@@ -276,19 +270,5 @@ const Textarea = ({ label, ...props }: any) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
     <textarea {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-2.5 outline-none transition-all text-sm font-medium resize-none" />
-  </div>
-);
-
-const SidebarTips = () => (
-  <div className="bg-brand-prussian text-white p-6 rounded-2xl shadow-lg border border-white/5">
-    <div className="flex items-center gap-2 mb-4">
-      <TagIcon className="w-4 h-4 text-brand-jasmine" />
-      <h3 className="text-brand-jasmine font-bold text-[10px] uppercase tracking-widest">Quick Guide</h3>
-    </div>
-    <div className="space-y-4 text-[11px] font-medium text-brand-aliceBlue/60 leading-relaxed">
-      <p>Ensure <span className="text-white">Total Sessions</span> matches the number of live meetings planned.</p>
-      <p>Recommended <span className="text-white">Duration</span> for Revision is typically 120-180 minutes.</p>
-      <p>Commencement date will trigger automated session creation in the database.</p>
-    </div>
   </div>
 );

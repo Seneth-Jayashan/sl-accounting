@@ -1,8 +1,5 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import UserService from "../../../services/UserService.ts";
 import {
   ArrowLeftIcon,
@@ -68,22 +65,8 @@ export default function AddStudentPage() {
     }
   };
 
-  // Right Sidebar (Tips)
-  const TipsSidebar = (
-    <div className="space-y-4">
-      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-        <h3 className="font-semibold text-gray-800 mb-2">Registration Tips</h3>
-        <ul className="text-sm text-gray-500 space-y-3 list-disc pl-4">
-          <li><strong>Reg No:</strong> Must be unique (e.g., STU-2025-001).</li>
-          <li><strong>Email:</strong> Use a valid email as this will be their login username.</li>
-          <li><strong>Password:</strong> Set a temporary strong password. The student can change it later.</li>
-        </ul>
-      </div>
-    </div>
-  );
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={TipsSidebar}>
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Navigation */}
@@ -283,6 +266,5 @@ export default function AddStudentPage() {
 
         </form>
       </div>
-    </DashboardLayout>
   );
 }

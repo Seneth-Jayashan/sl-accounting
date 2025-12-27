@@ -2,9 +2,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { motion } from "framer-motion";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import ClassService from "../../../services/ClassService";
 import SessionService, { type CreateSessionPayload } from "../../../services/SessionService";
 
@@ -97,7 +94,6 @@ export default function AddSessionPage() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={<ScheduleTips />}>
       <div className="max-w-3xl mx-auto space-y-6 pb-24 p-4 lg:p-0">
         
         {/* Navigation Header */}
@@ -188,7 +184,6 @@ export default function AddSessionPage() {
           </button>
         </form>
       </div>
-    </DashboardLayout>
   );
 }
 
@@ -211,16 +206,3 @@ const Input = ({ label, ...props }: any) => (
   </div>
 );
 
-const ScheduleTips = () => (
-  <div className="bg-brand-prussian text-white p-6 rounded-2xl shadow-xl border border-white/5 space-y-4">
-    <div className="flex items-center gap-2 text-brand-jasmine">
-       <InformationCircleIcon className="w-4 h-4" />
-       <h3 className="text-[10px] font-bold uppercase tracking-widest">Entry Protocol</h3>
-    </div>
-    <p className="text-[11px] text-brand-aliceBlue/60 leading-relaxed font-medium">
-      Extra sessions do not affect the auto-generated recurrence of the main module. 
-      <br /><br />
-      Students will receive an <span className="text-white">instant notification</span> once the Zoom meeting is provisioned.
-    </p>
-  </div>
-);

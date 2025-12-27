@@ -16,17 +16,14 @@ import {
   ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
 
-// Layouts & Components
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
+// Components
 import StudentEnrollmentTab from "../../../components/admin/class/StudentEnrollmentTab";
 
 // Services & Types
 import ClassService, { type ClassData } from "../../../services/ClassService";
 import SessionService from "../../../services/SessionService";
 
-// --- SECURITY HELPER: Validates URLs to prevent XSS ---
+// --- SECURITY HELPER ---
 const isValidUrl = (string: string) => {
   try { 
     const url = new URL(string);
@@ -59,7 +56,6 @@ export default function ViewClassPage() {
     setIsLoading(true);
     try {
       const res = await ClassService.getClassById(id);
-      // Handle response structure variations (defensive coding)
       const data = res.class || (res as any); 
       setClassData(data);
     } catch (err) {
@@ -84,10 +80,9 @@ export default function ViewClassPage() {
     try {
       await SessionService.cancelSession(cancelModal.sessionId, cancelReason);
       
-      // Optimistic Update: Update UI without waiting for re-fetch
+      // Optimistic Update
       setClassData((prev) => {
         if (!prev) return null;
-        // Deep clone sessions to ensure React state immutability
         const updatedSessions = (prev as any).sessions.map((s: any) => 
           s._id === cancelModal.sessionId 
             ? { ...s, isCancelled: true, cancellationReason: cancelReason } 
@@ -106,8 +101,6 @@ export default function ViewClassPage() {
   };
 
   const handleDeleteSession = async (sessionId: string) => {
-    // Security Note: Native confirm is safe but blocking. 
-    // Consider a custom modal for better UX in future.
     if (!window.confirm("Permanent Action: This will delete the session record and the Zoom meeting. Proceed?")) return;
     
     try {
@@ -126,106 +119,104 @@ export default function ViewClassPage() {
   if (isLoading) return <LoadingState />;
   if (!classData) return <NotFoundState onBack={() => navigate("/admin/classes")} />;
 
-  // Safely extract session data (handling if backend doesn't populate it)
   const sessions = (classData as any).sessions || [];
   const nextSession = (classData as any).timeSchedules?.[0];
 
+  // REMOVED <DashboardLayout> Wrapper here
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
-      <div className="max-w-6xl mx-auto space-y-6 p-6 pb-24 animate-in fade-in duration-500">
-        
-        {/* HEADER */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="space-y-1">
-            <button 
-              onClick={() => navigate("/admin/classes")} 
-              className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest"
-            >
-              <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Curriculum
-            </button>
-            <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">
-              {classData.name}
-            </h1>
-          </div>
+    <div className="max-w-6xl mx-auto space-y-6 p-6 pb-24 animate-in fade-in duration-500">
+      
+      {/* HEADER */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="space-y-1">
           <button 
-            onClick={() => navigate(`/admin/classes/edit/${id}`)} 
-            className="bg-brand-aliceBlue text-brand-prussian px-4 py-2 rounded-lg text-xs font-semibold hover:bg-brand-cerulean hover:text-white transition-all shadow-sm"
+            onClick={() => navigate("/admin/classes")} 
+            className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest"
           >
-              Edit Module
+            <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Curriculum
           </button>
-        </header>
+          <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">
+            {classData.name}
+          </h1>
+        </div>
+        <button 
+          onClick={() => navigate(`/admin/classes/edit/${id}`)} 
+          className="bg-brand-aliceBlue text-brand-prussian px-4 py-2 rounded-lg text-xs font-semibold hover:bg-brand-cerulean hover:text-white transition-all shadow-sm"
+        >
+            Edit Module
+        </button>
+      </header>
 
-        {/* STATS */}
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <DetailCard 
-            icon={<AcademicCapIcon />} 
-            label="Intake" 
-            value={(classData.batch as any)?.name || "N/A"} 
+      {/* STATS */}
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <DetailCard 
+          icon={<AcademicCapIcon />} 
+          label="Intake" 
+          value={(classData.batch as any)?.name || "N/A"} 
+        />
+        <DetailCard 
+          icon={<ClockIcon />} 
+          label="Timing" 
+          value={nextSession ? `${moment().day(nextSession.day).format("dddd")} @ ${nextSession.startTime}` : "TBA"} 
+        />
+        <DetailCard 
+          icon={<UserGroupIcon />} 
+          label="Enrolled" 
+          value={`${(classData as any).studentCount || 0} Students`} 
+        />
+      </div>
+
+      {/* TABS & CONTENT */}
+      <div className="space-y-4">
+        <div className="flex p-1 bg-brand-aliceBlue/50 rounded-lg w-fit border border-brand-aliceBlue">
+          <TabTrigger 
+            active={activeTab === "sessions"} 
+            onClick={() => setActiveTab("sessions")} 
+            label="Session Controls" 
           />
-          <DetailCard 
-            icon={<ClockIcon />} 
-            label="Timing" 
-            value={nextSession ? `${moment().day(nextSession.day).format("dddd")} @ ${nextSession.startTime}` : "TBA"} 
-          />
-          <DetailCard 
-            icon={<UserGroupIcon />} 
-            label="Enrolled" 
-            value={`${(classData as any).studentCount || 0} Students`} 
+          <TabTrigger 
+            active={activeTab === "students"} 
+            onClick={() => setActiveTab("students")} 
+            label="Enrollment" 
           />
         </div>
 
-        {/* TABS & CONTENT */}
-        <div className="space-y-4">
-          <div className="flex p-1 bg-brand-aliceBlue/50 rounded-lg w-fit border border-brand-aliceBlue">
-            <TabTrigger 
-              active={activeTab === "sessions"} 
-              onClick={() => setActiveTab("sessions")} 
-              label="Session Controls" 
-            />
-            <TabTrigger 
-              active={activeTab === "students"} 
-              onClick={() => setActiveTab("students")} 
-              label="Enrollment" 
-            />
-          </div>
-
-          <AnimatePresence mode="wait">
-            {activeTab === "sessions" ? (
-              <motion.div 
-                key="sessions"
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-3"
-              >
-                {sessions.length > 0 ? (
-                  sessions.map((session: any) => (
-                    <SessionRow 
-                      key={session._id} 
-                      session={session} 
-                      onCancel={() => handleCancelClick(session._id)}
-                      onDelete={() => handleDeleteSession(session._id)}
-                    />
-                  ))
-                ) : (
-                   <div className="p-10 text-center border-2 border-dashed border-brand-aliceBlue rounded-xl">
-                      <p className="text-gray-400 text-sm font-medium">No sessions scheduled yet.</p>
-                   </div>
-                )}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="students"
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-              >
-                <StudentEnrollmentTab classId={id!} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <AnimatePresence mode="wait">
+          {activeTab === "sessions" ? (
+            <motion.div 
+              key="sessions"
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-3"
+            >
+              {sessions.length > 0 ? (
+                sessions.map((session: any) => (
+                  <SessionRow 
+                    key={session._id} 
+                    session={session} 
+                    onCancel={() => handleCancelClick(session._id)}
+                    onDelete={() => handleDeleteSession(session._id)}
+                  />
+                ))
+              ) : (
+                  <div className="p-10 text-center border-2 border-dashed border-brand-aliceBlue rounded-xl">
+                    <p className="text-gray-400 text-sm font-medium">No sessions scheduled yet.</p>
+                  </div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="students"
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <StudentEnrollmentTab classId={id!} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* CANCELLATION MODAL */}
@@ -279,11 +270,11 @@ export default function ViewClassPage() {
           </div>
         )}
       </AnimatePresence>
-    </DashboardLayout>
+    </div>
   );
 }
 
-// --- SUB-COMPONENTS (Refactored for clarity and reuse) ---
+// --- SUB-COMPONENTS ---
 
 const SessionRow = ({ session, onCancel, onDelete }: { session: any, onCancel: () => void, onDelete: () => void }) => {
   const isPast = moment(session.startAt).isBefore(moment());
@@ -369,22 +360,20 @@ const TabTrigger = ({ active, onClick, label }: { active: boolean, onClick: () =
     </button>
 );
 
+// REMOVED <DashboardLayout> wrapper
 const LoadingState = () => (
-  <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
     <div className="flex h-[70vh] items-center justify-center flex-col gap-4">
       <ArrowPathIcon className="w-8 h-8 text-brand-cerulean animate-spin" />
       <span className="text-xs font-bold text-gray-300 uppercase tracking-widest">Loading Curriculum...</span>
     </div>
-  </DashboardLayout>
 );
 
+// REMOVED <DashboardLayout> wrapper
 const NotFoundState = ({ onBack }: { onBack: () => void }) => (
-  <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
     <div className="text-center py-32 space-y-4">
       <h2 className="text-lg font-semibold text-brand-prussian">Record data unavailable</h2>
       <button onClick={onBack} className="bg-brand-prussian text-white px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest">
         Return to portal
       </button>
     </div>
-  </DashboardLayout>
 );

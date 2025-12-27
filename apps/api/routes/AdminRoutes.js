@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getDashboardSummary, // <--- Import the new function
   updateUserProfile,
   updateUserEmail,
   updateUserPassword,
@@ -25,12 +26,19 @@ const profileUploadMiddleware = createUploader("images/profile", "profileImage")
 
 const router = express.Router();
 
-// Apply Global Admin Protection to all routes in this file
-// This prevents repeating protect/restrictTo on every line
+// Apply Global Admin Protection
 router.use(protect);
 router.use(restrictTo("admin"));
 
-// --- USER MANAGEMENT ---
+// ==========================================
+// 1. DASHBOARD
+// ==========================================
+router.get("/dashboard/summary", getDashboardSummary); // <--- NEW ROUTE
+
+
+// ==========================================
+// 2. USER MANAGEMENT
+// ==========================================
 
 router.put(
   "/users/:id/profile",
@@ -53,14 +61,14 @@ router.put(
 
 // --- STATUS MANAGEMENT ---
 
-router.put("/users/:id/lock", lockUserAccount);
-router.put("/users/:id/unlock", unlockUserAccount);
-router.put("/users/:id/activate", activateUserAccount);
-router.put("/users/:id/deactivate", deactivateUserAccount);
+router.patch("/users/:id/lock", lockUserAccount); // Changed to PATCH (best practice)
+router.patch("/users/:id/unlock", unlockUserAccount);
+router.patch("/users/:id/activate", activateUserAccount);
+router.patch("/users/:id/deactivate", deactivateUserAccount);
 
 // --- DELETION ---
 
 router.delete("/users/:id", deleteUserAccount);
-router.put("/users/:id/restore", restoreUserAccount);
+router.patch("/users/:id/restore", restoreUserAccount);
 
 export default router;
