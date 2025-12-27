@@ -6,6 +6,7 @@ import AdminLayout from "../layouts/AdminLayout"; // The persistent wrapper
 // --- Lazy Load Admin Pages ---
 const Dashboard = lazy(() => import("../pages/admin/Dashboard"));
 const Students = lazy(() => import("../pages/admin/students/Students"));
+const AddStudent = lazy(() => import("../pages/admin/students/AddStudent"));
 const ViewStudent = lazy(() => import("../pages/admin/students/ViewStudent"));
 const UpdateStudent = lazy(() => import("../pages/admin/students/UpdateStudent"));
 const Classes = lazy(() => import("../pages/admin/classes/Class"));
@@ -36,6 +37,7 @@ export const AdminRoutes = () => {
           
           {/* Student Management */}
           <Route path="students" element={<Students />} />
+          <Route path="students/add" element={<AddStudent />} />
           <Route path="students/:id" element={<ViewStudent />} />
           <Route path="students/edit/:id" element={<UpdateStudent />} />
 

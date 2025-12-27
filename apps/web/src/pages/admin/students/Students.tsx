@@ -13,9 +13,9 @@ import {
   TrashIcon
 } from "@heroicons/react/24/outline";
 
-// Layouts & Services
-import UserService, { type StudentUser } from "../../../services/UserService";
-import BatchService, { type BatchData } from "../../../services/BatchService"; // Import Batch Service
+// Services
+import AdminService, { type UserData } from "../../../services/AdminService"; // Updated Service
+import BatchService, { type BatchData } from "../../../services/BatchService"; 
 
 // --- CONSTANTS ---
 const AVATAR_COLORS = [
@@ -50,8 +50,8 @@ export default function StudentsPage() {
   const [selectedBatch, setSelectedBatch] = useState("All");
   
   // Data State
-  const [students, setStudents] = useState<StudentUser[]>([]);
-  const [batches, setBatches] = useState<BatchData[]>([]); // Dynamic Batches
+  const [students, setStudents] = useState<UserData[]>([]);
+  const [batches, setBatches] = useState<BatchData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Dropdown Management
@@ -70,12 +70,12 @@ export default function StudentsPage() {
   useEffect(() => {
     const loadBatches = async () => {
       try {
-        const data = await BatchService.getAllBatches(); // Fetch from API
+        const data = await BatchService.getAllBatches();
         if (data.batches) {
             setBatches(data.batches);
         }
       } catch (error) {
-        console.error("Failed to load batches", error);
+        console.warn("Failed to load batches, filters may be limited.");
       }
     };
     loadBatches();
@@ -85,12 +85,26 @@ export default function StudentsPage() {
   const fetchStudents = async () => {
     setIsLoading(true);
     try {
-      const data = await UserService.getStudents({
+      // 1. Fetch from Admin API
+      const response = await AdminService.getAllUsers({
         search: debouncedSearch,
-        // Send 'undefined' if "All" is selected so backend ignores the filter
-        batch: selectedBatch !== "All" ? selectedBatch : undefined
+        role: "student" // Explicitly fetch only students
       });
-      setStudents(data.users || []);
+      
+      let users = response.users || [];
+
+      // 2. Client-side Batch Filter
+      // (Since backend search currently supports name/email, we filter batch here for now)
+      if (selectedBatch !== "All") {
+        users = users.filter(user => {
+            const b = user.batch; 
+            // Handle if batch is populated object or string ID
+            if (typeof b === 'object' && b !== null) return (b as any)._id === selectedBatch;
+            return b === selectedBatch;
+        });
+      }
+
+      setStudents(users);
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -124,7 +138,7 @@ export default function StudentsPage() {
 
     if (result.isConfirmed) {
       try {
-        await UserService.deleteUser(id);
+        await AdminService.deleteUser(id); // Use AdminService
         Swal.fire('Deleted!', 'Student removed.', 'success');
         fetchStudents(); 
       } catch (error) {
@@ -134,30 +148,30 @@ export default function StudentsPage() {
   };
 
   return (
-      <div className="space-y-6 font-sans">
+      <div className="space-y-6 font-sans pb-20"> {/* Added pb-20 for bottom nav spacing */}
         
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Students Directory</h1>
+            <h1 className="text-2xl font-bold text-brand-prussian">Students Directory</h1>
             <p className="text-gray-500 text-sm mt-1">Manage and monitor registered students</p>
           </div>
           <button 
-            onClick={() => navigate("/admin/students/add")} 
-            className="flex items-center gap-2 bg-[#0b2540] hover:bg-[#1a3b5c] text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/10 active:scale-95"
+            onClick={() => navigate("/admin/students/add")} // Point to Create page
+            className="flex items-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-brand-cerulean/20 active:scale-95 text-sm font-semibold"
           >
-            <PlusIcon className="w-5 h-5" /> <span className="font-semibold">Add Student</span>
+            <PlusIcon className="w-5 h-5" /> <span>Add Student</span>
           </button>
         </div>
 
         {/* Filters Bar */}
-        <div className="flex flex-col md:flex-row gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex flex-col md:flex-row gap-4 bg-white p-2 rounded-2xl shadow-sm border border-brand-aliceBlue">
           <div className="relative flex-1">
             <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input 
               type="text" 
               placeholder="Search by name, email or phone..." 
-              className="w-full pl-11 pr-4 py-3 bg-gray-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0b2540]/20 transition-all text-sm"
+              className="w-full pl-11 pr-4 py-3 bg-brand-aliceBlue/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 transition-all text-sm font-medium"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -168,13 +182,12 @@ export default function StudentsPage() {
               
               {/* DYNAMIC BATCH DROPDOWN */}
               <select 
-                className="h-full pl-10 pr-8 py-3 bg-gray-50 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0b2540]/20 appearance-none cursor-pointer text-sm font-medium text-gray-700 border-none min-w-[160px]"
+                className="h-full pl-10 pr-8 py-3 bg-brand-aliceBlue/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 appearance-none cursor-pointer text-sm font-medium text-gray-700 border-none min-w-[160px]"
                 value={selectedBatch}
                 onChange={(e) => setSelectedBatch(e.target.value)}
               >
                 <option value="All">All Batches</option>
                 {batches.map((batch) => (
-                    // Use _id for value to ensure precise backend filtering
                     <option key={batch._id} value={batch._id}>
                         {batch.name}
                     </option>
@@ -185,7 +198,7 @@ export default function StudentsPage() {
             {/* Refresh Button */}
             <button 
                 onClick={fetchStudents}
-                className="h-full px-4 bg-gray-50 rounded-xl hover:bg-gray-100 text-gray-600 transition-colors"
+                className="h-full px-4 bg-brand-aliceBlue/30 rounded-xl hover:bg-gray-100 text-gray-600 transition-colors"
                 title="Refresh List"
             >
                <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -193,12 +206,14 @@ export default function StudentsPage() {
           </div>
         </div>
 
+        
+
         {/* Students Table */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
+        <div className="bg-white rounded-2xl border border-brand-aliceBlue shadow-sm overflow-hidden min-h-[400px] flex flex-col">
           {isLoading ? (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-               <ArrowPathIcon className="w-8 h-8 animate-spin mb-2" />
-               <p className="text-sm">Loading students...</p>
+               <ArrowPathIcon className="w-8 h-8 animate-spin mb-2 text-brand-cerulean/50" />
+               <p className="text-sm font-medium uppercase tracking-widest">Loading students...</p>
             </div>
           ) : students.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center">
@@ -211,7 +226,7 @@ export default function StudentsPage() {
           ) : (
             <div className="overflow-x-auto">
                <table className="w-full text-left border-collapse">
-                 <thead className="bg-gray-50/80 text-xs uppercase text-gray-500 font-semibold border-b border-gray-100">
+                 <thead className="bg-brand-aliceBlue/40 text-[10px] uppercase text-gray-500 font-bold tracking-widest border-b border-brand-aliceBlue">
                    <tr>
                      <th className="px-6 py-4">Student</th>
                      <th className="px-6 py-4">Batch</th>
@@ -220,16 +235,16 @@ export default function StudentsPage() {
                      <th className="px-6 py-4 text-right">Actions</th>
                    </tr>
                  </thead>
-                 <tbody className="divide-y divide-gray-50">
+                 <tbody className="divide-y divide-brand-aliceBlue">
                    {students.map(student => (
                      <StudentRow 
-                        key={student._id} 
-                        student={student} 
-                        isOpen={openMenuId === student._id}
-                        onToggle={(e) => handleMenuClick(e, student._id)}
-                        onView={() => navigate(`/admin/students/${student._id}`)}
-                        onEdit={() => navigate(`/admin/students/edit/${student._id}`)}
-                        onDelete={() => handleDelete(student._id, student.firstName)}
+                       key={student._id} 
+                       student={student} 
+                       isOpen={openMenuId === student._id}
+                       onToggle={(e) => handleMenuClick(e, student._id)}
+                       onView={() => navigate(`/admin/students/${student._id}`)}
+                       onEdit={() => navigate(`/admin/students/edit/${student._id}`)}
+                       onDelete={() => handleDelete(student._id, student.firstName)}
                      />
                    ))}
                  </tbody>
@@ -247,10 +262,10 @@ const StudentRow = ({
     isOpen, 
     onToggle, 
     onView, 
-    onEdit,
+    onEdit, 
     onDelete
 }: { 
-    student: StudentUser; 
+    student: UserData; // Updated Interface
     isOpen: boolean; 
     onToggle: (e: React.MouseEvent) => void; 
     onView: () => void; 
@@ -258,7 +273,8 @@ const StudentRow = ({
     onDelete: () => void;
 }) => {
     const displayName = student.firstName ? `${student.firstName} ${student.lastName || ''}` : "Unknown";
-    const status = student.isVerified ? "Active" : "Pending";
+    // Check account locks and activation
+    const status = student.isLocked ? "Locked" : !student.isActive ? "Inactive" : "Active";
         
     // Handle cases where batch is populated (Object) or ID (String)
     const batchName = typeof student.batch === 'object' 
@@ -266,38 +282,42 @@ const StudentRow = ({
         : student.batch || "N/A";
 
     return (
-      <tr className="hover:bg-blue-50/30 transition-colors group">
+      <tr className="hover:bg-brand-aliceBlue/20 transition-colors group">
         <td className="px-6 py-4">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${getAvatarColor(displayName)}`}>
                {displayName.slice(0, 2).toUpperCase()}
             </div>
             <div>
-              <div className="font-semibold text-gray-900">{displayName}</div>
+              <div className="font-semibold text-brand-prussian">{displayName}</div>
               <div className="text-xs text-gray-500">{student.email}</div>
             </div>
           </div>
         </td>
         <td className="px-6 py-4 text-sm text-gray-600">
-            <span className="bg-gray-100 px-2 py-1 rounded-md text-xs font-medium text-gray-700">
+            <span className="bg-white border border-gray-200 px-2 py-1 rounded-md text-xs font-bold text-gray-500 uppercase tracking-wide">
                 {batchName}
             </span>
         </td>
-        <td className="px-6 py-4 text-sm text-gray-500 font-mono">{student.phoneNumber || "-"}</td>
+        <td className="px-6 py-4 text-sm text-gray-500 font-mono tracking-tight">{student.phoneNumber || "-"}</td>
         <td className="px-6 py-4">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
             status === 'Active' 
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                : 'bg-amber-50 text-amber-700 border-amber-100'
+                : status === 'Locked'
+                ? 'bg-red-50 text-red-700 border-red-100'
+                : 'bg-gray-50 text-gray-600 border-gray-200'
           }`}>
-             <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+             <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                status === 'Active' ? 'bg-emerald-500' : status === 'Locked' ? 'bg-red-500' : 'bg-gray-400'
+             }`}></span>
              {status}
           </span>
         </td>
         <td className="px-6 py-4 text-right relative">
           <button 
             onClick={onToggle} 
-            className={`p-2 rounded-lg transition-colors ${isOpen ? 'bg-blue-50 text-blue-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+            className={`p-2 rounded-lg transition-colors ${isOpen ? 'bg-brand-aliceBlue text-brand-cerulean' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
           >
             <EllipsisHorizontalIcon className="w-6 h-6" />
           </button>

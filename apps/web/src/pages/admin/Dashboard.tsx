@@ -10,7 +10,8 @@ import {
   ArrowPathIcon
 } from "@heroicons/react/24/outline";
 
-import DashboardService, { type DashboardData } from "../../services/DashboardService";
+// Import the Service and the correct Type
+import AdminService, { type AdminDashboardData } from "../../services/AdminService";
 
 // --- Helper Components ---
 
@@ -75,17 +76,16 @@ function QuickAction({ title, icon: Icon, onClick }: { title: string; icon: Reac
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<AdminDashboardData | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      // In a real app, this fetches from the service created above
-      const dashboardData = await DashboardService.getDashboardSummary();
+      // Use AdminService instead of DashboardService
+      const dashboardData = await AdminService.getDashboardSummary();
       setData(dashboardData);
     } catch (error) {
       console.error("Failed to load dashboard:", error);
-      // Optional: Add mock data fallback here if API fails during dev
     } finally {
       setLoading(false);
     }
@@ -104,11 +104,10 @@ export default function AdminDashboardPage() {
     );
   }
 
-  // Fallback if data is null (API error)
   if (!data) return <div className="p-10 text-center text-gray-500">Failed to load data.</div>;
 
   return (
-    <div className="space-y-8 pb-20"> {/* REMOVED DashboardLayout Wrapper */}
+    <div className="space-y-8 pb-20"> 
 
       {/* HEADER SECTION */}
       <div className="flex justify-between items-end">
@@ -120,8 +119,6 @@ export default function AdminDashboardPage() {
           {moment().format("MMMM Do, YYYY")}
         </p>
       </div>
-
-      
 
       {/* STATS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -163,12 +160,12 @@ export default function AdminDashboardPage() {
               <QuickAction 
                 title="Add Student" 
                 icon={UserPlusIcon} 
-                onClick={() => navigate('/admin/students/create')} 
+                onClick={() => navigate('/admin/students')} 
               />
               <QuickAction 
                 title="Record Payment" 
                 icon={BanknotesIcon} 
-                onClick={() => navigate('/admin/payments/create')} 
+                onClick={() => navigate('/admin/payments')} 
               />
               <QuickAction 
                 title="Create Class" 
@@ -221,9 +218,9 @@ export default function AdminDashboardPage() {
         {/* RIGHT COLUMN - SIDE WIDGETS */}
         <div className="space-y-8">
 
-          {/* TOP STUDENTS */}
+          {/* TOP STUDENTS (Updated to display Payment Amount) */}
           <section className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-semibold text-brand-prussian mb-4">Top Performers</h2>
+            <h2 className="text-lg font-semibold text-brand-prussian mb-4">Top Contributors</h2>
             <div className="space-y-4">
               {data.topStudents.map((s) => (
                 <div key={s._id} className="flex items-center justify-between p-3 rounded-xl hover:bg-brand-aliceBlue/30 transition-colors">
@@ -233,15 +230,18 @@ export default function AdminDashboardPage() {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-brand-prussian">{s.firstName} {s.lastName}</div>
-                      <div className="text-xs text-gray-500">{s.batch}</div>
+                      <div className="text-xs text-gray-500">{s.batch || "Student"}</div>
                     </div>
                   </div>
-                  <div className="text-sm font-bold text-emerald-600">{s.averageScore}%</div>
+                  {/* Changed from averageScore% to LKR totalPaid */}
+                  <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
+                    LKR {(s.totalPaid / 1000).toFixed(1)}k
+                  </div>
                 </div>
               ))}
             </div>
             <button className="w-full mt-4 py-2 text-xs text-gray-400 hover:text-brand-cerulean font-bold border-t border-gray-100 uppercase tracking-widest transition-colors">
-              View Leaderboard
+              View All Payments
             </button>
           </section>
 

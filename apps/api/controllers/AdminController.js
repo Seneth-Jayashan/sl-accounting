@@ -112,10 +112,12 @@ export const getAllUsers = async (req, res) => {
     }
 
     const users = await User.find(query)
+      .populate("batch", "name")
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .select("-password")
       .sort({ createdAt: -1 });
+      
 
     const count = await User.countDocuments(query);
 
