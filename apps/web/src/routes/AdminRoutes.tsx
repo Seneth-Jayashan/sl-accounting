@@ -20,6 +20,8 @@ const Payments = lazy(() => import("../pages/admin/payments/Payments"));
 const CreatePayment = lazy(() => import("../pages/admin/payments/CreatePaymentPage"));
 const SupportReply = lazy(() => import("../pages/admin/support/SupportReply"));
 const TicketChat = lazy(() => import("../pages/admin/support/TicketChat"));
+const KnowledgeBase = lazy(() => import("../pages/admin/KnowledgeBase/KnowledgeBase"));
+const KnowledgeBaseList = lazy(() => import("../pages/admin/KnowledgeBase/KnowledgeList"));
 
 export const AdminRoutes = () => {
   return (
@@ -55,6 +57,10 @@ export const AdminRoutes = () => {
 
         {/* Default Admin Route */}
         <Route path="*" element={<Navigate to="/admin/" replace />} />
+
+        {/* Knowledge Base */}
+        <Route path="knowledge-base" element={<KnowledgeBase />} />
+        <Route path="knowledge-list" element={<KnowledgeBaseList />} />
       </Routes>
     </Suspense>
   );
