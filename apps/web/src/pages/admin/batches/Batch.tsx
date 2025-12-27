@@ -2,9 +2,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { motion, AnimatePresence } from "framer-motion";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import BatchService, { type BatchData, type BatchPayload } from "../../../services/BatchService";
 
 import {
@@ -134,7 +131,6 @@ export default function BatchPage() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
       <div className="p-6 max-w-7xl mx-auto space-y-6 pb-24">
         
         {/* Header Section */}
@@ -218,7 +214,6 @@ export default function BatchPage() {
           )}
         </AnimatePresence>
       </div>
-    </DashboardLayout>
   );
 }
 

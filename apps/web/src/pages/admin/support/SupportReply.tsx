@@ -1,7 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
-import DashboardLayout from "../../../layouts/DashboardLayout";
 import SupportService, {
   type SupportMessage,
 } from "../../../services/SupportService";
@@ -169,11 +166,7 @@ export default function SupportReply() {
   };
 
   return (
-    <DashboardLayout
-      Sidebar={SidebarAdmin}
-      BottomNav={BottomNavAdmin}
-      showHeader={false}
-    >
+
       <div className="bg-[#e9f0f7]">
         <main className="p-4 lg:p-8 pb-24 lg:pb-10 overflow-x-hidden flex justify-center">
           <div className="w-full max-w-7xl space-y-6">
@@ -458,6 +451,5 @@ export default function SupportReply() {
           </div>
         </main>
       </div>
-    </DashboardLayout>
   );
 }

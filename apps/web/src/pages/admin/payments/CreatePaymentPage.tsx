@@ -1,9 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import PaymentService from "../../../services/PaymentService";
 import EnrollmentService, { type EnrollmentResponse } from "../../../services/EnrollmentService";
 
@@ -145,7 +142,6 @@ export default function CreatePaymentPage() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={<ManualTips />}>
       <div className="max-w-3xl mx-auto space-y-6 pb-24 p-4 lg:p-0">
         
         <header className="space-y-2 pt-4">
@@ -310,20 +306,5 @@ export default function CreatePaymentPage() {
           </div>
         </form>
       </div>
-    </DashboardLayout>
   );
 }
-
-const ManualTips = () => (
-  <div className="bg-brand-prussian text-white p-6 rounded-[2rem] shadow-xl border border-white/5 space-y-4">
-    <div className="flex items-center gap-2 text-brand-jasmine">
-       <InformationCircleIcon className="w-4 h-4" />
-       <h3 className="text-[10px] font-bold uppercase tracking-widest">Protocol</h3>
-    </div>
-    <div className="text-[11px] text-brand-aliceBlue/60 leading-relaxed font-medium space-y-2">
-      <p>This tool is for <span className="text-white">cash settlements</span> or <span className="text-white">manual overrides</span> only.</p>
-      <p>Only students with <span className="text-white">Unpaid</span> or <span className="text-white">Pending</span> status will appear in the search results.</p>
-      <p>Upon confirmation, the enrollment will be marked as <span className="text-green-400">Paid</span> immediately.</p>
-    </div>
-  </div>
-);

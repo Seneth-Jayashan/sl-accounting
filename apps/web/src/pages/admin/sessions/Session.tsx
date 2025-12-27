@@ -2,9 +2,6 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { motion, AnimatePresence } from "framer-motion";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import ClassService from "../../../services/ClassService";
 import SessionService, { type SessionData } from "../../../services/SessionService";
 import {
@@ -101,7 +98,6 @@ export default function SessionsPage() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
       <div className="p-6 max-w-7xl mx-auto space-y-6 pb-24 animate-in fade-in duration-500">
         
         {/* Header Section */}
@@ -186,7 +182,6 @@ export default function SessionsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
   );
 }
 

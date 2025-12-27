@@ -16,6 +16,8 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    regNo: { type: String, unique: true, sparse: true, trim: true, index: true },
+
     phoneNumber: { type: String, required: true, trim: true, index: true },
 
     batch: { type: mongoose.Schema.Types.ObjectId, ref: "Batch" },
@@ -71,6 +73,35 @@ userSchema.pre("save", async function (next) {
   } catch (err) {
     return next(err);
   }
+});
+
+userSchema.pre("save", async function (next) {
+  // Auto-generate regNo for new students if not provided
+  if (this.isNew && this.role === "student" && !this.regNo) {
+    try {
+      // Find the last student created that has a regNo starting with "STU-"
+      const lastStudent = await this.constructor.findOne(
+        { role: "student", regNo: { $regex: /^STU-/ } }
+      ).sort({ regNo: -1 }); // Sort descending to get the highest number
+
+      let nextNum = 1;
+
+      if (lastStudent && lastStudent.regNo) {
+        // Extract number part: "STU-005" -> "005" -> 5
+        const lastStr = lastStudent.regNo.split("-")[1];
+        if (lastStr && !isNaN(lastStr)) {
+          nextNum = parseInt(lastStr, 10) + 1;
+        }
+      }
+
+      // Format with padding: 1 -> "001", 12 -> "012", 123 -> "123"
+      this.regNo = `STU-${nextNum.toString().padStart(3, "0")}`;
+      
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
 });
 
 /* -------------------- Instance Methods -------------------- */

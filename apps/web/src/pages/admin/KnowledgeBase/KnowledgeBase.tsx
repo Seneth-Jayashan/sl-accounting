@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
@@ -248,7 +245,6 @@ const AdminKnowledgeBase: React.FC = () => {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} showHeader={false}>
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Knowledge Base — Upload</h1>
@@ -553,7 +549,6 @@ const AdminKnowledgeBase: React.FC = () => {
           </div>
         </form>
       </div>
-    </DashboardLayout>
   );
 };
 

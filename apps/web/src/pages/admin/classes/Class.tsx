@@ -1,9 +1,6 @@
-import { useEffect, useMemo, useState, useCallback, type ReactElement } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -105,18 +102,8 @@ export default function ClassesPage() {
     }
   };
 
-  const StatsSidebar = (
-    <div className="bg-white rounded-xl p-6 border border-brand-aliceBlue shadow-sm">
-      <h3 className="text-[10px] font-bold text-brand-prussian/40 uppercase tracking-[0.2em] mb-6">Class Insights</h3>
-      <div className="space-y-4">
-        <StatRow icon={<AcademicCapIcon className="w-4 h-4" />} label="Modules" value={classes.length} />
-        <StatRow icon={<UsersIcon className="w-4 h-4" />} label="Enrollments" value={classes.reduce((a, b) => a + b.studentCount, 0)} />
-      </div>
-    </div>
-  );
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={StatsSidebar}>
       <div className="space-y-6 pb-20 max-w-6xl mx-auto">
         
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -174,23 +161,10 @@ export default function ClassesPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 
 // --- Precise Sub-Components ---
-
-const StatRow = ({ icon, label, value }: { icon: ReactElement, label: string, value: number }) => (
-  <div className="flex items-center justify-between">
-    <div className="flex items-center gap-3">
-      <div className="text-brand-cerulean opacity-70 bg-brand-aliceBlue p-1.5 rounded-md">
-        {icon}
-      </div>
-      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{label}</span>
-    </div>
-    <span className="text-sm font-semibold text-brand-prussian">{value}</span>
-  </div>
-);
 
 const ClassCard = ({ cls, onToggle, onDelete, onEdit, onView }: any) => (
   <motion.div 

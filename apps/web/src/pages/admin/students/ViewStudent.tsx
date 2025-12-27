@@ -1,12 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import Swal from "sweetalert2";
 import {
   ArrowLeftIcon,
   EnvelopeIcon,
   CalendarDaysIcon,
-  PencilSquareIcon,
-  TrashIcon,
   MapPinIcon,
   ShieldCheckIcon,
   BookOpenIcon,
@@ -14,10 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 // Layouts & Services
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
-import UserService, { type StudentUser } from "../../../services/UserService";
+import UserService, { type StudentUser } from "../../../services/UserService.ts";
 import EnrollmentService, { type EnrollmentResponse, type EnrolledClass } from "../../../services/EnrollmentService";
 import { useAuth } from "../../../contexts/AuthContext";
 
@@ -81,30 +75,6 @@ export default function ViewStudentPage() {
     return () => { isMounted = false; };
   }, [id, currentUser, navigate]);
 
-  // --- 2. Handlers ---
-  const handleDelete = async () => {
-    if (!student?._id) return;
-
-    const result = await Swal.fire({
-        title: 'Delete Student?',
-        text: `Permanently delete ${student.firstName}? This cannot be undone.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it'
-    });
-
-    if (result.isConfirmed) {
-        try {
-            await UserService.deleteUser(student._id);
-            Swal.fire('Deleted!', 'Student removed.', 'success');
-            navigate('/admin/students'); 
-        } catch (err) {
-            Swal.fire('Error', 'Failed to delete student.', 'error');
-        }
-    }
-  };
 
   // --- 3. Render Helpers ---
   const getBatchName = () => {
@@ -130,40 +100,8 @@ export default function ViewStudentPage() {
   if (isLoading) return <LoadingSkeleton />;
   if (error || !student) return <ErrorState message={error || "Profile not found"} onBack={() => navigate('/admin/students')} />;
 
-  // --- 5. Main UI ---
-  const ActionSidebar = (
-    <div className="space-y-6">
-      {/* Actions */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <h3 className="font-bold text-gray-900 mb-4 text-xs uppercase tracking-wider">Quick Actions</h3>
-        <button 
-          onClick={() => navigate(`/admin/students/edit/${id}`)}
-          className="w-full flex items-center justify-center gap-2 bg-[#0b2540] text-white py-2.5 rounded-xl mb-3 hover:bg-[#153454] transition-all shadow-lg shadow-blue-900/10 active:scale-95 text-sm font-semibold"
-        >
-          <PencilSquareIcon className="w-4 h-4" /> Edit Profile
-        </button>
-        <button 
-          onClick={handleDelete}
-          className="w-full flex items-center justify-center gap-2 bg-white text-red-600 border border-red-100 py-2.5 rounded-xl hover:bg-red-50 transition-all active:scale-95 text-sm font-semibold"
-        >
-          <TrashIcon className="w-4 h-4" /> Delete Student
-        </button>
-      </div>
-
-      {/* Status Card */}
-      <div className={`p-6 rounded-2xl border ${student.isVerified ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
-         <h4 className={`font-bold mb-1 text-sm ${student.isVerified ? 'text-green-800' : 'text-amber-800'}`}>
-            {student.isVerified ? 'Account Verified' : 'Pending Verification'}
-         </h4>
-         <p className={`text-xs ${student.isVerified ? 'text-green-600' : 'text-amber-600'}`}>
-            {student.isVerified ? 'Full portal access granted.' : 'Access restricted.'}
-         </p>
-      </div>
-    </div>
-  );
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={ActionSidebar}>
       <div className="max-w-5xl mx-auto space-y-8 font-sans pb-20">
         
         <button 
@@ -309,7 +247,6 @@ export default function ViewStudentPage() {
 
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 
@@ -340,7 +277,6 @@ const InfoRow = ({ label, value, icon, copyable }: { label: string, value?: stri
 };
 
 const LoadingSkeleton = () => (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
         <div className="max-w-5xl mx-auto p-6 space-y-6 animate-pulse">
             <div className="h-8 w-32 bg-gray-200 rounded-lg"></div>
             <div className="h-64 bg-gray-200 rounded-3xl"></div>
@@ -349,11 +285,9 @@ const LoadingSkeleton = () => (
                 <div className="h-64 bg-gray-200 rounded-3xl"></div>
             </div>
         </div>
-    </DashboardLayout>
 );
 
 const ErrorState = ({ message, onBack }: { message: string, onBack: () => void }) => (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
             <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
                 <ShieldCheckIcon className="w-8 h-8 text-red-400" />
@@ -364,5 +298,4 @@ const ErrorState = ({ message, onBack }: { message: string, onBack: () => void }
                 Go Back
             </button>
         </div>
-    </DashboardLayout>
 );

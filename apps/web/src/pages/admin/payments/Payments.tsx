@@ -2,9 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom"; // Added useNavigate
 import moment from "moment";
 import { motion, AnimatePresence } from "framer-motion";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import PaymentService, { type PaymentData } from "../../../services/PaymentService";
 
 import {
@@ -67,7 +64,6 @@ export default function PaymentsPage() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
       <div className="p-6 max-w-7xl mx-auto space-y-6 pb-24 animate-in fade-in duration-500">
         
         {/* Header Section */}
@@ -177,7 +173,6 @@ export default function PaymentsPage() {
           )}
         </AnimatePresence>
       </div>
-    </DashboardLayout>
   );
 }
 

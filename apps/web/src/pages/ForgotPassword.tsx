@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mail, ArrowLeft, KeyRound, CheckCircle2, AlertCircle, Hash, Lock, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { z } from "zod";
-import UserService from "../services/UserService";
+import UserService from "../services/UserService.ts";
 
 // --- 1. VALIDATION SCHEMAS ---
 

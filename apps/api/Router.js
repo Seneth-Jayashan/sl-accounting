@@ -8,6 +8,8 @@ import classRoutes from './routes/ClassRoutes.js';
 import batchRoutes from './routes/BatchRoutes.js';
 import sessionRoutes from './routes/SessionRoutes.js';
 import enrollmentRoutes from './routes/EnrollmentRoutes.js';
+import announcementRoutes from './routes/AnnouncementRoutes.js';
+import MaterialRoutes from './routes/MaterialRoutes.js';
 import paymentRoutes from './routes/PaymentRoutes.js';
 import knowledgeRoutes from './routes/KnowledgeRoutes.js';
 import zoomRoutes from './routes/ZoomRoutes.js';
@@ -37,6 +39,8 @@ router.use('/classes', classRoutes);
 router.use('/batches', batchRoutes);
 router.use('/sessions', sessionRoutes);
 router.use('/enrollments', enrollmentRoutes);
+router.use('/announcements', announcementRoutes);
+router.use('/materials', MaterialRoutes);
 
 // 3. Finance
 router.use('/payments', paymentRoutes);

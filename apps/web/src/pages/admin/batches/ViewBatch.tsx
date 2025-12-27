@@ -2,9 +2,6 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { motion, AnimatePresence } from "framer-motion";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import BatchService, { type BatchData } from "../../../services/BatchService";
 
 import {
@@ -79,7 +76,6 @@ export default function ViewBatchPage() {
   if (!batch) return <NotFoundState onBack={() => navigate("/admin/batches")} />;
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
       <div className="max-w-7xl mx-auto space-y-8 p-6 pb-24 animate-in fade-in duration-500">
         
         {/* --- Navigation & Header --- */}
@@ -196,7 +192,6 @@ export default function ViewBatchPage() {
           </AnimatePresence>
         </main>
       </div>
-    </DashboardLayout>
   );
 }
 
@@ -280,12 +275,10 @@ const StatusBadge = ({ isActive }: { isActive: boolean }) => (
 );
 
 const LoadingState = () => (
-  <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
     <div className="flex flex-col h-[70vh] items-center justify-center space-y-4">
       <ArrowPathIcon className="w-12 h-12 text-brand-cerulean animate-spin" />
       <p className="text-brand-prussian font-black uppercase tracking-tighter animate-pulse">Synchronizing Data...</p>
     </div>
-  </DashboardLayout>
 );
 
 const EmptyClasses = () => (
@@ -296,7 +289,6 @@ const EmptyClasses = () => (
 );
 
 const NotFoundState = ({ onBack }: { onBack: () => void }) => (
-  <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
     <div className="text-center py-32 space-y-6">
       <div className="text-6xl text-brand-prussian opacity-10 font-black">404</div>
       <h2 className="text-2xl font-black text-brand-prussian">Batch Not Found</h2>
@@ -304,5 +296,4 @@ const NotFoundState = ({ onBack }: { onBack: () => void }) => (
         Go Back
       </button>
     </div>
-  </DashboardLayout>
 );

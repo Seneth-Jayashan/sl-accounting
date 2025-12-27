@@ -1,7 +1,4 @@
 import { useEffect, useState } from "react";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import EnrollmentService from "../../../services/EnrollmentService";
 import moment from "moment";
 import {
@@ -106,7 +103,6 @@ export default function EnrollmentsPage() {
   });
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
       <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20">
         
         {/* Header */}
@@ -215,6 +211,5 @@ export default function EnrollmentsPage() {
         </div>
 
       </div>
-    </DashboardLayout>
   );
 }

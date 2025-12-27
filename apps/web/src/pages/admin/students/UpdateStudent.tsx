@@ -5,7 +5,6 @@ import {
   ArrowLeftIcon,
   UserCircleIcon,
   PhoneIcon,
-  BuildingLibraryIcon,
   MapPinIcon,
   EnvelopeIcon,
   KeyIcon,
@@ -13,10 +12,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 // Services & Layouts
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
-import UserService, {type StudentUser } from "../../../services/UserService";
+import UserService, {type StudentUser } from "../../../services/UserService.ts";
 import BatchService, { type BatchData } from "../../../services/BatchService";
 import { useAuth } from "../../../contexts/AuthContext";
 
@@ -238,26 +234,7 @@ export default function UpdateStudentPage() {
   // --- Render ---
   if (isLoading) return <LoadingSkeleton />;
 
-  const GuidelinesSidebar = (
-    <div className="space-y-6">
-      <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 shadow-sm">
-        <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2 text-sm uppercase tracking-wider">
-            <BuildingLibraryIcon className="w-4 h-4" /> Admin Controls
-        </h3>
-        <p className="text-xs text-blue-800 leading-relaxed mb-3">
-            As an administrator, you have permission to override user details directly.
-        </p>
-        <ul className="text-xs text-blue-800 space-y-2 list-disc pl-4">
-          <li><strong>Profile:</strong> Updates reflect immediately. Address is now structured.</li>
-          <li><strong>Email:</strong> Changing this invalidates their current session.</li>
-          <li><strong>Password:</strong> Overrides their current password without needing the old one.</li>
-        </ul>
-      </div>
-    </div>
-  );
-
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin} rightSidebar={GuidelinesSidebar}>
       <div className="max-w-4xl mx-auto space-y-8 font-sans pb-20">
         
         {/* Header */}
@@ -399,7 +376,6 @@ export default function UpdateStudentPage() {
         </form>
 
       </div>
-    </DashboardLayout>
   );
 }
 
@@ -429,12 +405,10 @@ const InputField: React.FC<InputFieldProps> = ({ label, icon, className, ...prop
 );
 
 const LoadingSkeleton = () => (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
         <div className="max-w-4xl mx-auto p-6 space-y-6 animate-pulse">
             <div className="h-8 w-48 bg-gray-200 rounded-lg"></div>
             <div className="h-64 bg-gray-200 rounded-3xl"></div>
             <div className="h-48 bg-gray-200 rounded-3xl"></div>
             <div className="h-48 bg-gray-200 rounded-3xl"></div>
         </div>
-    </DashboardLayout>
 );

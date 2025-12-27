@@ -1,9 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import moment from "moment";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarAdmin from "../../../components/sidebar/SidebarAdmin";
-import BottomNavAdmin from "../../../components/bottomNavbar/BottomNavAdmin";
 import ClassService from "../../../services/ClassService";
 import BatchService from "../../../services/BatchService";
 import {
@@ -139,7 +136,6 @@ export default function UpdateClassPage() {
   if (isLoading) return <LoadingSkeleton />;
 
   return (
-    <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
       <div className="max-w-5xl mx-auto space-y-6 pb-24 p-6 animate-in fade-in duration-500">
         
         <header className="flex flex-col gap-2">
@@ -235,7 +231,6 @@ export default function UpdateClassPage() {
           </aside>
         </form>
       </div>
-    </DashboardLayout>
   );
 }
 
@@ -275,10 +270,8 @@ const Textarea = ({ label, ...props }: any) => (
 );
 
 const LoadingSkeleton = () => (
-  <DashboardLayout Sidebar={SidebarAdmin} BottomNav={BottomNavAdmin}>
     <div className="flex flex-col h-[70vh] items-center justify-center space-y-4">
       <ArrowPathIcon className="w-12 h-12 text-brand-cerulean animate-spin" />
       <p className="text-brand-prussian font-bold uppercase tracking-widest animate-pulse">Synchronizing Curriculum...</p>
     </div>
-  </DashboardLayout>
 );
