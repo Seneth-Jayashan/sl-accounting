@@ -90,16 +90,11 @@ export const initSocket = (server) => {
         // SECURITY: Admins can join any ticket. Students can only join their own.
         if (socket.user.role !== "admin") {
           const ticket = await Ticket.findById(ticketId).select("user_id");
-          if (
-            !ticket ||
-            ticket.user_id.toString() !== socket.user._id.toString()
-          ) {
-            console.warn(
-              `⚠️ Security Alert: User ${socket.user._id} tried to join unauthorized ticket ${ticketId}`
-            );
-            socket.emit("error", { message: "Unauthorized access to this ticket" });
-            return;
-          }
+         if (!ticket || ticket.user_id?.toString() !== socket.user._id.toString()) {
+          console.warn(`⚠️ Security Alert: User ${socket.user._id} tried to join unauthorized ticket ${ticketId}`);
+          socket.emit("error", { message: "Unauthorized access to this ticket" });
+          return;
+      }
         }
 
         const room = getTicketRoom(ticketId);
