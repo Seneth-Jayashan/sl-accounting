@@ -61,6 +61,22 @@ export default function TicketChat({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
 
+  const focusTextarea = () => {
+    try {
+      textareaRef.current?.focus();
+    } catch {
+      // ignore
+    }
+  };
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    try {
+      messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+    } catch {
+      // ignore
+    }
+  };
+
   const MAX_MESSAGES = 200;
   // Debounce (ms) used for typing indicator expiration
   const TYPING_DEBOUNCE_MS = 700;
@@ -87,6 +103,7 @@ export default function TicketChat({
   // ------------------------ Emoji ------------------------
   const handleEmojiClick = (emoji: any) => {
     setMessage((prev) => prev + emoji.emoji);
+    setTimeout(() => focusTextarea(), 0);
   };
 
   // ------------------------ Load Messages ------------------------
@@ -175,7 +192,7 @@ export default function TicketChat({
 
   // Auto scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToBottom("smooth");
   }, [messages]);
 
   // Load earlier messages (fetch full history from REST and show all)
@@ -344,6 +361,9 @@ export default function TicketChat({
 
     setPendingAttachments((prev) => [...prev, pending]);
 
+    // After choosing a file, focus the message box so Enter works immediately.
+    setTimeout(() => focusTextarea(), 0);
+
     try {
       const attachment = await ChatService.uploadTicketAttachment(file);
       setPendingAttachments((prev) =>
@@ -372,8 +392,17 @@ export default function TicketChat({
         )
       );
     } finally {
+      setTimeout(() => focusTextarea(), 0);
     }
   };
+
+  // When attachments appear (uploading or uploaded), keep the textarea focused.
+  useEffect(() => {
+    if (readOnly) return;
+    if (pendingAttachments.length === 0) return;
+    focusTextarea();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAttachments.length, readOnly]);
 
   const removePendingAttachment = (idx: number) => {
     setPendingAttachments((prev) => {
@@ -462,7 +491,7 @@ export default function TicketChat({
     }
   };
 
-  const renderAttachments = (msg: ChatMessage) => {
+  const renderAttachments = (msg: ChatMessage, isLastMessage: boolean) => {
     const atts = msg.attachments;
     if (!atts || atts.length === 0) return null;
 
@@ -484,6 +513,11 @@ export default function TicketChat({
                 <img
                   src={href}
                   alt={name}
+                  onLoad={() => {
+                    // Images load async and can push content down after we already scrolled.
+                    // Keep the view pinned to the bottom for the latest message.
+                    if (isLastMessage) scrollToBottom("auto");
+                  }}
                   className="max-h-64 w-auto rounded-lg border border-black/10"
                 />
               </a>
@@ -625,7 +659,7 @@ export default function TicketChat({
                     {!!msg.message && (
                       <p className="text-sm leading-5">{msg.message}</p>
                     )}
-                    {renderAttachments(msg)}
+                    {renderAttachments(msg, i === messages.length - 1)}
                   </div>
                 </div>
               </div>
