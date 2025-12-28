@@ -25,6 +25,7 @@ interface Props {
   userId?: string;
   role?: "student" | "admin";
   readOnly?: boolean;
+  heightMode?: "viewport" | "parent" | "auto";
 }
 
 export default function TicketChat({
@@ -32,6 +33,7 @@ export default function TicketChat({
   userId: propUserId,
   role: propRole,
   readOnly: propReadOnly,
+  heightMode = "viewport",
 }: Props) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -191,6 +193,11 @@ export default function TicketChat({
 
   // compute available height so chat fits the viewport (no per-message height changes)
   useEffect(() => {
+    if (heightMode !== "viewport") {
+      setContainerHeight(null);
+      return;
+    }
+
     const update = () => {
       try {
         if (!rootRef.current) return setContainerHeight(null);
@@ -206,7 +213,7 @@ export default function TicketChat({
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [heightMode]);
 
   // ------------------------ Send Message ------------------------
   const handleSend = async () => {
@@ -515,8 +522,10 @@ export default function TicketChat({
   return (
     <div
       ref={rootRef}
-      className="w-full flex flex-col bg-white border border-gray-200 rounded-2xl shadow-sm"
-      style={containerHeight ? { height: `${containerHeight}px` } : undefined}
+      className={`w-full flex flex-col min-h-0 bg-white border border-gray-200 rounded-2xl shadow-sm ${
+        heightMode === "parent" ? "h-full" : ""
+      }`}
+      style={heightMode === "viewport" && containerHeight ? { height: `${containerHeight}px` } : undefined}
     >
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">

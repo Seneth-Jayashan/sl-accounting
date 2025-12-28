@@ -417,10 +417,10 @@ export default function TicketChatAdmin() {
                 </div>
 
                 {/* Chat Box */}
-                <div className="flex-1 bg-white rounded-2xl border shadow-sm overflow-hidden relative">
+                <div className="flex-1 min-h-0">
                   {selectedId && user && selectedTicket ? (
                     isChatDisabled(selectedTicket.status) ? (
-                      <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                      <div className="w-full h-full flex flex-col bg-white border border-gray-200 rounded-2xl shadow-sm items-center justify-center text-gray-400 gap-2">
                         <ExclamationCircleIcon className="w-8 h-8 opacity-50" />
                         <span className="text-sm">This ticket is Closed. Chat is disabled.</span>
                       </div>
@@ -430,10 +430,11 @@ export default function TicketChatAdmin() {
                         userId={user._id}
                         role="admin"
                         readOnly={selectedTicket.status === "Resolved"}
+                        heightMode="parent"
                       />
                     )
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-300 gap-3">
+                    <div className="w-full h-full flex flex-col bg-white border border-gray-200 rounded-2xl shadow-sm items-center justify-center text-gray-300 gap-3">
                       <ChatBubbleLeftRightIcon className="w-12 h-12 opacity-20" />
                       <span className="text-sm font-medium">Select a conversation</span>
                     </div>
