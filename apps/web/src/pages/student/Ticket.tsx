@@ -28,6 +28,7 @@ export default function StudentTicketPage(): React.ReactElement {
   const [ticketId, setTicketId] = useState<string | null>(null);
   const [ticketInfo, setTicketInfo] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMarkingResolved, setIsMarkingResolved] = useState(false);
   const [form, setForm] = useState<TicketFormState>({
     name: "",
     email: "",
@@ -62,6 +63,10 @@ export default function StudentTicketPage(): React.ReactElement {
   }, [user]);
 
   const isDisabled = useMemo(() => isSubmitting || authLoading, [isSubmitting, authLoading]);
+
+  const isResolved = useMemo(() => {
+    return String(ticketInfo?.status ?? "").toLowerCase() === "resolved";
+  }, [ticketInfo?.status]);
 
   // Helper to determine if a ticket (or a status string) represents a closed state
   const isTicketClosed = (ticketOrStatus: any) => {
@@ -179,8 +184,22 @@ export default function StudentTicketPage(): React.ReactElement {
   }, [ticketId, accessToken]);
 
   const handleMarkResolved = async () => {
-    if (!ticketId) return;
+    if (!ticketId || !user) return;
+    if (isMarkingResolved || isResolved) return;
+    setIsMarkingResolved(true);
     try {
+      // Send a final message before switching to Resolved (some backends block sending after resolved).
+      ChatService.joinTicket(ticketId);
+      await ChatService.sendMessage({
+        ticket: ticketId,
+        sender: user._id,
+        senderRole: "student",
+        senderName: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+        senderAvatar: (user as any)?.profilePic || (user as any)?.avatar,
+        message: "My problem is solved. Please close this ticket and delete the chat history.",
+        clientMessageId: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      });
+
       const updated = await TicketService.updateTicket(ticketId, { status: "Resolved" });
       setTicketInfo(updated);
       Swal.fire({
@@ -197,6 +216,8 @@ export default function StudentTicketPage(): React.ReactElement {
         text: err?.response?.data?.message || "Could not update ticket status.",
         confirmButtonColor: "#d33",
       });
+    } finally {
+      setIsMarkingResolved(false);
     }
   };
 
@@ -212,20 +233,21 @@ export default function StudentTicketPage(): React.ReactElement {
                 <p className="text-gray-600">Category: {ticketInfo?.Categories ?? ticketInfo?.category ?? "-"}</p>
                 <p className="text-sm text-gray-600">Issue reported: {ticketInfo?.message ?? "-"}</p>
                 <p className="text-xs text-gray-600">Status: {ticketInfo?.status ?? "-"}</p>
-                {!isTicketClosed(ticketInfo) && (
+                {!isTicketClosed(ticketInfo) && !isResolved && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className="text-sm px-3 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700"
+                      className="text-sm px-3 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
                       onClick={handleMarkResolved}
+                      disabled={isMarkingResolved}
                     >
-                      Mark as Resolved
+                      {isMarkingResolved ? "Marking..." : "Mark as Resolved"}
                     </button>
                   </div>
                 )}
               </header>
               <div className="mt-4">
-                <Chat ticketId={ticketId} />
+                <Chat ticketId={ticketId} readOnly={isResolved} />
               </div>
             </div>
           ) : (

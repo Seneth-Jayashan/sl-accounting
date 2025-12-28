@@ -74,6 +74,15 @@ const deleteTicket = async (id: string) => {
   return data.ticket;
 };
 
+const bulkDeleteTickets = async (ids: string[]) => {
+  const uniqueIds = Array.from(new Set((ids || []).map(String).filter(Boolean)));
+  const { data } = await api.delete<{ deletedIds: string[]; deletedCount: number }>(
+    "/tickets/bulk",
+    { data: { ids: uniqueIds } }
+  );
+  return data;
+};
+
 const TicketService = {
   createTicket,
   getTicketById,
@@ -82,6 +91,7 @@ const TicketService = {
   getOpenTicketForUser,
   updateTicket,
   deleteTicket,
+  bulkDeleteTickets,
 };
 
 export default TicketService;

@@ -14,6 +14,14 @@ type KBItem = {
   fileSize?: number | null;
 };
 
+const CATEGORIES = [
+  "Lecture Notes",
+  "Reading Materials",
+  "Past Papers",
+  "Assignments",
+  "Other",
+];
+
 const StudentKnowledgeBase: React.FC = () => {
   const [items, setItems] = useState<KBItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,23 +44,8 @@ const StudentKnowledgeBase: React.FC = () => {
     try {
       const res = await api.get(`/knowledge${q ? `?search=${encodeURIComponent(q)}` : ""}`);
       if (res.data?.success) {
-        const items = res.data.items || [];
-        // fetch sizes in parallel where possible
-        const sizePromises = items.map(async (it: KBItem) => {
-          try {
-            const r = await api.get(`/knowledge/${it._id}/size`);
-            if (r?.data?.success && typeof r.data.size === 'number') {
-              return { ...it, fileSize: r.data.size } as KBItem;
-            }
-          } catch (e) {
-            // ignore size errors
-            console.debug('size fetch failed for', it._id, e);
-          }
-          return { ...it, fileSize: null } as KBItem;
-        });
-
-        const itemsWithSizes = await Promise.all(sizePromises);
-        setItems(itemsWithSizes);
+        const list = (res.data.items as KBItem[]) || [];
+        setItems(list);
       } else {
         setError(res.data?.message || "Failed to load materials");
       }
@@ -64,35 +57,17 @@ const StudentKnowledgeBase: React.FC = () => {
     }
   };
 
-  const formatBytes = (bytes?: number | null) => {
-    if (bytes === null || bytes === undefined) return "";
-    if (bytes === 0) return "0 B";
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(Number(bytes)) / Math.log(1024));
-    return `${(Number(bytes) / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
-  };
-
-  const CATEGORIES = [
-    "Lecture Notes",
-    "Reading Materials",
-    "Past Papers",
-    "Assignments",
-    "Other",
-  ];
-
   const handleDownload = (id: string, fileName?: string) => {
-    // Use authenticated axios request to download as blob (includes Authorization)
     (async () => {
       try {
-        const res = await api.get(`/knowledge/${id}/download`, { responseType: 'blob' });
-        const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/octet-stream' });
+        const res = await api.get(`/knowledge/${id}/download`, { responseType: "blob" });
+        const blob = new Blob([res.data], { type: res.headers["content-type"] || "application/octet-stream" });
         const downloadUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = downloadUrl;
 
-        // Prefer filename from Content-Disposition if available
-        const disposition = res.headers['content-disposition'] as string | undefined;
-        let filename = fileName || 'download';
+        const disposition = res.headers["content-disposition"] as string | undefined;
+        let filename = fileName || "download";
         if (disposition) {
           const match = /filename\*=UTF-8''([^;\n\r]+)/.exec(disposition) || /filename="?([^";]+)"?/.exec(disposition);
           if (match && match[1]) filename = decodeURIComponent(match[1]);
@@ -104,27 +79,14 @@ const StudentKnowledgeBase: React.FC = () => {
         a.remove();
         window.URL.revokeObjectURL(downloadUrl);
       } catch (err: any) {
-        console.error('Download error', err);
+        console.error("Download error", err);
         if (err.response?.status === 401) {
-          setError('Please log in to download materials.');
+          setError("Please log in to download materials.");
         } else {
-          setError(err?.response?.data?.message || err.message || 'Download failed');
+          setError(err?.response?.data?.message || err.message || "Download failed");
         }
       }
     })();
-  };
-
-  const timeAgo = (iso?: string) => {
-    if (!iso) return "";
-    const diff = Date.now() - new Date(iso).getTime();
-    const sec = Math.floor(diff / 1000);
-    if (sec < 60) return `${sec}s ago`;
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m ago`;
-    const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}h ago`;
-    const days = Math.floor(hr / 24);
-    return `${days}d ago`;
   };
 
   const openPreview = async (it: KBItem) => {
@@ -132,16 +94,16 @@ const StudentKnowledgeBase: React.FC = () => {
     setLoadingPreview(true);
     setPreviewOpen(true);
     try {
-      const res = await api.get(`/knowledge/${it._id}/download`, { responseType: 'blob' });
-      const mime = res.headers['content-type'] || it.fileMime || '';
+      const res = await api.get(`/knowledge/${it._id}/download`, { responseType: "blob" });
+      const mime = res.headers["content-type"] || it.fileMime || "";
       const blob = new Blob([res.data], { type: mime });
       const url = window.URL.createObjectURL(blob);
       setPreviewUrl(url);
       setPreviewMime(mime as string);
-      setPreviewName(it.fileName || 'preview');
+      setPreviewName(it.fileName || "preview");
     } catch (err: any) {
-      console.error('Preview failed', err);
-      setError(err?.response?.data?.message || err.message || 'Preview failed');
+      console.error("Preview failed", err);
+      setError(err?.response?.data?.message || err.message || "Preview failed");
       setPreviewOpen(false);
     } finally {
       setLoadingPreview(false);
@@ -158,15 +120,13 @@ const StudentKnowledgeBase: React.FC = () => {
     setPreviewOpen(false);
   };
 
-  // Close preview on ESC
-  React.useEffect(() => {
+  useEffect(() => {
     if (!previewOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closePreview();
+      if (e.key === "Escape") closePreview();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [previewOpen]);
 
   const filteredItems = items.filter((it) => {
@@ -181,39 +141,37 @@ const StudentKnowledgeBase: React.FC = () => {
   });
 
   return (
-    <div className="w-full min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Knowledge Base</h1>
+    <div className="w-full min-h-screen bg-[#e8f2ff]">
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold text-[#0b2540]">Knowledge Base</h1>
           <p className="text-sm text-gray-500">Browse and download materials uploaded by admins.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1">
             <div className="relative">
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search title or description"
-                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none text-sm"
+                className="w-full px-4 py-3 bg-white border border-[#dbe7ff] rounded-xl outline-none text-sm shadow-sm"
                 aria-label="Search materials"
               />
               {search ? (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-lg hover:bg-gray-200"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs bg-[#eef3ff] px-3 py-1.5 rounded-lg hover:bg-[#e1e9ff]"
                 >
                   Clear
                 </button>
-              ) : (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">⌕</div>
-              )}
+              ) : null}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm bg-white border border-gray-200 rounded-xl px-3 py-1.5">
+            <div className="flex items-center gap-2 text-sm bg-white border border-[#dbe7ff] rounded-xl px-3 py-2 shadow-sm">
               <span className="text-gray-500">Filter</span>
               <Dropdown
                 value={filter}
@@ -224,7 +182,16 @@ const StudentKnowledgeBase: React.FC = () => {
               />
             </div>
 
-            <button onClick={() => { setSearch(""); setFilter("All"); fetchItems(); }} className="px-4 py-2 rounded-xl border border-gray-200 bg-white">Refresh</button>
+            <button
+              onClick={() => {
+                setSearch("");
+                setFilter("All");
+                fetchItems();
+              }}
+              className="px-4 py-2 rounded-xl border border-[#dbe7ff] bg-white text-sm shadow-sm hover:bg-[#eef3ff]"
+            >
+              Refresh
+            </button>
           </div>
         </div>
 
@@ -235,52 +202,98 @@ const StudentKnowledgeBase: React.FC = () => {
           <div className="text-center text-gray-500">
             No materials available.
             <div className="mt-3 flex items-center justify-center gap-3">
-              <button onClick={() => { setSearch(""); setFilter("All"); fetchItems(); }} className="px-3 py-1.5 rounded-lg border text-sm">Reset filters</button>
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setFilter("All");
+                  fetchItems();
+                }}
+                className="px-3 py-1.5 rounded-lg border text-sm"
+              >
+                Reset filters
+              </button>
             </div>
           </div>
         )}
 
-        <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredItems.map((it) => {
-            const ext = (it.fileName || '').split('.').pop()?.toLowerCase() || '';
-            const isImage = (it.fileMime || '').startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
-            const isPdf = (it.fileMime || '').includes('pdf') || ext === 'pdf';
-            const typeLabel = isPdf ? 'PDF' : isImage ? 'Image' : ext.toUpperCase() || 'FILE';
+            const ext = (it.fileName || "").split(".").pop()?.toLowerCase() || "";
+            const isImage = (it.fileMime || "").startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp"].includes(ext);
+            const isPdf = (it.fileMime || "").includes("pdf") || ext === "pdf";
+            const typeLabel = isPdf ? "PDF" : isImage ? "Image" : ext.toUpperCase() || "FILE";
+            const isPreviewable = isImage || isPdf;
+            const dateLabel = it.createdAt
+              ? new Date(it.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase()
+              : "";
 
             return (
-              <div key={it._id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-4">
-                <div className="w-14 h-14 flex-shrink-0 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-xl font-semibold text-[#0b2540]">
-                  {isPdf ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" /></svg>
-                  ) : isImage ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 11.5l2.5 3 3-4 4.5 6H5l3.5-5.5z" /></svg>
-                  ) : (
-                    <span className="text-xs">{typeLabel}</span>
+              <div key={it._id} className="bg-white rounded-2xl border border-[#e6edf8] shadow-sm p-5 flex flex-col gap-4">
+                <div className="flex items-start justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-[#fff4e8] text-[#f97316] flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 4H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5l3 3 3-3h5a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+                    </svg>
+                  </div>
+                  {isPreviewable && (
+                    <button
+                      onClick={() => openPreview(it)}
+                      className="text-xs text-[#0b2540] bg-[#eef3ff] px-3 py-1.5 rounded-lg hover:bg-[#e1e9ff] border border-[#dbe7ff]"
+                    >
+                      Preview
+                    </button>
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="font-semibold text-gray-900 truncate">{it.title}</div>
-                    <div className="text-xs text-gray-500">{timeAgo(it.createdAt)}</div>
-                  </div>
-                  {it.description && <div className="text-sm text-gray-500 truncate mt-1">{it.description}</div>}
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="text-xs px-2 py-1 rounded-full bg-slate-50 border border-gray-100 text-gray-700">{it.category || 'Other'}</div>
-                    <div className="text-xs px-2 py-1 rounded-full bg-white border border-gray-100 text-gray-500">{typeLabel}</div>
-                    <div className="text-xs text-gray-400">{it.createdAt ? new Date(it.createdAt).toLocaleDateString() : ''}</div>
-                  </div>
+                <div className="space-y-2">
+                  <div className="text-base font-semibold text-[#0b2540] leading-snug line-clamp-2">{it.title}</div>
+                  {it.description && <div className="text-sm text-gray-600 line-clamp-2">{it.description}</div>}
                 </div>
 
-                <div className="flex flex-col items-end gap-2">
-                  <div className="text-xs text-gray-500">{it.fileSize ? formatBytes(it.fileSize) : '—'}</div>
-                  <div className="flex items-center gap-2">
-                    {(isImage || isPdf) && (
-                      <button onClick={() => openPreview(it)} className="px-3 py-1 rounded-xl border border-gray-200 text-sm bg-white">Preview</button>
-                    )}
-                    <button onClick={() => handleDownload(it._id, it.fileName)} className="px-3 py-1 rounded-xl bg-[#0b2540] text-white text-sm">Download</button>
-                  </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  
+                  <span className="text-gray-300">&bull;</span>
+                  <span className="tracking-wide">{dateLabel}</span>
                 </div>
+
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span className="px-2 py-1 rounded-full bg-[#eef3ff] text-[#0b2540]">{it.category || "Other"}</span>
+                  <span className="px-2 py-1 rounded-full bg-[#f8fafc] border border-[#e6edf8] text-gray-600">{typeLabel}</span>
+                </div>
+
+                {isPdf ? (
+                  <div>
+                    <button
+                      onClick={() => handleDownload(it._id, it.fileName)}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#e5edf9] text-[#0b2540] font-semibold text-sm hover:bg-[#d7e4f7] transition"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                      <span className="whitespace-nowrap">Download File</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <button
+                      onClick={() => handleDownload(it._id, it.fileName)}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#e5edf9] text-[#0b2540] font-semibold text-sm hover:bg-[#d7e4f7] transition"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                      <span className="whitespace-nowrap">Download File</span>
+                    </button>
+                    {isPreviewable && (
+                      <button
+                        onClick={() => openPreview(it)}
+                        className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-3 rounded-xl border border-[#e6edf8] text-sm text-[#0b2540] bg-white hover:bg-[#f6f8fc] transition"
+                      >
+                        <span className="whitespace-nowrap">Quick Preview</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -303,13 +316,15 @@ const StudentKnowledgeBase: React.FC = () => {
               <div className="text-center py-16">Loading preview...</div>
             ) : previewUrl ? (
               <div>
-                {previewMime && previewMime.startsWith('image/') ? (
-                  <img src={previewUrl} alt={previewName || 'preview'} className="w-full object-contain" />
+                {previewMime && previewMime.startsWith("image/") ? (
+                  <img src={previewUrl} alt={previewName || "preview"} className="w-full object-contain" />
                 ) : (
-                  <iframe src={previewUrl} title={previewName || 'preview'} className="w-full h-[70vh]" />
+                  <iframe src={previewUrl} title={previewName || "preview"} className="w-full h-[70vh]" />
                 )}
                 <div className="mt-3 flex items-center justify-end gap-2">
-                  <a href={previewUrl} download={previewName || 'file'} className="px-3 py-1 rounded-lg border">Download</a>
+                  <a href={previewUrl} download={previewName || "file"} className="px-3 py-1 rounded-lg border">
+                    Download
+                  </a>
                 </div>
               </div>
             ) : (
