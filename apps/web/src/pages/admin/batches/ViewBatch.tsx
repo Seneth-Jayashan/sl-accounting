@@ -50,7 +50,7 @@ export default function ViewBatchPage() {
       }
 
       if (studentRes.status === 'fulfilled') {
-        setStudents(studentRes.value.users || []);
+        setStudents(studentRes.value.students || []);
       }
     } catch (error) {
       console.error("Critical fetch error", error);
@@ -107,7 +107,7 @@ export default function ViewBatchPage() {
 
             <div className="flex gap-4 w-full lg:w-auto">
               <StatDisplay label="Students" value={students.length} />
-              <StatDisplay label="Modules" value={batch.classes?.length || 0} />
+              <StatDisplay label="Classes" value={batch.classes?.length || 0} />
             </div>
           </div>
         </header>
@@ -185,7 +185,7 @@ export default function ViewBatchPage() {
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               >
                 {batch.classes?.map((cls: any) => (
-                  <ClassCard key={cls._id} cls={cls} onClick={() => navigate(`/admin/classes/${cls._id}`)} />
+                  <ClassCard key={cls._id} cls={cls} onClick={() => navigate(`/admin/classes/view/${cls._id}`)} />
                 )) || <EmptyClasses />}
               </motion.div>
             )}

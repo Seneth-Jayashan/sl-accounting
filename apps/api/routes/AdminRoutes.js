@@ -50,7 +50,8 @@ const profileUploadMiddleware = createUploader("images/profile", "profileImage")
 router.use(protect);
 router.use(restrictTo("admin"));
 
-
+// Get a specific user by ID
+router.get("/users/:id", getUserById);
 // =================================================================
 // 1. DASHBOARD ROUTES
 // =================================================================
@@ -67,8 +68,7 @@ router.get("/users", getAllUsers);
 // Create a new user manually
 router.post("/users", validate(createUserSchema), createUser);
 
-// Get a specific user by ID
-router.get("/users/:id", getUserById);
+
 
 
 // =================================================================

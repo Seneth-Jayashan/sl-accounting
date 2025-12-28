@@ -15,10 +15,6 @@ import {
   GraduationCap
 } from "lucide-react";
 
-// Components & Layouts
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarStudent from "../../../components/sidebar/SidebarStudent";
-import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent";
 
 // Services & Context
 // Now this import works because we renamed the interface in the Service file
@@ -102,7 +98,6 @@ export default function ViewEnrollments() {
   });
 
   return (
-    <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
       <div className="p-6 max-w-7xl mx-auto pb-24 min-h-screen bg-brand-aliceBlue/30">
         
         {/* --- Header Section --- */}
@@ -297,6 +292,5 @@ export default function ViewEnrollments() {
             </motion.div>
         )}
       </div>
-    </DashboardLayout>
   );
 }

@@ -57,6 +57,24 @@ const createStorage = (folderName) => multer.diskStorage({
     },
 });
 
+// --- HELPER 4: Chat File Filter (Images + Docs) ---
+const chatFileFilter = (req, file, cb) => {
+    // Combine Image and Document Regex
+    const allowedExt = /\.(jpeg|jpg|png|webp|gif|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|csv|txt)$/i;
+    const allowedMime = /(image\/|application\/pdf|application\/msword|application\/vnd.openxmlformats|application\/vnd.ms-excel|application\/vnd.ms-powerpoint|application\/zip|text\/csv)/i;
+
+    const extname = allowedExt.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedMime.test(file.mimetype);
+
+    if (mimetype && extname) {
+        return cb(null, true);
+    } else {
+        const error = new Error('File type not supported. Allowed: Images, PDF, Office Docs, Zip.');
+        error.status = 400;
+        return cb(error, false);
+    }
+};
+
 // ==========================================
 // 1. GENERIC SINGLE UPLOADER
 // Usage: router.post('/', createUploader('images/profile', 'avatar'), controller)
@@ -84,6 +102,18 @@ export const classMediaUpload = classUpload.fields([
     { name: 'coverImage', maxCount: 1 },
     { name: 'images', maxCount: 5 }
 ]);
+
+
+// ==========================================
+// 3. CHAT FILE UPLOADER
+// Usage: Handles images AND documents for chat
+// ==========================================
+export const chatUploader = multer({
+    storage: createStorage('chat-files'), // Files go to /uploads/chat-files
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
+    fileFilter: chatFileFilter,
+}).single('file'); // Expects field name "file"
+
 
 export default createUploader;
 

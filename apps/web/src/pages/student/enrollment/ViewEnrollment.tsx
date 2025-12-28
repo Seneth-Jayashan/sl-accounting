@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarStudent from "../../../components/sidebar/SidebarStudent"; 
-import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent"; 
 import EnrollmentService from "../../../services/EnrollmentService";
 import type { EnrollmentResponse, EnrolledClass } from "../../../services/EnrollmentService";
 
@@ -49,7 +46,6 @@ export default function ViewEnrollments() {
 
   console.log(enrollments);
   return (
-    <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
       <div className="p-6 max-w-7xl mx-auto pb-20">
         
         {/* Header */}
@@ -167,6 +163,5 @@ export default function ViewEnrollments() {
             </div>
         )}
       </div>
-    </DashboardLayout>
   );
 }
