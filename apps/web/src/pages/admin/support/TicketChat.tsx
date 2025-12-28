@@ -15,6 +15,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 // Components
 import Chat from "../../../components/Chat";
 import ConfirmDialog from "../../../components/modals/ConfirmDialog";
+import Dropdown, { type DropdownOption } from "../../../components/Dropdown";
 
 // --- MAIN COMPONENT ---
 export default function TicketChatAdmin() {
@@ -217,6 +218,13 @@ export default function TicketChatAdmin() {
       return;
     }
     if (nextStatus === "Closed") {
+      if (String(currentStatus).toLowerCase() !== "resolved") {
+        setInfoDialog({
+          title: "Action Denied",
+          message: "You can only close a ticket after the user marks it as Resolved.",
+        });
+        return;
+      }
       setPendingStatus("Closed");
       setShowCloseConfirm(true);
       return;
@@ -523,6 +531,28 @@ const TicketListItem = ({
 
 const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onDelete }: any) => {
   const isClosed = String(ticket.status).toLowerCase() === 'closed';
+  const isResolved = String(ticket.status).toLowerCase() === 'resolved';
+  const currentStatus = String(ticket.status || "Open");
+
+  // Admin should not be able to set "Resolved".
+  // "Closed" should only be available after user marks as "Resolved".
+  const statusOptions = useMemo(() => {
+    if (isClosed) return ["Closed"];
+    if (isResolved) return ["Resolved", "Closed"];
+    return ["Open", "In Progress"]; // no Resolved/Closed for admin
+  }, [isClosed, isResolved]);
+  const needsCurrentOption = !statusOptions.includes(currentStatus);
+
+  const dropdownOptions = useMemo<DropdownOption[]>(() => {
+    const opts: DropdownOption[] = [];
+    if (needsCurrentOption) {
+      opts.push({ value: currentStatus, label: currentStatus, disabled: true });
+    }
+    statusOptions.forEach((opt) => {
+      opts.push({ value: opt, label: opt, disabled: opt === "Resolved" });
+    });
+    return opts;
+  }, [currentStatus, needsCurrentOption, statusOptions]);
   
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -532,16 +562,14 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
       </div>
 
       <div className="flex items-center gap-3">
-        <select
-          className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100 transition-shadow disabled:opacity-50"
-          value={ticket.status || "Open"}
-          onChange={(e) => onStatusChange(e.target.value)}
+        <Dropdown
+          value={currentStatus}
+          onChange={(v) => onStatusChange(v)}
+          options={dropdownOptions}
           disabled={statusUpdating || deleting || isClosed}
-        >
-          {["Open", "In Progress", "Resolved", "Closed"].map(opt => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
+          className="pl-3 pr-9 py-1.5 text-sm rounded-lg"
+          wrapperClassName="w-44"
+        />
 
         {isClosed ? (
           <button 

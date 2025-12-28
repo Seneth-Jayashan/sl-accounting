@@ -220,6 +220,16 @@ const updateTicket = async (req, res) => {
         .json({ message: "Forbidden: only admins can close tickets" });
     }
 
+    // Admin can close only after user resolves
+    if (isClosing && isAdmin) {
+      const current = String(ticket.status || "").toLowerCase();
+      if (current !== "resolved") {
+        return res.status(400).json({
+          message: "Ticket must be Resolved before it can be Closed",
+        });
+      }
+    }
+
     ticket.name = name ?? ticket.name;
     ticket.email = email ?? ticket.email;
     ticket.phoneNumber = phoneNumber ?? ticket.phoneNumber;
