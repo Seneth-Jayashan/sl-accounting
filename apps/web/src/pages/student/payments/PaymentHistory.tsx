@@ -12,10 +12,7 @@ import {
   Printer
 } from "lucide-react";
 
-// Components
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarStudent from "../../../components/sidebar/SidebarStudent";
-import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent";
+
 
 // Service & Types
 import PaymentService, {type  PaymentData } from "../../../services/PaymentService";
@@ -70,7 +67,6 @@ export default function PaymentHistory() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
       <div className="p-6 max-w-7xl mx-auto min-h-screen bg-gray-50/50 pb-24 font-sans">
         
         {/* Page Header */}
@@ -236,6 +232,5 @@ export default function PaymentHistory() {
         )}
 
       </div>
-    </DashboardLayout>
   );
 }

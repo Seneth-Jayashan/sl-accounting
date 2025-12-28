@@ -4,9 +4,6 @@ import { AnimatePresence } from "framer-motion";
 import { LayoutDashboard, PlayCircle, FolderOpen, MessageSquare, Megaphone, ArrowLeft } from "lucide-react";
 
 // Layouts & Services
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarStudent from "../../../components/sidebar/SidebarStudent";
-import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent";
 import ClassService from "../../../services/ClassService";
 import SessionService from "../../../services/SessionService";
 import LoadingPage from "../../../components/LoadingPage";
@@ -56,7 +53,6 @@ export default function ViewClass() {
   if (loading) return <div className="min-h-screen"><LoadingPage /></div>;
 
   return (
-    <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
       <div className="min-h-screen bg-brand-aliceBlue/30 pb-24">
         {/* Navigation Header */}
         <div className="bg-white/80 backdrop-blur-md border-b sticky top-0 z-30">
@@ -92,6 +88,5 @@ export default function ViewClass() {
           </AnimatePresence>
         </div>
       </div>
-    </DashboardLayout>
   );
 }

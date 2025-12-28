@@ -226,3 +226,22 @@ export const toggleBatchStatus = async (req, res) => {
         return res.status(500).json({ message: "Error toggling status" });
     }
 }
+
+export const getBatchStudents = async (req, res) => {
+    try {
+        const batchId = req.params.id;
+        const batch = await Batch.findById(batchId).populate('students', 'firstName lastName email phoneNumber');
+
+        if (!batch) {
+            return res.status(404).json({ message: "Batch not found" });
+        }
+        return res.status(200).json({
+            success: true,
+            count: batch.students.length,
+            students: batch.students
+        });
+    } catch (error) {
+        console.error("getBatchStudents error:", error);
+        return res.status(500).json({ message: "Error fetching batch students", error: error.message });
+    }
+};

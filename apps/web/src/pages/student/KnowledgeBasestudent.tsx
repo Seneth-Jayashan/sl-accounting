@@ -1,7 +1,4 @@
 import React, { useEffect, useState } from "react";
-import DashboardLayout from "../../layouts/DashboardLayout";
-import SidebarStudent from "../../components/sidebar/SidebarStudent";
-import BottomNavStudent from "../../components/bottomNavbar/BottomNavStudent";
 import Dropdown from "../../components/Dropdown";
 import { api } from "../../services/api";
 
@@ -184,7 +181,7 @@ const StudentKnowledgeBase: React.FC = () => {
   });
 
   return (
-    <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
+    <div className="w-full min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Knowledge Base</h1>
@@ -246,7 +243,7 @@ const StudentKnowledgeBase: React.FC = () => {
         <div className="grid gap-4">
           {filteredItems.map((it) => {
             const ext = (it.fileName || '').split('.').pop()?.toLowerCase() || '';
-            const isImage = (it.fileMime || '').startsWith('image/') || ['png','jpg','jpeg','gif','webp'].includes(ext);
+            const isImage = (it.fileMime || '').startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
             const isPdf = (it.fileMime || '').includes('pdf') || ext === 'pdf';
             const typeLabel = isPdf ? 'PDF' : isImage ? 'Image' : ext.toUpperCase() || 'FILE';
 
@@ -254,9 +251,9 @@ const StudentKnowledgeBase: React.FC = () => {
               <div key={it._id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center gap-4">
                 <div className="w-14 h-14 flex-shrink-0 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-xl font-semibold text-[#0b2540]">
                   {isPdf ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" /></svg>
                   ) : isImage ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 11.5l2.5 3 3-4 4.5 6H5l3.5-5.5z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 11.5l2.5 3 3-4 4.5 6H5l3.5-5.5z" /></svg>
                   ) : (
                     <span className="text-xs">{typeLabel}</span>
                   )}
@@ -278,9 +275,9 @@ const StudentKnowledgeBase: React.FC = () => {
                 <div className="flex flex-col items-end gap-2">
                   <div className="text-xs text-gray-500">{it.fileSize ? formatBytes(it.fileSize) : '—'}</div>
                   <div className="flex items-center gap-2">
-                    { (isImage || isPdf) && (
+                    {(isImage || isPdf) && (
                       <button onClick={() => openPreview(it)} className="px-3 py-1 rounded-xl border border-gray-200 text-sm bg-white">Preview</button>
-                    ) }
+                    )}
                     <button onClick={() => handleDownload(it._id, it.fileName)} className="px-3 py-1 rounded-xl bg-[#0b2540] text-white text-sm">Download</button>
                   </div>
                 </div>
@@ -321,7 +318,7 @@ const StudentKnowledgeBase: React.FC = () => {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </div>
   );
 };
 

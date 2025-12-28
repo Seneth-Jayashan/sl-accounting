@@ -5,6 +5,7 @@ import authRoutes from './routes/AuthRoutes.js';
 import userRoutes from './routes/UserRoutes.js';
 import adminRoutes from './routes/AdminRoutes.js';
 import classRoutes from './routes/ClassRoutes.js';
+import classChatRoutes from './routes/classChatRoutes.js';
 import batchRoutes from './routes/BatchRoutes.js';
 import sessionRoutes from './routes/SessionRoutes.js';
 import enrollmentRoutes from './routes/EnrollmentRoutes.js';
@@ -41,6 +42,7 @@ router.use('/sessions', sessionRoutes);
 router.use('/enrollments', enrollmentRoutes);
 router.use('/announcements', announcementRoutes);
 router.use('/materials', MaterialRoutes);
+router.use('/class-chats', classChatRoutes);
 
 // 3. Finance
 router.use('/payments', paymentRoutes);

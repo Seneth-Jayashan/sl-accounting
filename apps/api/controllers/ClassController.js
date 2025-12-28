@@ -232,6 +232,19 @@ export const updateClass = async (req, res) => {
       return res.status(404).json({ message: "Class not found" });
     }
 
+    if(otherUpdates.batch){
+      const oldBatch = await Batch.findById(classDoc.batch).session(session);
+      if(oldBatch){
+        oldBatch.classes.pull(classDoc._id);
+        await oldBatch.save({ session });
+      }
+      const newBatch = await Batch.findById(otherUpdates.batch).session(session);
+      if(newBatch){
+        newBatch.classes.push(classDoc._id);
+        await newBatch.save({ session });
+      }
+    }
+
     if (req.files) {
       const newCover = getFilePath(req.files, 'coverImage');
       const newImages = getGalleryPaths(req.files, 'images');

@@ -3,10 +3,11 @@ import Class from "../models/Class.js";
 import Payment from "../models/Payment.js"; // Required for Dashboard Revenue & Top Students
 import { sendVerificationEmail } from "../utils/email/Template.js";
 import { sendVerificationSms } from "../utils/sms/Template.js";
+import Batch from "../models/Batch.js";
 
 // --- HELPER: Find Valid User ---
 const findActiveUser = async (id) => {
-  return User.findOne({ _id: id, isDeleted: false });
+  return User.findOne({ _id: id, isDeleted: false }).select("-password");
 };
 
 // ==========================================
@@ -99,10 +100,29 @@ export const getDashboardSummary = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, role } = req.query;
-    const query = { isDeleted: false };
+    const { 
+      page = 1, 
+      limit = 10, 
+      search, 
+      role, 
+      batch, 
+      isDeleted
+    } = req.query;
 
-    if (role) query.role = role;
+    const query = {};
+
+    if (role) {
+      query.role = role;
+    }
+
+    if (batch && batch !== "All") {
+      query.batch = batch;
+    }
+
+    if (isDeleted !== undefined) {
+      query.isDeleted = isDeleted === 'true';
+    }
+
     if (search) {
       query.$or = [
         { firstName: { $regex: search, $options: "i" } },
@@ -112,12 +132,11 @@ export const getAllUsers = async (req, res) => {
     }
 
     const users = await User.find(query)
-      .populate("batch", "name")
+      .populate("batch", "name") 
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .select("-password")
-      .sort({ createdAt: -1 });
-      
+      .sort({ createdAt: -1 }); 
 
     const count = await User.countDocuments(query);
 
@@ -129,13 +148,15 @@ export const getAllUsers = async (req, res) => {
       totalUsers: count,
     });
   } catch (error) {
+    console.error("Error in getAllUsers:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export const getUserById = async (req, res) => {
+  const { id } = req.params;
   try {
-    const user = await findActiveUser(req.params.id).select("-password");
+    const user = await findActiveUser(id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
     return res.status(200).json({ success: true, user });
   } catch (error) {
@@ -149,7 +170,7 @@ export const getUserById = async (req, res) => {
 
 export const createUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, phoneNumber, role } = req.body;
+    const { firstName, lastName, email, password, phoneNumber, role , batch , address } = req.body;
 
     const userExists = await User.findOne({ email });
     if (userExists) return res.status(400).json({ success: false, message: "Email already exists" });
@@ -160,8 +181,15 @@ export const createUser = async (req, res) => {
       email,
       password,
       phoneNumber,
+      batch,
       role: role || "student",
       isVerified: true, // Admin created users are verified by default
+      address: {
+        street: address?.street || "",
+        city: address?.city || "",
+        state: address?.state || "",
+        zipCode: address?.zipCode || "",
+      }, 
     });
 
     return res.status(201).json({ success: true, user });
@@ -181,11 +209,28 @@ export const updateUserProfile = async (req, res) => {
 
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    const { firstName, lastName, phoneNumber, address } = req.body;
-
+    const { firstName, lastName, phoneNumber, address ,batch } = req.body;
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (phoneNumber) user.phoneNumber = phoneNumber;
+
+    if (batch){
+      if(user.batch === null){
+        user.batch = batch;
+      }else{
+        const OldBatch = await Batch.findById(user.batch);
+        if(OldBatch){
+          OldBatch.students.pull(user._id);
+          await OldBatch.save();
+        }
+        user.batch = batch;
+        const NewBatch = await Batch.findById(batch);
+        if(NewBatch){
+          NewBatch.students.push(user._id);
+          await NewBatch.save();
+        }
+      }
+    }
 
     // Handle Address Parsing (FormData sends object as string)
     if (address) {
@@ -336,6 +381,7 @@ export const deleteUserAccount = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     user.isDeleted = true;
+    user.isActive = false;
     user.refreshTokens = [];
     await user.save();
     

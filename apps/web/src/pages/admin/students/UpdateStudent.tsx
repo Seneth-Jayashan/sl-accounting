@@ -11,18 +11,54 @@ import {
   ShieldExclamationIcon
 } from "@heroicons/react/24/outline";
 
-// Services & Layouts
-import UserService, {type StudentUser } from "../../../services/UserService.ts";
+// --- SERVICES (FIXED) ---
+import AdminService from "../../../services/AdminService"; 
 import BatchService, { type BatchData } from "../../../services/BatchService";
 import { useAuth } from "../../../contexts/AuthContext";
 
 // --- Types ---
 interface AddressData {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
 }
+
+// --- SUB-COMPONENT: Input Field ---
+interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  icon?: React.ReactNode;
+}
+
+const InputField: React.FC<InputFieldProps> = ({ label, icon, className = "", ...props }) => (
+  <div className={`space-y-1.5 ${className}`}>
+    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-1">
+      {label}
+    </label>
+    <div className="relative group">
+      {icon && (
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-focus-within:text-[#0b2540] transition-colors">
+          {icon}
+        </div>
+      )}
+      <input
+        {...props}
+        className={`w-full ${icon ? 'pl-11' : 'pl-4'} pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/10 focus:border-[#0b2540] outline-none transition-all text-gray-800 placeholder:text-gray-300 text-sm`}
+      />
+    </div>
+  </div>
+);
+
+const LoadingSkeleton = () => (
+  <div className="max-w-4xl mx-auto p-6 space-y-6 animate-pulse">
+    <div className="h-8 w-48 bg-gray-200 rounded-lg"></div>
+    <div className="h-64 bg-gray-200 rounded-3xl"></div>
+    <div className="h-48 bg-gray-200 rounded-3xl"></div>
+    <div className="h-48 bg-gray-200 rounded-3xl"></div>
+  </div>
+);
+
+// --- MAIN COMPONENT ---
 
 export default function UpdateStudentPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,12 +74,12 @@ export default function UpdateStudentPage() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   
-  // 1. Profile Data (Address is now an object)
+  // 1. Profile Data
   const [profileData, setProfileData] = useState({
     firstName: "",
     lastName: "",
     phoneNumber: "",
-    batch: "", // Stores Batch ID
+    batch: "", 
     address: { street: "", city: "", state: "", zipCode: "" } as AddressData
   });
 
@@ -66,42 +102,42 @@ export default function UpdateStudentPage() {
     const loadData = async () => {
       if (!id) return;
       setIsLoading(true);
+
       try {
         const [userRes, batchRes] = await Promise.all([
-            UserService.getUserById(id),
+            AdminService.getUserById(id), // Returns { success: boolean; user: UserData }
             BatchService.getAllBatches(true)
         ]);
 
         if (isMounted) {
             if (batchRes.batches) setBatches(batchRes.batches);
 
-            if (userRes.success && userRes.user) {
-                const u = userRes.user as StudentUser;
-                
+            const user = userRes.user;
+            if (user) {
                 // Safe Address Parsing
                 let parsedAddress: AddressData = { street: "", city: "", state: "", zipCode: "" };
                 
-                if (typeof u.address === 'object' && u.address !== null) {
+                if (typeof user.address === 'object' && user.address !== null) {
                     parsedAddress = {
-                        street: (u.address as any).street || "",
-                        city: (u.address as any).city || "",
-                        state: (u.address as any).state || "",
-                        zipCode: (u.address as any).zipCode || ""
+                        street: (user.address as any).street || "",
+                        city: (user.address as any).city || "",
+                        state: (user.address as any).state || "",
+                        zipCode: (user.address as any).zipCode || ""
                     };
-                } else if (typeof u.address === 'string') {
-                    parsedAddress.street = u.address; // Fallback for legacy string addresses
+                } else if (typeof user.address === 'string') {
+                    parsedAddress.street = user.address;
                 }
 
                 setProfileData({
-                    firstName: u.firstName || "",
-                    lastName: u.lastName || "",
-                    phoneNumber: u.phoneNumber || "",
+                    firstName: user.firstName || "",
+                    lastName: user.lastName || "",
+                    phoneNumber: user.phoneNumber || "",
                     // Handle populated object vs ID string
-                    batch: typeof u.batch === 'object' ? (u.batch as any)._id : u.batch || "",
+                    batch: typeof user.batch === 'object' ? (user.batch as any)._id : user.batch || "",
                     address: parsedAddress
                 });
 
-                setEmailData(prev => ({ ...prev, currentEmail: u.email }));
+                setEmailData(prev => ({ ...prev, currentEmail: user.email }));
             } else {
                 throw new Error("Student not found");
             }
@@ -121,13 +157,11 @@ export default function UpdateStudentPage() {
 
   // --- Handlers ---
 
-  // Handle Text Inputs
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle Nested Address Inputs
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setProfileData(prev => ({
@@ -136,26 +170,23 @@ export default function UpdateStudentPage() {
     }));
   };
 
-  // 1. Update Profile (Admin Route)
+  // 1. Update Profile (Uses FormData + AdminService)
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
     
     setSavingProfile(true);
     try {
-      // Use Admin-Specific Profile Update
-      // Note: UserService.updateUserProfileByAdmin handles JSON stringifying the address object if needed for FormData
-      await UserService.updateUserProfileByAdmin(id, {
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
-          phoneNumber: profileData.phoneNumber,
-          // We pass the full address object; Service handles serialization
-          // @ts-ignore: Service type definition update might be needed if strictly typed
-          address: profileData.address, 
-          // Note: If 'batch' is needed, ensure your backend Admin Profile endpoint accepts it. 
-          // Currently, standard profile endpoints usually focus on personal details.
-          // If you need to update Batch separately, consider a specific 'academic update' call or ensure your backend handles extra fields.
-      } as any);
+      // FIX: AdminService expects FormData for profile updates
+      const formData = new FormData();
+      formData.append("firstName", profileData.firstName);
+      formData.append("lastName", profileData.lastName);
+      formData.append("phoneNumber", profileData.phoneNumber);
+      formData.append("batch", profileData.batch);
+      // Serialize address for backend parsing
+      formData.append("address", JSON.stringify(profileData.address));
+
+      await AdminService.updateUserProfile(id, formData);
       
       Swal.fire({
           title: "Profile Updated",
@@ -166,13 +197,14 @@ export default function UpdateStudentPage() {
           timer: 3000
       });
     } catch (err: any) {
+      console.error(err);
       Swal.fire("Update Failed", err.response?.data?.message || "Server error.", "error");
     } finally {
       setSavingProfile(false);
     }
   };
 
-  // 2. Update Email (Admin Route)
+  // 2. Update Email (Uses AdminService)
   const handleUpdateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -193,7 +225,7 @@ export default function UpdateStudentPage() {
     if (result.isConfirmed) {
         setSavingEmail(true);
         try {
-            await UserService.updateUserEmailByAdmin(id, emailData.newEmail);
+            await AdminService.updateUserEmail(id, emailData.newEmail);
             setEmailData({ currentEmail: emailData.newEmail, newEmail: "" });
             Swal.fire("Success", "Email address updated successfully.", "success");
         } catch (err: any) {
@@ -204,7 +236,7 @@ export default function UpdateStudentPage() {
     }
   };
 
-  // 3. Update Password (Admin Route)
+  // 3. Update Password (Uses AdminService)
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -221,7 +253,7 @@ export default function UpdateStudentPage() {
 
     setSavingPassword(true);
     try {
-        await UserService.updateUserPasswordByAdmin(id, passwordData.newPassword);
+        await AdminService.updateUserPassword(id, passwordData.newPassword);
         setPasswordData({ newPassword: "", confirmPassword: "" });
         Swal.fire("Success", "Password reset successfully. Notify the student.", "success");
     } catch (err: any) {
@@ -378,37 +410,3 @@ export default function UpdateStudentPage() {
       </div>
   );
 }
-
-// --- SUB-COMPONENT: Modern Input Field ---
-interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
-    label: string;
-    icon?: React.ReactNode;
-}
-
-const InputField: React.FC<InputFieldProps> = ({ label, icon, className, ...props }) => (
-    <div className={`space-y-1.5 ${className}`}>
-        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-1">
-            {label}
-        </label>
-        <div className="relative group">
-            {icon && (
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-focus-within:text-[#0b2540] transition-colors">
-                    {icon}
-                </div>
-            )}
-            <input
-                {...props}
-                className={`w-full ${icon ? 'pl-11' : 'pl-4'} pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#0b2540]/10 focus:border-[#0b2540] outline-none transition-all text-gray-800 placeholder:text-gray-300 text-sm`}
-            />
-        </div>
-    </div>
-);
-
-const LoadingSkeleton = () => (
-        <div className="max-w-4xl mx-auto p-6 space-y-6 animate-pulse">
-            <div className="h-8 w-48 bg-gray-200 rounded-lg"></div>
-            <div className="h-64 bg-gray-200 rounded-3xl"></div>
-            <div className="h-48 bg-gray-200 rounded-3xl"></div>
-            <div className="h-48 bg-gray-200 rounded-3xl"></div>
-        </div>
-);

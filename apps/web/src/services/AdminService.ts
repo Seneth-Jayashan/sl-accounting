@@ -46,16 +46,15 @@ export interface UserData {
   isActive: boolean;
   isLocked: boolean;
   isDeleted: boolean;
+  isVerified: boolean;
   profileImage?: string;
   createdAt: string;
-  // FIX: Allow address to be string OR object
   address?: string | {
     street?: string;
     city?: string;
     state?: string;
     zipCode?: string;
   };
-  // FIX: Add missing academic fields
   regNo?: string;
   batch?: string;
 }
@@ -73,6 +72,8 @@ export interface UserQueryParams {
   limit?: number;
   search?: string;
   role?: string;
+  batch?: string;
+  isDeleted?: boolean;
 }
 
 // ==========================================
@@ -102,12 +103,11 @@ const AdminService = {
   },
 
   getUserById: async (id: string) => {
-    const response = await api.get<{ success: boolean; user: UserData }>(`${BASE_URL}/users/${id}`);
-    return response.data.user;
+    const response = await api.get<{ success: boolean; user: UserData  }>(`${BASE_URL}/users/${id}`);
+    return response.data;
   },
 
   createUser: async (data: Partial<UserData> & { password?: string }) => {
-    // We allow any partial user data + password
     const response = await api.post<{ success: boolean; user: UserData }>(`${BASE_URL}/users`, data);
     return response.data.user;
   },

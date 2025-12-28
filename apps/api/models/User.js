@@ -199,7 +199,6 @@ userSchema.methods.toJSON = function () {
   delete obj.refreshTokens;
   delete obj.resetPasswordToken;
   delete obj.resetPasswordExpires;
-  delete obj.isDeleted;
   delete obj.otpAttempts; 
   delete obj.loginAttempts;
   delete obj.__v;

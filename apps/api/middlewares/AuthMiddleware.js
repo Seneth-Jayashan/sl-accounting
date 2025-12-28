@@ -23,7 +23,7 @@ export const protect = async (req, res, next) => {
             // Security: Select only fields needed for authorization.
             // Explicitly exclude password or large arrays.
             const user = await User.findById(decoded.id)
-                .select('_id role isDeleted isActive isLocked'); 
+                .select('_id role isDeleted isActive isLocked batch'); 
 
             // 4. Check if user still exists and is active
             if (!user) {
