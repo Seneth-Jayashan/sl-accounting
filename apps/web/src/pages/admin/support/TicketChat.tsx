@@ -26,6 +26,7 @@ export default function TicketChatAdmin() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
   // UI State
   const [loading, setLoading] = useState<boolean>(true);
@@ -35,9 +36,11 @@ export default function TicketChatAdmin() {
   // Action State
   const [statusUpdating, setStatusUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
   const [infoDialog, setInfoDialog] = useState<{ title: string; message: string } | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState<boolean>(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   // --- HELPERS ---
@@ -47,6 +50,23 @@ export default function TicketChatAdmin() {
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;
     }), []);
+
+  const selectedCount = useMemo(() => selectedIds.size, [selectedIds]);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelected = useCallback(() => setSelectedIds(new Set()), []);
+
+  const selectAllVisible = useCallback(() => {
+    setSelectedIds(new Set(tickets.map((t) => t._id)));
+  }, [tickets]);
 
   // --- DATA LOADING ---
   
@@ -60,6 +80,7 @@ export default function TicketChatAdmin() {
         if (!mounted) return;
         const sorted = sortTicketsDesc(items);
         setTickets(sorted);
+        clearSelected();
         
         // Handle URL Selection
         if (params.id && sorted.some((t) => t._id === params.id)) {
@@ -75,7 +96,20 @@ export default function TicketChatAdmin() {
       .finally(() => mounted && setLoading(false));
 
     return () => { mounted = false; };
-  }, []);
+  }, [clearSelected, params.id, sortTicketsDesc]);
+
+  // Keep selection clean when ticket list changes
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const validIds = new Set(tickets.map((t) => t._id));
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (validIds.has(id)) next.add(id);
+      });
+      return next.size === prev.size ? prev : next;
+    });
+  }, [tickets]);
 
   // 2. Load Single Ticket Details
   useEffect(() => {
@@ -197,12 +231,46 @@ export default function TicketChatAdmin() {
     try {
       await TicketService.deleteTicket(selectedId);
       setTickets((prev) => prev.filter((t) => t._id !== selectedId));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(selectedId);
+        return next;
+      });
       handleRedirectAfterAction(selectedId);
     } catch (e) {
       setError("Failed to delete ticket");
     } finally {
       setDeleting(false);
       setShowDeleteConfirm(false);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+
+    setBulkDeleting(true);
+    try {
+      await TicketService.bulkDeleteTickets(ids);
+
+      const removed = new Set(ids);
+      setTickets((prev) => prev.filter((t) => !removed.has(t._id)));
+      clearSelected();
+
+      // If current selected ticket got deleted, redirect to next available
+      if (selectedId && removed.has(selectedId)) {
+        const remaining = tickets.filter((t) => !removed.has(t._id));
+        const next = remaining[0]?._id ?? null;
+        setSelectedTicket(null);
+        setSelectedId(next);
+        if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
+        else navigate(`/admin/chat`, { replace: true });
+      }
+    } catch (e) {
+      setError("Failed to delete selected tickets");
+    } finally {
+      setBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
     }
   };
 
@@ -249,6 +317,39 @@ export default function TicketChatAdmin() {
               <div className="lg:col-span-1 bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
                 <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inbox</span>
+                  <div className="flex items-center gap-2">
+                    {selectedCount > 0 ? (
+                      <>
+                        <span className="text-[10px] text-gray-500">Selected: {selectedCount}</span>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                          onClick={() => setShowBulkDeleteConfirm(true)}
+                          disabled={bulkDeleting || deleting}
+                          title="Delete selected tickets"
+                        >
+                          <TrashIcon className="w-4 h-4" /> Delete
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                          onClick={clearSelected}
+                          disabled={bulkDeleting}
+                        >
+                          Clear
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                        onClick={selectAllVisible}
+                        disabled={tickets.length === 0 || bulkDeleting}
+                      >
+                        Select all
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {tickets.length === 0 ? (
@@ -260,6 +361,8 @@ export default function TicketChatAdmin() {
                           key={ticket._id} 
                           ticket={ticket} 
                           isActive={selectedId === ticket._id}
+                          isSelected={selectedIds.has(ticket._id)}
+                          onToggleSelect={toggleSelected}
                           onClick={(id) => {
                             if (selectedId === id) {
                               setSelectedId(null);
@@ -358,23 +461,56 @@ export default function TicketChatAdmin() {
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={confirmDelete}
       />
+
+      <ConfirmDialog
+        isOpen={showBulkDeleteConfirm}
+        title="Delete Selected Tickets"
+        message={`Permanently delete ${selectedCount} ticket(s) and all chat history? This cannot be undone.`}
+        confirmLabel={bulkDeleting ? "Deleting..." : "Delete Selected"}
+        cancelLabel="Cancel"
+        loading={bulkDeleting}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={confirmBulkDelete}
+      />
     </div>
   );
 }
 
 // --- SUB COMPONENTS ---
 
-const TicketListItem = ({ ticket, isActive, onClick }: { ticket: Ticket, isActive: boolean, onClick: (id: string) => void }) => (
+const TicketListItem = ({
+  ticket,
+  isActive,
+  isSelected,
+  onToggleSelect,
+  onClick,
+}: {
+  ticket: Ticket;
+  isActive: boolean;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
+  onClick: (id: string) => void;
+}) => (
   <li
     onClick={() => onClick(ticket._id)}
     className={`p-4 cursor-pointer transition-all hover:bg-gray-50 border-l-4 ${
       isActive ? "bg-blue-50/50 border-blue-600" : "border-transparent"
     }`}
   >
-    <div className="flex justify-between items-start mb-1">
-      <h3 className={`text-sm font-semibold truncate pr-2 ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
-        {ticket.name}
-      </h3>
+    <div className="flex justify-between items-start mb-1 gap-2">
+      <div className="flex items-start gap-2 min-w-0">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelect(ticket._id)}
+          onClick={(e) => e.stopPropagation()}
+          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          aria-label="Select ticket"
+        />
+        <h3 className={`text-sm font-semibold truncate pr-2 min-w-0 ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
+          {ticket.name}
+        </h3>
+      </div>
       <StatusBadge status={ticket.status} />
     </div>
     <div className="text-xs text-gray-500 truncate">{ticket.email}</div>

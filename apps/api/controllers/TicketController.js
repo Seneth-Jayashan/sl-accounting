@@ -3,6 +3,69 @@ import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import Chat from "../models/Chat.js";
 import { getIO } from "../config/socket.js";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const getApiRootDir = () => path.resolve(__dirname, "..");
+const getChatFilesDir = () => path.join(getApiRootDir(), "uploads", "chat-files");
+
+const getSafeFileName = (value) => {
+  if (!value || typeof value !== "string") return null;
+  const base = path.basename(value);
+  return base && base !== "." && base !== ".." ? base : null;
+};
+
+const extractChatAttachmentFileName = (attachment) => {
+  if (!attachment) return null;
+
+  // Preferred: server-stored filename
+  const direct = getSafeFileName(attachment.fileName);
+  if (direct) return direct;
+
+  // Fallback: parse from url like /uploads/chat-files/<name>
+  if (typeof attachment.url === "string" && attachment.url.includes("/uploads/chat-files/")) {
+    const maybeName = attachment.url.split("/").pop();
+    return getSafeFileName(maybeName);
+  }
+
+  return null;
+};
+
+const collectChatAttachmentFileNames = (chats) => {
+  const names = new Set();
+  for (const chat of chats || []) {
+    const attachments = Array.isArray(chat.attachments) ? chat.attachments : [];
+    for (const a of attachments) {
+      const name = extractChatAttachmentFileName(a);
+      if (name) names.add(name);
+    }
+  }
+  return Array.from(names);
+};
+
+const deleteChatAttachmentFiles = async (fileNames) => {
+  if (!Array.isArray(fileNames) || fileNames.length === 0) return;
+
+  const chatFilesDir = getChatFilesDir();
+  await Promise.allSettled(
+    fileNames.map(async (fileName) => {
+      const safe = getSafeFileName(fileName);
+      if (!safe) return;
+      const absolutePath = path.join(chatFilesDir, safe);
+      try {
+        await fs.unlink(absolutePath);
+      } catch (err) {
+        // ignore missing files
+        if (err && (err.code === "ENOENT" || err.code === "ENOTDIR")) return;
+        console.error("Failed to delete chat attachment:", absolutePath, err?.message || err);
+      }
+    })
+  );
+};
 
 const broadcastTicketStatus = (ticket) => {
   try {
@@ -186,30 +249,96 @@ const updateTicket = async (req, res) => {
 // Delete ticket by _id
 const deleteTicket = async (req, res) => {
   try {
-    const ticket = await Ticket.findByIdAndDelete(req.params.id);
+    const ticket = await Ticket.findById(req.params.id);
 
-    if (!ticket) {
-      return res.status(404).json({ message: "Ticket not found" });
-    }
+    if (!ticket) return res.status(404).json({ message: "Ticket not found" });
 
-    // Remove associated chat messages for this ticket
+    // Remove associated chat messages + attached media for this ticket
     try {
+      const chats = await Chat.find({ ticket: ticket._id })
+        .select("attachments")
+        .lean();
+      const fileNames = collectChatAttachmentFileNames(chats);
+      await deleteChatAttachmentFiles(fileNames);
       await Chat.deleteMany({ ticket: ticket._id });
     } catch (chatErr) {
-      console.error("Failed to delete related chats:", chatErr);
-      // proceed even if chat deletion fails — ticket is already deleted
+      console.error("Failed to delete related chats/media:", chatErr);
     }
 
-    // Notify user
-    await Notification.create({
-      user: ticket.user_id,
-      message: `Your ticket has been deleted. Ticket ID: ${ticket._id}`,
-    });
+    await ticket.deleteOne();
+
+    // Notify user (best-effort)
+    try {
+      await Notification.create({
+        user: ticket.user_id,
+        message: `Your ticket has been deleted. Ticket ID: ${ticket._id}`,
+      });
+    } catch (notifyErr) {
+      console.error("Failed to create delete notification:", notifyErr);
+    }
 
     return res.status(200).json({ ticket });
   } catch (err) {
     console.error("Delete ticket error:", err);
     return res.status(500).json({ message: "Failed to delete ticket" });
+  }
+};
+
+// Bulk delete tickets by ids (admin only)
+const deleteTicketsBulk = async (req, res) => {
+  try {
+    const idsRaw = req.body?.ids || req.body?.ticketIds || req.body?.ticket_ids;
+    const ids = Array.isArray(idsRaw)
+      ? [...new Set(idsRaw.map((x) => String(x)).filter(Boolean))]
+      : [];
+
+    if (!ids.length) {
+      return res.status(400).json({ message: "No ticket ids provided" });
+    }
+
+    // Fetch tickets first (for notifications + to know what we're deleting)
+    const tickets = await Ticket.find({ _id: { $in: ids } }).lean();
+    if (!tickets.length) {
+      return res.status(404).json({ message: "No matching tickets found" });
+    }
+
+    const deletedIds = tickets.map((t) => t._id?.toString?.() || String(t._id));
+
+    // Delete related chats + attached media
+    try {
+      const chats = await Chat.find({ ticket: { $in: deletedIds } })
+        .select("attachments")
+        .lean();
+      const fileNames = collectChatAttachmentFileNames(chats);
+      await deleteChatAttachmentFiles(fileNames);
+      await Chat.deleteMany({ ticket: { $in: deletedIds } });
+    } catch (chatErr) {
+      console.error("Failed to delete related chats/media (bulk):", chatErr);
+    }
+
+    // Delete tickets
+    const ticketDeleteResult = await Ticket.deleteMany({ _id: { $in: deletedIds } });
+
+    // Notify affected users (best-effort)
+    try {
+      const notifications = tickets
+        .filter((t) => t.user_id)
+        .map((t) => ({
+          user: t.user_id,
+          message: `Your ticket has been deleted. Ticket ID: ${t._id}`,
+        }));
+      if (notifications.length) await Notification.insertMany(notifications);
+    } catch (notifyErr) {
+      console.error("Failed to create notifications (bulk):", notifyErr);
+    }
+
+    return res.status(200).json({
+      deletedIds,
+      deletedCount: ticketDeleteResult?.deletedCount || deletedIds.length,
+    });
+  } catch (err) {
+    console.error("Bulk delete tickets error:", err);
+    return res.status(500).json({ message: "Failed to bulk delete tickets" });
   }
 };
 
@@ -220,4 +349,5 @@ export default {
   getTicketByID,
   updateTicket,
   deleteTicket,
+  deleteTicketsBulk,
 };

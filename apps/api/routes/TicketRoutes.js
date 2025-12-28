@@ -22,4 +22,7 @@ router.put("/:id", protect, ticketController.updateTicket);
 // Delete ticket by _id (admin only)
 router.delete("/ticket/:id", protect, restrictTo("admin"), ticketController.deleteTicket);
 
+// Bulk delete tickets (admin only)
+router.delete("/bulk", protect, restrictTo("admin"), ticketController.deleteTicketsBulk);
+
 export default router;
