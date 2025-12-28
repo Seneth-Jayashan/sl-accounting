@@ -66,7 +66,13 @@ export default function TicketChatAdmin() {
   const clearSelected = useCallback(() => setSelectedIds(new Set()), []);
 
   const selectAllVisible = useCallback(() => {
-    setSelectedIds(new Set(tickets.map((t) => t._id)));
+    setSelectedIds(
+      new Set(
+        tickets
+          .filter((t) => String(t.status || "").toLowerCase() === "closed")
+          .map((t) => t._id)
+      )
+    );
   }, [tickets]);
 
   // --- DATA LOADING ---
@@ -365,11 +371,13 @@ export default function TicketChatAdmin() {
                   ) : (
                     <ul className="divide-y divide-gray-100">
                       {tickets.map((ticket) => (
+                        
                         <TicketListItem 
                           key={ticket._id} 
                           ticket={ticket} 
                           isActive={selectedId === ticket._id}
                           isSelected={selectedIds.has(ticket._id)}
+                          selectionDisabled={String(ticket.status || "").toLowerCase() !== "closed"}
                           onToggleSelect={toggleSelected}
                           onClick={(id) => {
                             if (selectedId === id) {
@@ -490,12 +498,14 @@ const TicketListItem = ({
   ticket,
   isActive,
   isSelected,
+  selectionDisabled,
   onToggleSelect,
   onClick,
 }: {
   ticket: Ticket;
   isActive: boolean;
   isSelected: boolean;
+  selectionDisabled: boolean;
   onToggleSelect: (id: string) => void;
   onClick: (id: string) => void;
 }) => (
@@ -510,8 +520,9 @@ const TicketListItem = ({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={() => onToggleSelect(ticket._id)}
+          onChange={() => !selectionDisabled && onToggleSelect(ticket._id)}
           onClick={(e) => e.stopPropagation()}
+          disabled={selectionDisabled}
           className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           aria-label="Select ticket"
         />

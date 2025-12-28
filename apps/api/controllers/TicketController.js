@@ -312,7 +312,28 @@ const deleteTicketsBulk = async (req, res) => {
       return res.status(404).json({ message: "No matching tickets found" });
     }
 
-    const deletedIds = tickets.map((t) => t._id?.toString?.() || String(t._id));
+    // Only allow bulk delete for Closed tickets
+    const closedTickets = tickets.filter(
+      (t) => String(t.status || "").toLowerCase() === "closed"
+    );
+    const notClosedIds = tickets
+      .filter((t) => String(t.status || "").toLowerCase() !== "closed")
+      .map((t) => t._id?.toString?.() || String(t._id));
+
+    if (notClosedIds.length) {
+      return res.status(400).json({
+        message: "Bulk delete is allowed only for Closed tickets",
+        notClosedIds,
+      });
+    }
+
+    if (!closedTickets.length) {
+      return res.status(400).json({
+        message: "No Closed tickets found in the selection",
+      });
+    }
+
+    const deletedIds = closedTickets.map((t) => t._id?.toString?.() || String(t._id));
 
     // Delete related chats + attached media
     try {
@@ -331,7 +352,7 @@ const deleteTicketsBulk = async (req, res) => {
 
     // Notify affected users (best-effort)
     try {
-      const notifications = tickets
+      const notifications = closedTickets
         .filter((t) => t.user_id)
         .map((t) => ({
           user: t.user_id,
