@@ -32,11 +32,10 @@ const authenticateSocket = async (socket, next) => {
     // 2. Verify Token
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     if (!decoded || !decoded.id) {
-        return next(new Error("Authentication error: Invalid token structure"));
+      return next(new Error("Authentication error: Invalid token structure"));
     }
 
     // 3. Fetch User (Lean for performance)
-    // We explicitly select 'batch' here because it's needed for class chat security
     const user = await User.findById(decoded.id)
       .select("_id role firstName lastName avatar batch")
       .lean();
@@ -87,16 +86,13 @@ export const initSocket = (server) => {
       if (!ticketId) return;
 
       try {
-        // SECURITY: Admins can join any ticket. Students can only join their own.
+        // SECURITY: Verify Permission
+        // Admins can join any ticket. Students can only join their own.
         if (socket.user.role !== "admin") {
           const ticket = await Ticket.findById(ticketId).select("user_id");
-          if (
-            !ticket ||
-            ticket.user_id.toString() !== socket.user._id.toString()
-          ) {
-            console.warn(
-              `⚠️ Security Alert: User ${socket.user._id} tried to join unauthorized ticket ${ticketId}`
-            );
+          
+          if (!ticket || ticket.user_id?.toString() !== socket.user._id.toString()) {
+            console.warn(`⚠️ Security Alert: User ${socket.user._id} tried to join unauthorized ticket ${ticketId}`);
             socket.emit("error", { message: "Unauthorized access to this ticket" });
             return;
           }
@@ -104,7 +100,7 @@ export const initSocket = (server) => {
 
         const room = getTicketRoom(ticketId);
         socket.join(room);
-        console.log(`→ ${socket.user.firstName} joined ticket room ${room}`);
+        // console.log(`→ ${socket.user.firstName} joined ticket room ${room}`);
       } catch (err) {
         console.error("Join Ticket Error:", err);
       }
@@ -116,6 +112,14 @@ export const initSocket = (server) => {
       if (!ticketId || (!message && (!attachments || attachments.length === 0))) {
         if (typeof ack === "function") ack({ ok: false, error: "Missing required fields" });
         return;
+      }
+
+      const room = getTicketRoom(ticketId);
+
+      // SECURITY: Ensure user is actually in the room before sending
+      if (!socket.rooms.has(room)) {
+         if (typeof ack === "function") ack({ ok: false, error: "Unauthorized: Not joined in room" });
+         return;
       }
 
       try {
@@ -143,25 +147,26 @@ export const initSocket = (server) => {
           createdAt: chat.createdAt,
         };
 
-        const room = getTicketRoom(ticketId);
         ioInstance.to(room).emit("receive_message", outbound);
 
         if (typeof ack === "function") ack({ ok: true, message: outbound });
       } catch (err) {
-        console.error("⚠️ Message Error:", err);
-        if (typeof ack === "function")
-          ack({ ok: false, error: "Internal Server Error" });
+        console.error("Ticket Message Error:", err);
+        if (typeof ack === "function") ack({ ok: false, error: "Internal Server Error" });
       }
     });
 
     socket.on("typing", ({ ticketId, isTyping }) => {
       if (!ticketId) return;
       const room = getTicketRoom(ticketId);
-      socket.to(room).emit("typing", {
-        isTyping,
-        senderId: socket.user._id,
-        senderName: socket.user.firstName,
-      });
+      // Only broadcast if user is in room
+      if (socket.rooms.has(room)) {
+          socket.to(room).emit("typing", {
+            isTyping,
+            senderId: socket.user._id,
+            senderName: socket.user.firstName,
+          });
+      }
     });
 
     // =================================================================
@@ -194,7 +199,7 @@ export const initSocket = (server) => {
 
         const room = getClassRoom(classId);
         socket.join(room);
-        console.log(`→ ${socket.user.firstName} joined class room ${room}`);
+        // console.log(`→ ${socket.user.firstName} joined class room ${room}`);
       } catch (err) {
         console.error("Join Class Error:", err);
       }
@@ -203,12 +208,17 @@ export const initSocket = (server) => {
     socket.on("send_class_message", async (payload, ack) => {
       const { classId, message, attachments } = payload; 
 
-      if (!classId || (!message && (!attachments || attachments.length === 0))) return;
+      // Allow sending if there's a message OR attachments
+      if (!classId || (!message && (!attachments || attachments.length === 0))) {
+         if (typeof ack === "function") ack({ ok: false, error: "Empty message" });
+         return;
+      }
+
       const room = getClassRoom(classId);
 
-      // Verify user is actually in the room (prevents bypassing join_class security)
+      // SECURITY: Verify user is actually in the room (prevents bypassing join_class security)
       if (!socket.rooms.has(room)) {
-        if (ack) ack({ ok: false, error: "Not joined in room" });
+        if (typeof ack === "function") ack({ ok: false, error: "Unauthorized: Not joined in room" });
         return;
       }
 
@@ -229,26 +239,29 @@ export const initSocket = (server) => {
         };
 
         ioInstance.to(room).emit("receive_class_message", outbound);
-        if (ack) ack({ ok: true, message: outbound });
+        if (typeof ack === "function") ack({ ok: true, message: outbound });
       } catch (err) {
         console.error("Class Message Error:", err);
+        if (typeof ack === "function") ack({ ok: false, error: "Database Error" });
       }
     });
 
     socket.on("typing_class", ({ classId, isTyping }) => {
       if (!classId) return;
       const room = getClassRoom(classId);
-      socket.to(room).emit("typing_class", {
-        isTyping,
-        senderId: socket.user._id,
-      });
+      if (socket.rooms.has(room)) {
+          socket.to(room).emit("typing_class", {
+            isTyping,
+            senderId: socket.user._id,
+          });
+      }
     });
 
     // =================================================================
     //  DISCONNECT
     // =================================================================
     socket.on("disconnect", () => {
-      console.log(`🔴 Socket disconnected: ${socket.user.firstName}`);
+      // console.log(`🔴 Socket disconnected: ${socket.user.firstName}`);
     });
   });
 

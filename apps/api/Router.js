@@ -5,7 +5,7 @@ import authRoutes from './routes/AuthRoutes.js';
 import userRoutes from './routes/UserRoutes.js';
 import adminRoutes from './routes/AdminRoutes.js';
 import classRoutes from './routes/ClassRoutes.js';
-import classChatRoutes from './routes/classChatRoutes.js';
+import classChatRoutes from './routes/ClassChatRoutes.js';
 import batchRoutes from './routes/BatchRoutes.js';
 import sessionRoutes from './routes/SessionRoutes.js';
 import enrollmentRoutes from './routes/EnrollmentRoutes.js';

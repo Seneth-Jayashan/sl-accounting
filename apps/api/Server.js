@@ -19,6 +19,7 @@ try {
   console.log('✅ Socket.io initialized');
 } catch (error) {
   console.error('❌ Socket.io initialization failed:', error.message);
+  process.exit(1); // Exit if socket fails critical init
 }
 
 // 2. Start Database & Server
@@ -42,15 +43,25 @@ startServer();
 const gracefulShutdown = (signal) => {
   console.log(`\n${signal} received. Closing resources...`);
   
-  server.close(() => {
+  // A. Close HTTP Server (Stop accepting new requests)
+  server.close((err) => {
+    if (err) {
+      console.error('Error closing HTTP server:', err);
+      process.exit(1);
+    }
     console.log('HTTP server closed.');
-    mongoose.connection.close(false, () => {
-      console.log('MongoDB connection closed.');
+
+    // B. Close Database Connection
+    mongoose.connection.close(false).then(() => {
+      console.log('MongoDb connection closed.');
       process.exit(0);
+    }).catch((err) => {
+      console.error('Error closing MongoDb:', err);
+      process.exit(1);
     });
   });
 
-  // Force shutdown if cleanup takes too long
+  // Force shutdown if cleanup takes too long (10s)
   setTimeout(() => {
     console.error('Forced shutdown due to timeout.');
     process.exit(1);
@@ -63,10 +74,9 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 // Handle unexpected crashes
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Promise Rejection:', reason);
-  // Optional: process.exit(1) depending on crash policy
 });
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
-  process.exit(1); // Always exit on uncaught exceptions to restart clean state
+  process.exit(1); 
 });
