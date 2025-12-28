@@ -1,5 +1,11 @@
 import ClassChat from "../models/ClassChat.js";
 import Class from "../models/Class.js";
+import fs from 'fs'; // Import File System
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // @desc    Get chat history for a specific class
 // @route   GET /api/chats/class/:classId
@@ -101,5 +107,60 @@ export const uploadAttachment = async (req, res) => {
   } catch (error) {
     console.error("Upload Error:", error);
     res.status(500).json({ success: false, message: "File upload failed" });
+  }
+};
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const chat = await ClassChat.findById(id);
+
+    if (!chat) {
+      return res.status(404).json({ success: false, message: "Message not found" });
+    }
+
+    // Security: Only Admins can delete
+    if (req.user.role !== 'admin') {
+         return res.status(403).json({ success: false, message: "Not authorized to delete messages" });
+    }
+
+    // --- NEW: Delete Physical Files ---
+    if (chat.attachments && chat.attachments.length > 0) {
+        chat.attachments.forEach((file) => {
+            try {
+                // 1. Get the relative path stored in DB (e.g., "/uploads/chat-files/image.png")
+                // Remove the leading slash to join correctly
+                const relativePath = file.url.startsWith('/') ? file.url.slice(1) : file.url;
+                
+                // 2. Resolve to absolute server path
+                // Assumes 'uploads' folder is at 'apps/api/uploads' and this controller is in 'apps/api/controllers'
+                const absolutePath = path.join(__dirname, '..', relativePath);
+
+                // 3. Delete File
+                if (fs.existsSync(absolutePath)) {
+                    fs.unlinkSync(absolutePath);
+                    console.log(`Deleted file: ${absolutePath}`);
+                }
+            } catch (err) {
+                console.error(`Failed to delete attachment file: ${file.url}`, err);
+                // Continue deleting the message even if file deletion fails
+            }
+        });
+    }
+
+    // Delete Database Record
+    await chat.deleteOne();
+
+    // Notify Socket Room
+    const { getIO } = await import("../config/socket.js");
+    const io = getIO();
+    io.to(`class_${chat.classId}`).emit("message_deleted", { messageId: id });
+
+    res.status(200).json({ success: true, message: "Message and attachments deleted successfully" });
+
+  } catch (error) {
+    console.error("Delete Error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete message" });
   }
 };

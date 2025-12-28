@@ -25,6 +25,7 @@ const KnowledgeBase = lazy(() => import("../pages/admin/KnowledgeBase/KnowledgeB
 const KnowledgeBaseList = lazy(() => import("../pages/admin/KnowledgeBase/KnowledgeList"));
 const Announcements = lazy(() => import("../pages/admin/announcements/Announcement"));
 const Materials = lazy(() => import("../pages/admin/materials/Materials"));
+const Community = lazy(() => import("../pages/admin/communities/Community"));
 
 export const AdminRoutes = () => {
   return (
@@ -71,6 +72,9 @@ export const AdminRoutes = () => {
           {/* Knowledge Base */}
           <Route path="knowledge-base" element={<KnowledgeBase />} />
           <Route path="knowledge-list" element={<KnowledgeBaseList />} />
+
+          {/* Community */}
+          <Route path="community" element={<Community />} />
 
           {/* Default Admin Route - Redirects to Dashboard */}
           <Route path="*" element={<Navigate to="/admin/" replace />} />

@@ -57,12 +57,18 @@ export default function ChatTab() {
       if (data.senderId !== user?._id) setIsTyping(data.isTyping);
     };
 
+    const handleDeleteEvent = (data: { messageId: string }) => {
+        setMessages((prev) => prev.filter(msg => msg._id !== data.messageId));
+    };
+
     ClassChatService.onMessage(handleReceive);
     ClassChatService.onTyping(handleTypingEvent);
+    ClassChatService.onMessageDeleted(handleDeleteEvent);
 
     return () => {
       ClassChatService.offMessage(handleReceive);
       ClassChatService.offTyping();
+      ClassChatService.offMessageDeleted(handleDeleteEvent);
     };
   }, [classId, user?._id]);
 

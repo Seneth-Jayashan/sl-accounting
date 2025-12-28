@@ -6,27 +6,41 @@ export const updateProfileSchema = z.object({
       .string()
       .trim()
       .min(1, "First name is required")
-      .max(50, "First name is too long"),
+      .max(50, "First name is too long")
+      .optional(),
     lastName: z
       .string()
       .trim()
       .min(1, "Last name is required")
-      .max(50, "Last name is too long"),
+      .max(50, "Last name is too long")
+      .optional(),
     phoneNumber: z
       .string()
       .trim()
       .regex(
         /^(?:\+94|0)?7\d{8}$|^(\+?\d{10,15})$/,
         "Invalid phone number format (Expected: 07XXXXXXXX or +947XXXXXXXX)"
-      ),
-    address: z
-      .object({
+      )
+      .optional(),
+    
+    // --- FIX: Use preprocess to parse JSON string from FormData ---
+    address: z.preprocess((val) => {
+      // If it comes as a string (common in FormData), try to parse it
+      if (typeof val === "string") {
+        try {
+          return JSON.parse(val);
+        } catch (e) {
+          return val; // If parse fails, return as string (Zod will catch type mismatch)
+        }
+      }
+      return val;
+    }, z.object({
         street: z.string().optional(),
         city: z.string().optional(),
         state: z.string().optional(),
         zipCode: z.string().optional(),
-      })
-      .optional(),
+    }).optional()),
+
   }),
 });
 
@@ -104,16 +118,11 @@ export const validate = (schema) => (req, res, next) => {
       params: req.params,
     });
 
-    // FIX: Only update req.body if it was parsed
     if (parsed.body) {
       req.body = parsed.body;
     }
 
-    // FIX: Only update query/params if they were defined in the schema
-    // and strictly avoid overwriting them if parsed returns undefined.
-    // Use Object.assign to merge validated data if direct assignment is forbidden.
     if (parsed.query) {
-       // In strict environments, use Object.assign instead of replacing the object
        Object.assign(req.query, parsed.query);
     }
     
@@ -124,9 +133,10 @@ export const validate = (schema) => (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === "ZodError") {
+      console.log("Validation Error:", JSON.stringify(error.errors, null, 2));
       return res.status(400).json({
         success: false,
-        message: "User Validation Error" + error.message,
+        message: "Validation Failed: " + error.errors.map(e => e.message).join(", "),
         errors: error.errors,
       });
     }
