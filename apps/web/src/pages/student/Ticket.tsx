@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import { FaUser, FaEnvelope, FaPhoneAlt, FaClipboardList, FaFlag, FaComments } from "react-icons/fa";
-import DashboardLayout from "../../layouts/DashboardLayout";
-import SidebarStudent from "../../components/sidebar/SidebarStudent";
 import { useAuth } from "../../contexts/AuthContext";
 import TicketService from "../../services/TicketService";
 import ChatService from "../../services/ChatService";
@@ -203,7 +201,6 @@ export default function StudentTicketPage(): React.ReactElement {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarStudent} showHeader={false}>
       <div className="max-w-7xl mx-auto">
         <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
           {ticketId && ticketInfo && !isTicketClosed(ticketInfo) ? (
@@ -369,6 +366,5 @@ export default function StudentTicketPage(): React.ReactElement {
         </div>
         
       </div>
-    </DashboardLayout>
   );
 }

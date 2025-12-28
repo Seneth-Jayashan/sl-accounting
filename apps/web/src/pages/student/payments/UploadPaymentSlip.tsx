@@ -9,9 +9,7 @@ import {
   ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 
-import DashboardLayout from "../../../layouts/DashboardLayout";
-import SidebarStudent from "../../../components/sidebar/SidebarStudent";
-import BottomNavStudent from "../../../components/bottomNavbar/BottomNavStudent";
+
 import PaymentService, { type PaymentData } from "../../../services/PaymentService";
 import EnrollmentService from "../../../services/EnrollmentService";
 
@@ -158,7 +156,6 @@ export default function UploadPaymentSlip() {
   };
 
   return (
-    <DashboardLayout Sidebar={SidebarStudent} BottomNav={BottomNavStudent}>
       <div className="p-6 max-w-2xl mx-auto pb-24 font-sans">
         
         <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-[#0b2540] mb-6 transition-colors">
@@ -257,6 +254,5 @@ export default function UploadPaymentSlip() {
 
         </div>
       </div>
-    </DashboardLayout>
   );
 }

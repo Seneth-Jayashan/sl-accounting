@@ -70,6 +70,7 @@ export const updateProfileSchema = z.object({
         zipCode: z.string().optional(),
       })
     ]).optional(),
+    batch: z.string().optional(),
   }),
 });
 

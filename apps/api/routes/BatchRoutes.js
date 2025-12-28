@@ -4,6 +4,7 @@ import {
     createBatch, 
     getAllBatches, 
     getBatchById, 
+    getBatchStudents,
     updateBatch, 
     deleteBatch,
     toggleBatchStatus,
@@ -29,6 +30,7 @@ router.get('/:id', protect, getBatchById);
 // ==========================================
 router.use(protect, restrictTo('admin'));
 
+router.get('/:id/students', getBatchStudents);
 router.post('/', createBatch);
 router.patch('/:id/toggle', toggleBatchStatus); // Toggle is an update action
 
