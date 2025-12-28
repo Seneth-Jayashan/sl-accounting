@@ -9,8 +9,19 @@ export interface ChatMessage {
   senderRole: "student" | "admin";
   senderName?: string;
   senderAvatar?: string;
+  clientMessageId?: string;
   message: string;
+  attachments?: ChatAttachment[];
   createdAt: string;
+}
+
+export interface ChatAttachment {
+  url: string;
+  fileType: "image" | "file";
+  originalName?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
 }
 
 class ChatService {
@@ -152,7 +163,10 @@ class ChatService {
   }
 
   async sendMessage(payload: Partial<ChatMessage> & { ticket: string }) {
-    if (!payload.ticket || !payload.sender || !payload.senderRole || !payload.message) {
+    const hasMessage = !!payload.message && payload.message.trim().length > 0;
+    const hasAttachments = Array.isArray(payload.attachments) && payload.attachments.length > 0;
+
+    if (!payload.ticket || !payload.sender || !payload.senderRole || (!hasMessage && !hasAttachments)) {
       console.warn("sendMessage: missing required fields", payload);
       return { ok: false, error: "missing_fields" } as const;
     }
@@ -164,12 +178,14 @@ class ChatService {
       senderId: payload.sender,
       senderRole: payload.senderRole,
       message: payload.message,
+      attachments: payload.attachments,
       senderName: payload.senderName,
       senderAvatar: payload.senderAvatar,
+      clientMessageId: payload.clientMessageId,
     };
 
     // 1) Try socket with ack
-    let socketResult: { ok?: boolean; error?: string } | null = null;
+    let socketResult: { ok?: boolean; error?: string; message?: ChatMessage } | null = null;
     if (this.socket) {
       socketResult = await new Promise((resolve) => {
         let settled = false;
@@ -180,16 +196,22 @@ class ChatService {
           }
         }, this.SOCKET_ACK_TIMEOUT_MS);
 
-        this.socket?.emit("send_message", envelope, (ack?: { ok?: boolean; error?: string }) => {
+        this.socket?.emit(
+          "send_message",
+          envelope,
+          (ack?: { ok?: boolean; error?: string; message?: ChatMessage }) => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
           resolve(ack ?? { ok: false, error: "no_ack" });
-        });
+          }
+        );
       });
     }
 
-    if (socketResult?.ok) return { ok: true } as const;
+    if (socketResult?.ok) {
+      return { ok: true, message: socketResult.message } as const;
+    }
 
     // 2) Fallback to REST persistence
     try {
@@ -198,6 +220,8 @@ class ChatService {
         sender: payload.sender,
         senderRole: payload.senderRole,
         message: payload.message,
+        attachments: payload.attachments,
+        clientMessageId: payload.clientMessageId,
       });
 
       // Optionally append denormalized fields if available
@@ -223,6 +247,21 @@ class ChatService {
     // API route is /chats/:ticketId
     const res = await api.get(`/chats/${ticketId}`);
     return Array.isArray(res.data) ? res.data : [];
+  }
+
+  async uploadTicketAttachment(file: File) {
+    const form = new FormData();
+    form.append("file", file);
+
+    const res = await api.post("/chats/upload", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    const attachment = (res.data as any)?.attachment as ChatAttachment | undefined;
+    if (!attachment?.url) {
+      throw new Error("Upload failed: missing attachment url");
+    }
+    return attachment;
   }
 
   disconnect() {

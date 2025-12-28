@@ -16,13 +16,17 @@ export const getChatsByTicketId = async (req, res) => {
 // Add a new chat message
 export const addChatMessage = async (req, res) => {
   try {
-    const { ticket, sender, senderRole, message } = req.body;
+    const { ticket, sender, senderRole, message, attachments, clientMessageId } = req.body;
+
+    // Prefer authenticated user if middleware is applied
+    const effectiveSender = req.user?._id?.toString?.() ? req.user._id : sender;
+    const effectiveRole = req.user?.role || senderRole;
 
     let senderName = undefined;
     let senderAvatar = undefined;
 
     // Fetch user for denormalized display fields
-    const user = await User.findById(sender).lean();
+    const user = effectiveSender ? await User.findById(effectiveSender).lean() : null;
     if (user) {
       senderName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
       senderAvatar = user.profilePic || undefined;
@@ -30,11 +34,13 @@ export const addChatMessage = async (req, res) => {
 
     const newChat = new Chat({
       ticket,
-      sender,
-      senderRole,
+      sender: effectiveSender,
+      senderRole: effectiveRole,
       senderName,
       senderAvatar,
-      message,
+      clientMessageId,
+      message: message || "",
+      attachments: Array.isArray(attachments) ? attachments : [],
     });
 
     await newChat.save();
@@ -42,5 +48,33 @@ export const addChatMessage = async (req, res) => {
     res.status(201).json(newChat);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// Upload attachment for ticket chat
+// POST /api/v1/chats/upload
+export const uploadTicketAttachment = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+
+    const fileUrl = `/uploads/chat-files/${req.file.filename}`;
+    const isImage = req.file.mimetype?.startsWith("image/");
+
+    res.status(200).json({
+      success: true,
+      attachment: {
+        url: fileUrl,
+        fileType: isImage ? "image" : "file",
+        originalName: req.file.originalname,
+        fileName: req.file.filename,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+      },
+    });
+  } catch (error) {
+    console.error("Ticket chat upload error:", error);
+    res.status(500).json({ success: false, message: "File upload failed" });
   }
 };

@@ -111,11 +111,10 @@ export const initSocket = (server) => {
     });
 
     socket.on("send_message", async (payload, ack) => {
-      const { ticketId, message } = payload;
+      const { ticketId, message, attachments, clientMessageId } = payload;
 
-      if (!ticketId || !message) {
-        if (typeof ack === "function")
-          ack({ ok: false, error: "Missing required fields" });
+      if (!ticketId || (!message && (!attachments || attachments.length === 0))) {
+        if (typeof ack === "function") ack({ ok: false, error: "Missing required fields" });
         return;
       }
 
@@ -126,7 +125,9 @@ export const initSocket = (server) => {
           senderRole: socket.user.role,
           senderName: `${socket.user.firstName} ${socket.user.lastName}`,
           senderAvatar: socket.user.avatar,
-          message: message,
+          clientMessageId,
+          message: message || "",
+          attachments: Array.isArray(attachments) ? attachments : [],
         });
 
         const outbound = {
@@ -136,7 +137,9 @@ export const initSocket = (server) => {
           senderRole: chat.senderRole,
           senderName: chat.senderName,
           senderAvatar: chat.senderAvatar,
+          clientMessageId: chat.clientMessageId,
           message: chat.message,
+          attachments: chat.attachments,
           createdAt: chat.createdAt,
         };
 

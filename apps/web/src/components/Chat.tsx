@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, Suspense } from "react";
 import { motion } from "framer-motion";
 import ChatService from "../services/ChatService";
 import type { ChatMessage as ServiceChatMessage } from "../services/ChatService";
+import api from "../services/api";
 import { useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 const EmojiPicker = React.lazy(() => import("emoji-picker-react"));
@@ -12,6 +13,8 @@ import {
   FaUser,
   FaUserTie,
   FaSpinner,
+  FaPaperclip,
+  FaTimes,
 } from "react-icons/fa";
 
 // Use the service ChatMessage type at component-level
@@ -36,9 +39,23 @@ export default function TicketChat({
   const [isTruncated, setIsTruncated] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  type PendingAttachment = {
+    id: string;
+    localUrl?: string;
+    uploading: boolean;
+    error?: string;
+    attachment?: NonNullable<ChatMessage["attachments"]>[number];
+    fileType: "image" | "file";
+    originalName: string;
+    fileSize?: number;
+  };
+
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
 
@@ -112,6 +129,16 @@ export default function TicketChat({
         onMessage: (msg) => {
           if (cancelled) return;
           setMessages((prev) => {
+            const clientId = (msg as any)?.clientMessageId as string | undefined;
+            if (clientId) {
+              const idx = prev.findIndex((m) => (m as any)?.clientMessageId === clientId);
+              if (idx >= 0) {
+                const next = [...prev];
+                next[idx] = msg;
+                return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
+              }
+            }
+
             const next = [...prev, msg];
             if (next.length > MAX_MESSAGES) {
               setIsTruncated(true);
@@ -184,7 +211,15 @@ export default function TicketChat({
   // ------------------------ Send Message ------------------------
   const handleSend = async () => {
     if (readOnly) return;
-    if (!message.trim()) return;
+    const trimmed = message.trim();
+
+    const hasAnyUploading = pendingAttachments.some((p) => p.uploading);
+    const uploadedAttachments = pendingAttachments
+      .map((p) => p.attachment)
+      .filter(Boolean) as NonNullable<ChatMessage["attachments"]>;
+
+    if (hasAnyUploading) return;
+    if (!trimmed && uploadedAttachments.length === 0) return;
 
     if (!ticketId || !userId || !role) {
       console.warn("Cannot send: missing ticket/user/role", {
@@ -199,23 +234,69 @@ export default function TicketChat({
       ticket: ticketId,
       sender: userId,
       senderRole: role,
-      message: message.trim(),
+      message: trimmed,
+      attachments: uploadedAttachments,
+      clientMessageId: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
     };
+
+    // Optimistic bubble: show immediately (especially for images)
+    const optimisticAttachments = pendingAttachments
+      .map((p) => {
+        if (p.fileType === "image" && p.localUrl) {
+          return {
+            url: p.localUrl,
+            fileType: "image" as const,
+            originalName: p.originalName,
+            fileSize: p.fileSize,
+          };
+        }
+        if (p.attachment) return p.attachment;
+        return null;
+      })
+      .filter(Boolean) as NonNullable<ChatMessage["attachments"]>;
+
+    const optimisticMsg: ChatMessage = {
+      _id: `client_${payload.clientMessageId}`,
+      ticket: ticketId,
+      sender: userId,
+      senderRole: role,
+      senderName: auth.user
+        ? `${auth.user.firstName || ""} ${auth.user.lastName || ""}`.trim()
+        : undefined,
+      senderAvatar: (auth.user as any)?.profilePic || (auth.user as any)?.avatar,
+      clientMessageId: payload.clientMessageId,
+      message: trimmed,
+      attachments: optimisticAttachments,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => {
+      const next = [...prev, optimisticMsg];
+      return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
+    });
 
     ChatService.sendMessage(payload).then((res) => {
       if (!res?.ok) {
         console.warn("Send failed", res);
       }
-      // If fallback saved the message, append it locally so UI updates immediately
-      if ((res as any)?.message) {
-        const saved = (res as any).message as ChatMessage;
+      // Replace optimistic message with server message (socket ack or REST fallback)
+      const saved = (res as any)?.message as ChatMessage | undefined;
+      if (saved?.clientMessageId) {
         setMessages((prev) => {
+          const idx = prev.findIndex((m) => (m as any)?.clientMessageId === saved.clientMessageId);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = saved;
+            return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
+          }
           const next = [...prev, saved];
           return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
         });
       }
     });
     setMessage("");
+    // Don't revoke local preview URLs here; optimistic bubble may still be using them.
+    setPendingAttachments([]);
     // reset textarea height after sending so input shrinks back
     setTimeout(() => {
       try {
@@ -227,6 +308,72 @@ export default function TicketChat({
         // ignore
       }
     }, 0);
+  };
+
+  const handlePickFile = () => {
+    if (readOnly) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (readOnly) return;
+    const file = e.target.files?.[0];
+    // allow selecting the same file again
+    e.target.value = "";
+    if (!file) return;
+
+    const isImage = file.type.startsWith("image/");
+    const localUrl = isImage ? URL.createObjectURL(file) : undefined;
+    const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+    const pending: PendingAttachment = {
+      id,
+      localUrl,
+      uploading: true,
+      fileType: isImage ? "image" : "file",
+      originalName: file.name,
+      fileSize: file.size,
+    };
+
+    setPendingAttachments((prev) => [...prev, pending]);
+
+    try {
+      const attachment = await ChatService.uploadTicketAttachment(file);
+      setPendingAttachments((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                uploading: false,
+                error: undefined,
+                attachment,
+              }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error("Attachment upload failed", err);
+      setPendingAttachments((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                uploading: false,
+                error: "Upload failed",
+              }
+            : p
+        )
+      );
+    } finally {
+    }
+  };
+
+  const removePendingAttachment = (idx: number) => {
+    setPendingAttachments((prev) => {
+      const target = prev[idx];
+      if (target?.localUrl) URL.revokeObjectURL(target.localUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   // ------------------------ Typing ------------------------
@@ -275,6 +422,93 @@ export default function TicketChat({
     if (role === "admin")
       return <FaUserTie className="text-blue-900 text-xs" />;
     return <FaUser className="text-gray-600 text-xs" />;
+  };
+
+  const formatBytes = (bytes?: number) => {
+    if (!bytes || bytes <= 0) return "";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+    const value = bytes / Math.pow(k, i);
+    return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${sizes[i]}`;
+  };
+
+  const getAbsoluteUrl = (url: string) => {
+    if (!url) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    if (url.startsWith("blob:") || url.startsWith("data:")) return url;
+
+    const fallback = typeof window !== "undefined" ? window.location.origin : "";
+    const rawBase =
+      (import.meta as any).env?.VITE_SERVER_URL ||
+      api?.defaults?.baseURL ||
+      (import.meta as any).env?.VITE_API_URL ||
+      fallback;
+
+    try {
+      const base = new URL(rawBase, fallback || "http://localhost");
+      // Uploaded files are served at /uploads (root). Strip any /api/v* suffix.
+      base.pathname = base.pathname.replace(/\/?api(\/v\d+)?\/?$/i, "");
+      return `${base.toString().replace(/\/$/, "")}${url}`;
+    } catch {
+      return `${rawBase}${url}`;
+    }
+  };
+
+  const renderAttachments = (msg: ChatMessage) => {
+    const atts = msg.attachments;
+    if (!atts || atts.length === 0) return null;
+
+    return (
+      <div className="mt-2 space-y-2">
+        {atts.map((att, idx) => {
+          const href = getAbsoluteUrl(att.url);
+          const name = att.originalName || att.fileName || "Attachment";
+
+          if (att.fileType === "image") {
+            return (
+              <a
+                key={idx}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                className="block"
+              >
+                <img
+                  src={href}
+                  alt={name}
+                  className="max-h-64 w-auto rounded-lg border border-black/10"
+                />
+              </a>
+            );
+          }
+
+          return (
+            <a
+              key={idx}
+              href={href}
+              download={name}
+              className="block"
+            >
+              <div className="flex items-center justify-between gap-3 p-2 rounded-lg bg-black/10 hover:bg-black/20">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FaPaperclip className="shrink-0" />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm">{name}</div>
+                    {!!att.fileSize && (
+                      <div className="text-[11px] opacity-80">
+                        {formatBytes(att.fileSize)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-xs underline">Download</div>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    );
   };
 
   // ------------------------ RENDER --------------------
@@ -379,7 +613,10 @@ export default function TicketChat({
                     )} ${isOwn(msg) ? "rounded-br-md" : "rounded-bl-md"} shadow-sm`}
                     style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
                   >
-                    <p className="text-sm leading-5">{msg.message}</p>
+                    {!!msg.message && (
+                      <p className="text-sm leading-5">{msg.message}</p>
+                    )}
+                    {renderAttachments(msg)}
                   </div>
                 </div>
               </div>
@@ -424,7 +661,51 @@ export default function TicketChat({
           </motion.div>
         )}
         {!readOnly ? (
-          <div className="flex items-end gap-3">
+          <div className="space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+
+            {pendingAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {pendingAttachments.map((att, idx) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 text-xs"
+                  >
+                    {att.fileType === "image" && (att.localUrl || att.attachment?.url) && (
+                      <img
+                        src={att.localUrl || getAbsoluteUrl(att.attachment!.url)}
+                        alt={att.originalName || "Attachment"}
+                        className="w-7 h-7 rounded-md object-cover border border-black/10"
+                      />
+                    )}
+                    <span className="max-w-[260px] truncate">
+                      {att.originalName || "Attachment"}
+                    </span>
+                    {att.uploading && (
+                      <FaSpinner className="animate-spin text-gray-500" />
+                    )}
+                    {!!att.error && !att.uploading && (
+                      <span className="text-red-600">{att.error}</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removePendingAttachment(idx)}
+                      className="text-gray-500 hover:text-gray-700"
+                      aria-label="Remove attachment"
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-end gap-3">
             <textarea
               ref={textareaRef}
               value={message}
@@ -435,6 +716,25 @@ export default function TicketChat({
                focus:ring-2 focus:ring-[#053A4E] resize-none overflow-hidden"
                 style={{ minHeight: "60px", maxHeight: "250px" }}
             />
+
+            {/* Attach */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              onClick={handlePickFile}
+              disabled={pendingAttachments.some((p) => p.uploading)}
+              className={`p-3 rounded-full hover:bg-blue-50 ${
+                pendingAttachments.some((p) => p.uploading)
+                  ? "opacity-60 cursor-not-allowed"
+                  : ""
+              }`}
+              title="Attach file"
+            >
+              {pendingAttachments.some((p) => p.uploading) ? (
+                <FaSpinner className="animate-spin" />
+              ) : (
+                <FaPaperclip />
+              )}
+            </motion.button>
 
             {/* Emoji */}
             <motion.button
@@ -448,10 +748,13 @@ export default function TicketChat({
             {/* Send */}
             <motion.button
               whileTap={{ scale: 0.95 }}
-              disabled={!message.trim()}
+              disabled={
+                pendingAttachments.some((p) => p.uploading) ||
+                (!message.trim() && pendingAttachments.every((p) => !p.attachment))
+              }
               onClick={handleSend}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
-                message.trim()
+                message.trim() || pendingAttachments.some((p) => !!p.attachment)
                   ? "bg-[#053A4E] text-white"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
               }`}
@@ -459,6 +762,7 @@ export default function TicketChat({
               <FaPaperPlane />
               <span>Send</span>
             </motion.button>
+            </div>
           </div>
         ) : (
           <div className="text-sm text-gray-500">This conversation is read-only.</div>
