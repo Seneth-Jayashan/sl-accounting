@@ -13,6 +13,47 @@ const CATEGORIES = [
   "Other",
 ];
 
+type FileDetailsProps = {
+  file: File;
+  displayName: string;
+  category: string;
+  onDisplayNameChange: (name: string) => void;
+  formatBytes: (bytes?: number) => string;
+  className?: string;
+};
+
+const FileDetails: React.FC<FileDetailsProps> = ({
+  file,
+  displayName,
+  category,
+  onDisplayNameChange,
+  formatBytes,
+  className = "",
+}) => (
+  <div className={`p-4 border rounded-lg bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-4 ${className}`}>
+    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
+      FILE
+    </div>
+    <div className="flex-1">
+      <div className="text-sm font-medium">{displayName || file.name}</div>
+      <div className="text-xs text-gray-400">
+        {file.type || ""} {file.size ? `• ${formatBytes(file.size)}` : ""}
+      </div>
+      <div className="mt-2">
+        <input
+          value={displayName}
+          onChange={(e) => onDisplayNameChange(e.target.value)}
+          className="w-full px-3 py-2 rounded border bg-white text-sm"
+        />
+        <p className="text-xs text-gray-400 mt-1">Edit file name before upload</p>
+      </div>
+    </div>
+    <div className="text-left sm:text-right">
+      <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">{category}</div>
+    </div>
+  </div>
+);
+
 const AdminKnowledgeBase: React.FC = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -414,84 +455,23 @@ const AdminKnowledgeBase: React.FC = () => {
                         className="w-full max-h-64 object-contain rounded shadow-sm"
                       />
                     )}
-
-                    {/* Show file info + editable filename even when previewing (PDF/Image) */}
-                    <div className="mt-3 p-4 border rounded-lg bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
-                        FILE
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">
-                          {displayName || file?.name}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {file?.type || ""}{" "}
-                          {`• ${formatBytes(file.size)}`}
-                        </div>
-                        <div className="mt-2">
-                          <input
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            className="w-full px-3 py-2 rounded border bg-white text-sm"
-                          />
-                          <p className="text-xs text-gray-400 mt-1">
-                            Edit file name before upload
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-left sm:text-right">
-                        <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">
-                          {category}
-                        </div>
-                      </div>
-                    </div>
+                    <FileDetails
+                      file={file as File}
+                      displayName={displayName}
+                      category={category}
+                      onDisplayNameChange={setDisplayName}
+                      formatBytes={formatBytes}
+                      className="mt-3"
+                    />
                   </div>
                 ) : (
-                  <div className="p-4 border rounded-lg bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
-                      FILE
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium">
-                        {displayName || file?.name}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {file?.type ? file.type : ""}{" "}
-                        {file ? `• ${formatBytes(file.size)}` : ""}
-                      </div>
-                      <div className="mt-2">
-                        <input
-                          value={displayName}
-                          onChange={(e) => setDisplayName(e.target.value)}
-                          className="w-full px-3 py-2 rounded border bg-white text-sm"
-                        />
-                        <p className="text-xs text-gray-400 mt-1">
-                          Edit file name before upload
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">
-                        {category}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {filePreviewUrl && (
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-3 gap-2">
-                    <div>
-                      <div className="text-sm font-medium">{file?.name}</div>
-                      <div className="text-xs text-gray-400">
-                        {file?.type ? file.type : ""}{" "}
-                        • {formatBytes(file.size)}
-                      </div>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">
-                        {category}
-                      </div>
-                    </div>
-                  </div>
+                  <FileDetails
+                    file={file as File}
+                    displayName={displayName}
+                    category={category}
+                    onDisplayNameChange={setDisplayName}
+                    formatBytes={formatBytes}
+                  />
                 )}
               </div>
             )}

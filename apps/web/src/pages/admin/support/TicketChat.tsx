@@ -395,17 +395,17 @@ export default function TicketChatAdmin() {
                         selectionDisabled={String(ticket.status || "").toLowerCase() !== "closed"}
                         onToggleSelect={toggleSelected}
                         onClick={(id) => {
-                          if (selectedId === id) {
-                            // On desktop, clicking active deselects it? 
-                            // Actually on mobile we want to open it. 
-                            // If already selected, maybe do nothing or re-open.
-                            // Keeping logic simple:
-                            setSelectedId(id);
-                            navigate(`/admin/chat/ticket/${id}`);
-                          } else {
-                            setSelectedId(id);
-                            navigate(`/admin/chat/ticket/${id}`);
+                          const isSame = selectedId === id;
+                          const isDesktop = window.innerWidth >= 1024;
+                          if (isSame && isDesktop) {
+                            // On desktop, allow deselecting to return to the list view
+                            setSelectedId(null);
+                            navigate(`/admin/chat`, { replace: true });
+                            return;
                           }
+                          // On mobile (or when selecting a different ticket), open the ticket
+                          setSelectedId(id);
+                          navigate(`/admin/chat/ticket/${id}`);
                         }}
                       />
                     ))}

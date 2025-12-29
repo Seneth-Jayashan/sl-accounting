@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
 import Dropdown from "../../../components/Dropdown";
 import Swal from "sweetalert2";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 const CATEGORIES = [
   "Lecture Notes",
@@ -33,7 +34,8 @@ const AdminKnowledgeList: React.FC = () => {
   const [search, setSearch] = useState<string>('');
 
   // Ref to hold timer for next scheduled publish refresh
-  const publishTimerRef = useRef<number | null>(null);
+  // Use ReturnType<typeof setTimeout> for cross-environment compatibility (browser vs Node typings)
+  const publishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Custom SVG checkbox for nicer, consistent visuals and keyboard accessibility
   const IconCheckbox: React.FC<{
@@ -108,8 +110,7 @@ const AdminKnowledgeList: React.FC = () => {
     return `${(Number(bytes) / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
   };
 
-  const getDisplayCategory = (item: any) =>
-    item?.category || item?.category || "Other";
+  const getDisplayCategory = (item: any) => item?.category || "Other";
 
   const fetchItems = async () => {
     setLoading(true);
@@ -157,10 +158,10 @@ const AdminKnowledgeList: React.FC = () => {
               const nextMs = nextPublishAt - nowMs;
               // minimum 1s delay, add small buffer
               const delay = Math.max(1000, nextMs + 250);
-              publishTimerRef.current = window.setTimeout(() => {
+              publishTimerRef.current = setTimeout(() => {
                 // re-fetch items when next scheduled publish time passes
                 fetchItems();
-              }, delay) as unknown as number;
+              }, delay);
             }
           }
         } catch (e) {
@@ -274,7 +275,7 @@ const AdminKnowledgeList: React.FC = () => {
     setCurrent(item);
     setTitle(item.title || "");
     setDescription(item.description || "");
-    setCategory(item.category || item.category || CATEGORIES[0]);
+    setCategory(item.category || CATEGORIES[0]);
     setIsPublished(Boolean(item.isPublished));
     setPublishAt(
       item.publishAt
@@ -481,7 +482,10 @@ const AdminKnowledgeList: React.FC = () => {
                       Clear
                     </button>
                   ) : (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">⌕</div>
+                    <MagnifyingGlassIcon
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+                      aria-hidden={true}
+                    />
                   )}
                 </div>
               </div>
@@ -509,7 +513,7 @@ const AdminKnowledgeList: React.FC = () => {
                   onClick={handleDeleteSelected}
                   className="px-3 py-1.5 rounded-xl border border-red-300 text-red-600 text-sm bg-white shadow-sm inline-flex items-center"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
                   </svg>
                   Delete Selected ({selectedIds.length})
@@ -645,7 +649,7 @@ const AdminKnowledgeList: React.FC = () => {
                               aria-label={`Edit ${it.title}`}
                               className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0b2540] text-white text-sm shadow-sm hover:shadow"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM4 14v2h2l8.707-8.707-2-2L4 14z" />
                               </svg>
                             </button>
@@ -655,7 +659,7 @@ const AdminKnowledgeList: React.FC = () => {
                               aria-label={`Delete ${it.title}`}
                               className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-red-200 text-red-600 shadow-sm hover:bg-red-50"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
                               </svg>
                             </button>
@@ -769,7 +773,7 @@ const AdminKnowledgeList: React.FC = () => {
                                     aria-label={`Edit ${it.title}`}
                                     className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0b2540] text-white text-sm shadow-sm hover:shadow"
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                       <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM4 14v2h2l8.707-8.707-2-2L4 14z" />
                                     </svg>
                                   </button>
@@ -779,7 +783,7 @@ const AdminKnowledgeList: React.FC = () => {
                                     aria-label={`Delete ${it.title}`}
                                     className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-red-200 text-red-600 shadow-sm hover:bg-red-50"
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
                                     </svg>
                                   </button>
@@ -872,20 +876,8 @@ const AdminKnowledgeList: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="p-4 flex items-center justify-between">
-                          <div className="text-sm text-gray-700 break-words">
-                            {current?.fileName ||
-                              current?.fileOriginalName ||
-                              current?.file ||
-                              "No file attached"}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {current?.fileSize
-                              ? `${formatBytes(current.fileSize)}`
-                              : file
-                              ? `${formatBytes(file.size)}`
-                              : ""}
-                          </div>
+                        <div className="p-4 flex items-center justify-center text-sm text-gray-600">
+                          No preview available. Download to view the file.
                         </div>
                       )}
 
@@ -903,9 +895,20 @@ const AdminKnowledgeList: React.FC = () => {
 
                     <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                       <div className="text-sm text-gray-600 break-words">
-                        {current?.fileName || "No file attached"}
+                        {file?.name ||
+                          current?.fileName ||
+                          current?.fileOriginalName ||
+                          current?.file ||
+                          "No file attached"}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="text-xs text-gray-500">
+                          {current?.fileSize
+                            ? `${formatBytes(current.fileSize)}`
+                            : file
+                            ? `${formatBytes(file.size)}`
+                            : ""}
+                        </div>
                         <button
                           type="button"
                           onClick={handleDownloadCurrent}

@@ -213,7 +213,7 @@ export default function SupportReply() {
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     if (selectedPendingCount > 0) {
-      setError("Bulk delete is allowed only for replied messages.");
+      setError("Bulk delete is allowed only when all selected messages are replied.");
       return;
     }
     const ok = window.confirm(
@@ -317,6 +317,11 @@ export default function SupportReply() {
                         className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 disabled:opacity-50"
                         onClick={handleBulkDelete}
                         disabled={bulkDeleting || selectedPendingCount > 0}
+                        title={
+                          selectedPendingCount > 0
+                            ? "Bulk delete is available only when all selected messages are replied"
+                            : undefined
+                        }
                       >
                         Delete
                       </button>
@@ -380,7 +385,6 @@ export default function SupportReply() {
                                 e.stopPropagation();
                                 toggleBulkSelection(m._id);
                               }}
-                              onClick={(e) => e.stopPropagation()}
                             />
                             <div className="min-w-0">
                               <div className="font-semibold text-[#0b2540] truncate">
