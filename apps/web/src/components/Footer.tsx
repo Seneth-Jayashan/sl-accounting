@@ -34,7 +34,7 @@ const FooterComponent: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-[#E8EFF7]/10 flex items-center justify-center text-[#FFE787] font-bold border border-[#E8EFF7]/20">KW</div>
                 <div>
                   <p className="font-bold text-white text-sm sm:text-base">Kalum Waduge</p>
-                  <p className="text-xs text-[#E8EFF7]/60">BSc. Accounting Sp. USJ</p>
+                  <p className="text-xs text-[#E8EFF7]/60">BSc. Accounting Sp. USJP</p>
                 </div>
               </div>
             </div>

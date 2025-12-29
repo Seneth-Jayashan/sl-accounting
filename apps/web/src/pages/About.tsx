@@ -91,8 +91,8 @@ const InstructorSection = () => (
                  <h2 className="text-2xl sm:text-3xl font-bold mb-1 font-sans">Kalum Waduge</h2>
                  <p className="text-brand-jasmine font-bold tracking-wider text-xs sm:text-sm mb-4 uppercase">Lead Instructor</p>
                  <div className="flex flex-wrap gap-2">
-                    <span className="px-2 sm:px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] sm:text-xs border border-white/30 font-medium">BSc. Accounting (Sp) USJ</span>
-                    <span className="px-2 sm:px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] sm:text-xs border border-white/30 font-medium">10+ Years Exp</span>
+                    <span className="px-2 sm:px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] sm:text-xs border border-white/30 font-medium">BSc. Accounting (Sp) USJP</span>
+                    <span className="px-2 sm:px-3 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] sm:text-xs border border-white/30 font-medium">5+ Years Exp</span>
                  </div>
              </div>
            </div>
@@ -159,8 +159,7 @@ const VisionMission = () => (
            
            <h3 className="text-xl sm:text-2xl font-bold text-brand-prussian mb-4 font-sans">Our Mission</h3>
            <p className="text-gray-600 leading-relaxed font-sans text-sm sm:text-base">
-             To provide high-quality, accessible, and comprehensive accounting education to every A/L student in Sri Lanka, empowering them to secure their university dreams through state-of-the-art LMS technology.
-           </p>
+            සිසුන්ට Accounting විෂයයෙහි විශ්වාසය සහ නිපුණතාව ලබා දී, ඔවුන්ගේ අනාගතයේ දී ඉහළ ප්‍රතිඵල ලබා ගැනීමට අත්වැල් පිරිනැමීම මඟින් සරසවි ප්‍රවේශයට මග පෙන්වීම           </p>
         </motion.div>
 
         {/* Vision Card */}
