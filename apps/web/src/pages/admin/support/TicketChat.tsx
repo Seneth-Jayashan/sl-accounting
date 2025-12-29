@@ -131,6 +131,8 @@ export default function TicketChatAdmin() {
       try {
         const t = await TicketService.getTicketById(selectedId);
         setSelectedTicket(t ?? null);
+        // Scroll to top on mobile when selecting a ticket
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (e) {
         setSelectedTicket(null);
       } finally {
@@ -143,8 +145,7 @@ export default function TicketChatAdmin() {
     // Escape Key Handler
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setSelectedId(null);
-        navigate(`/admin/chat`, { replace: true });
+        handleBackToList();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -182,6 +183,11 @@ export default function TicketChatAdmin() {
   }, [selectedId, accessToken]);
 
   // --- ACTIONS ---
+
+  const handleBackToList = () => {
+    setSelectedId(null);
+    navigate(`/admin/chat`, { replace: true });
+  };
 
   const applyStatusChange = async (nextStatus: string) => {
     if (!selectedTicket || !selectedId) return;
@@ -292,10 +298,16 @@ export default function TicketChatAdmin() {
   const handleRedirectAfterAction = (removedId: string) => {
     setSelectedTicket(null);
     const remaining = tickets.filter((t) => t._id !== removedId);
-    const next = remaining[0]?._id ?? null;
-    setSelectedId(next);
-    if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
-    else navigate(`/admin/chat`, { replace: true });
+    
+    // On Mobile: Go back to list. On Desktop: Select next.
+    if (window.innerWidth < 1024) {
+        handleBackToList();
+    } else {
+        const next = remaining[0]?._id ?? null;
+        setSelectedId(next);
+        if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
+        else navigate(`/admin/chat`, { replace: true });
+    }
   };
 
   // Stats calculation
@@ -432,7 +444,7 @@ export default function TicketChatAdmin() {
                       onDelete={() => setShowDeleteConfirm(true)}
                     />
                   ) : (
-                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="flex items-center gap-2 text-gray-400 text-sm justify-center h-full">
                       <InboxIcon className="w-5 h-5" /> Select a ticket to view details
                     </div>
                   )}
@@ -537,29 +549,31 @@ const TicketListItem = ({
 }) => (
   <li
     onClick={() => onClick(ticket._id)}
-    className={`p-4 cursor-pointer transition-all hover:bg-gray-50 border-l-4 ${
+    className={`p-4 cursor-pointer transition-all hover:bg-gray-50 border-l-4 active:bg-gray-100 ${
       isActive ? "bg-blue-50/50 border-blue-600" : "border-transparent"
     }`}
   >
     <div className="flex justify-between items-start mb-1 gap-2">
-      <div className="flex items-start gap-2 min-w-0">
+      <div className="flex items-start gap-3 min-w-0">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => !selectionDisabled && onToggleSelect(ticket._id)}
           onClick={(e) => e.stopPropagation()}
           disabled={selectionDisabled}
-          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
           aria-label="Select ticket"
         />
-        <h3 className={`text-sm font-semibold truncate pr-2 min-w-0 ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
-          {ticket.name}
-        </h3>
+        <div>
+            <h3 className={`text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
+            {ticket.name}
+            </h3>
+            <div className="text-xs text-gray-500 truncate">{ticket.email}</div>
+        </div>
       </div>
       <StatusBadge status={ticket.status} />
     </div>
-    <div className="text-xs text-gray-500 truncate">{ticket.email}</div>
-    <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400 uppercase tracking-wider">
+    <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400 uppercase tracking-wider pl-7">
       <span>{ticket.Categories || "General"}</span>
       <span>{ticket.priority || "Low"} Priority</span>
     </div>
@@ -571,12 +585,10 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
   const isResolved = String(ticket.status).toLowerCase() === 'resolved';
   const currentStatus = String(ticket.status || "Open");
 
-  // Admin should not be able to set "Resolved".
-  // "Closed" should only be available after user marks as "Resolved".
   const statusOptions = useMemo(() => {
     if (isClosed) return ["Closed"];
     if (isResolved) return ["Resolved", "Closed"];
-    return ["Open", "In Progress"]; // no Resolved/Closed for admin
+    return ["Open", "In Progress"];
   }, [isClosed, isResolved]);
   const needsCurrentOption = !statusOptions.includes(currentStatus);
 
@@ -598,14 +610,14 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
         <p className="text-xs text-gray-500">{ticket.email} • {ticket.phoneNumber}</p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 w-full md:w-auto">
         <Dropdown
           value={currentStatus}
           onChange={(v) => onStatusChange(v)}
           options={dropdownOptions}
           disabled={statusUpdating || deleting || isClosed}
-          className="pl-3 pr-9 py-1.5 text-sm rounded-lg"
-          wrapperClassName="w-44"
+          className="pl-3 pr-9 py-1.5 text-sm rounded-lg w-full md:w-44"
+          wrapperClassName="w-full md:w-44"
         />
 
         {isClosed ? (
@@ -618,7 +630,7 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
             <TrashIcon className="w-5 h-5" />
           </button>
         ) : (
-          <div className="w-9 h-9" /> // Spacer
+          <div className="hidden md:block w-9 h-9" /> 
         )}
       </div>
     </div>
@@ -632,8 +644,7 @@ const StatusBadge = ({ status }: { status?: string }) => {
   if (s === "Resolved") colors = "bg-purple-100 text-purple-700";
   if (s === "Closed") colors = "bg-red-100 text-red-700";
 
-  return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${colors}`}>{s}</span>;
+  return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${colors}`}>{s}</span>;
 };
 
-// Helper to determine if chat is viewable
 const isChatDisabled = (status?: string) => String(status || "").toLowerCase() === 'closed';

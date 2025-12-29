@@ -1,6 +1,4 @@
-// layouts/DashboardLayout.tsx
 import React, { useState } from "react";
-import DefaultRightSidebar from "../components/DefaultRightSidebar"; // Import default
 
 export type SidebarComponent = React.ComponentType<{ collapsed?: boolean; onToggle?: () => void }>;
 export type BottomNavComponent = React.ComponentType<{}>;
@@ -8,43 +6,51 @@ export type BottomNavComponent = React.ComponentType<{}>;
 interface LayoutProps {
   Sidebar: SidebarComponent;
   BottomNav?: BottomNavComponent;
-  rightSidebar?: React.ReactNode; // <--- NEW PROP
-  showHeader?: boolean;
+  rightSidebar?: React.ReactNode; // Restored this prop
   children: React.ReactNode;
 }
 
-export default function DashboardLayout({ Sidebar, BottomNav, rightSidebar, children = true }: LayoutProps) {
+export default function DashboardLayout({ 
+  Sidebar, 
+  BottomNav, 
+  rightSidebar, // Destructure it here
+  children 
+}: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen flex bg-[#E8EFF7]">
-      {/* ... Sidebar Code ... */}
-      <div className="flex-shrink-0 sticky top-0 h-screen overflow-hidden z-40 hidden lg:block">
-        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(s => !s)} />
+    <div className="min-h-screen flex bg-[#E8EFF7] font-sans text-gray-900">
+      
+      {/* Left Sidebar (Desktop) */}
+      <div className="flex-shrink-0 sticky top-0 h-screen overflow-hidden z-40 hidden lg:block shadow-xl">
+        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((prev) => !prev)} />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative">
 
-
-        <main className="p-4 lg:p-6 pb-24 lg:pb-6 flex gap-6 overflow-x-hidden">
+        <main className="flex-1 flex gap-8 p-4 sm:p-6 lg:p-8 pb-28 lg:pb-8 overflow-x-hidden">
           
+          {/* Main Content Area */}
           <div className="flex-1 min-w-0">
-            <div className="max-w-5xl mx-auto xl:mx-0">
+            <div className="max-w-5xl mx-auto xl:mx-0 h-full">
               {children}
             </div>
           </div>
 
-          {/* Quick Utilities Sidebar */}
-          <aside className="hidden xl:flex flex-col w-80 flex-shrink-0 gap-6">
-            <div className="sticky top-6">
-              {/* If rightSidebar prop exists, show it. Otherwise show Default */}
-              {rightSidebar ? rightSidebar : <DefaultRightSidebar />}
-            </div>
-          </aside>
+          {/* Right Sidebar (Restored) */}
+          {/* Only render if rightSidebar is provided (not null/undefined) */}
+          {rightSidebar && (
+            <aside className="hidden xl:flex flex-col w-80 flex-shrink-0 gap-6 relative">
+              <div className="sticky top-8 space-y-6">
+                {rightSidebar}
+              </div>
+            </aside>
+          )}
           
         </main>
       </div>
 
+      {/* Bottom Nav (Mobile) */}
       {BottomNav && <BottomNav />}
     </div>
   );

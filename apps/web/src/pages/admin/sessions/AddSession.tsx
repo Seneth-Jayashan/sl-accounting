@@ -12,7 +12,8 @@ import {
   PencilSquareIcon,
   InformationCircleIcon,
   CheckCircleIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  ArrowPathIcon
 } from "@heroicons/react/24/outline";
 
 interface ClassOption {
@@ -72,7 +73,6 @@ export default function AddSessionPage() {
     setError(null);
 
     try {
-      // Create a unified ISO timestamp for the backend
       const startDateTime = moment(`${formData.date} ${formData.time}`, "YYYY-MM-DD HH:mm").toDate();
 
       const payload: CreateSessionPayload = {
@@ -94,20 +94,20 @@ export default function AddSessionPage() {
   };
 
   return (
-      <div className="max-w-3xl mx-auto space-y-6 pb-24 p-4 lg:p-0">
+      <div className="max-w-3xl mx-auto space-y-6 pb-28 md:pb-24 p-4 lg:p-0">
         
         {/* Navigation Header */}
-        <header className="flex flex-col gap-2 pt-4">
-          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest group w-fit">
-            <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px] group-hover:-translate-x-1 transition-transform" /> 
+        <header className="flex flex-col gap-2 pt-2">
+          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] md:text-xs font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest group w-fit">
+            <ArrowLeftIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 stroke-[3px] group-hover:-translate-x-1 transition-transform" /> 
             Back to Schedule
           </button>
-          <h1 className="text-3xl font-semibold text-brand-prussian tracking-tight">Manual Session Entry</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold text-brand-prussian tracking-tight">Manual Session Entry</h1>
         </header>
 
         {error && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-xs font-medium flex items-center gap-2">
-            <InformationCircleIcon className="w-4 h-4" /> {error}
+            <InformationCircleIcon className="w-4 h-4 shrink-0" /> {error}
           </motion.div>
         )}
 
@@ -159,14 +159,14 @@ export default function AddSessionPage() {
           </FormSection>
 
           {/* Zoom Integration Toggle */}
-          <div className="bg-white border border-brand-aliceBlue p-6 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="bg-white border border-brand-aliceBlue p-5 md:p-6 rounded-2xl flex items-center justify-between shadow-sm">
              <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-xl transition-colors ${formData.createZoom ? 'bg-brand-cerulean text-white' : 'bg-gray-100 text-gray-400'}`}>
                     <VideoCameraIcon className="w-6 h-6 stroke-[2px]" />
                 </div>
                 <div>
-                   <p className="text-sm font-semibold text-brand-prussian">Live Meeting Sync</p>
-                   <p className="text-[11px] text-gray-400 font-medium">Provision a new Zoom meeting ID for this entry.</p>
+                    <p className="text-sm font-semibold text-brand-prussian">Live Meeting Sync</p>
+                    <p className="text-[10px] md:text-[11px] text-gray-400 font-medium">Provision a new Zoom meeting ID.</p>
                 </div>
              </div>
              <label className="relative inline-flex items-center cursor-pointer">
@@ -175,13 +175,17 @@ export default function AddSessionPage() {
              </label>
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-brand-prussian hover:bg-brand-cerulean text-white py-4 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {submitting ? <ArrowLeftIcon className="w-5 h-5 animate-spin" /> : <><CheckCircleIcon className="w-5 h-5" /> Confirm Schedule</>}
-          </button>
+          {/* Sticky Mobile Button */}
+          <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-100 lg:static lg:bg-transparent lg:border-none lg:p-0 z-50">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-brand-prussian hover:bg-brand-cerulean text-white py-4 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {submitting ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <><CheckCircleIcon className="w-5 h-5" /> Confirm Schedule</>}
+              </button>
+          </div>
+
         </form>
       </div>
   );
@@ -190,8 +194,8 @@ export default function AddSessionPage() {
 // --- Smooth UI Components ---
 
 const FormSection = ({ title, icon, children }: any) => (
-  <div className="bg-white p-6 rounded-2xl border border-brand-aliceBlue shadow-sm">
-    <div className="flex items-center gap-2 mb-6 border-b border-brand-aliceBlue pb-4">
+  <div className="bg-white p-5 md:p-6 rounded-2xl border border-brand-aliceBlue shadow-sm">
+    <div className="flex items-center gap-2 mb-5 md:mb-6 border-b border-brand-aliceBlue pb-4">
       <div className="text-brand-cerulean bg-brand-aliceBlue p-1.5 rounded-lg">{icon}</div>
       <h2 className="text-[11px] font-bold text-brand-prussian uppercase tracking-widest">{title}</h2>
     </div>
@@ -205,4 +209,3 @@ const Input = ({ label, ...props }: any) => (
     <input {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl p-3.5 text-sm font-medium focus:border-brand-cerulean focus:bg-white outline-none transition-all" />
   </div>
 );
-

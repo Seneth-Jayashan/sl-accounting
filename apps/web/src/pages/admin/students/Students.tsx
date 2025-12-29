@@ -11,9 +11,9 @@ import {
   PencilSquareIcon,
   UserIcon,
   TrashIcon,
-  ArrowUturnLeftIcon, // For Restore
-  NoSymbolIcon,       // For Deactivate
-  CheckCircleIcon     // For Activate
+  ArrowUturnLeftIcon,
+  NoSymbolIcon,
+  CheckCircleIcon
 } from "@heroicons/react/24/outline";
 
 // Services
@@ -21,8 +21,6 @@ import AdminService, { type UserData } from "../../../services/AdminService";
 import BatchService, { type BatchData } from "../../../services/BatchService";
 
 // --- TYPES ---
-
-// Extend UserData locally to safely handle populated Batch objects
 type PopulatedBatch = { _id: string; name: string };
 
 interface ExtendedUserData extends Omit<UserData, "batch"> {
@@ -30,7 +28,6 @@ interface ExtendedUserData extends Omit<UserData, "batch"> {
 }
 
 // --- CONSTANTS & HELPERS ---
-
 const AVATAR_COLORS = [
   "bg-blue-100 text-blue-600",
   "bg-purple-100 text-purple-600",
@@ -145,7 +142,6 @@ export default function StudentsPage() {
     setOpenMenuId((prev) => (prev === id ? null : id));
   }, []);
 
-  // 1. Delete (Soft Delete)
   const handleDelete = useCallback(async (id: string, name: string) => {
     setOpenMenuId(null);
     const result = await Swal.fire({
@@ -169,7 +165,6 @@ export default function StudentsPage() {
     }
   }, [fetchStudents]);
 
-  // 2. Restore (Undo Delete)
   const handleRestore = useCallback(async (id: string, name: string) => {
     setOpenMenuId(null);
     const result = await Swal.fire({
@@ -177,7 +172,7 @@ export default function StudentsPage() {
       text: `Are you sure you want to restore ${name}?`,
       icon: "question",
       showCancelButton: true,
-      confirmButtonColor: "#10b981", // Emerald
+      confirmButtonColor: "#10b981", 
       confirmButtonText: "Yes, restore!",
     });
 
@@ -192,7 +187,6 @@ export default function StudentsPage() {
     }
   }, [fetchStudents]);
 
-  // 3. Activate
   const handleActivate = useCallback(async (id: string) => {
     setOpenMenuId(null);
     try {
@@ -210,7 +204,6 @@ export default function StudentsPage() {
     }
   }, [fetchStudents]);
 
-  // 4. Deactivate
   const handleDeactivate = useCallback(async (id: string) => {
     setOpenMenuId(null);
     const result = await Swal.fire({
@@ -218,7 +211,7 @@ export default function StudentsPage() {
         text: "User will not be able to log in, but data is preserved.",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#f59e0b", // Amber
+        confirmButtonColor: "#f59e0b", 
         confirmButtonText: "Yes, suspend!",
       });
 
@@ -234,7 +227,7 @@ export default function StudentsPage() {
   }, [fetchStudents]);
 
   return (
-    <div className="space-y-6 font-sans pb-20">
+    <div className="space-y-6 font-sans pb-24 md:pb-20"> 
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -244,30 +237,30 @@ export default function StudentsPage() {
         </div>
         <button
           onClick={() => navigate("/admin/students/add")}
-          className="flex items-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-brand-cerulean/20 active:scale-95 text-sm font-semibold"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-3 rounded-xl transition-all shadow-lg shadow-brand-cerulean/20 active:scale-95 text-sm font-semibold"
         >
           <PlusIcon className="w-5 h-5" /> <span>Add Student</span>
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 bg-white p-2 rounded-2xl shadow-sm border border-brand-aliceBlue">
+      <div className="flex flex-col md:flex-row gap-3 bg-white p-3 md:p-2 rounded-2xl shadow-sm border border-brand-aliceBlue">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by name, email or phone..."
+            placeholder="Search by name, email..."
             className="w-full pl-11 pr-4 py-3 bg-brand-aliceBlue/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 transition-all text-sm font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative h-full">
+        <div className="flex gap-2">
+          <div className="relative h-full flex-1 md:flex-none">
             <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
             <select
-              className="h-full pl-10 pr-8 py-3 bg-brand-aliceBlue/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 appearance-none cursor-pointer text-sm font-medium text-gray-700 border-none min-w-[160px]"
+              className="w-full md:w-auto h-full pl-10 pr-8 py-3 bg-brand-aliceBlue/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 appearance-none cursor-pointer text-sm font-medium text-gray-700 border-none min-w-[140px]"
               value={selectedBatchId}
               onChange={(e) => setSelectedBatchId(e.target.value)}
             >
@@ -282,24 +275,24 @@ export default function StudentsPage() {
           <button
             onClick={fetchStudents}
             disabled={isLoading}
-            className="h-full px-4 bg-brand-aliceBlue/30 rounded-xl hover:bg-gray-100 text-gray-600 transition-colors disabled:opacity-50"
+            className="h-full px-4 py-3 bg-brand-aliceBlue/30 rounded-xl hover:bg-gray-100 text-gray-600 transition-colors disabled:opacity-50 flex items-center justify-center"
           >
             <ArrowPathIcon className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
 
-      {/* Table Area */}
-      <div className="bg-white rounded-2xl border border-brand-aliceBlue shadow-sm overflow-hidden min-h-[400px] flex flex-col">
+      {/* List Area */}
+      <div className="bg-white md:bg-transparent rounded-2xl md:rounded-none shadow-sm md:shadow-none border md:border-none border-brand-aliceBlue overflow-hidden md:overflow-visible min-h-[400px] flex flex-col">
         {isLoading && filteredStudents.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-10">
             <ArrowPathIcon className="w-8 h-8 animate-spin mb-2 text-brand-cerulean/50" />
             <p className="text-sm font-medium uppercase tracking-widest">Loading students...</p>
           </div>
         )}
 
         {!isLoading && !isError && filteredStudents.length === 0 && (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center py-10">
             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3">
                 <UserIcon className="w-8 h-8 text-gray-300" />
             </div>
@@ -308,42 +301,76 @@ export default function StudentsPage() {
         )}
 
         {!isLoading && !isError && filteredStudents.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-brand-aliceBlue/40 text-[10px] uppercase text-gray-500 font-bold tracking-widest border-b border-brand-aliceBlue">
-                <tr>
-                  <th className="px-6 py-4">Student</th>
-                  <th className="px-6 py-4">Batch</th>
-                  <th className="px-6 py-4">Contact</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-aliceBlue">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-2xl border border-brand-aliceBlue shadow-sm overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                <thead className="bg-brand-aliceBlue/40 text-[10px] uppercase text-gray-500 font-bold tracking-widest border-b border-brand-aliceBlue">
+                    <tr>
+                    <th className="px-6 py-4">Student</th>
+                    <th className="px-6 py-4">Batch</th>
+                    <th className="px-6 py-4">Contact</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-aliceBlue">
+                    {filteredStudents.map((student) => (
+                    <StudentRow
+                        key={student._id}
+                        student={student}
+                        isOpen={openMenuId === student._id}
+                        onToggle={(e) => handleMenuClick(e, student._id)}
+                        onView={() => navigate(`/admin/students/${student._id}`)}
+                        onEdit={() => navigate(`/admin/students/edit/${student._id}`)}
+                        onDelete={() => handleDelete(student._id, student.firstName)}
+                        onRestore={() => handleRestore(student._id, student.firstName)}
+                        onActivate={() => handleActivate(student._id)}
+                        onDeactivate={() => handleDeactivate(student._id)}
+                    />
+                    ))}
+                </tbody>
+                </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
                 {filteredStudents.map((student) => (
-                  <StudentRow
-                    key={student._id}
-                    student={student}
-                    isOpen={openMenuId === student._id}
-                    onToggle={(e) => handleMenuClick(e, student._id)}
-                    onView={() => navigate(`/admin/students/${student._id}`)}
-                    onEdit={() => navigate(`/admin/students/edit/${student._id}`)}
-                    onDelete={() => handleDelete(student._id, student.firstName)}
-                    onRestore={() => handleRestore(student._id, student.firstName)}
-                    onActivate={() => handleActivate(student._id)}
-                    onDeactivate={() => handleDeactivate(student._id)}
-                  />
+                    <StudentCardMobile 
+                        key={student._id}
+                        student={student}
+                        isOpen={openMenuId === student._id}
+                        onToggle={(e) => handleMenuClick(e, student._id)}
+                        onView={() => navigate(`/admin/students/${student._id}`)}
+                        onEdit={() => navigate(`/admin/students/edit/${student._id}`)}
+                        onDelete={() => handleDelete(student._id, student.firstName)}
+                        onRestore={() => handleRestore(student._id, student.firstName)}
+                        onActivate={() => handleActivate(student._id)}
+                        onDeactivate={() => handleDeactivate(student._id)}
+                    />
                 ))}
-              </tbody>
-            </table>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-// --- SUB-COMPONENT: Table Row ---
+// Define exact props to fix "Parameter 'e' implicitly has 'any' type"
+interface StudentItemProps {
+  student: ExtendedUserData;
+  isOpen: boolean;
+  onToggle: (e: React.MouseEvent) => void; // Explicitly type the event here
+  onView: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onRestore: () => void;
+  onActivate: () => void;
+  onDeactivate: () => void;
+}
+
+// --- SUB-COMPONENT: Table Row (Desktop) ---
 const StudentRow = React.memo(({
   student,
   isOpen,
@@ -354,43 +381,20 @@ const StudentRow = React.memo(({
   onRestore,
   onActivate,
   onDeactivate
-}: {
-  student: ExtendedUserData;
-  isOpen: boolean;
-  onToggle: (e: React.MouseEvent) => void;
-  onView: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onRestore: () => void;
-  onActivate: () => void;
-  onDeactivate: () => void;
-}) => {
+}: StudentItemProps) => { // <--- Changed 'any' to 'StudentItemProps'
+  
   const displayName = student.firstName ? `${student.firstName} ${student.lastName || ""}` : "Unknown";
-  // DETERMINE STATUS
-  // Priority: Deleted > Locked > Inactive > Active
+  
   let status = "Active";
   if (student.isDeleted) status = "Deleted";
   else if (student.isLocked) status = "Locked";
   else if (!student.isActive) status = "Inactive";
 
-  // Visual Styles based on status
   const statusConfig = {
-    Active: { 
-        bg: "bg-emerald-50 text-emerald-700 border-emerald-100", 
-        dot: "bg-emerald-500" 
-    },
-    Locked: { 
-        bg: "bg-red-50 text-red-700 border-red-100", 
-        dot: "bg-red-500" 
-    },
-    Inactive: { 
-        bg: "bg-amber-50 text-amber-600 border-amber-100", 
-        dot: "bg-amber-400" 
-    },
-    Deleted: { 
-        bg: "bg-gray-100 text-gray-500 border-gray-200 line-through decoration-gray-400", 
-        dot: "bg-gray-400" 
-    }
+    Active: { bg: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500" },
+    Locked: { bg: "bg-red-50 text-red-700 border-red-100", dot: "bg-red-500" },
+    Inactive: { bg: "bg-amber-50 text-amber-600 border-amber-100", dot: "bg-amber-400" },
+    Deleted: { bg: "bg-gray-100 text-gray-500 border-gray-200 line-through decoration-gray-400", dot: "bg-gray-400" }
   };
 
   const currentConfig = statusConfig[status as keyof typeof statusConfig];
@@ -400,11 +404,7 @@ const StudentRow = React.memo(({
     <tr className={`transition-colors group ${rowOpacity}`}>
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
-          <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${getAvatarColor(
-              displayName
-            )}`}
-          >
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${getAvatarColor(displayName)}`}>
             {displayName.slice(0, 2).toUpperCase()}
           </div>
           <div>
@@ -424,83 +424,115 @@ const StudentRow = React.memo(({
         {student.phoneNumber || "-"}
       </td>
       <td className="px-6 py-4">
-        <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${currentConfig.bg}`}
-        >
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${currentConfig.bg}`}>
           <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${currentConfig.dot}`}></span>
           {status}
         </span>
       </td>
       <td className="px-6 py-4 text-right relative">
-        <button
-          onClick={onToggle}
-          className={`p-2 rounded-lg transition-colors ${
-            isOpen
-              ? "bg-brand-aliceBlue text-brand-cerulean"
-              : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-          }`}
+        <button 
+          onClick={onToggle} // Now TypeScript knows this is a MouseEvent
+          className={`p-2 rounded-lg transition-colors ${isOpen ? "bg-brand-aliceBlue text-brand-cerulean" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
         >
           <EllipsisHorizontalIcon className="w-6 h-6" />
         </button>
-
-        {isOpen && (
-          <div className="absolute right-8 top-12 z-50 w-52 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-            
-            {/* VIEW (Always visible) */}
-            <button
-              onClick={onView}
-              className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50"
-            >
-              <EyeIcon className="w-4 h-4 text-gray-400" /> View Details
-            </button>
-
-            {/* IF DELETED: Show Restore Only */}
-            {student.isDeleted ? (
-                 <button
-                 onClick={onRestore}
-                 className="w-full text-left px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 flex items-center gap-3 transition-colors font-medium"
-               >
-                 <ArrowUturnLeftIcon className="w-4 h-4" /> Restore User
-               </button>
-            ) : (
-                <>
-                    {/* EDIT */}
-                    <button
-                        onClick={onEdit}
-                        className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50"
-                    >
-                        <PencilSquareIcon className="w-4 h-4 text-gray-400" /> Edit Profile
-                    </button>
-
-                    {/* ACTIVATE / DEACTIVATE */}
-                    {student.isActive ? (
-                        <button
-                            onClick={onDeactivate}
-                            className="w-full text-left px-4 py-3 text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-3 transition-colors border-b border-gray-50"
-                        >
-                            <NoSymbolIcon className="w-4 h-4" /> Deactivate
-                        </button>
-                    ) : (
-                        <button
-                            onClick={onActivate}
-                            className="w-full text-left px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 flex items-center gap-3 transition-colors border-b border-gray-50"
-                        >
-                            <CheckCircleIcon className="w-4 h-4" /> Activate
-                        </button>
-                    )}
-
-                    {/* DELETE */}
-                    <button
-                        onClick={onDelete}
-                        className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
-                    >
-                        <TrashIcon className="w-4 h-4" /> Delete User
-                    </button>
-                </>
-            )}
-          </div>
-        )}
+        {isOpen && <ActionMenu {...{ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, student }} />}
       </td>
     </tr>
   );
 });
+
+// --- SUB-COMPONENT: Mobile Card ---
+const StudentCardMobile = React.memo(({
+    student,
+    isOpen,
+    onToggle,
+    onView,
+    onEdit,
+    onDelete,
+    onRestore,
+    onActivate,
+    onDeactivate
+  }: StudentItemProps) => { // <--- Changed 'any' to 'StudentItemProps'
+    
+    const displayName = student.firstName ? `${student.firstName} ${student.lastName || ""}` : "Unknown";
+    
+    let status = "Active";
+    if (student.isDeleted) status = "Deleted";
+    else if (student.isLocked) status = "Locked";
+    else if (!student.isActive) status = "Inactive";
+  
+    const statusConfig = {
+      Active: { bg: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
+      Locked: { bg: "bg-red-50 text-red-700", dot: "bg-red-500" },
+      Inactive: { bg: "bg-amber-50 text-amber-600", dot: "bg-amber-400" },
+      Deleted: { bg: "bg-gray-100 text-gray-500", dot: "bg-gray-400" }
+    };
+    const currentConfig = statusConfig[status as keyof typeof statusConfig];
+  
+    return (
+        <div className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm relative ${student.isDeleted ? 'opacity-70 bg-gray-50' : ''}`}>
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${getAvatarColor(displayName)}`}>
+                        {displayName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-gray-900 text-sm">{displayName}</h4>
+                        <p className="text-xs text-gray-500">{student.email}</p>
+                    </div>
+                </div>
+                <button onClick={onToggle} className="p-2 -mr-2 text-gray-400">
+                    <EllipsisHorizontalIcon className="w-6 h-6" />
+                </button>
+            </div>
+            
+            <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-50 pt-3">
+                <span className="bg-gray-50 px-2 py-1 rounded border border-gray-100">{getBatchName(student.batch)}</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${currentConfig.bg}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${currentConfig.dot}`}></span>
+                    {status}
+                </span>
+            </div>
+
+            {/* Action Menu */}
+            {isOpen && (
+                <div className="absolute right-4 top-10 z-20 w-48 shadow-xl rounded-xl bg-white border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <ActionMenu {...{ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, student }} />
+                </div>
+            )}
+        </div>
+    )
+});
+
+// --- SUB-COMPONENT: Action Menu Content ---
+const ActionMenu = ({ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, student }: any) => (
+    <div className="bg-white">
+        <button onClick={onView} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50">
+            <EyeIcon className="w-4 h-4 text-gray-400" /> View Details
+        </button>
+        {student.isDeleted ? (
+            <button onClick={onRestore} className="w-full text-left px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 flex items-center gap-3 transition-colors font-medium">
+                <ArrowUturnLeftIcon className="w-4 h-4" /> Restore User
+            </button>
+        ) : (
+            <>
+                <button onClick={onEdit} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50">
+                    <PencilSquareIcon className="w-4 h-4 text-gray-400" /> Edit Profile
+                </button>
+                {student.isActive ? (
+                    <button onClick={onDeactivate} className="w-full text-left px-4 py-3 text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-3 transition-colors border-b border-gray-50">
+                        <NoSymbolIcon className="w-4 h-4" /> Deactivate
+                    </button>
+                ) : (
+                    <button onClick={onActivate} className="w-full text-left px-4 py-3 text-sm text-emerald-600 hover:bg-emerald-50 flex items-center gap-3 transition-colors border-b border-gray-50">
+                        <CheckCircleIcon className="w-4 h-4" /> Activate
+                    </button>
+                )}
+                <button onClick={onDelete} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors">
+                    <TrashIcon className="w-4 h-4" /> Delete User
+                </button>
+            </>
+        )}
+    </div>
+);

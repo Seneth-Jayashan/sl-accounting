@@ -3,9 +3,6 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
-// Note: Do NOT import AuthProvider here. 
-// It is already inside App.tsx
-
 const rootElement = document.getElementById('root') as HTMLElement;
 
 ReactDOM.createRoot(rootElement).render(

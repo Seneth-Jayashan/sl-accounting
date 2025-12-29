@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, ArrowLeft, KeyRound, CheckCircle2, AlertCircle, Hash, Lock, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { z } from "zod";
-import UserService from "../services/UserService.ts";
+import UserService from "../services/UserService"; // Fixed import extension
 
 // --- 1. VALIDATION SCHEMAS ---
 
@@ -33,22 +33,25 @@ const resetSchema = z.object({
   path: ["confirmPassword"],
 });
 
-// --- 2. REUSABLE COMPONENTS ---
+// --- 2. OPTIMIZED REUSABLE COMPONENTS ---
 
-const BackgroundGradient = () => (
+// Memoized to prevent re-renders on typing (Fixes Lag)
+const BackgroundGradient = memo(() => (
   <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
     <motion.div 
-      animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3], rotate: [0, 90, 0] }}
-      transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-      className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-[#05668A] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
+      initial={{ opacity: 0.3, scale: 1 }}
+      animate={{ scale: [1, 1.1, 1], rotate: [0, 45, 0] }}
+      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+      className="absolute top-[-10%] right-[-5%] w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-[#05668A] rounded-full mix-blend-multiply filter blur-[60px] sm:blur-[128px] opacity-20 will-change-transform" 
     />
     <motion.div 
-      animate={{ scale: [1, 1.1, 1], x: [0, 50, 0], y: [0, 30, 0] }}
-      transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-      className="absolute top-[40%] left-[-10%] w-[600px] h-[600px] bg-[#EF8D8E] rounded-full mix-blend-multiply filter blur-[128px] opacity-30" 
+      initial={{ opacity: 0.3 }}
+      animate={{ x: [0, 30, 0], y: [0, 20, 0] }}
+      transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute top-[40%] left-[-10%] w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-[#EF8D8E] rounded-full mix-blend-multiply filter blur-[60px] sm:blur-[128px] opacity-20 will-change-transform" 
     />
   </div>
-);
+));
 
 const InputField = ({ label, name, type = "text", value, onChange, icon: Icon, placeholder, error, maxLength, rightElement }: any) => (
   <div className="space-y-1">
@@ -64,7 +67,8 @@ const InputField = ({ label, name, type = "text", value, onChange, icon: Icon, p
         onChange={onChange}
         placeholder={placeholder}
         maxLength={maxLength}
-        className={`w-full bg-white/50 border ${error ? "border-red-400 focus:border-red-500" : "border-white/50 focus:border-[#05668A]"} focus:bg-white text-[#053A4E] pl-12 pr-${rightElement ? "12" : "4"} py-4 rounded-2xl outline-none transition-all shadow-sm`}
+        // Optimized background opacity for performance
+        className={`w-full bg-white/60 border ${error ? "border-red-400 focus:border-red-500" : "border-white focus:border-[#05668A]"} focus:bg-white text-[#053A4E] pl-12 pr-${rightElement ? "12" : "4"} py-4 rounded-2xl outline-none transition-all shadow-sm`}
       />
       {rightElement && (
         <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -72,7 +76,7 @@ const InputField = ({ label, name, type = "text", value, onChange, icon: Icon, p
         </div>
       )}
     </div>
-    {error && <p className="text-red-500 text-xs ml-1 flex items-center gap-1"><AlertCircle size={12} /> {error}</p>}
+    {error && <p className="text-red-500 text-xs ml-1 flex items-center gap-1 animate-fade-in"><AlertCircle size={12} /> {error}</p>}
   </div>
 );
 
@@ -167,13 +171,15 @@ export default function ForgotPassword() {
 
   return (
     <div className="w-full min-h-screen relative overflow-hidden flex items-center justify-center p-6">
+      
+      {/* Optimized Background */}
       <BackgroundGradient />
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="bg-white/70 backdrop-blur-xl border border-white/60 p-8 md:p-12 rounded-[2.5rem] shadow-2xl shadow-[#053A4E]/10 w-full max-w-lg relative mt-0 md:mt-20"
+        className="bg-white/80 backdrop-blur-md border border-white p-8 md:p-12 rounded-[2.5rem] shadow-2xl shadow-[#053A4E]/10 w-full max-w-lg relative mt-32 md:mt-32"
       >
         {/* Decorative Icon */}
         <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-2xl shadow-xl flex items-center justify-center border border-white/50 rotate-12">
@@ -244,7 +250,6 @@ export default function ForgotPassword() {
                 name="otp" 
                 value={formData.otp} 
                 onChange={(e: any) => {
-                    // Only allow numbers
                     const val = e.target.value;
                     if (/^\d*$/.test(val) && val.length <= 6) handleChange(e);
                 }} 

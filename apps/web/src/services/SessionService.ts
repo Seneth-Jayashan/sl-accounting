@@ -75,7 +75,7 @@ const SessionService = {
    * Fetch sessions for a specific class
    */
   getSessionsByClassId: async (classId: string): Promise<SessionData[]> => {
-    const response = await api.get<any>(BASE_URL, { params: { classId } });
+    const response = await api.get<any>(`${BASE_URL}/class/${classId}`);
     return unwrap<SessionData[]>(response, "sessions");
   },
 

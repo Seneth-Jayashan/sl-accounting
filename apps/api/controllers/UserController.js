@@ -1,6 +1,12 @@
 import User from '../models/User.js';
+import Enrollment from '../models/Enrollment.js';
+import Payment from '../models/Payment.js';
+import Class from '../models/Class.js';
+import Material from '../models/Material.js';
+
 import { sendVerificationEmail } from '../utils/email/Template.js';
 import { sendVerificationSms } from '../utils/sms/Template.js';
+
 // --- HELPER: Escape Regex Characters ---
 // Prevents server crashes if user searches for symbols like "(", "[", "*"
 const escapeRegex = (text) => {
@@ -142,48 +148,6 @@ export const deleteUserAccount = async (req, res) => {
   }
 };
 
-// ==========================================
-// ADMIN ROUTES (Ideally)
-// ==========================================
-
-export const getAllUsers = async (req, res) => {
-  try {
-    const { search, batch, role } = req.query;
-
-    // 1. Base Query: Hide deleted users
-    const query = { isDeleted: false };
-
-    // 2. Filters
-    if (role) query.role = role;
-    if (batch && batch !== "All") query.batch = batch;
-
-    // 3. Search Logic with SAFETY ESCAPE
-    if (search) {
-      const safeSearch = escapeRegex(search); // <--- FIXED: Prevents Regex Crashes
-      const searchRegex = new RegExp(safeSearch, 'i'); 
-      
-      query.$or = [
-        { firstName: searchRegex },
-        { lastName: searchRegex },
-        { email: searchRegex },
-        { regNo: searchRegex },      
-        { phoneNumber: searchRegex } 
-      ];
-    }
-
-    // 4. Execute
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .populate('batch', 'name');
-
-    return res.status(200).json({ success: true, users });
-
-  } catch (error) {
-    console.error("Get All Users Error:", error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
 
 // ==========================================
 // AUTH / RECOVERY ROUTES
@@ -224,5 +188,117 @@ export const forgetUserPassword = async (req, res) => {
   } catch (error) {
     console.error("Forget User Password Error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+
+const getNextSessionDate = (dayOfWeek, timeStr) => {
+    const now = new Date();
+    const result = new Date(now);
+    
+    // Parse time (e.g. "14:30")
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    result.setHours(hours, minutes, 0, 0);
+
+    // Calculate day difference
+    const currentDay = now.getDay();
+    let diff = dayOfWeek - currentDay;
+
+    // If day is today but time passed, or day is in past, add 7 days
+    if (diff < 0 || (diff === 0 && result <= now)) {
+        diff += 7;
+    }
+    
+    result.setDate(now.getDate() + diff);
+    return result;
+};
+
+export const getStudentDashboard = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+
+    // 1. Fetch Active Enrollments
+    const enrollments = await Enrollment.find({ student: studentId, isActive: true })
+      .populate('class', 'name subject timeSchedules coverImage')
+      .lean();
+
+    // 2. Calculate Next Session (Across all classes)
+    let nextSession = null;
+    const allUpcomingSessions = [];
+
+    enrollments.forEach(enroll => {
+        const cls = enroll.class;
+        if (cls && cls.timeSchedules && cls.timeSchedules.length > 0) {
+            cls.timeSchedules.forEach(sched => {
+                const sessionDate = getNextSessionDate(sched.day, sched.startTime);
+                allUpcomingSessions.push({
+                    classId: cls._id,
+                    className: cls.name,
+                    subject: cls.subject,
+                    startTime: sessionDate,
+                    day: sched.day
+                });
+            });
+        }
+    });
+
+    // Sort by date (earliest first)
+    allUpcomingSessions.sort((a, b) => a.startTime - b.startTime);
+    if (allUpcomingSessions.length > 0) {
+        nextSession = allUpcomingSessions[0];
+    }
+
+    // 3. Pending Payments & Next Payment Date
+    const pendingPayments = await Payment.find({ 
+        student: studentId, 
+        status: { $in: ['pending', 'unpaid'] } 
+    }).sort({ dueDate: 1 }).lean(); // Sort by Due Date ascending
+
+    const nextPayment = pendingPayments.length > 0 ? pendingPayments[0] : null;
+
+    // 4. Fetch Recent Materials
+    const enrolledClassIds = enrollments.map(e => e.class?._id);
+    const recentMaterials = await Material.find({ 
+        classId: { $in: enrolledClassIds },
+        isPublished: true 
+    })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .select('title fileType fileUrl createdAt')
+    .lean();
+
+    // 5. Construct Response
+    const data = {
+        stats: {
+            activeClasses: enrollments.length,
+            pendingPaymentsCount: pendingPayments.length,
+            attendancePercentage: 92, // Placeholder for now
+        },
+        nextSession: nextSession ? {
+            title: nextSession.className,
+            subject: nextSession.subject,
+            startTime: nextSession.startTime.toISOString(),
+        } : null,
+        nextPayment: nextPayment ? {
+            amount: nextPayment.amount,
+            dueDate: nextPayment.dueDate,
+            title: nextPayment.title || "Monthly Fee" // Adjust based on your Payment model
+        } : null,
+        recentMaterials,
+        // Return top 3 upcoming sessions for the list view
+        upcomingSessions: allUpcomingSessions.slice(0, 3).map(s => ({
+            _id: s.classId,
+            title: s.className,
+            startTime: s.startTime.toISOString(),
+            subject: s.subject,
+            isOnline: true 
+        }))
+    };
+
+    return res.status(200).json({ success: true, data });
+
+  } catch (error) {
+    console.error("Dashboard Error:", error);
+    return res.status(500).json({ success: false, message: "Failed to load dashboard" });
   }
 };

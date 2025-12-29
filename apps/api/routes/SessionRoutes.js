@@ -3,6 +3,7 @@ import { protect, restrictTo } from '../middlewares/AuthMiddleware.js';
 import {
     createSessionForClass,
     getSessionById,
+    getSessionsByClassId,
     getAllSessions,
     updateSession,
     deleteSession,
@@ -19,6 +20,7 @@ router.use(protect);
 // ==========================================
 router.get('/', getAllSessions);
 router.get('/:id', getSessionById);
+router.get('/class/:classId', getSessionsByClassId);
 
 // ==========================================
 // 2. WRITE OPERATIONS (Admin ONLY)

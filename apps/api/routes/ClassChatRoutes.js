@@ -2,7 +2,8 @@ import express from "express";
 import { 
     getClassMessages, 
     saveMessage, 
-    uploadAttachment // <--- Import this!
+    uploadAttachment,
+    deleteMessage
 } from "../controllers/ClassChatController.js";
 import { protect } from "../middlewares/AuthMiddleware.js";
 import { chatUploader } from "../middlewares/UploadMiddleware.js"; // <--- Import named export
@@ -18,5 +19,8 @@ router.post("/class", protect, saveMessage);
 // @route   POST /api/chats/upload
 // @desc    Upload file for chat
 router.post("/upload", protect, chatUploader, uploadAttachment);
+
+// @route   DELETE /api/chats/class/:id
+router.delete("/message/:id", protect, deleteMessage);
 
 export default router;

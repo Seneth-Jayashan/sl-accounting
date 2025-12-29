@@ -5,30 +5,26 @@ import Class from "../models/Class.js";
 // --- HELPERS ---
 
 /**
- * Helper: Get end of month date
- * addMonths = 0 -> End of Current Month
- * addMonths = 1 -> End of Next Month
+ * Get the end of the month for a specific date.
+ * Example: Input Jan 5th -> Returns Jan 31st 23:59:59
  */
-function endOfMonth(date = new Date(), addMonths = 0) {
+const getEndOfMonth = (date) => {
   const d = new Date(date);
-  d.setMonth(d.getMonth() + addMonths + 1, 0); // Day 0 of next month = Last day of target month
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
+  // Year, Month + 1, Day 0 gets the last day of the current month
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+};
 
 // --- CONTROLLERS ---
 
 /**
  * CREATE ENROLLMENT
- * Security: Prevents students from enrolling others.
+ * Logic: Initial enrollment gives access until the end of the CURRENT month.
  */
 export const createEnrollment = async (req, res) => {
   try {
     const { class: classId, subscriptionType } = req.body;
 
     // 1. Determine Student ID
-    // If Admin: can use body.student OR fallback to themselves
-    // If Student: MUST use req.user._id (ignore body.student)
     let studentId;
     if (req.user.role === 'admin') {
         studentId = req.body.student || req.user._id;
@@ -51,23 +47,24 @@ export const createEnrollment = async (req, res) => {
       return res.status(409).json({ message: "Student already enrolled in this class" });
     }
 
-    // 4. Calculate Access Date
-    // Default: If monthly, give access until end of current month (or next if logic dictates)
-    let accessEndDate = req.body.accessEndDate || null;
+    // 4. Calculate Access Date (End of Current Month)
+    // Even if joining on Dec 25, access ends Dec 31 (requires renewal for Jan)
+    let accessEndDate = req.body.accessEndDate;
     if (subscriptionType === "monthly" && !accessEndDate) {
-      accessEndDate = endOfMonth(new Date(), 0); 
+      accessEndDate = getEndOfMonth(new Date()); 
     }
 
     const newEnrollment = new Enrollment({
       student: studentId,
       class: classId,
       subscriptionType,
-      paymentStatus: "pending", // Default to pending until paid
-      isActive: true, // or false depending on your logic (usually active but unpaid)
+      paymentStatus: "unpaid", // Default
+      isActive: true, // Active initially so they can access free materials or waiting for payment
       accessStartDate: req.body.accessStartDate || new Date(),
       accessEndDate,
     });
 
+    // Add student to Class array
     await classExists.enrollStudent(studentId);
 
     const saved = await newEnrollment.save();
@@ -81,10 +78,11 @@ export const createEnrollment = async (req, res) => {
 
 /**
  * GET ENROLLMENT BY ID
- * Security: IDOR Protection (User can only see own data)
  */
 export const getEnrollmentById = async (req, res) => {
   try {
+    // NOTE: 'findById' triggers the 'post find' middleware in your Model
+    // which automatically checks and updates isExpired/isActive status.
     const enrollment = await Enrollment.findById(req.params.id)
       .populate("student", "firstName lastName email")
       .populate("class", "name grade subject price")
@@ -94,8 +92,7 @@ export const getEnrollmentById = async (req, res) => {
       return res.status(404).json({ message: "Enrollment not found" });
     }
 
-    // Authorization Check
-    // Allow if Admin OR if the enrollment belongs to the requester
+    // Authorization
     const isOwner = enrollment.student._id.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'admin';
 
@@ -111,7 +108,7 @@ export const getEnrollmentById = async (req, res) => {
 };
 
 /**
- * GET ALL ENROLLMENTS (Admin Only)
+ * GET ALL ENROLLMENTS (Admin)
  */
 export const getAllEnrollments = async (req, res) => {
   try {
@@ -122,6 +119,7 @@ export const getAllEnrollments = async (req, res) => {
     if (classId) filter.class = classId;
     if (paymentStatus) filter.paymentStatus = paymentStatus;
 
+    // Triggers lazy update middleware for all docs found
     const enrollments = await Enrollment.find(filter)
       .populate("student", "firstName lastName email phoneNumber")
       .populate("class", "name price coverImage description ")
@@ -135,7 +133,7 @@ export const getAllEnrollments = async (req, res) => {
 };
 
 /**
- * GET MY ENROLLMENTS (Logged In User)
+ * GET MY ENROLLMENTS
  */
 export const getMyEnrollments = async (req, res) => {
   try {
@@ -152,7 +150,7 @@ export const getMyEnrollments = async (req, res) => {
 };
 
 /**
- * CHECK STATUS (Helper for UI Buttons)
+ * CHECK STATUS
  */
 export const checkEnrollment = async (req, res) => {
   try {
@@ -163,11 +161,11 @@ export const checkEnrollment = async (req, res) => {
 
     const exists = await Enrollment.findOne({ student: studentId, class: classId });
     
-    // Return explicit object
     return res.json({ 
         isEnrolled: !!exists, 
         enrollmentId: exists?._id || null,
-        paymentStatus: exists?.paymentStatus || null
+        paymentStatus: exists?.paymentStatus || null,
+        isActive: exists?.isActive || false
     });
   } catch (err) {
     res.status(500).json({ message: "Server Error" });
@@ -175,40 +173,58 @@ export const checkEnrollment = async (req, res) => {
 };
 
 /**
- * UPDATE ENROLLMENT (Admin Only)
+ * UPDATE ENROLLMENT (Admin)
+ * Handles Payment Approvals & Extensions
  */
 export const updateEnrollment = async (req, res) => {
   try {
     const { paymentStatus, accessEndDate } = req.body;
-    const updatePayload = { ...req.body };
+    
+    // 1. Fetch the document first (Crucial for Methods & Middleware)
+    const enrollment = await Enrollment.findById(req.params.id);
 
-    // Business Logic: If marking as paid, extend access
-    if (paymentStatus === "paid") {
-      updatePayload.lastPaymentDate = new Date();
-      
-      // If manual date not provided, calculate default (End of Next Month)
-      if (!accessEndDate) {
-          updatePayload.accessEndDate = endOfMonth(new Date(), 1); 
-      }
-
-      // Calculate next payment date (Day after access ends)
-      const accessEnd = new Date(updatePayload.accessEndDate);
-      const nextPay = new Date(accessEnd);
-      nextPay.setDate(accessEnd.getDate() + 1);
-      updatePayload.nextPaymentDate = nextPay;
-    }
-
-    const updatedEnrollment = await Enrollment.findByIdAndUpdate(
-      req.params.id,
-      updatePayload,
-      { new: true }
-    );
-
-    if (!updatedEnrollment) {
+    if (!enrollment) {
       return res.status(404).json({ message: "Enrollment not found" });
     }
 
-    return res.json(updatedEnrollment);
+    // 2. Handle Payment Approval
+    if (paymentStatus === "paid") {
+        const paymentDate = new Date();
+        
+        // Use Model Method if available, or manual logic
+        // Logic: Payment Date -> End of THAT Month
+        enrollment.paymentStatus = "paid";
+        enrollment.isActive = true;
+        enrollment.lastPaymentDate = paymentDate;
+
+        // If admin provided a specific date, use it. Otherwise, calc end of current month.
+        if (accessEndDate) {
+            enrollment.accessEndDate = new Date(accessEndDate);
+        } else {
+            // FIXED LOGIC: Get end of CURRENT month (Jan 05 -> Jan 31)
+            enrollment.accessEndDate = getEndOfMonth(paymentDate);
+        }
+
+        // Set Next Payment Date (1st of Next Month)
+        const nextPay = new Date(enrollment.accessEndDate);
+        nextPay.setDate(nextPay.getDate() + 1); // Feb 1st
+        enrollment.nextPaymentDate = nextPay;
+    } 
+    // 3. Handle Revocation / Expiry
+    else if (paymentStatus === "expired" || paymentStatus === "unpaid") {
+        enrollment.paymentStatus = paymentStatus;
+        enrollment.isActive = false;
+        // Optionally set accessEndDate to yesterday to force expiry logic
+    }
+
+    // 4. Handle other updates (notes, etc.)
+    if (req.body.notes) enrollment.notes = req.body.notes;
+    if (req.body.isBlocked !== undefined) enrollment.isBlocked = req.body.isBlocked;
+
+    // 5. Save (Triggers validations and hooks)
+    await enrollment.save();
+
+    return res.json(enrollment);
   } catch (err) {
     console.error("Error updating enrollment:", err);
     return res.status(500).json({ message: "Server error" });
@@ -216,7 +232,7 @@ export const updateEnrollment = async (req, res) => {
 };
 
 /**
- * DELETE ENROLLMENT (Admin Only)
+ * DELETE ENROLLMENT
  */
 export const deleteEnrollment = async (req, res) => {
   try {

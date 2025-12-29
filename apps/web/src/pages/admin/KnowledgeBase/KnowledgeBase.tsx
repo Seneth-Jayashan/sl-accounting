@@ -30,6 +30,7 @@ const AdminKnowledgeBase: React.FC = () => {
   const [titleError, setTitleError] = useState<string | null>(null);
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  
   const fileAreaRef = useRef<HTMLDivElement | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
   const descRef = useRef<HTMLTextAreaElement | null>(null);
@@ -40,41 +41,30 @@ const AdminKnowledgeBase: React.FC = () => {
     setTitleError(null);
     setDescriptionError(null);
     setMessage(null);
+    
     if (e.target.files && e.target.files[0]) {
       const f = e.target.files[0];
-
-      // Client-side extension whitelist (defensive; file dialog may still show "All files")
-      const allowedExt = [
-        ".pdf",
-        ".doc",
-        ".docx",
-        ".xls",
-        ".xlsx",
-        ".ppt",
-        ".pptx",
-        ".zip",
-        ".csv",
-      ];
+      const allowedExt = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".csv"];
       const name = (f.name || "").toLowerCase();
       const hasAllowedExt = allowedExt.some((ext) => name.endsWith(ext));
+      
       if (!hasAllowedExt) {
-        setError(
-          "Unsupported file type. Please select PDF, Word, Excel, PowerPoint, ZIP, or CSV."
-        );
-        // clear any previously set preview/url
+        setError("Unsupported file type. Please select PDF, Office docs, ZIP, or CSV.");
         if (filePreviewUrl) {
           URL.revokeObjectURL(filePreviewUrl);
           setFilePreviewUrl(null);
         }
         return;
       }
+      
       setFile(f);
       setDisplayName(f.name);
-      // create preview for PDFs and images
+      
       if (filePreviewUrl) {
         URL.revokeObjectURL(filePreviewUrl);
         setFilePreviewUrl(null);
       }
+      
       if (f.type === "application/pdf" || f.type.startsWith("image/")) {
         const url = URL.createObjectURL(f);
         setFilePreviewUrl(url);
@@ -116,22 +106,13 @@ const AdminKnowledgeBase: React.FC = () => {
 
     if (!title.trim()) {
       setTitleError("Title is required");
-      setTimeout(() => {
-        if (titleRef.current) titleRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 50);
+      setTimeout(() => titleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
       return;
     }
 
     if (!file) {
-      // show inline/file-area focused error instead of only top banner
-      setFileError("Please attach a file (pdf/doc/docx/xls/xlsx/ppt/pptx/zip/csv)");
-      setError(null);
-      // scroll file area into view
-      setTimeout(() => {
-        if (fileAreaRef.current) {
-          fileAreaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-      }, 50);
+      setFileError("Please attach a file.");
+      setTimeout(() => fileAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
       return;
     }
 
@@ -140,34 +121,28 @@ const AdminKnowledgeBase: React.FC = () => {
       const form = new FormData();
       form.append("title", title.trim());
       if (description) form.append("description", description.trim());
-      // NOTE: backend expects the misspelled field name `category`
       form.append("category", category);
-      // If scheduled, send publishAt and ensure isPublished=false
+      
       if (schedulePublish && publishAt) {
         form.append("publishAt", publishAt);
         form.append("isPublished", String(false));
       } else {
         form.append("isPublished", String(isPublished));
       }
-      // include optional display name
+      
       if (displayName) form.append("fileName", displayName);
 
-      // ensure uploaded file includes filename (preserve/override extension)
-      // `file` is guaranteed non-null by the earlier guard (if (!file) return ...)
       const originalName = file!.name || "";
-      const ext = originalName.includes(".")
-        ? originalName.substring(originalName.lastIndexOf("."))
-        : "";
+      const ext = originalName.includes(".") ? originalName.substring(originalName.lastIndexOf(".")) : "";
       let sendName = displayName || originalName;
       if (displayName && !displayName.includes(".")) sendName = displayName + ext;
-      // Use `set` to replace any existing `file` field in the FormData
+      
       form.set("file", file as Blob, sendName);
 
-      // Do not set Content-Type header manually; let Axios set boundary
       const res = await KnowledgeBaseAdminService.create(form);
 
       if (res?.success) {
-        // clear local form state
+        // Reset form
         setTitle("");
         setDescription("");
         setCategory(CATEGORIES[0]);
@@ -178,10 +153,7 @@ const AdminKnowledgeBase: React.FC = () => {
         setFile(null);
         setDisplayName("");
 
-        const scheduled =
-          schedulePublish &&
-          publishAt &&
-          new Date(publishAt).getTime() > Date.now();
+        const scheduled = schedulePublish && publishAt && new Date(publishAt).getTime() > Date.now();
 
         if (scheduled && publishAt) {
           const isMobile = window.matchMedia("(max-width: 639px)").matches;
@@ -211,19 +183,14 @@ const AdminKnowledgeBase: React.FC = () => {
                   el.textContent = formatDuration(diff);
                 }
               }, 1000);
-              // clear on confirm
-              Swal.getConfirmButton()?.addEventListener("click", () =>
-                clearInterval(timer)
-              );
+              Swal.getConfirmButton()?.addEventListener("click", () => clearInterval(timer));
             },
-          }).then(() => {
-            navigate("/admin/knowledge-list");
-          });
+          }).then(() => navigate("/admin/knowledge-list"));
         } else {
           const isMobile = window.matchMedia("(max-width: 639px)").matches;
           Swal.fire({
             title: "Published",
-            text: "Material published",
+            text: "Material published successfully.",
             icon: "success",
             confirmButtonText: "Go to list",
             ...(isMobile
@@ -240,12 +207,11 @@ const AdminKnowledgeBase: React.FC = () => {
       console.error(err);
       const serverMessage = err?.response?.data?.message || err.message || "Upload error";
       setError(serverMessage);
-      // map server field errors if present (common shape: { errors: { title: '...', description: '...' } })
+      
       const fieldErrors = err?.response?.data?.errors;
       if (fieldErrors) {
         if (fieldErrors.title) setTitleError(fieldErrors.title as string);
         if (fieldErrors.description) setDescriptionError(fieldErrors.description as string);
-        // scroll to first field error
         setTimeout(() => {
           if (fieldErrors.title && titleRef.current) titleRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
           else if (fieldErrors.description && descRef.current) descRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -259,19 +225,21 @@ const AdminKnowledgeBase: React.FC = () => {
   return (
       <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Knowledge Base — Upload</h1>
-          <p className="text-sm text-gray-500">
-            Upload PDFs and materials for registered students.
+          <h1 className="text-xl md:text-2xl font-bold text-brand-prussian">Upload Material</h1>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">
+            Add resources to the student knowledge base.
           </p>
         </div>
 
         {message && (
-          <div className="bg-green-50 text-green-700 p-3 rounded">
+          <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm font-medium">
             {message}
           </div>
         )}
         {error && (
-          <div className="bg-red-50 text-red-700 p-3 rounded">{error}</div>
+          <div className="bg-red-50 text-red-700 p-3 rounded-xl text-sm font-medium flex items-start gap-2">
+             <span className="mt-0.5">⚠️</span> {error}
+          </div>
         )}
 
         <form
@@ -291,15 +259,16 @@ const AdminKnowledgeBase: React.FC = () => {
                 setError(null);
               }}
               placeholder="e.g. Chapter 1 - Introduction"
-              className={`w-full px-4 py-2 bg-white rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20 shadow-sm ${
-                titleError ? "border-red-300" : "border border-gray-200"
+              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-brand-cerulean/20 transition-all text-sm font-medium ${
+                titleError ? "border-red-300 focus:border-red-300" : "border-gray-200 focus:border-brand-cerulean"
               }`}
             />
-            {titleError && <p className="text-sm text-red-600 mt-1">{titleError}</p>}
+            {titleError && <p className="text-xs text-red-600 ml-1">{titleError}</p>}
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">
+          {/* DESCRIPTION */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
               Description
             </label>
             <textarea
@@ -310,17 +279,19 @@ const AdminKnowledgeBase: React.FC = () => {
                 if (descriptionError) setDescriptionError(null);
                 setError(null);
               }}
-              rows={4}
-              className={`w-full px-4 py-2 bg-gray-50 rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20 resize-none ${
-                descriptionError ? "border-red-300" : "border border-gray-200"
+              rows={3}
+              placeholder="Brief summary of the content..."
+              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-brand-cerulean/20 resize-none transition-all text-sm font-medium ${
+                descriptionError ? "border-red-300 focus:border-red-300" : "border-gray-200 focus:border-brand-cerulean"
               }`}
             />
-            {descriptionError && <p className="text-sm text-red-600 mt-1">{descriptionError}</p>}
+            {descriptionError && <p className="text-xs text-red-600 ml-1">{descriptionError}</p>}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">
+          {/* CATEGORY & PUBLISH OPTIONS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
                 Category
               </label>
               <Dropdown
@@ -332,9 +303,9 @@ const AdminKnowledgeBase: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">
-                Publish
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                Availability
               </label>
               <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <button
@@ -346,8 +317,8 @@ const AdminKnowledgeBase: React.FC = () => {
                   }}
                   className={`w-full sm:w-40 py-2 rounded-xl text-base font-semibold ${
                     isPublished
-                      ? "bg-[#0b2540] text-white"
-                      : "bg-gray-100 text-gray-700"
+                      ? "bg-brand-prussian text-white shadow-md"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                   }`}
                 >
                   Publish Now
@@ -360,8 +331,8 @@ const AdminKnowledgeBase: React.FC = () => {
                   }}
                   className={`w-full sm:w-40 py-2 rounded-lg text-base font-semibold ${
                     schedulePublish
-                      ? "bg-[#0b2540] text-white"
-                      : "bg-gray-100 text-gray-700"
+                      ? "bg-brand-prussian text-white shadow-md"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                   }`}
                 >
                   Schedule
@@ -370,24 +341,27 @@ const AdminKnowledgeBase: React.FC = () => {
             </div>
           </div>
 
+          {/* SCHEDULE INPUT */}
           {schedulePublish && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">
-                Publish At
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                Publish Date & Time
               </label>
               <input
                 type="datetime-local"
                 value={publishAt ?? ""}
                 onChange={(e) => setPublishAt(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-cerulean/20 text-sm font-medium"
               />
             </div>
           )}
 
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              File (pdf/doc/docx/ppt/pptx/xls/xlsx/zip/csv)
+          {/* FILE UPLOAD AREA */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+              Attachment <span className="text-red-500">*</span>
             </label>
+            
             {!file ? (
               <div
                 ref={fileAreaRef}
@@ -395,37 +369,21 @@ const AdminKnowledgeBase: React.FC = () => {
                   fileError ? "border-red-400 bg-red-50" : "border-gray-300"
                 }`}
               >
-                <div className="text-center p-4">
-                  <ArrowUpTrayIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm text-gray-600 font-medium">
-                    Drag & drop files here
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    or click to browse — PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, ZIP, CSV
-                  </p>
-                  <div className="mt-3">
-                    <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border rounded-lg text-sm text-gray-700 cursor-pointer">
-                      <ArrowUpTrayIcon className="w-4 h-4" />
-                      Choose file
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
+                <div className="flex flex-col items-center gap-2">
+                    <div className="p-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition-transform">
+                        <ArrowUpTrayIcon className="w-6 h-6 text-brand-cerulean" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-600">Tap to upload file</p>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">PDF, DOC, PPT, ZIP</p>
                 </div>
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv"
                   onChange={handleFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 {fileError && (
-                  <p className="text-sm text-red-600 mt-2 absolute bottom-3 left-4">
-                    {fileError}
-                  </p>
+                  <p className="text-xs text-red-600 font-bold mt-2 absolute bottom-2">{fileError}</p>
                 )}
               </div>
             ) : (
@@ -555,6 +513,7 @@ const AdminKnowledgeBase: React.FC = () => {
               {loading ? "Uploading..." : "Upload"}
             </button>
           </div>
+
         </form>
       </div>
   );

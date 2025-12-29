@@ -10,7 +10,8 @@ import {
   RotateCw,
   Search,
   Download,
-  Pencil
+  Pencil,
+  X
 } from "lucide-react";
 import moment from "moment";
 
@@ -40,7 +41,6 @@ export default function MaterialsAdmin() {
       ]);
 
       // --- 1. ROBUST CHECK FOR MATERIALS ---
-      // Handles different API response structures (Array vs Object wrapper)
       let extractedMaterials: MaterialData[] = [];
       if (Array.isArray(matRes)) {
         extractedMaterials = matRes;
@@ -120,34 +120,33 @@ export default function MaterialsAdmin() {
 
   const getFileIcon = (type: string) => {
     switch (type) {
-      case "pdf": return <FileText className="text-red-500" />;
-      case "pptx": return <Presentation className="text-orange-500" />;
-      case "image": return <ImageIcon className="text-blue-500" />;
-      case "docx": return <FileEdit className="text-blue-600" />;
-      default: return <FileIcon className="text-gray-400" />;
+      case "pdf": return <FileText className="text-red-500 w-6 h-6" />;
+      case "pptx": return <Presentation className="text-orange-500 w-6 h-6" />;
+      case "image": return <ImageIcon className="text-blue-500 w-6 h-6" />;
+      case "docx": return <FileEdit className="text-blue-600 w-6 h-6" />;
+      default: return <FileIcon className="text-gray-400 w-6 h-6" />;
     }
   };
 
-  // REMOVED <DashboardLayout> wrapper
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-20 px-4">
+    <div className="max-w-6xl mx-auto space-y-6 pb-24 px-4 sm:px-6">
       
       {/* Header */}
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">Academic Materials</h1>
-          <p className="text-gray-500 text-sm font-medium">Broadcast study resources and lecture notes.</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">Academic Materials</h1>
+          <p className="text-gray-500 text-xs sm:text-sm font-medium">Broadcast study resources and lecture notes.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-brand-cerulean text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-brand-prussian transition-all active:scale-95 shadow-lg shadow-brand-cerulean/20"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-cerulean text-white px-5 py-3 rounded-xl text-sm font-medium hover:bg-brand-prussian transition-all active:scale-95 shadow-lg shadow-brand-cerulean/20"
         >
           <Plus size={18} /> Upload Material
         </button>
       </header>
 
       {/* Filter Bar */}
-      <div className="bg-white p-5 rounded-[2rem] border border-brand-aliceBlue shadow-sm">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] border border-brand-aliceBlue shadow-sm">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <select 
@@ -172,11 +171,11 @@ export default function MaterialsAdmin() {
           <p className="text-xs font-medium text-gray-400 mt-4 uppercase tracking-widest">Syncing Materials...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {materials.map((mat) => (
-            <div key={mat._id} className="bg-white p-6 rounded-[2.5rem] border border-brand-aliceBlue hover:border-brand-cerulean/10 transition-all group shadow-sm">
+            <div key={mat._id} className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-brand-aliceBlue hover:border-brand-cerulean/10 transition-all group shadow-sm flex flex-col h-full">
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-brand-aliceBlue/50 rounded-2xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-brand-aliceBlue/50 rounded-2xl flex items-center justify-center shrink-0">
                   {getFileIcon(mat.fileType)}
                 </div>
                 <div className="flex gap-1">
@@ -185,10 +184,10 @@ export default function MaterialsAdmin() {
                 </div>
               </div>
 
-              <div className="space-y-2 mb-6">
-                <h4 className="text-base font-semibold text-brand-prussian line-clamp-1">{mat.title}</h4>
-                <p className="text-xs text-gray-500 line-clamp-2 min-h-[2.5rem]">{mat.description || "No description provided."}</p>
-                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              <div className="space-y-2 mb-6 flex-1">
+                <h4 className="text-base font-semibold text-brand-prussian line-clamp-2 leading-tight">{mat.title}</h4>
+                <p className="text-xs text-gray-500 line-clamp-3 min-h-[2.5rem]">{mat.description || "No description provided."}</p>
+                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-auto pt-2">
                   <span>{mat.fileSize}</span>
                   <span>•</span>
                   <span>{moment(mat.createdAt).format("MMM DD")}</span>
@@ -211,15 +210,24 @@ export default function MaterialsAdmin() {
       {/* --- CREATE / EDIT MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-prussian/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh] scrollbar-hide">
-            <h2 className="text-2xl font-semibold text-brand-prussian mb-8 tracking-tight">
+          <div className="bg-white w-full max-w-lg rounded-2xl sm:rounded-[3rem] p-6 sm:p-10 shadow-2xl overflow-y-auto max-h-[90vh] relative">
+            
+            {/* Close Button Mobile */}
+            <button 
+                onClick={closeModal}
+                className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 sm:hidden"
+            >
+                <X size={20} />
+            </button>
+
+            <h2 className="text-xl sm:text-2xl font-semibold text-brand-prussian mb-6 sm:mb-8 tracking-tight pr-8 sm:pr-0">
               {editingId ? "Update Resource" : "Post New Resource"}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Target Academic Class</label>
                 <select 
-                  required className="w-full p-4 bg-brand-aliceBlue/50 rounded-2xl border-none text-sm font-medium outline-none appearance-none"
+                  required className="w-full p-3 sm:p-4 bg-brand-aliceBlue/50 rounded-xl sm:rounded-2xl border-none text-sm font-medium outline-none appearance-none"
                   value={formData.classId}
                   onChange={(e) => setFormData({...formData, classId: e.target.value})}
                 >
@@ -232,7 +240,7 @@ export default function MaterialsAdmin() {
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Resource Title</label>
                 <input 
                   type="text" required
-                  className="w-full p-4 bg-brand-aliceBlue/50 rounded-2xl border-none text-sm font-medium outline-none"
+                  className="w-full p-3 sm:p-4 bg-brand-aliceBlue/50 rounded-xl sm:rounded-2xl border-none text-sm font-medium outline-none"
                   placeholder="e.g. Week 1 Lecture Notes"
                   value={formData.title}
                   onChange={(e) => setFormData({...formData, title: e.target.value})}
@@ -243,7 +251,7 @@ export default function MaterialsAdmin() {
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Instructional Description</label>
                 <textarea 
                   rows={3}
-                  className="w-full p-4 bg-brand-aliceBlue/50 rounded-2xl border-none text-sm font-medium outline-none resize-none"
+                  className="w-full p-3 sm:p-4 bg-brand-aliceBlue/50 rounded-xl sm:rounded-2xl border-none text-sm font-medium outline-none resize-none"
                   placeholder="Explain what this file covers..."
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
@@ -256,17 +264,17 @@ export default function MaterialsAdmin() {
                    <input 
                     type="file" 
                     onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])}
-                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:bg-brand-cerulean file:text-white hover:file:bg-brand-prussian cursor-pointer bg-brand-aliceBlue/30 p-2 rounded-2xl"
+                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:bg-brand-cerulean file:text-white hover:file:bg-brand-prussian cursor-pointer bg-brand-aliceBlue/30 p-2 rounded-xl sm:rounded-2xl"
                   />
                 </div>
                 {editingId && <p className="text-[10px] text-gray-400 mt-2 italic font-medium">Leave empty to keep the current file.</p>}
               </div>
 
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={closeModal} className="flex-1 py-4 text-sm font-semibold text-gray-500 hover:bg-gray-100 rounded-2xl transition-all">Discard</button>
+              <div className="flex gap-3 sm:gap-4 pt-4">
+                <button type="button" onClick={closeModal} className="flex-1 py-3 sm:py-4 text-sm font-semibold text-gray-500 hover:bg-gray-100 rounded-xl sm:rounded-2xl transition-all">Discard</button>
                 <button 
                   type="submit" disabled={isUploading}
-                  className="flex-1 py-4 text-sm font-semibold bg-brand-cerulean text-white rounded-2xl shadow-xl shadow-brand-cerulean/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 sm:py-4 text-sm font-semibold bg-brand-cerulean text-white rounded-xl sm:rounded-2xl shadow-xl shadow-brand-cerulean/20 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isUploading && <RotateCw className="w-4 h-4 animate-spin" />}
                   {isUploading ? "Processing..." : editingId ? "Update Resource" : "Upload Now"}

@@ -25,7 +25,7 @@ const STUDENT_MENU = [
   { key: "classes", label: "My Classes", href: "/student/classes", icon: CalendarDays },
   { key: "materials", label: "Study Materials", href: "/student/knowledge-base", icon: BookOpen },
   { key: "payments", label: "Payments", href: "/student/payments", icon: CreditCard },
-  { key: "community", label: "Community", href: "/student/community", icon: Users },
+  { key: "profile", label: "Profile", href: "/student/Profile", icon: Users },
   { key: "tickets", label: "Support", href: "/student/tickets", icon: HelpCircle },
 ];
 
