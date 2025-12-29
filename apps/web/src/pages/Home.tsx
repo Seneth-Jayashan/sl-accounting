@@ -63,14 +63,14 @@ const HeroSection = () => (
         </div>
 
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-brand-prussian leading-[1.15] mb-4 sm:mb-6 font-sinhala drop-shadow-sm">
-          තාරුණ්‍යයේ <br/>
+          A ලෙවල් 1ට <br/>
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-cerulean to-brand-coral">
-            ගිණුම්කරණ හඩ
+            Online Accounting
           </span>
         </h1>
 
         <p className="text-base sm:text-lg md:text-xl text-gray-500 font-sinhala mb-8 sm:mb-10 max-w-2xl leading-relaxed px-2 sm:px-0">
-          "සරසවියට - පෙර සවිය" <br/>
+          "වැඩ වැඩ වැඩ එක්ක හදවතට Accounting" <br/>
           <span className="text-sm sm:text-base text-gray-400 mt-2 block font-sans">
             The most trusted Online Accounting platform for A/L students in Sri Lanka.
           </span>
@@ -192,13 +192,12 @@ const AboutSection = () => (
 
         <h3 className="text-brand-coral font-bold tracking-widest uppercase text-xs sm:text-sm mb-4 font-sans">Our Mission</h3>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-brand-prussian mb-6 font-sinhala leading-tight">
-          ගිණුම්කරණයේ <br/><span className="text-brand-cerulean">Online පෙරගමන්කරු</span>
+          ගිණුම්කරණයේ <br/><span className="text-brand-cerulean text-2xl sm:text-4xl">Online පෙරගමන්කරු</span>
         </h2>
         
         <p className="text-gray-600 text-base sm:text-lg leading-relaxed mb-8 font-sinhala text-justify">
-          අපේ මූලික අරමුණ වන්නේ, සිසුන්ට Accounting විෂයයෙහි සාර්ථකව ප‍්‍රවේශ වීමට සහ ඒ මගින් ඔවුන්ගේ අනාගත වෘත්තිය සඳහා බලවත් පදනමක් ලබා දීමයි.
+            සිසුන්ට Accounting විෂයයෙහි විශ්වාසය සහ නිපුණතාව ලබා දී, ඔවුන්ගේ අනාගතයේ දී ඉහළ ප්‍රතිඵල ලබා ගැනීමට අත්වැල් පිරිනැමීම මඟින් සරසවි ප්‍රවේශයට මග පෙන්වීම
         </p>
-
         <ul className="space-y-3 sm:space-y-4 mb-8">
           {[
             "සරල සිද්ධාන්ත පැහැදිලි කිරීම්",
@@ -223,7 +222,7 @@ const AboutSection = () => (
           </div>
           <div>
             <h4 className="font-bold text-brand-prussian text-base sm:text-lg font-sans">Kalum Waduge</h4>
-            <p className="text-xs sm:text-sm text-brand-coral font-sans font-medium">BSc. Accounting (Sp) USJ</p>
+            <p className="text-xs sm:text-sm text-brand-coral font-sans font-medium">BSc. Accounting (Sp) USJP</p>
           </div>
         </div>
       </motion.div>
