@@ -122,46 +122,44 @@ export default function ViewClassPage() {
   const sessions = (classData as any).sessions || [];
   const nextSession = (classData as any).timeSchedules?.[0];
 
-  // REMOVED <DashboardLayout> Wrapper here
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-6 pb-24 animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto space-y-6 p-4 sm:p-6 pb-24 sm:pb-24 animate-in fade-in duration-500">
       
       {/* HEADER */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="space-y-1">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-1 w-full sm:w-auto">
           <button 
             onClick={() => navigate("/admin/classes")} 
             className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest"
           >
             <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Curriculum
           </button>
-          <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight truncate max-w-[300px] sm:max-w-none">
             {classData.name}
           </h1>
         </div>
         <button 
           onClick={() => navigate(`/admin/classes/edit/${id}`)} 
-          className="bg-brand-aliceBlue text-brand-prussian px-4 py-2 rounded-lg text-xs font-semibold hover:bg-brand-cerulean hover:text-white transition-all shadow-sm"
+          className="w-full sm:w-auto bg-brand-aliceBlue text-brand-prussian px-4 py-3 sm:py-2 rounded-xl sm:rounded-lg text-sm sm:text-xs font-semibold hover:bg-brand-cerulean hover:text-white transition-all shadow-sm text-center"
         >
             Edit Module
         </button>
       </header>
 
       {/* STATS */}
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <DetailCard 
-          icon={<AcademicCapIcon />} 
+          icon={<AcademicCapIcon className="w-5 h-5"/>} 
           label="Intake" 
           value={(classData.batch as any)?.name || "N/A"} 
         />
         <DetailCard 
-          icon={<ClockIcon />} 
+          icon={<ClockIcon className="w-5 h-5"/>} 
           label="Timing" 
           value={nextSession ? `${moment().day(nextSession.day).format("dddd")} @ ${nextSession.startTime}` : "TBA"} 
         />
         <DetailCard 
-          icon={<UserGroupIcon />} 
+          icon={<UserGroupIcon className="w-5 h-5"/>} 
           label="Enrolled" 
           value={`${(classData as any).studentCount || 0} Students`} 
         />
@@ -169,7 +167,7 @@ export default function ViewClassPage() {
 
       {/* TABS & CONTENT */}
       <div className="space-y-4">
-        <div className="flex p-1 bg-brand-aliceBlue/50 rounded-lg w-fit border border-brand-aliceBlue">
+        <div className="flex p-1 bg-brand-aliceBlue/50 rounded-lg w-full sm:w-fit border border-brand-aliceBlue overflow-x-auto">
           <TabTrigger 
             active={activeTab === "sessions"} 
             onClick={() => setActiveTab("sessions")} 
@@ -282,9 +280,9 @@ const SessionRow = ({ session, onCancel, onDelete }: { session: any, onCancel: (
   const hasLink = session.zoomStartUrl && isValidUrl(session.zoomStartUrl);
 
   return (
-    <div className={`bg-white border ${isCancelled ? 'border-red-100 bg-red-50/20' : 'border-brand-aliceBlue'} rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 transition-all shadow-sm hover:shadow-md`}>
-      <div className="flex items-center gap-4 w-full md:w-auto">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${isCancelled ? 'bg-white text-red-500 border border-red-100' : isPast ? 'bg-gray-100 text-gray-400' : 'bg-brand-cerulean text-white'}`}>
+    <div className={`bg-white border ${isCancelled ? 'border-red-100 bg-red-50/20' : 'border-brand-aliceBlue'} rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all shadow-sm hover:shadow-md`}>
+      <div className="flex items-center gap-4 w-full sm:w-auto">
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm shrink-0 ${isCancelled ? 'bg-white text-red-500 border border-red-100' : isPast ? 'bg-gray-100 text-gray-400' : 'bg-brand-cerulean text-white'}`}>
           {session.index}
         </div>
         <div className="min-w-0">
@@ -299,53 +297,55 @@ const SessionRow = ({ session, onCancel, onDelete }: { session: any, onCancel: (
         </div>
       </div>
 
-      <div className="flex items-center gap-2 w-full md:w-auto">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
         {/* START MEETING BUTTON */}
         {!isCancelled && !isPast && hasLink && (
           <a 
             href={session.zoomStartUrl} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-cerulean text-white px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-brand-prussian transition-all shadow-sm active:scale-95"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-brand-cerulean text-white px-5 py-3 sm:py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-brand-prussian transition-all shadow-sm active:scale-95"
           >
             <VideoCameraIcon className="w-4 h-4 stroke-2" /> Launch
           </a>
         )}
 
-        {/* CANCEL MEETING BUTTON */}
-        {!isCancelled && !isPast && (
-          <button 
-            onClick={onCancel} 
-            className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100" 
-            title="Cancel Meeting"
-          >
-            <XCircleIcon className="w-5 h-5" />
-          </button>
-        )}
+        <div className="flex gap-2 w-full sm:w-auto">
+            {/* CANCEL MEETING BUTTON */}
+            {!isCancelled && !isPast && (
+            <button 
+                onClick={onCancel} 
+                className="flex-1 sm:flex-none py-3 sm:py-2.5 px-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-brand-aliceBlue hover:border-red-100 flex justify-center" 
+                title="Cancel Meeting"
+            >
+                <XCircleIcon className="w-5 h-5" />
+            </button>
+            )}
 
-        {isCancelled && (
-           <div className="flex-1 md:flex-none text-[10px] font-medium text-red-400 italic px-3 border-l-2 border-red-200">
-               "{session.cancellationReason || "No reason specified"}"
-           </div>
-        )}
+            {isCancelled && (
+                <div className="flex-1 sm:flex-none text-[10px] font-medium text-red-400 italic px-3 py-2 border-l-2 border-red-200 bg-red-50/50 rounded-r-lg">
+                    "{session.cancellationReason || "No reason specified"}"
+                </div>
+            )}
 
-        <button 
-          onClick={onDelete} 
-          className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100" 
-          title="Delete Permanent"
-        >
-          <TrashIcon className="w-5 h-5" />
-        </button>
+            <button 
+            onClick={onDelete} 
+            className="flex-1 sm:flex-none py-3 sm:py-2.5 px-3 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-brand-aliceBlue hover:border-red-100 flex justify-center" 
+            title="Delete Permanent"
+            >
+            <TrashIcon className="w-5 h-5" />
+            </button>
+        </div>
       </div>
     </div>
   );
 };
 
 const DetailCard = ({ icon, label, value }: { icon: any, label: string, value: string }) => (
-    <div className="bg-white p-5 rounded-2xl border border-brand-aliceBlue shadow-sm flex items-center gap-4">
-      <div className="p-3 bg-brand-aliceBlue rounded-xl text-brand-cerulean">{icon}</div>
-      <div className="min-w-0">
-        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">{label}</p>
+    <div className="bg-white p-4 sm:p-5 rounded-2xl border border-brand-aliceBlue shadow-sm flex items-center gap-4">
+      <div className="p-2 sm:p-3 bg-brand-aliceBlue rounded-xl text-brand-cerulean shrink-0">{icon}</div>
+      <div className="min-w-0 overflow-hidden">
+        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 truncate">{label}</p>
         <p className="text-sm font-semibold text-brand-prussian truncate">{value}</p>
       </div>
     </div>
@@ -354,13 +354,12 @@ const DetailCard = ({ icon, label, value }: { icon: any, label: string, value: s
 const TabTrigger = ({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) => (
     <button 
       onClick={onClick} 
-      className={`px-5 py-2 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider ${active ? "bg-white text-brand-cerulean shadow-sm" : "text-gray-400 hover:text-brand-prussian"}`}
+      className={`flex-1 sm:flex-none px-4 sm:px-5 py-2.5 sm:py-2 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider ${active ? "bg-white text-brand-cerulean shadow-sm" : "text-gray-400 hover:text-brand-prussian"}`}
     >
       {label}
     </button>
 );
 
-// REMOVED <DashboardLayout> wrapper
 const LoadingState = () => (
     <div className="flex h-[70vh] items-center justify-center flex-col gap-4">
       <ArrowPathIcon className="w-8 h-8 text-brand-cerulean animate-spin" />
@@ -368,7 +367,6 @@ const LoadingState = () => (
     </div>
 );
 
-// REMOVED <DashboardLayout> wrapper
 const NotFoundState = ({ onBack }: { onBack: () => void }) => (
     <div className="text-center py-32 space-y-4">
       <h2 className="text-lg font-semibold text-brand-prussian">Record data unavailable</h2>

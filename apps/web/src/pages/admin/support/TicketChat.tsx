@@ -4,7 +4,8 @@ import {
   InboxIcon, 
   TrashIcon, 
   ExclamationCircleIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  ArrowLeftIcon
 } from "@heroicons/react/24/outline";
 
 // Services & Context
@@ -130,6 +131,8 @@ export default function TicketChatAdmin() {
       try {
         const t = await TicketService.getTicketById(selectedId);
         setSelectedTicket(t ?? null);
+        // Scroll to top on mobile when selecting a ticket
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch (e) {
         setSelectedTicket(null);
       } finally {
@@ -142,8 +145,7 @@ export default function TicketChatAdmin() {
     // Escape Key Handler
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setSelectedId(null);
-        navigate(`/admin/chat`, { replace: true });
+        handleBackToList();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -181,6 +183,11 @@ export default function TicketChatAdmin() {
   }, [selectedId, accessToken]);
 
   // --- ACTIONS ---
+
+  const handleBackToList = () => {
+    setSelectedId(null);
+    navigate(`/admin/chat`, { replace: true });
+  };
 
   const applyStatusChange = async (nextStatus: string) => {
     if (!selectedTicket || !selectedId) return;
@@ -291,10 +298,16 @@ export default function TicketChatAdmin() {
   const handleRedirectAfterAction = (removedId: string) => {
     setSelectedTicket(null);
     const remaining = tickets.filter((t) => t._id !== removedId);
-    const next = remaining[0]?._id ?? null;
-    setSelectedId(next);
-    if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
-    else navigate(`/admin/chat`, { replace: true });
+    
+    // On Mobile: Go back to list. On Desktop: Select next.
+    if (window.innerWidth < 1024) {
+        handleBackToList();
+    } else {
+        const next = remaining[0]?._id ?? null;
+        setSelectedId(next);
+        if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
+        else navigate(`/admin/chat`, { replace: true });
+    }
   };
 
   // Stats calculation
@@ -304,12 +317,12 @@ export default function TicketChatAdmin() {
   }), [tickets]);
 
   return (
-    <div className="bg-[#e9f0f7] min-h-full"> {/* Layout wrapper removed */}
-      <main className="p-4 lg:p-8 pb-24 lg:pb-10 h-[calc(100vh-64px)] flex justify-center">
+    <div className="bg-[#e9f0f7] min-h-full h-screen lg:h-auto flex flex-col">
+      <main className="flex-1 p-4 lg:p-8 pb-4 lg:pb-10 lg:h-[calc(100vh-64px)] flex justify-center overflow-hidden">
         <div className="w-full max-w-7xl space-y-4 flex flex-col h-full">
           
-          {/* Header */}
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between shrink-0">
+          {/* Header (Hidden on Mobile if Ticket Selected) */}
+          <div className={`flex-col gap-2 md:flex-row md:items-center md:justify-between shrink-0 ${selectedId ? 'hidden lg:flex' : 'flex'}`}>
             <div>
               <h1 className="text-2xl font-bold text-[#0b2540]">Support Tickets</h1>
               <p className="text-xs text-gray-500">Manage user inquiries and chat history.</p>
@@ -320,16 +333,16 @@ export default function TicketChatAdmin() {
             </div>
           </div>
 
-          {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200">{error}</div>}
+          {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200 shrink-0">{error}</div>}
 
           {loading ? (
             <div className="flex-1 flex items-center justify-center text-gray-400 text-sm animate-pulse">Loading tickets...</div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0 relative">
               
-              {/* LEFT COLUMN: Ticket List */}
-              <div className="lg:col-span-1 bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
-                <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center">
+              {/* LEFT COLUMN: Ticket List (Hidden on Mobile if Ticket Selected) */}
+              <div className={`lg:col-span-1 bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden h-full ${selectedId ? 'hidden lg:flex' : 'flex'}`}>
+                <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center shrink-0">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inbox</span>
                   <div className="flex items-center gap-2">
                     {selectedCount > 0 ? (
@@ -340,7 +353,6 @@ export default function TicketChatAdmin() {
                           className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
                           onClick={() => setShowBulkDeleteConfirm(true)}
                           disabled={bulkDeleting || deleting}
-                          title="Delete selected tickets"
                         >
                           <TrashIcon className="w-4 h-4" /> Delete
                         </button>
@@ -371,7 +383,6 @@ export default function TicketChatAdmin() {
                   ) : (
                     <ul className="divide-y divide-gray-100">
                       {tickets.map((ticket) => (
-                        
                         <TicketListItem 
                           key={ticket._id} 
                           ticket={ticket} 
@@ -381,8 +392,8 @@ export default function TicketChatAdmin() {
                           onToggleSelect={toggleSelected}
                           onClick={(id) => {
                             if (selectedId === id) {
-                              setSelectedId(null);
-                              navigate('/admin/chat', { replace: true });
+                              // On desktop, clicking same deselects. On mobile, it opens/keeps open.
+                              if (window.innerWidth >= 1024) handleBackToList();
                             } else {
                               setSelectedId(id);
                               navigate(`/admin/chat/ticket/${id}`);
@@ -395,8 +406,16 @@ export default function TicketChatAdmin() {
                 </div>
               </div>
 
-              {/* RIGHT COLUMN: Chat Area */}
-              <div className="lg:col-span-2 flex flex-col gap-3 min-h-0">
+              {/* RIGHT COLUMN: Chat Area (Full Screen on Mobile if Selected) */}
+              <div className={`lg:col-span-2 flex flex-col gap-3 min-h-0 absolute inset-0 lg:static z-20 lg:z-auto bg-[#e9f0f7] lg:bg-transparent ${selectedId ? 'flex' : 'hidden lg:flex'}`}>
+                
+                {/* Mobile Back Button Header */}
+                <div className="lg:hidden flex items-center gap-2 p-1">
+                    <button onClick={handleBackToList} className="flex items-center text-sm font-semibold text-gray-600 bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-200">
+                        <ArrowLeftIcon className="w-4 h-4 mr-1" /> Back
+                    </button>
+                </div>
+
                 {/* Meta Panel */}
                 <div className="bg-white rounded-2xl border shadow-sm p-4 shrink-0">
                   {loadingTicket ? (
@@ -410,17 +429,17 @@ export default function TicketChatAdmin() {
                       onDelete={() => setShowDeleteConfirm(true)}
                     />
                   ) : (
-                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <div className="flex items-center gap-2 text-gray-400 text-sm justify-center h-full">
                       <InboxIcon className="w-5 h-5" /> Select a ticket to view details
                     </div>
                   )}
                 </div>
 
                 {/* Chat Box */}
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-0 rounded-2xl overflow-hidden border shadow-sm bg-white relative">
                   {selectedId && user && selectedTicket ? (
                     isChatDisabled(selectedTicket.status) ? (
-                      <div className="w-full h-full flex flex-col bg-white border border-gray-200 rounded-2xl shadow-sm items-center justify-center text-gray-400 gap-2">
+                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2 p-4 text-center">
                         <ExclamationCircleIcon className="w-8 h-8 opacity-50" />
                         <span className="text-sm">This ticket is Closed. Chat is disabled.</span>
                       </div>
@@ -434,7 +453,7 @@ export default function TicketChatAdmin() {
                       />
                     )
                   ) : (
-                    <div className="w-full h-full flex flex-col bg-white border border-gray-200 rounded-2xl shadow-sm items-center justify-center text-gray-300 gap-3">
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-3">
                       <ChatBubbleLeftRightIcon className="w-12 h-12 opacity-20" />
                       <span className="text-sm font-medium">Select a conversation</span>
                     </div>
@@ -512,29 +531,31 @@ const TicketListItem = ({
 }) => (
   <li
     onClick={() => onClick(ticket._id)}
-    className={`p-4 cursor-pointer transition-all hover:bg-gray-50 border-l-4 ${
+    className={`p-4 cursor-pointer transition-all hover:bg-gray-50 border-l-4 active:bg-gray-100 ${
       isActive ? "bg-blue-50/50 border-blue-600" : "border-transparent"
     }`}
   >
     <div className="flex justify-between items-start mb-1 gap-2">
-      <div className="flex items-start gap-2 min-w-0">
+      <div className="flex items-start gap-3 min-w-0">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => !selectionDisabled && onToggleSelect(ticket._id)}
           onClick={(e) => e.stopPropagation()}
           disabled={selectionDisabled}
-          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
           aria-label="Select ticket"
         />
-        <h3 className={`text-sm font-semibold truncate pr-2 min-w-0 ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
-          {ticket.name}
-        </h3>
+        <div>
+            <h3 className={`text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
+            {ticket.name}
+            </h3>
+            <div className="text-xs text-gray-500 truncate">{ticket.email}</div>
+        </div>
       </div>
       <StatusBadge status={ticket.status} />
     </div>
-    <div className="text-xs text-gray-500 truncate">{ticket.email}</div>
-    <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400 uppercase tracking-wider">
+    <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400 uppercase tracking-wider pl-7">
       <span>{ticket.Categories || "General"}</span>
       <span>{ticket.priority || "Low"} Priority</span>
     </div>
@@ -546,12 +567,10 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
   const isResolved = String(ticket.status).toLowerCase() === 'resolved';
   const currentStatus = String(ticket.status || "Open");
 
-  // Admin should not be able to set "Resolved".
-  // "Closed" should only be available after user marks as "Resolved".
   const statusOptions = useMemo(() => {
     if (isClosed) return ["Closed"];
     if (isResolved) return ["Resolved", "Closed"];
-    return ["Open", "In Progress"]; // no Resolved/Closed for admin
+    return ["Open", "In Progress"];
   }, [isClosed, isResolved]);
   const needsCurrentOption = !statusOptions.includes(currentStatus);
 
@@ -573,14 +592,14 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
         <p className="text-xs text-gray-500">{ticket.email} • {ticket.phoneNumber}</p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 w-full md:w-auto">
         <Dropdown
           value={currentStatus}
           onChange={(v) => onStatusChange(v)}
           options={dropdownOptions}
           disabled={statusUpdating || deleting || isClosed}
-          className="pl-3 pr-9 py-1.5 text-sm rounded-lg"
-          wrapperClassName="w-44"
+          className="pl-3 pr-9 py-1.5 text-sm rounded-lg w-full md:w-44"
+          wrapperClassName="w-full md:w-44"
         />
 
         {isClosed ? (
@@ -593,7 +612,7 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
             <TrashIcon className="w-5 h-5" />
           </button>
         ) : (
-          <div className="w-9 h-9" /> // Spacer
+          <div className="hidden md:block w-9 h-9" /> 
         )}
       </div>
     </div>
@@ -607,8 +626,7 @@ const StatusBadge = ({ status }: { status?: string }) => {
   if (s === "Resolved") colors = "bg-purple-100 text-purple-700";
   if (s === "Closed") colors = "bg-red-100 text-red-700";
 
-  return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${colors}`}>{s}</span>;
+  return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${colors}`}>{s}</span>;
 };
 
-// Helper to determine if chat is viewable
 const isChatDisabled = (status?: string) => String(status || "").toLowerCase() === 'closed';

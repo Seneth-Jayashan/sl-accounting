@@ -136,13 +136,14 @@ export default function UpdateClassPage() {
   if (isLoading) return <LoadingSkeleton />;
 
   return (
-      <div className="max-w-5xl mx-auto space-y-6 pb-24 p-6 animate-in fade-in duration-500">
+      <div className="max-w-5xl mx-auto space-y-6 pb-28 md:pb-24 p-4 md:p-6 animate-in fade-in duration-500">
         
+        {/* Header */}
         <header className="flex flex-col gap-2">
-          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest">
-            <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Discard Changes
+          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] md:text-xs font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest">
+            <ArrowLeftIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 stroke-[3px]" /> Discard Changes
           </button>
-          <h1 className="text-3xl font-semibold text-brand-prussian tracking-tight">Modify Class Module</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold text-brand-prussian tracking-tight">Modify Class Module</h1>
         </header>
 
         {error && (
@@ -151,15 +152,15 @@ export default function UpdateClassPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           
           <div className="lg:col-span-2 space-y-6">
-            <Section title="Identity & Curriculum" icon={<AcademicCapIcon />}>
+            <Section title="Identity & Curriculum" icon={<AcademicCapIcon className="w-5 h-5"/>}>
               <div className="space-y-4">
                 <Input label="Class Name" name="name" value={formData.name} 
                   onChange={(e: any) => setFormData({...formData, name: e.target.value})} required />
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Select label="Batch Intake" name="batch" value={formData.batch} 
                     onChange={(e: any) => setFormData({...formData, batch: e.target.value})}>
                     {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
@@ -177,7 +178,7 @@ export default function UpdateClassPage() {
               </div>
             </Section>
 
-            <Section title="Timing & Investment" icon={<ClockIcon />}>
+            <Section title="Timing & Investment" icon={<ClockIcon className="w-5 h-5"/>}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="relative">
                   <Input label="Monthly Fee (LKR)" name="price" type="number" value={formData.price} 
@@ -197,7 +198,7 @@ export default function UpdateClassPage() {
           </div>
 
           <aside className="space-y-6">
-            <Section title="Banner Media" icon={<PhotoIcon />}>
+            <Section title="Banner Media" icon={<PhotoIcon className="w-5 h-5"/>}>
               <div className="group relative aspect-video bg-brand-aliceBlue/50 rounded-2xl border border-dashed border-gray-200 overflow-hidden hover:border-brand-cerulean transition-all">
                 {imagePreview ? (
                   <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
@@ -205,8 +206,8 @@ export default function UpdateClassPage() {
                   <img src={currentImageUrl} className="w-full h-full object-cover" alt="Current" />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                     <PhotoIcon className="w-8 h-8 opacity-20" />
-                     <p className="text-[10px] uppercase font-bold tracking-widest mt-2">No Cover Image</p>
+                      <PhotoIcon className="w-8 h-8 opacity-20" />
+                      <p className="text-[10px] uppercase font-bold tracking-widest mt-2">No Cover Image</p>
                   </div>
                 )}
                 <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -225,9 +226,12 @@ export default function UpdateClassPage() {
               </label>
             </div>
 
-            <button type="submit" disabled={isSaving} className="w-full bg-brand-cerulean hover:bg-brand-prussian text-white py-4 rounded-2xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
-              {isSaving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <><CheckCircleIcon className="w-5 h-5" /> Commit Changes</>}
-            </button>
+            {/* Sticky Action Button on Mobile */}
+            <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-200 lg:static lg:bg-transparent lg:border-none lg:p-0 z-50">
+                <button type="submit" disabled={isSaving} className="w-full bg-brand-cerulean hover:bg-brand-prussian text-white py-4 rounded-2xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
+                {isSaving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <><CheckCircleIcon className="w-5 h-5" /> Commit Changes</>}
+                </button>
+            </div>
           </aside>
         </form>
       </div>
@@ -237,8 +241,8 @@ export default function UpdateClassPage() {
 // --- Smooth UI Sub-components ---
 
 const Section = ({ title, icon, children }: any) => (
-  <div className="bg-white p-8 rounded-[2rem] border border-brand-aliceBlue shadow-sm">
-    <div className="flex items-center gap-3 mb-8 border-b border-brand-aliceBlue pb-4">
+  <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-brand-aliceBlue shadow-sm">
+    <div className="flex items-center gap-3 mb-6 md:mb-8 border-b border-brand-aliceBlue pb-4">
       <div className="text-brand-cerulean p-2 bg-brand-aliceBlue rounded-xl">{icon}</div>
       <h2 className="text-xs font-bold text-brand-prussian uppercase tracking-widest">{title}</h2>
     </div>
