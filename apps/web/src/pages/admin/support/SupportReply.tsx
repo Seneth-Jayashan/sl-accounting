@@ -15,6 +15,7 @@ export default function SupportReply() {
   const [loading, setLoading] = useState<boolean>(true);
   const [list, setList] = useState<SupportMessage[]>([]);
   const [error, setError] = useState<string>("");
+  // collapsed state is managed by DashboardLayout when using Sidebar prop
 
   const [selected, setSelected] = useState<SupportMessage | null>(null);
   const [reply, setReply] = useState<string>("");
@@ -25,7 +26,9 @@ export default function SupportReply() {
   const [tab, setTab] = useState<Tab>("all");
 
   const stats = useMemo(() => {
-    const unreplied = list.filter((m) => !m.reply || m.reply.trim() === "").length;
+    const unreplied = list.filter(
+      (m) => !m.reply || m.reply.trim() === ""
+    ).length;
     const total = list.length;
     return {
       total,
@@ -59,7 +62,9 @@ export default function SupportReply() {
         setError("Failed to load support messages.");
       })
       .finally(() => mounted && setLoading(false));
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -84,13 +89,15 @@ export default function SupportReply() {
   
 
   const onSelect = (m: SupportMessage) => {
-    // If clicking same, do nothing (on mobile we want to keep it open, on desktop it stays open)
-    if (selected?._id === m._id) return;
-    
+    // Toggle selection: clicking an already-selected message will unselect it
+    if (selected?._id === m._id) {
+      setSelected(null);
+      setReply("");
+      setError("");
+      return;
+    }
     setSelected(m);
     setReply(m.reply ?? "");
-    // Scroll to top on mobile
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const toggleBulkSelection = (id: string) => {
@@ -167,6 +174,7 @@ export default function SupportReply() {
         reply: body,
       });
 
+      // Update list and selected
       setList((prev) => prev.map((m) => (m._id === updated._id ? updated : m)));
       setSelected(updated);
       setReply(updated.reply ?? "");
@@ -180,9 +188,12 @@ export default function SupportReply() {
 
   const handleDelete = async (id: string) => {
     if (!id) return;
-    const ok = window.confirm("Delete this contact message? This cannot be undone.");
+    const ok = window.confirm(
+      "Delete this contact message? This cannot be undone."
+    );
     if (!ok) return;
     setDeletingId(id);
+    setError("");
     try {
       await SupportService.remove(id);
       setList((prev) => prev.filter((m) => m._id !== id));
@@ -192,7 +203,7 @@ export default function SupportReply() {
       }
     } catch (e) {
       console.error(e);
-      setError("Failed to delete message.");
+      setError("Failed to delete message. Please try again.");
     } finally {
       setDeletingId(null);
       setSelectedIds((prev) => prev.filter((x) => x !== id));
@@ -558,20 +569,4 @@ export default function SupportReply() {
       </main>
     </div>
   );
-}
-
-// Compact Stat Card
-function StatCard({ icon, label, value, sub }: any) {
-    return (
-        <div className="bg-white p-3 lg:p-4 rounded-2xl border shadow-sm flex flex-col justify-between h-full">
-            <div className="flex items-center gap-2 text-gray-400 mb-1">
-                {icon}
-                <span className="text-[10px] uppercase font-bold tracking-wider">{label}</span>
-            </div>
-            <div>
-                <span className="text-xl lg:text-2xl font-bold text-[#0b2540] block leading-none">{value}</span>
-                <span className="text-[10px] text-gray-400 font-medium">{sub}</span>
-            </div>
-        </div>
-    )
 }
