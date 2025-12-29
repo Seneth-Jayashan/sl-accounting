@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
 import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import Dropdown from "../../../components/Dropdown";
 
 const CATEGORIES = [
   "Lecture Notes",
@@ -183,13 +184,20 @@ const AdminKnowledgeBase: React.FC = () => {
           new Date(publishAt).getTime() > Date.now();
 
         if (scheduled && publishAt) {
+          const isMobile = window.matchMedia("(max-width: 639px)").matches;
+          const scheduledHtml = isMobile
+            ? `<div class="text-sm">You have successfully scheduled this material.</div><div class="mt-3 text-base font-mono"><span id="kb-countdown">--:--:--</span></div>`
+            : `<div class="text-sm">You have successfully scheduled this material.</div><div class="mt-3 text-lg font-mono"><span id="kb-countdown">--:--:--</span></div>`;
           // show countdown modal
           Swal.fire({
             title: "Scheduled",
-            html: `<div class="text-sm">You have successfully scheduled this material.</div><div class="mt-3 text-lg font-mono"><span id="kb-countdown">--:--:--</span></div>`,
+            html: scheduledHtml,
             icon: "success",
             confirmButtonText: "Go to list",
             allowOutsideClick: false,
+            ...(isMobile
+              ? { width: "92%", padding: "1rem", heightAuto: false }
+              : {}),
             didOpen: () => {
               const el = document.getElementById("kb-countdown");
               const target = new Date(publishAt as string).getTime();
@@ -212,11 +220,15 @@ const AdminKnowledgeBase: React.FC = () => {
             navigate("/admin/knowledge-list");
           });
         } else {
+          const isMobile = window.matchMedia("(max-width: 639px)").matches;
           Swal.fire({
             title: "Published",
             text: "Material published",
             icon: "success",
             confirmButtonText: "Go to list",
+            ...(isMobile
+              ? { width: "92%", padding: "1rem", heightAuto: false }
+              : {}),
           }).then(() => {
             navigate("/admin/knowledge-list");
           });
@@ -245,7 +257,7 @@ const AdminKnowledgeBase: React.FC = () => {
   };
 
   return (
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Knowledge Base — Upload</h1>
           <p className="text-sm text-gray-500">
@@ -264,7 +276,7 @@ const AdminKnowledgeBase: React.FC = () => {
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-lg"
+          className="space-y-6 bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-lg"
         >
           <div className="space-y-1">
             <label className="text-sm font-semibold text-gray-700">
@@ -311,24 +323,20 @@ const AdminKnowledgeBase: React.FC = () => {
               <label className="text-sm font-medium text-gray-700">
                 Category
               </label>
-              <select
+              <Dropdown
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#0b2540]/20 cursor-pointer shadow-sm"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setCategory(v)}
+                options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+                wrapperClassName="w-full"
+                className="px-4 py-2 rounded-xl"
+              />
             </div>
 
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">
                 Publish
               </label>
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -336,7 +344,7 @@ const AdminKnowledgeBase: React.FC = () => {
                     setSchedulePublish(false);
                     setPublishAt(null);
                   }}
-                  className={`w-40 py-2 rounded-xl text-base font-semibold ${
+                  className={`w-full sm:w-40 py-2 rounded-xl text-base font-semibold ${
                     isPublished
                       ? "bg-[#0b2540] text-white"
                       : "bg-gray-100 text-gray-700"
@@ -350,7 +358,7 @@ const AdminKnowledgeBase: React.FC = () => {
                     setSchedulePublish(true);
                     setIsPublished(false);
                   }}
-                  className={`w-40 py-2 rounded-lg text-base font-semibold ${
+                  className={`w-full sm:w-40 py-2 rounded-lg text-base font-semibold ${
                     schedulePublish
                       ? "bg-[#0b2540] text-white"
                       : "bg-gray-100 text-gray-700"
@@ -383,7 +391,7 @@ const AdminKnowledgeBase: React.FC = () => {
             {!file ? (
               <div
                 ref={fileAreaRef}
-                className={`mt-2 relative w-full aspect-video bg-gray-50 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer border-2 border-dashed ${
+                className={`mt-2 relative w-full aspect-[4/3] sm:aspect-video bg-gray-50 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer border-2 border-dashed ${
                   fileError ? "border-red-400 bg-red-50" : "border-gray-300"
                 }`}
               >
@@ -422,7 +430,7 @@ const AdminKnowledgeBase: React.FC = () => {
               </div>
             ) : (
               <div ref={fileAreaRef} className="mt-2 w-full">
-                <div className="mb-2 flex justify-end">
+                <div className="mb-2 flex justify-start sm:justify-end">
                   <label className="px-3 py-1 rounded-xl border border-gray-200 text-sm cursor-pointer bg-white">
                     Update file
                     <input
@@ -439,18 +447,18 @@ const AdminKnowledgeBase: React.FC = () => {
                       <iframe
                         src={filePreviewUrl}
                         title="PDF preview"
-                        className="w-full h-64 border rounded shadow-sm"
+                        className="w-full h-56 sm:h-64 border rounded shadow-sm"
                       />
                     ) : (
                       <img
                         src={filePreviewUrl}
                         alt="preview"
-                        className="max-h-64 rounded shadow-sm"
+                        className="w-full max-h-64 object-contain rounded shadow-sm"
                       />
                     )}
 
                     {/* Show file info + editable filename even when previewing (PDF/Image) */}
-                    <div className="mt-3 p-4 border rounded-lg bg-gray-50 flex items-center gap-4">
+                    <div className="mt-3 p-4 border rounded-lg bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-4">
                       <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
                         FILE
                       </div>
@@ -473,7 +481,7 @@ const AdminKnowledgeBase: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">
                           {category}
                         </div>
@@ -481,7 +489,7 @@ const AdminKnowledgeBase: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 border rounded-lg bg-gray-50 flex items-center gap-4">
+                  <div className="p-4 border rounded-lg bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
                       FILE
                     </div>
@@ -504,7 +512,7 @@ const AdminKnowledgeBase: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">
                         {category}
                       </div>
@@ -512,7 +520,7 @@ const AdminKnowledgeBase: React.FC = () => {
                   </div>
                 )}
                 {filePreviewUrl && (
-                  <div className="flex items-center justify-between mt-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-3 gap-2">
                     <div>
                       <div className="text-sm font-medium">{file?.name}</div>
                       <div className="text-xs text-gray-400">
@@ -520,7 +528,7 @@ const AdminKnowledgeBase: React.FC = () => {
                         • {formatBytes(file.size)}
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">
                         {category}
                       </div>
@@ -531,18 +539,18 @@ const AdminKnowledgeBase: React.FC = () => {
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-gray-100">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="px-5 py-2 rounded-xl border border-gray-300 text-gray-700"
+              className="w-full sm:w-auto px-5 py-2 rounded-xl border border-gray-300 text-gray-700"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 rounded-xl bg-[#0b2540] text-white font-medium disabled:opacity-60"
+              className="w-full sm:w-auto px-5 py-2 rounded-xl bg-[#0b2540] text-white font-medium disabled:opacity-60"
             >
               {loading ? "Uploading..." : "Upload"}
             </button>
