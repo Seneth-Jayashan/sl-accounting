@@ -65,6 +65,7 @@ const StudentKnowledgeBase: React.FC = () => {
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = downloadUrl;
+        a.target = "_self";
 
         const disposition = res.headers["content-disposition"] as string | undefined;
         let filename = fileName || "download";
@@ -77,7 +78,7 @@ const StudentKnowledgeBase: React.FC = () => {
         document.body.appendChild(a);
         a.click();
         a.remove();
-        window.URL.revokeObjectURL(downloadUrl);
+        setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 1500);
       } catch (err: any) {
         console.error("Download error", err);
         if (err.response?.status === 401) {

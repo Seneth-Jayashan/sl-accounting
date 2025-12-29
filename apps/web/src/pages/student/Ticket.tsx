@@ -221,33 +221,40 @@ export default function StudentTicketPage(): React.ReactElement {
     }
   };
 
+  const inChatMode = ticketId && ticketInfo && !isTicketClosed(ticketInfo);
+
   return (
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm p-4 md:p-8">
-          {ticketId && ticketInfo && !isTicketClosed(ticketInfo) ? (
+      <div className={`max-w-7xl mx-auto ${inChatMode ? 'h-[calc(100vh-64px)] supports-[height:100dvh]:h-[calc(100dvh-64px)] md:h-auto md:min-h-0' : ''}`}>
+        <div className={`bg-white rounded-2xl shadow-sm ${inChatMode ? 'h-full flex flex-col overflow-hidden md:h-auto md:block md:overflow-visible p-0 md:p-8' : 'p-4 md:p-8'}`}>
+          {inChatMode ? (
             // Ticket exists and is not closed: show only chat with heading
-            <div>
-              <header className="mb-4">
-                <p className="text-sm text-gray-500">Support — Ticket</p>
-                <h1 className="text-xl md:text-2xl font-semibold text-[#053A4E]">Ticket ID: {ticketId}</h1>
-                <p className="text-sm text-gray-600">Category: {ticketInfo?.Categories ?? ticketInfo?.category ?? "-"}</p>
-                <p className="text-sm text-gray-600">Issue reported: {ticketInfo?.message ?? "-"}</p>
-                <p className="text-xs text-gray-600">Status: {ticketInfo?.status ?? "-"}</p>
-                {!isTicketClosed(ticketInfo) && !isResolved && (
-                  <div className="mt-2 flex flex-wrap gap-2">
+            <div className="flex flex-col h-full md:block">
+              <header className="shrink-0 p-4 border-b md:border-none md:p-0 md:mb-4 bg-gray-50/50 md:bg-white">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ticket #{ticketId?.slice(-6)}</p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isResolved ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {ticketInfo?.status ?? "Open"}
+                      </span>
+                    </div>
+                    <h1 className="text-lg md:text-2xl font-semibold text-[#053A4E] line-clamp-1">{ticketInfo?.category ?? "Support Request"}</h1>
+                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">{ticketInfo?.message}</p>
+                  </div>
+                  {!isTicketClosed(ticketInfo) && !isResolved && (
                     <button
                       type="button"
-                      className="text-sm px-3 py-1 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="text-xs px-3 py-1.5 rounded-lg bg-green-50 border border-green-200 text-green-700 disabled:opacity-60 font-medium whitespace-nowrap"
                       onClick={handleMarkResolved}
                       disabled={isMarkingResolved}
                     >
-                      {isMarkingResolved ? "Marking..." : "Mark as Resolved"}
+                      {isMarkingResolved ? "..." : "Resolve"}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </header>
-              <div className="mt-4">
-                <Chat ticketId={ticketId} readOnly={isResolved} />
+              <div className="flex-1 min-h-0 md:min-h-[500px] md:h-[600px] relative">
+                <Chat ticketId={ticketId} readOnly={isResolved} heightMode="parent" hideHeader />
               </div>
             </div>
           ) : (

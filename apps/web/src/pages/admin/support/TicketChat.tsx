@@ -317,7 +317,7 @@ export default function TicketChatAdmin() {
   }), [tickets]);
 
   return (
-    <div className="bg-[#e9f0f7] min-h-full h-[calc(100vh-64px)] overflow-hidden"> 
+    <div className="bg-[#e9f0f7] min-h-full h-[calc(100vh-64px)] supports-[height:100dvh]:h-[calc(100dvh-64px)] overflow-hidden"> 
       <main className="h-full w-full max-w-7xl mx-auto flex flex-col lg:p-8">
         
         {/* Header - Visible only on Desktop OR Mobile List View */}
@@ -345,7 +345,7 @@ export default function TicketChatAdmin() {
               flex-col bg-white lg:rounded-2xl border shadow-sm overflow-hidden
               ${selectedId ? 'hidden lg:flex lg:w-1/3' : 'flex w-full h-full lg:w-1/3'}
             `}>
-              <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center shrink-0">
+              <div className="p-4 border-b bg-gray-50/50 flex justify-between items-center shrink-0">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inbox</span>
                 <div className="flex items-center gap-2">
                   {selectedCount > 0 ? (
@@ -427,9 +427,10 @@ export default function TicketChatAdmin() {
                     setSelectedId(null);
                     navigate('/admin/chat');
                   }}
-                  className="mr-3 lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+                  className="mr-2 lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 active:bg-gray-200 rounded-full transition-colors touch-none"
+                  aria-label="Back to ticket list"
                 >
-                  <ArrowLeftIcon className="w-5 h-5" />
+                  <ArrowLeftIcon className="w-6 h-6" />
                 </button>
 
                 <div className="flex-1 min-w-0">

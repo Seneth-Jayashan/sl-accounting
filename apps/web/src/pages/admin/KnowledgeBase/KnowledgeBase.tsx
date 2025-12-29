@@ -165,7 +165,7 @@ const AdminKnowledgeBase: React.FC = () => {
       form.append("category", category);
       
       if (schedulePublish && publishAt) {
-        form.append("publishAt", publishAt);
+        form.append("publishAt", new Date(publishAt).toISOString());
         form.append("isPublished", String(false));
       } else {
         form.append("isPublished", String(isPublished));
