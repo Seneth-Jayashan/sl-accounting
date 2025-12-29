@@ -451,7 +451,7 @@ const AdminKnowledgeList: React.FC = () => {
   const selectionSummary = selectedIds.length > 0 ? `${selectedIds.length} selected` : "Nothing selected";
 
   return (
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-4">
@@ -495,7 +495,7 @@ const AdminKnowledgeList: React.FC = () => {
                   onChange={(v) => setFilter(v)}
                   options={[{ value: "All", label: "All" }, ...CATEGORIES.map((c) => ({ value: c, label: c }))]}
                   className="pl-3 pr-9 py-1.5 text-sm rounded-lg"
-                  wrapperClassName="w-44"
+                  wrapperClassName="w-36 sm:w-44"
                 />
               </div>
               <button
@@ -522,7 +522,7 @@ const AdminKnowledgeList: React.FC = () => {
         {error && <div className="text-red-600">{error}</div>}
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 text-sm text-gray-600 bg-slate-50">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-b border-gray-100 text-sm text-gray-600 bg-slate-50">
             <div className="flex items-center gap-2">
                 <IconCheckbox
                   checked={allSelected}
@@ -561,131 +561,237 @@ const AdminKnowledgeList: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="overflow-auto">
-              <table className="min-w-full divide-y divide-gray-100">
-                <thead className="bg-slate-50 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 z-10">
-                  <tr>
-                    <th className="p-3 w-12">Select</th>
-                    <th className="p-3 min-w-[220px]">Title</th>
-                    <th className="p-3">Category</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Created</th>
-                    <th className="p-3">Size</th>
-                    <th className="p-3 w-48 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-sm">
-                  {loading
-                    ? [1, 2, 3].map((n) => (
-                        <tr key={n} className="animate-pulse">
-                          <td className="p-3 align-top">
-                            <div className="w-5 h-5 bg-gray-200 rounded" />
-                          </td>
-                          <td className="p-3 align-top">
-                            <div className="h-4 bg-gray-200 rounded w-48 mb-2" />
-                            <div className="h-3 bg-gray-200 rounded w-60" />
-                          </td>
-                          <td className="p-3 align-top">
-                            <div className="h-3 bg-gray-200 rounded w-20" />
-                          </td>
-                          <td className="p-3 align-top">
-                            <div className="h-3 bg-gray-200 rounded w-20" />
-                          </td>
-                          <td className="p-3 align-top">
-                            <div className="h-3 bg-gray-200 rounded w-36" />
-                          </td>
-                          <td className="p-3 align-top">
-                            <div className="h-3 bg-gray-200 rounded w-12" />
-                          </td>
-                          <td className="p-3 align-top text-right">
-                            <div className="h-8 bg-gray-200 rounded w-20 inline-block" />
-                          </td>
-                        </tr>
-                      ))
-                    : filteredItems.map((it) => {
-                        const status = it.isPublished
-                          ? "Published"
-                          : it.publishAt
-                          ? "Scheduled"
-                          : "Draft";
-                        const badgeColor =
-                          status === "Published"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                            : status === "Scheduled"
-                            ? "bg-amber-50 text-amber-700 border-amber-100"
-                            : "bg-gray-50 text-gray-700 border-gray-200";
-                        const isSelected = selectedIds.includes(it._id);
-                        const created = new Date(it.createdAt);
-                        const publishCountdown = (() => {
-                          if (!it.publishAt || it.isPublished) return null;
-                          const diff = new Date(it.publishAt).getTime() - now;
-                          if (diff <= 0) return null;
-                          return `Publishes in ${formatDuration(diff)}`;
-                        })();
+            <>
+              {/* Mobile cards */}
+              <div className="sm:hidden divide-y divide-gray-100">
+                {loading
+                  ? [1, 2, 3].map((n) => (
+                      <div key={n} className="p-4 animate-pulse">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-200 rounded w-2/3 mb-2" />
+                            <div className="h-3 bg-gray-200 rounded w-full" />
+                          </div>
+                          <div className="w-5 h-5 bg-gray-200 rounded" />
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <div className="h-6 bg-gray-200 rounded w-20" />
+                          <div className="h-6 bg-gray-200 rounded w-24" />
+                        </div>
+                      </div>
+                    ))
+                  : filteredItems.map((it) => {
+                      const status = it.isPublished
+                        ? "Published"
+                        : it.publishAt
+                        ? "Scheduled"
+                        : "Draft";
+                      const badgeColor =
+                        status === "Published"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          : status === "Scheduled"
+                          ? "bg-amber-50 text-amber-700 border-amber-100"
+                          : "bg-gray-50 text-gray-700 border-gray-200";
+                      const isSelected = selectedIds.includes(it._id);
+                      const created = new Date(it.createdAt);
+                      const publishCountdown = (() => {
+                        if (!it.publishAt || it.isPublished) return null;
+                        const diff = new Date(it.publishAt).getTime() - now;
+                        if (diff <= 0) return null;
+                        return `Publishes in ${formatDuration(diff)}`;
+                      })();
 
-                        return (
-                          <tr
-                            key={it._id}
-                            className={`${isSelected ? "bg-[#f8fafc]" : ""} hover:bg-slate-50 transition`}
-                          >
-                            <td className="p-3 align-top">
-                              <label className="inline-flex items-center cursor-pointer">
-                                <IconCheckbox
-                                  checked={isSelected}
-                                  onChange={() => toggleSelect(it._id)}
-                                  ariaLabel={`Select ${it.title}`}
-                                  title={isSelected ? `Deselect ${it.title}` : `Select ${it.title}`}
-                                />
-                              </label>
-                            </td>
-                            <td className="p-3 align-top min-w-0">
-                              <div className="font-semibold text-gray-900 truncate">{it.title}</div>
-                              <div className="text-xs text-gray-500 truncate">{it.description || "No description provided."}</div>
-                            </td>
-                            <td className="p-3 align-top text-sm text-gray-700">{getDisplayCategory(it)}</td>
-                            <td className="p-3 align-top text-sm">
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border ${badgeColor}`}>
-                                {status === "Published" ? "●" : status === "Scheduled" ? "◑" : "○"}
-                                <span>{status}</span>
-                              </span>
-                              {publishCountdown && (
-                                <div className="text-amber-700 font-medium text-[11px] mt-1">{publishCountdown}</div>
-                              )}
-                            </td>
-                            <td className="p-3 align-top text-sm text-gray-700">
-                              <div>{created.toLocaleString()}</div>
-                            </td>
-                            <td className="p-3 align-top text-sm text-gray-700">{it.fileSize ? formatBytes(it.fileSize) : "—"}</td>
-                            <td className="p-3 align-top text-right">
-                              <div className="inline-flex items-center gap-2">
-                                <button
-                                  onClick={() => openEdit(it)}
-                                  title={`Edit ${it.title}`}
-                                  aria-label={`Edit ${it.title}`}
-                                  className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0b2540] text-white text-sm shadow-sm hover:shadow"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                                    <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM4 14v2h2l8.707-8.707-2-2L4 14z" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(it._id)}
-                                  title={`Delete ${it.title}`}
-                                  aria-label={`Delete ${it.title}`}
-                                  className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-red-200 text-red-600 shadow-sm hover:bg-red-50"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
-                                  </svg>
-                                </button>
+                      return (
+                        <div key={it._id} className={`${isSelected ? "bg-[#f8fafc]" : ""} p-4`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-semibold text-gray-900 break-words">{it.title}</div>
+                              <div className="text-xs text-gray-500 mt-0.5 break-words">
+                                {it.description || "No description provided."}
                               </div>
+                            </div>
+                            <IconCheckbox
+                              checked={isSelected}
+                              onChange={() => toggleSelect(it._id)}
+                              ariaLabel={`Select ${it.title}`}
+                              title={isSelected ? `Deselect ${it.title}` : `Select ${it.title}`}
+                            />
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border ${badgeColor}`}>
+                              {status === "Published" ? "●" : status === "Scheduled" ? "◑" : "○"}
+                              <span>{status}</span>
+                            </span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs border bg-gray-50 text-gray-700 border-gray-200">
+                              {getDisplayCategory(it)}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {created.toLocaleDateString()}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {it.fileSize ? formatBytes(it.fileSize) : "—"}
+                            </span>
+                          </div>
+
+                          {publishCountdown && (
+                            <div className="text-amber-700 font-medium text-[11px] mt-2">{publishCountdown}</div>
+                          )}
+
+                          <div className="mt-3 flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openEdit(it)}
+                              title={`Edit ${it.title}`}
+                              aria-label={`Edit ${it.title}`}
+                              className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0b2540] text-white text-sm shadow-sm hover:shadow"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                                <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM4 14v2h2l8.707-8.707-2-2L4 14z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(it._id)}
+                              title={`Delete ${it.title}`}
+                              aria-label={`Delete ${it.title}`}
+                              className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-red-200 text-red-600 shadow-sm hover:bg-red-50"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-auto">
+                <table className="min-w-full divide-y divide-gray-100">
+                  <thead className="bg-slate-50 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide sticky top-0 z-10">
+                    <tr>
+                      <th className="p-3 w-12">Select</th>
+                      <th className="p-3 min-w-[220px]">Title</th>
+                      <th className="p-3">Category</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Created</th>
+                      <th className="p-3">Size</th>
+                      <th className="p-3 w-48 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-sm">
+                    {loading
+                      ? [1, 2, 3].map((n) => (
+                          <tr key={n} className="animate-pulse">
+                            <td className="p-3 align-top">
+                              <div className="w-5 h-5 bg-gray-200 rounded" />
+                            </td>
+                            <td className="p-3 align-top">
+                              <div className="h-4 bg-gray-200 rounded w-48 mb-2" />
+                              <div className="h-3 bg-gray-200 rounded w-60" />
+                            </td>
+                            <td className="p-3 align-top">
+                              <div className="h-3 bg-gray-200 rounded w-20" />
+                            </td>
+                            <td className="p-3 align-top">
+                              <div className="h-3 bg-gray-200 rounded w-20" />
+                            </td>
+                            <td className="p-3 align-top">
+                              <div className="h-3 bg-gray-200 rounded w-36" />
+                            </td>
+                            <td className="p-3 align-top">
+                              <div className="h-3 bg-gray-200 rounded w-12" />
+                            </td>
+                            <td className="p-3 align-top text-right">
+                              <div className="h-8 bg-gray-200 rounded w-20 inline-block" />
                             </td>
                           </tr>
-                        );
-                      })}
-                </tbody>
-              </table>
-            </div>
+                        ))
+                      : filteredItems.map((it) => {
+                          const status = it.isPublished
+                            ? "Published"
+                            : it.publishAt
+                            ? "Scheduled"
+                            : "Draft";
+                          const badgeColor =
+                            status === "Published"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                              : status === "Scheduled"
+                              ? "bg-amber-50 text-amber-700 border-amber-100"
+                              : "bg-gray-50 text-gray-700 border-gray-200";
+                          const isSelected = selectedIds.includes(it._id);
+                          const created = new Date(it.createdAt);
+                          const publishCountdown = (() => {
+                            if (!it.publishAt || it.isPublished) return null;
+                            const diff = new Date(it.publishAt).getTime() - now;
+                            if (diff <= 0) return null;
+                            return `Publishes in ${formatDuration(diff)}`;
+                          })();
+
+                          return (
+                            <tr
+                              key={it._id}
+                              className={`${isSelected ? "bg-[#f8fafc]" : ""} hover:bg-slate-50 transition`}
+                            >
+                              <td className="p-3 align-top">
+                                <label className="inline-flex items-center cursor-pointer">
+                                  <IconCheckbox
+                                    checked={isSelected}
+                                    onChange={() => toggleSelect(it._id)}
+                                    ariaLabel={`Select ${it.title}`}
+                                    title={isSelected ? `Deselect ${it.title}` : `Select ${it.title}`}
+                                  />
+                                </label>
+                              </td>
+                              <td className="p-3 align-top min-w-0">
+                                <div className="font-semibold text-gray-900 truncate">{it.title}</div>
+                                <div className="text-xs text-gray-500 truncate">{it.description || "No description provided."}</div>
+                              </td>
+                              <td className="p-3 align-top text-sm text-gray-700">{getDisplayCategory(it)}</td>
+                              <td className="p-3 align-top text-sm">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border ${badgeColor}`}>
+                                  {status === "Published" ? "●" : status === "Scheduled" ? "◑" : "○"}
+                                  <span>{status}</span>
+                                </span>
+                                {publishCountdown && (
+                                  <div className="text-amber-700 font-medium text-[11px] mt-1">{publishCountdown}</div>
+                                )}
+                              </td>
+                              <td className="p-3 align-top text-sm text-gray-700">
+                                <div>{created.toLocaleString()}</div>
+                              </td>
+                              <td className="p-3 align-top text-sm text-gray-700">{it.fileSize ? formatBytes(it.fileSize) : "—"}</td>
+                              <td className="p-3 align-top text-right">
+                                <div className="inline-flex items-center gap-2">
+                                  <button
+                                    onClick={() => openEdit(it)}
+                                    title={`Edit ${it.title}`}
+                                    aria-label={`Edit ${it.title}`}
+                                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[#0b2540] text-white text-sm shadow-sm hover:shadow"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                                      <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828zM4 14v2h2l8.707-8.707-2-2L4 14z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(it._id)}
+                                    title={`Delete ${it.title}`}
+                                    aria-label={`Delete ${it.title}`}
+                                    className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-red-200 text-red-600 shadow-sm hover:bg-red-50"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
 
