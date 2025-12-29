@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import SupportService, {
   type SupportMessage,
 } from "../../../services/SupportService";
@@ -15,6 +20,8 @@ export default function SupportReply() {
   const [reply, setReply] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("all");
 
   const stats = useMemo(() => {
@@ -64,6 +71,17 @@ export default function SupportReply() {
     return list;
   }, [list, tab]);
 
+  
+  const repliedFilteredIds = useMemo(
+    () => filtered.filter((m) => m.reply?.trim()).map((m) => m._id),
+    [filtered]
+  );
+
+  const selectedPendingCount = useMemo(() => {
+    const selectedSet = new Set(selectedIds);
+    return list.filter((m) => selectedSet.has(m._id) && !m.reply?.trim()).length;
+  }, [list, selectedIds]);
+
   // Show all messages in the left panel
 
   
@@ -80,10 +98,34 @@ export default function SupportReply() {
     setReply(m.reply ?? "");
   };
 
+  const toggleBulkSelection = (id: string) => {
+    const target = list.find((m) => m._id === id);
+    if (!target?.reply?.trim()) return; // only allow selecting replied messages for bulk actions
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const clearBulkSelection = () => setSelectedIds([]);
+
+  const toggleSelectAllFiltered = () => {
+    if (repliedFilteredIds.length === 0) return;
+    setSelectedIds((prev) => {
+      const base = new Set(prev);
+      const everySelected = repliedFilteredIds.every((id) => base.has(id));
+      if (everySelected) {
+        repliedFilteredIds.forEach((id) => base.delete(id));
+      } else {
+        repliedFilteredIds.forEach((id) => base.add(id));
+      }
+      return Array.from(base);
+    });
+  };
+
   // Allow pressing Escape to unselect the current message
   useEffect(() => {
     if (!selected) return;
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") {
         setSelected(null);
         setReply("");
@@ -99,7 +141,7 @@ export default function SupportReply() {
     return reply.trim() !== (selected.reply ?? "").trim();
   }, [reply, selected]);
 
-  const handleReplyKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleReplyKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
       void handleSubmit();
@@ -162,6 +204,35 @@ export default function SupportReply() {
       setError("Failed to delete message. Please try again.");
     } finally {
       setDeletingId(null);
+      setSelectedIds((prev) => prev.filter((x) => x !== id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (selectedPendingCount > 0) {
+      setError("Bulk delete is allowed only for replied messages.");
+      return;
+    }
+    const ok = window.confirm(
+      `Delete ${selectedIds.length} message${selectedIds.length > 1 ? "s" : ""}? This cannot be undone.`
+    );
+    if (!ok) return;
+    setBulkDeleting(true);
+    setError("");
+    try {
+      await Promise.all(selectedIds.map((id) => SupportService.remove(id)));
+      setList((prev) => prev.filter((m) => !selectedIds.includes(m._id)));
+      if (selected && selectedIds.includes(selected._id)) {
+        setSelected(null);
+        setReply("");
+      }
+      clearBulkSelection();
+    } catch (e) {
+      console.error(e);
+      setError("Failed to delete selected messages. Please try again.");
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -204,40 +275,6 @@ export default function SupportReply() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-500">
-                  Open
-                </div>
-                <div className="mt-1 text-2xl font-semibold text-[#0b2540]">
-                  {stats.unreplied}
-                </div>
-                <div className="text-xs text-gray-500">Pending reply</div>
-              </div>
-              <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-500">
-                  Replied
-                </div>
-                <div className="mt-1 text-2xl font-semibold text-[#0b2540]">
-                  {stats.replied}
-                </div>
-                <div className="text-xs text-gray-500">
-                  Answered and emailed
-                </div>
-              </div>
-              <div className="rounded-2xl border bg-white p-5 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-gray-500">
-                  Total
-                </div>
-                <div className="mt-1 text-2xl font-semibold text-[#0b2540]">
-                  {stats.total}
-                </div>
-                <div className="text-xs text-gray-500">
-                  All received messages
-                </div>
-              </div>
-            </div>
-
             {error && (
               <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}
@@ -253,12 +290,45 @@ export default function SupportReply() {
                 {/* List */}
                 <div className="lg:col-span-1 rounded-2xl border bg-white shadow-md flex flex-col h-[520px] lg:h-[560px]">
                   <div className="flex items-center justify-between border-b px-4 py-3 text-sm text-gray-600">
-                    <span>
-                      {tab === "unreplied" ? "Unreplied queue" : "All messages"}
-                    </span>
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                      {filtered.length}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                        Inbox
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      {selectedIds.length > 0 ? (
+                        <>
+                          <span className="text-gray-500">
+                            Selected: {selectedIds.length}
+                          </span>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 disabled:opacity-50"
+                            onClick={handleBulkDelete}
+                            disabled={bulkDeleting || selectedPendingCount > 0}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            className="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                            onClick={clearBulkSelection}
+                            disabled={bulkDeleting}
+                          >
+                            Clear
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                          onClick={toggleSelectAllFiltered}
+                          disabled={repliedFilteredIds.length === 0}
+                        >
+                          Select all replied
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {filtered.length === 0 ? (
                     <div className="p-6 text-sm text-gray-600 text-center space-y-2">
@@ -272,6 +342,7 @@ export default function SupportReply() {
                       {filtered.map((m) => {
                         const isActive = selected?._id === m._id;
                         const hasReply = Boolean(m.reply && m.reply.trim());
+                        const isChecked = selectedIds.includes(m._id);
                         return (
                           <li
                             key={m._id}
@@ -283,12 +354,26 @@ export default function SupportReply() {
                             onClick={() => onSelect(m)}
                           >
                             <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="font-semibold text-[#0b2540] truncate">
-                                  {m.name}
-                                </div>
-                                <div className="text-xs text-gray-500 truncate">
-                                  {m.email} • {m.phoneNumber}
+                              <div className="flex items-start gap-3 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  className="mt-1 h-4 w-4 flex-shrink-0"
+                                  checked={isChecked}
+                                  disabled={!hasReply}
+                                  title={hasReply ? "Select for bulk delete" : "Only replied messages can be bulk deleted"}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleBulkSelection(m._id);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-[#0b2540] truncate">
+                                    {m.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500 truncate">
+                                    {m.email} • {m.phoneNumber}
+                                  </div>
                                 </div>
                               </div>
                               <span
@@ -319,73 +404,68 @@ export default function SupportReply() {
 
                 {/* Detail + Reply */}
                 <div className="lg:col-span-2 rounded-2xl border bg-white p-5 shadow-md h-[520px] lg:h-[560px] overflow-hidden">
-                  <div className="h-full overflow-auto">
+                  <div className="h-full">
                     {!selected ? (
                       <div className="text-gray-500 flex items-center justify-center h-full">
                         Select a message to view and reply.
                       </div>
                     ) : (
-                      <div className="space-y-5">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                          <div>
-                            <div className="text-lg font-semibold text-[#0b2540]">
-                              {selected.name}
+                      <div className="space-y-3 pb-1">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
+                              <div className="text-lg font-semibold text-[#0b2540]">
+                                {selected.name}
+                              </div>
+                              <div className="text-sm text-gray-500 space-x-2">
+                                <a
+                                  className="hover:underline"
+                                  href={`mailto:${selected.email}`}
+                                >
+                                  {selected.email}
+                                </a>
+                                <span>•</span>
+                                <a
+                                  className="hover:underline"
+                                  href={`tel:${selected.phoneNumber}`}
+                                >
+                                  {selected.phoneNumber}
+                                </a>
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-500 space-x-2">
-                              <a
-                                className="hover:underline"
-                                href={`mailto:${selected.email}`}
+                            <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium ${
+                                  selected.reply?.trim()
+                                    ? "bg-green-50 text-green-700"
+                                    : "bg-yellow-50 text-yellow-700"
+                                }`}
                               >
-                                {selected.email}
-                              </a>
-                              <span>•</span>
-                              <a
-                                className="hover:underline"
-                                href={`tel:${selected.phoneNumber}`}
-                              >
-                                {selected.phoneNumber}
-                              </a>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium ${
-                                selected.reply?.trim()
-                                  ? "bg-green-50 text-green-700"
-                                  : "bg-yellow-50 text-yellow-700"
-                              }`}
-                            >
-                              {selected.reply?.trim() ? "Replied" : "Pending"}
-                            </span>
-                            {selected.createdAt && (
-                              <span className="text-gray-400 max-w-[160px] truncate">
-                                {new Date(selected.createdAt).toLocaleString()}
+                                {selected.reply?.trim() ? "Replied" : "Pending"}
                               </span>
-                            )}
+                              {selected.createdAt && (
+                                <span className="text-gray-400">
+                                  {new Date(selected.createdAt).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <div className="text-xs font-medium text-gray-500">
-                            User Message
-                          </div>
-                          <div className="mt-2 whitespace-pre-wrap break-words rounded-md border bg-gray-50 p-3 text-sm text-gray-800">
-                            {selected.message}
+                          <div className="rounded-lg border bg-gray-50 p-3 space-y-2">
+                            <div className="text-xs font-semibold text-[#0b2540]">User message</div>
+                            <div className="whitespace-pre-wrap break-words text-sm text-gray-800 leading-relaxed">
+                              {selected.message}
+                            </div>
                           </div>
                         </div>
 
                         {selected.reply?.trim() ? (
-                          <div>
-                            <div className="text-xs font-medium text-gray-500">
-                              Your Reply
-                            </div>
-                            <div className="mt-2 whitespace-pre-wrap break-words rounded-md border bg-green-50 p-3 text-sm text-gray-800">
+                          <div className="rounded-lg border bg-green-50/70 p-3 space-y-2">
+                            <div className="text-xs font-semibold text-green-800">Reply sent</div>
+                            <div className="whitespace-pre-wrap break-words text-sm text-gray-800 bg-white/60 border border-green-100 rounded-md p-2 leading-relaxed">
                               {selected.reply}
                             </div>
-                            <div className="mt-2 text-xs text-gray-500">
-                              Reply has been sent to the user.
-                            </div>
-                            <div className="mt-8 flex">
+                            <div className="flex justify-end pt-1">
                               <button
                                 onClick={() => void handleDelete(selected._id)}
                                 disabled={deletingId === selected._id}
@@ -398,22 +478,22 @@ export default function SupportReply() {
                             </div>
                           </div>
                         ) : (
-                          <div>
-                            <div className="flex items-center justify-between text-xs font-medium text-gray-500">
-                              <span>Your Reply</span>
+                          <div className="rounded-lg border bg-white p-3 space-y-3">
+                            <div className="flex items-center justify-between text-xs font-medium text-gray-600">
+                              <span>Your reply</span>
                               <span className="text-[11px] text-gray-400">
                                 Press Ctrl/Cmd + Enter to send
                               </span>
                             </div>
                             <textarea
-                              className="mt-1 w-full rounded-md border p-3 text-sm outline-none focus:ring-2 focus:ring-[#0b2540]/40 min-h-[200px] resize-y"
-                              rows={11}
+                              className="w-full rounded-md border p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#0b2540]/40 min-h-[140px] resize-y"
+                              rows={8}
                               value={reply}
                               onChange={(e) => setReply(e.target.value)}
                               onKeyDown={handleReplyKeyDown}
                               placeholder="Type your response to the user..."
                             />
-                            <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center justify-between text-xs text-gray-500">
                               <span>
                                 {hasChanges
                                   ? "Unsaved changes"
@@ -423,7 +503,7 @@ export default function SupportReply() {
                               </span>
                               <span>{reply.trim().length} chars</span>
                             </div>
-                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <button
                                 onClick={handleSubmit}
                                 disabled={submitting || reply.trim() === ""}
