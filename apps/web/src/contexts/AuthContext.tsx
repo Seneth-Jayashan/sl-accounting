@@ -149,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await axios.post(`${API_BASE}/auth/login`, payload, {
         withCredentials: true,
       });
+      console.log("Login Response:", res.data);
 
       if (res.data?.success) {
         const token = res.data.accessToken;
@@ -162,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (error) {
-      throw new Error(getErrorMessage(error, "Login failed"));
+      throw error;
     }
   };
 

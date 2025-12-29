@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { registerSchema } from "../validators/AuthValidator.js";
+import Batch from "../models/Batch.js";
 import { sendVerificationEmail , sendWelcomeEmail } from "../utils/email/Template.js";
 import { sendVerificationSms, sendWelcomeSms } from "../utils/sms/Template.js";
 
@@ -55,6 +56,8 @@ export const register = async (req, res) => {
     // 5. Generate OTP & Save
     const otpCode = newUser.generateOtpCode();
     await newUser.save();
+
+    const { batch, _id: studentId } = newUser;
 
     const BatchEnroll = await Batch.findById(batch);
     BatchEnroll.students.push(studentId);
