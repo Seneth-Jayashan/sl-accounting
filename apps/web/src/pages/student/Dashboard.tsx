@@ -70,6 +70,7 @@ export default function StudentDashboardPage() {
       try {
         setLoading(true);
         const dashboardData = await UserService.getStudentDashboard();
+        console.log("Dashboard Data:", dashboardData);
         if (isMounted) setData(dashboardData);
       } catch (err) {
         console.error("Dashboard Load Error", err);
