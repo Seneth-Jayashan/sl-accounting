@@ -57,6 +57,7 @@ export interface UserData {
   };
   regNo?: string;
   batch?: string;
+  lastLogin?: string;
 }
 
 export interface UserListResponse {

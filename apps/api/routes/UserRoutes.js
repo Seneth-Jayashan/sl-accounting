@@ -1,11 +1,10 @@
 import express from "express";
 import {
-  getAllUsers,
-  getUserById,
   updateUserProfile,
   updateUserEmail,
   updateUserPassword,
   deleteUserAccount,
+  getStudentDashboard,
 } from "../controllers/UserController.js"; // Removed Auth controllers
 
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
@@ -24,12 +23,6 @@ const profileUploadMiddleware = createUploader(
 );
 
 const router = express.Router();
-
-// ==========================================
-// ADMIN ROUTES (Manage Users)
-// ==========================================
-router.get("/", protect, restrictTo("admin"), getAllUsers);
-router.get("/:id", protect, restrictTo("admin"), getUserById);
 
 // ==========================================
 // PROFILE ROUTES (Self-Management)
@@ -62,5 +55,8 @@ router.put(
 
 // Delete Account (Soft Delete)
 router.delete("/delete-account", protect, deleteUserAccount);
+
+// Dashboard Data for Students
+router.get('/student/dashboard', protect, getStudentDashboard);
 
 export default router;

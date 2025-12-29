@@ -36,7 +36,7 @@ export const createUserSchema = z.object({
     email: gmailValidator,
     password: passwordValidator,
     phoneNumber: z.string().trim().regex(phoneRegex, "Invalid SL phone number"),
-    role: z.enum(["student", "admin", "instructor"]).optional(),
+    role: z.enum(["student", "admin"]).optional(),
     
     // Optional fields (Backend handles auto-generation/defaults)
     regNo: z.string().optional(),

@@ -30,8 +30,8 @@ const INITIAL_FORM = {
   endTime: "10:00",
   firstSessionDate: "",
   recurrence: "weekly",
-  totalSessions: "4", // Added as string for input handling
-  sessionDurationMinutes: "120", // Added as string for input handling
+  totalSessions: "4", 
+  sessionDurationMinutes: "120", 
   level: "advanced",
   tags: "",
 };
@@ -108,7 +108,6 @@ export default function CreateClassPage() {
         level: formData.level as any,
         recurrence: formData.recurrence as any,
         firstSessionDate: formData.firstSessionDate,
-        // --- CRITICAL FIX: Explicitly include these numeric values ---
         totalSessions: Number(formData.totalSessions),
         sessionDurationMinutes: Number(formData.sessionDurationMinutes),
         timeSchedules: [{
@@ -131,29 +130,30 @@ export default function CreateClassPage() {
   };
 
   return (
-      <div className="max-w-4xl mx-auto space-y-6 pb-24">
+      <div className="max-w-4xl mx-auto space-y-6 pb-28 md:pb-24">
         
-        <header className="space-y-2">
-          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-[0.2em]">
-            <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Back to Curriculum
+        {/* Header */}
+        <header className="space-y-2 px-1">
+          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] md:text-xs font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-[0.2em]">
+            <ArrowLeftIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 stroke-[3px]" /> Back to Curriculum
           </button>
-          <h1 className="text-2xl font-semibold text-brand-prussian tracking-tight">Create Academic Module</h1>
+          <h1 className="text-xl md:text-2xl font-semibold text-brand-prussian tracking-tight">Create Academic Module</h1>
         </header>
 
         {error && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-xs font-medium flex items-center gap-2">
-            <InformationCircleIcon className="w-4 h-4" /> {error}
+            <InformationCircleIcon className="w-4 h-4 shrink-0" /> {error}
           </motion.div>
         )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           <div className="lg:col-span-2 space-y-6">
-            <Section title="Module Identity" icon={<AcademicCapIcon />}>
+            <Section title="Module Identity" icon={<AcademicCapIcon className="w-5 h-5"/>}>
               <div className="space-y-4">
                 <Input label="Module Name" name="name" value={formData.name} onChange={handleChange} required placeholder="e.g. Revision: Financial Accounting" />
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Select label="Module Type" name="type" value={formData.type} onChange={handleChange}>
                     <option value="theory">Theory Class</option>
                     <option value="revision">Revision Class</option>
@@ -166,7 +166,7 @@ export default function CreateClassPage() {
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Select label="Assigned Batch" name="batch" value={formData.batch} onChange={handleChange} required>
                     <option value="">{loadingBatches ? "Syncing..." : "Select Batch"}</option>
                     {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
@@ -177,8 +177,8 @@ export default function CreateClassPage() {
               </div>
             </Section>
 
-            <Section title="Logistics & Pricing" icon={<ClockIcon />}>
-              <div className="grid grid-cols-2 gap-4">
+            <Section title="Logistics & Pricing" icon={<ClockIcon className="w-5 h-5"/>}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="relative">
                   <Input label="Tuition Fee (LKR)" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="0.00" />
                   <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
@@ -189,7 +189,6 @@ export default function CreateClassPage() {
                 <Input label="Session Start" name="startTime" type="time" value={formData.startTime} onChange={handleChange} />
                 <Input label="Session End" name="endTime" type="time" value={formData.endTime} onChange={handleChange} />
                 
-                {/* --- NEW INPUTS: Sessions & Duration --- */}
                 <div className="relative">
                     <Input label="Total Sessions" name="totalSessions" type="number" value={formData.totalSessions} onChange={handleChange} />
                     <HashtagIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
@@ -210,13 +209,13 @@ export default function CreateClassPage() {
           </div>
 
           <div className="space-y-6">
-            <Section title="Cover Media" icon={<PhotoIcon />}>
+            <Section title="Cover Media" icon={<PhotoIcon className="w-5 h-5"/>}>
               <div className="group relative aspect-video bg-brand-aliceBlue/50 rounded-xl border border-dashed border-gray-200 overflow-hidden hover:border-brand-cerulean transition-all cursor-pointer">
                 {imagePreview ? (
                   <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <PhotoIcon className="w-6 h-6 text-gray-300 mb-2" />
+                    <PhotoIcon className="w-8 h-8 text-gray-300 mb-2" />
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Upload Banner</span>
                   </div>
                 )}
@@ -224,7 +223,8 @@ export default function CreateClassPage() {
               </div>
             </Section>
 
-            <div className="flex flex-col gap-2">
+            {/* Desktop Actions */}
+            <div className="hidden lg:flex flex-col gap-2">
               <button type="submit" disabled={isSaving} className="w-full bg-brand-prussian hover:bg-brand-cerulean text-white py-3.5 rounded-xl text-sm font-semibold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
                 {isSaving ? "Creating..." : <><CheckCircleIcon className="w-4 h-4" /> Initialize Module</>}
               </button>
@@ -233,6 +233,17 @@ export default function CreateClassPage() {
               </button>
             </div>
           </div>
+
+          {/* Sticky Mobile Actions */}
+          <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-100 lg:hidden flex gap-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+             <button type="button" onClick={() => navigate(-1)} className="flex-1 py-3.5 rounded-xl text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100">
+                Cancel
+             </button>
+             <button type="submit" disabled={isSaving} className="flex-[2] bg-brand-prussian hover:bg-brand-cerulean text-white py-3.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
+                {isSaving ? "Creating..." : "Create Module"}
+             </button>
+          </div>
+
         </form>
       </div>
   );
@@ -241,8 +252,8 @@ export default function CreateClassPage() {
 // --- Internal UI Components ---
 
 const Section = ({ title, icon, children }: any) => (
-  <div className="bg-white p-6 rounded-2xl border border-brand-aliceBlue shadow-sm">
-    <div className="flex items-center gap-2 mb-6 border-b border-brand-aliceBlue pb-4">
+  <div className="bg-white p-5 md:p-6 rounded-2xl border border-brand-aliceBlue shadow-sm">
+    <div className="flex items-center gap-2 mb-5 md:mb-6 border-b border-brand-aliceBlue pb-4">
       <div className="text-brand-cerulean p-1.5 bg-brand-aliceBlue rounded-lg">{icon}</div>
       <h2 className="text-xs font-bold text-brand-prussian uppercase tracking-widest">{title}</h2>
     </div>
@@ -253,14 +264,14 @@ const Section = ({ title, icon, children }: any) => (
 const Input = ({ label, ...props }: any) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
-    <input {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-2.5 outline-none transition-all text-sm font-medium" />
+    <input {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-3 md:py-2.5 outline-none transition-all text-sm font-medium placeholder:text-gray-300" />
   </div>
 );
 
 const Select = ({ label, children, ...props }: any) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
-    <select {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-2.5 outline-none transition-all text-sm font-medium cursor-pointer">
+    <select {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-3 md:py-2.5 outline-none transition-all text-sm font-medium cursor-pointer">
       {children}
     </select>
   </div>
@@ -269,6 +280,6 @@ const Select = ({ label, children, ...props }: any) => (
 const Textarea = ({ label, ...props }: any) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
-    <textarea {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-2.5 outline-none transition-all text-sm font-medium resize-none" />
+    <textarea {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-3 md:py-2.5 outline-none transition-all text-sm font-medium resize-none" />
   </div>
 );

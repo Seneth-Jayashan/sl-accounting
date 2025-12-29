@@ -3,6 +3,7 @@ import moment from "moment-timezone";
 import Class from "../models/Class.js";
 import Session from "../models/Session.js";
 import { createMeeting, updateMeeting, deleteMeeting } from "../services/Zoom.js";
+import Enrollment from "../models/Enrollment.js";
 
 // --- HELPER: Field Projection ---
 const getSafeSessionProjection = (user) => {
@@ -279,5 +280,59 @@ export const cancelSession = async (req, res) => {
 
   } catch (err) {
     return res.status(500).json({ message: err.message });
+  }
+};
+
+
+// In your Backend API (e.g., SessionController.js)
+
+export const getSessionsByClassId = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const userId = req.user._id;
+
+    // 1. Fetch Enrollment
+    const enrollment = await Enrollment.findOne({ class: classId, student: userId });
+    
+    // 2. Fetch Sessions
+    const sessions = await Session.find({ class: classId }).sort({ startAt: 1 }).lean(); // .lean() converts to plain JS object so we can modify
+
+    // 3. SECURITY FILTER
+    const secureSessions = sessions.map(session => {
+        let isLocked = false;
+        
+        if (!enrollment) {
+            isLocked = true;
+        } else {
+            const sessionDate = new Date(session.startAt);
+            const joinDate = new Date(enrollment.createdAt);
+            
+            // Restriction A: Join Date
+            if (sessionDate < joinDate) isLocked = true;
+            
+            // Restriction B: Payment (Access End Date)
+            if (enrollment.accessEndDate && sessionDate > enrollment.accessEndDate) {
+                isLocked = true;
+            }
+        }
+
+        // IF LOCKED: Remove the video ID from the response
+        if (isLocked) {
+            return {
+                ...session,
+                youtubeVideoId: null,      // ERASE THIS
+                recordingUrl: null,        // ERASE THIS
+                zoomJoinUrl: null,         // ERASE THIS
+                isLocked: true             // Flag for frontend
+            };
+        }
+        
+        return session;
+    });
+
+    return res.json(secureSessions);
+
+  } catch (error) {
+    return res.status(500).json({ message: "Error fetching sessions" });
   }
 };

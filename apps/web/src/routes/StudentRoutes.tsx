@@ -14,6 +14,7 @@ const ViewEnrollment = lazy(() => import("../pages/student/enrollment/ViewEnroll
 const UploadSlip = lazy(() => import("../pages/student/payments/UploadPaymentSlip"));
 const PaymentHistory = lazy(() => import("../pages/student/payments/PaymentHistory"));
 const KnowledgeBase = lazy(() => import("../pages/student/KnowledgeBasestudent"));
+const Profile = lazy(() => import("../pages/student/profile/Profile"));
 
 export const StudentRoutes = () => {
   return (
@@ -40,6 +41,9 @@ export const StudentRoutes = () => {
 
           {/* Knowledge Base */}
           <Route path="knowledge-base" element={<KnowledgeBase />} />
+
+          {/* Profile */}
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Routes>
     </Suspense>

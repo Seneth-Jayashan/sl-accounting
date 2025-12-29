@@ -1,10 +1,8 @@
 import { api } from "./api"; 
 
-
 // --- CONFIGURATION ---
 const USERS_BASE = "/users"; // Public/Shared endpoints
 const AUTH_BASE = "/auth";   // Auth endpoints
-const ADMIN_BASE = "/admin"; // Admin-only management endpoints
 
 // --- TYPES ---
 
@@ -14,7 +12,7 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  role: 'student' | 'admin' | 'tutor';
+  role: 'student' | 'admin';
   profileImage?: string;
   phoneNumber?: string;
   isVerified: boolean; 
@@ -58,6 +56,56 @@ export interface UpdateProfilePayload {
   lastName?: string;
   phoneNumber?: string;
   profileImage?: File | null;
+  address?: string | {
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+  };
+}
+
+// --- NEW DASHBOARD TYPES ---
+
+export interface DashboardStats {
+  activeClasses: number;
+  pendingPaymentsCount: number;
+  attendancePercentage: number;
+}
+
+export interface NextSessionData {
+  title: string;
+  subject: string;
+  startTime: string; // ISO String
+}
+
+export interface NextPaymentData {
+  amount: number;
+  dueDate: string;
+  title: string;
+}
+
+export interface UpcomingSession {
+  _id: string;
+  title: string;
+  startTime: string;
+  subject?: string;
+  isOnline: boolean;
+}
+
+export interface RecentMaterial {
+  _id: string;
+  title: string;
+  fileType: "pdf" | "video" | "link";
+  fileUrl: string;
+  createdAt: string;
+}
+
+export interface StudentDashboardData {
+  stats: DashboardStats;
+  nextSession: NextSessionData | null;
+  nextPayment: NextPaymentData | null;
+  upcomingSessions: UpcomingSession[];
+  recentMaterials: RecentMaterial[];
 }
 
 // --- SERVICE ---
@@ -98,8 +146,6 @@ const UserService = {
   // ==========================================
 
   // POST /admin/users/student (Create Student)
-  // Note: If you have a specific admin route for creation, change prefix to ADMIN_BASE. 
-  // Keeping USERS_BASE here based on standard REST patterns, but update if your backend moved it.
   createStudent: async (data: CreateStudentPayload) => {
     const response = await api.post<{ success: boolean; user: User; message: string }>(
       `${USERS_BASE}/student`, 
@@ -108,46 +154,10 @@ const UserService = {
     return response.data;
   },
 
-// PUT /admin/users/:id/profile (Admin updates profile with image & address)
-  updateUserProfileByAdmin: async (
-    id: string, 
-    data: { 
-        firstName: string; 
-        lastName: string; 
-        phoneNumber: string; 
-        address?: { street: string; city: string; state: string; zipCode: string } | string;
-        profileImage?: File | null;
-    }
-  ) => {
-    const formData = new FormData();
-    formData.append("firstName", data.firstName);
-    formData.append("lastName", data.lastName);
-    formData.append("phoneNumber", data.phoneNumber);
 
-    // Fix: Serialize Address Object to JSON String for FormData
-    if (data.address) {
-        const addressValue = typeof data.address === 'object' 
-            ? JSON.stringify(data.address) 
-            : data.address;
-        formData.append("address", addressValue);
-    }
-
-    // Fix: Handle Profile Image
-    if (data.profileImage) {
-        formData.append("profileImage", data.profileImage);
-    }
-
-    const response = await api.put<{ success: boolean; user: User }>(
-        `${ADMIN_BASE}/users/${id}/profile`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-    );
-    return response.data;
-  },
 
   // PUT /admin/users/:id (General Details Update)
   updateUser: async (id: string, data: AdminUpdatePayload) => {
-    // Note: If your general update route is also moved to admin router, change to ADMIN_BASE
     const response = await api.put<{ success: boolean; user: User }>(
       `${USERS_BASE}/${id}`, 
       data
@@ -155,69 +165,6 @@ const UserService = {
     return response.data;
   },
 
-  // PUT /admin/users/:id/email
-  updateUserEmailByAdmin: async (id: string, email: string) => {
-    const response = await api.put<{ success: boolean; message: string }>(
-        `${ADMIN_BASE}/users/${id}/email`,
-        { email }
-    );
-    return response.data;
-  },
-
-  // PUT /admin/users/:id/password
-  updateUserPasswordByAdmin: async (id: string, password: string) => {
-    const response = await api.put<{ success: boolean; message: string }>(
-        `${ADMIN_BASE}/users/${id}/password`,
-        { password, confirmPassword: password }
-    );
-    return response.data;
-  },
-
-  // --- STATUS MANAGEMENT ---
-
-  lockUser: async (id: string) => {
-    const response = await api.put<{ success: boolean; message: string }>(
-      `${ADMIN_BASE}/users/${id}/lock`
-    );
-    return response.data;
-  },
-
-  unlockUser: async (id: string) => {
-    const response = await api.put<{ success: boolean; message: string }>(
-      `${ADMIN_BASE}/users/${id}/unlock`
-    );
-    return response.data;
-  },
-
-  activateUser: async (id: string) => {
-    const response = await api.put<{ success: boolean; message: string }>(
-      `${ADMIN_BASE}/users/${id}/activate`
-    );
-    return response.data;
-  },
-
-  deactivateUser: async (id: string) => {
-    const response = await api.put<{ success: boolean; message: string }>(
-      `${ADMIN_BASE}/users/${id}/deactivate`
-    );
-    return response.data;
-  },
-
-  // --- DELETION & RESTORE ---
-  
-  deleteUser: async (id: string) => {
-    const response = await api.delete<{ success: boolean; message: string }>(
-      `${ADMIN_BASE}/users/${id}`
-    );
-    return response.data;
-  },
-
-  restoreUser: async (id: string) => {
-    const response = await api.put<{ success: boolean; message: string }>(
-      `${ADMIN_BASE}/users/${id}/restore`
-    );
-    return response.data;
-  },
 
   // ==========================================
   // 3. SELF-SERVICE (User manages own profile)
@@ -229,6 +176,12 @@ const UserService = {
     if (data.lastName) formData.append("lastName", data.lastName);
     if (data.phoneNumber) formData.append("phoneNumber", data.phoneNumber);
     if (data.profileImage) formData.append("profileImage", data.profileImage);
+    if (data.address) {
+        const addressValue = typeof data.address === 'object' 
+            ? JSON.stringify(data.address) 
+            : data.address;
+        formData.append("address", addressValue);
+    }
 
     const response = await api.put<{ success: boolean; user: User }>(
       `${USERS_BASE}/profile`,
@@ -262,7 +215,16 @@ const UserService = {
   },
 
   // ==========================================
-  // 4. AUTH / RECOVERY
+  // 4. STUDENT DASHBOARD
+  // ==========================================
+
+  getStudentDashboard: async () => {
+    const response = await api.get<{ success: boolean; data: StudentDashboardData }>(`${USERS_BASE}/student/dashboard`);
+    return response.data.data;
+  },
+
+  // ==========================================
+  // 5. AUTH / RECOVERY
   // ==========================================
 
   forgetUserPassword: async (email: string) => {

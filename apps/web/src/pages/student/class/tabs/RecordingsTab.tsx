@@ -1,17 +1,87 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { PlayCircle, Video, Calendar } from "lucide-react";
-import moment from "moment";
+import { PlayCircle, Video, Calendar, Lock, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import EnrollmentService, { type EnrollmentResponse } from "../../../../services/EnrollmentService";
+
+// Helper to format dates safely
+const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 export default function RecordingsTab({ sessions }: { sessions: any[] }) {
   const navigate = useNavigate();
+  const [enrollment, setEnrollment] = useState<EnrollmentResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // 1. Fetch Enrollment to get Join Date & Access Expiry
+  useEffect(() => {
+    let isMounted = true;
+    const fetchEnrollment = async () => {
+      try {
+        // We get all enrollments and find the one matching this class
+        // Alternatively, create a specific endpoint like /api/v1/enrollments/check?classId=... that returns full details
+        const myEnrollments = await EnrollmentService.getMyEnrollments();
+        
+        // Find enrollment for this specific class
+        // Note: sessions[0].class might be populated or an ID, handle carefully. 
+        // Assuming sessions are passed from ViewClass which has classId in URL params, 
+        // but here we might need to rely on the parent or find a matching class ID from session data.
+        if (sessions.length > 0) {
+            const classId = typeof sessions[0].class === 'string' ? sessions[0].class : sessions[0].class._id;
+            const match = myEnrollments.find((e: any) => 
+                (typeof e.class === 'string' ? e.class : e.class._id) === classId
+            );
+            if (isMounted) setEnrollment(match || null);
+        }
+      } catch (err) {
+        console.error("Failed to load enrollment rights", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    if (sessions.length > 0) fetchEnrollment();
+    else setLoading(false);
+
+    return () => { isMounted = false; };
+  }, [sessions]);
+
+  // 2. Filter & Sort Recordings
   const recordings = useMemo(() => {
     return sessions
-      .filter(s => s.youtubeVideoId)
+      .filter(s => s.youtubeVideoId || s.recordingUrl) // Only show if recording exists
       .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
   }, [sessions]);
+
+  // 3. Restriction Logic
+  const getAccessStatus = (session: any) => {
+    if (!enrollment) return { locked: true, reason: "Not Enrolled" };
+
+    const sessionDate = new Date(session.startAt);
+    const joinDate = new Date(enrollment.createdAt); // Or enrollment.accessStartDate
+    
+    // Logic A: Cannot view before Join Date (ignoring time, comparing dates)
+    if (sessionDate < joinDate) {
+        return { locked: true, reason: "Session occurred before you joined" };
+    }
+
+    // Logic B: Cannot view if unpaid (Session date is AFTER their access expiry)
+    // If accessEndDate is null, assume lifetime or active. If date exists, check it.
+    if (enrollment.accessEndDate) {
+        const expiryDate = new Date(enrollment.accessEndDate);
+        // Add a buffer (e.g. end of day)
+        expiryDate.setHours(23, 59, 59); 
+
+        if (sessionDate > expiryDate) {
+            return { locked: true, reason: "Payment required for this month" };
+        }
+    }
+
+    return { locked: false, reason: "" };
+  };
+
+  if (loading) {
+    return <div className="py-20 text-center text-gray-400 animate-pulse">Verifying Access Rights...</div>;
+  }
 
   if (recordings.length === 0) {
     return (
@@ -28,34 +98,55 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
       animate={{ opacity: 1, y: 0 }} 
       className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
     >
-      {recordings.map((session) => (
-        <div 
-          key={session._id} 
-          className="group bg-white rounded-[2rem] p-6 border border-brand-aliceBlue shadow-sm hover:border-brand-cerulean/20 hover:shadow-md transition-all duration-300"
-        >
-          <div className="flex items-start gap-4 mb-6">
-            <div className="w-12 h-12 bg-brand-aliceBlue rounded-2xl flex items-center justify-center text-brand-cerulean group-hover:bg-brand-cerulean group-hover:text-white transition-all duration-300 shrink-0">
-              <PlayCircle size={22} strokeWidth={2} />
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-base font-semibold text-brand-prussian line-clamp-2 leading-snug group-hover:text-brand-cerulean transition-colors">
-                {session.title || `Session ${session.index}`}
-              </h4>
-              <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                <Calendar size={12} />
-                {moment(session.startAt).format("MMM DD, YYYY")}
+      {recordings.map((session) => {
+        const { locked, reason } = getAccessStatus(session);
+
+        return (
+            <div 
+              key={session._id} 
+              className={`group relative rounded-[2rem] p-6 border transition-all duration-300 ${
+                  locked 
+                  ? "bg-gray-50 border-gray-200" 
+                  : "bg-white border-brand-aliceBlue shadow-sm hover:border-brand-cerulean/20 hover:shadow-md"
+              }`}
+            >
+              <div className="flex items-start gap-4 mb-6">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 ${
+                    locked 
+                    ? "bg-gray-200 text-gray-400" 
+                    : "bg-brand-aliceBlue text-brand-cerulean group-hover:bg-brand-cerulean group-hover:text-white"
+                }`}>
+                  {locked ? <Lock size={22} /> : <PlayCircle size={22} strokeWidth={2} />}
+                </div>
+                
+                <div className="space-y-1">
+                  <h4 className={`text-base font-semibold line-clamp-2 leading-snug transition-colors ${
+                      locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
+                  }`}>
+                    {session.title || `Session ${session.index}`}
+                  </h4>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
+                    <Calendar size={12} />
+                    {formatDate(session.startAt)}
+                  </div>
+                </div>
               </div>
+              
+              {locked ? (
+                <div className="w-full bg-gray-100 py-3.5 rounded-xl font-medium text-xs text-gray-500 flex items-center justify-center gap-2 border border-gray-200 cursor-not-allowed">
+                    <AlertCircle size={14} /> {reason}
+                </div>
+              ) : (
+                <button 
+                    onClick={() => navigate(`/student/class/recording/${session._id}`)}
+                    className="w-full bg-brand-aliceBlue py-3.5 rounded-xl font-medium text-sm text-brand-prussian hover:bg-brand-prussian hover:text-white transition-all transform active:scale-[0.98]"
+                >
+                    Watch Session
+                </button>
+              )}
             </div>
-          </div>
-          
-          <button 
-            onClick={() => navigate(`/student/class/recording/${session._id}`)}
-            className="w-full bg-brand-aliceBlue py-3.5 rounded-xl font-medium text-sm text-brand-prussian hover:bg-brand-prussian hover:text-white transition-all transform active:scale-[0.98]"
-          >
-            Watch Session
-          </button>
-        </div>
-      ))}
+        );
+      })}
     </motion.div>
   );
 }

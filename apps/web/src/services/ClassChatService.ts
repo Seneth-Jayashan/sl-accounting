@@ -14,7 +14,7 @@ export interface ClassChatMessage {
   _id?: string;
   classId: string;
   sender: string;
-  senderRole: "student" | "admin" | "instructor";
+  senderRole: "student" | "admin" ;
   senderName?: string;
   senderAvatar?: string;
   message: string;
@@ -132,6 +132,18 @@ class ClassChatService {
     }
   }
 
+  async deleteMessage(messageId: string) {
+    try {
+        // Note: Check if your backend route is /message/:id or /class/message/:id 
+        // Based on router above, it is mounted at /api/chats, so full path is /api/chats/message/:id
+        await api.delete(`${BASE_URL}/message/${messageId}`);
+        return true;
+    } catch (error) {
+        console.error("Delete failed", error);
+        return false;
+    }
+  }
+
   // --- LISTENERS ---
 
   onMessage(callback: (msg: ClassChatMessage) => void) {
@@ -153,6 +165,15 @@ class ClassChatService {
 
   offTyping() {
     this.socket?.off("typing_class");
+  }
+
+  onMessageDeleted(callback: (data: { messageId: string }) => void) {
+    this.socket?.on("message_deleted", callback);
+  }
+
+  offMessageDeleted(callback?: (data: { messageId: string }) => void) {
+    if (callback) this.socket?.off("message_deleted", callback);
+    else this.socket?.off("message_deleted");
   }
 }
 

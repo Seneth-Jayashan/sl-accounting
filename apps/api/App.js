@@ -9,6 +9,11 @@ import createError from 'http-errors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// --- JOBS ---
+import startSessionGenerator from "./jobs/SessionGenerator.js";
+// Optional: Import Enrollment Cron if you used that too
+// import startEnrollmentCron from "./jobs/EnrollmentCron.js"; 
+
 dotenv.config();
 // Import Router synchronously to avoid top-level await issues in some environments
 import apiRouter from './Router.js';
@@ -16,6 +21,19 @@ import apiRouter from './Router.js';
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ==========================================
+// 0. INITIALIZE BACKGROUND JOBS
+// ==========================================
+// Start the Cron Job to auto-generate Zoom sessions for infinite classes
+try {
+    startSessionGenerator();
+    console.log("✅ Background Job: Session Generator Started");
+    
+    // startEnrollmentCron(); // If you want to use the enrollment expiry job
+} catch (err) {
+    console.error("❌ Background Job Error:", err);
+}
 
 // ==========================================
 // 1. SECURITY & PROXY CONFIG

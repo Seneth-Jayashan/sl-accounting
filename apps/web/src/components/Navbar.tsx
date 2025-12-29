@@ -53,7 +53,7 @@ export const Navbar: React.FC = () => {
             <Link to="/" className="flex items-center gap-2 group">
               <div className="w-24 h-12">
                 <img
-                  src="/kalumwaduge Logo.png"
+                  src="/logo.png"
                   alt="SL Accounting Logo"
                   className="w-full h-full object-cover"
                 />

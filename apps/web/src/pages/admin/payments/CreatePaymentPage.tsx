@@ -33,7 +33,7 @@ export default function CreatePaymentPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Selected Enrollment Object (for display)
+  // Selected Enrollment Object
   const [selectedEnrollment, setSelectedEnrollment] = useState<EnrollmentResponse | null>(null);
 
   const [formData, setFormData] = useState({
@@ -52,8 +52,7 @@ export default function CreatePaymentPage() {
       if (Array.isArray(data)) list = data;
       else if ('enrollments' in data) list = data.enrollments || [];
 
-      // SECURITY: Only expose UNPAID or PENDING enrollments for payment
-      // This prevents double-payment errors and reduces clutter
+      // SECURITY: Only expose UNPAID or PENDING enrollments
       const unpaidList = list.filter(e => 
         e.paymentStatus === 'unpaid' || e.paymentStatus === 'pending'
       );
@@ -77,7 +76,6 @@ export default function CreatePaymentPage() {
     }
     const query = searchQuery.toLowerCase();
     const filtered = enrollments.filter(e => {
-      // Safe access to student/class properties
       const studentName = typeof e.student === 'object' ? `${e.student.firstName} ${e.student.lastName}` : '';
       const className = typeof e.class === 'object' ? e.class.name : '';
       return studentName.toLowerCase().includes(query) || className.toLowerCase().includes(query);
@@ -103,9 +101,7 @@ export default function CreatePaymentPage() {
     setSearchQuery(""); 
     setIsDropdownOpen(false);
     
-    // FIX: Check if 'class' is an object before accessing 'price'
     if (typeof enrollment.class === 'object' && enrollment.class !== null) {
-        // Use optional chaining or a fallback to "0"
         const price = enrollment.class.price ? enrollment.class.price.toString() : "";
         setFormData(prev => ({ ...prev, amount: price }));
     }
@@ -142,24 +138,24 @@ export default function CreatePaymentPage() {
   };
 
   return (
-      <div className="max-w-3xl mx-auto space-y-6 pb-24 p-4 lg:p-0">
+      <div className="max-w-3xl mx-auto space-y-6 pb-28 md:pb-24 p-4 lg:p-0">
         
-        <header className="space-y-2 pt-4">
-          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest group">
-            <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px] group-hover:-translate-x-1 transition-transform" /> Back to Ledger
+        <header className="space-y-2 pt-2">
+          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] md:text-xs font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest group">
+            <ArrowLeftIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 stroke-[3px] group-hover:-translate-x-1 transition-transform" /> Back to Ledger
           </button>
-          <h1 className="text-3xl font-semibold text-brand-prussian tracking-tight">Record Cash Payment</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold text-brand-prussian tracking-tight">Record Cash Payment</h1>
         </header>
 
         {error && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-xs font-medium flex items-center gap-2">
-            <InformationCircleIcon className="w-4 h-4" /> {error}
+            <InformationCircleIcon className="w-4 h-4 shrink-0" /> {error}
           </motion.div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in duration-700">
           
-          <div className="bg-white p-8 rounded-3xl border border-brand-aliceBlue shadow-sm space-y-8">
+          <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-3xl border border-brand-aliceBlue shadow-sm space-y-6 md:space-y-8">
             
             {/* --- SMART SEARCHABLE DROPDOWN --- */}
             <div className="space-y-2 relative" ref={dropdownRef}>
@@ -172,8 +168,8 @@ export default function CreatePaymentPage() {
                         <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input 
                             type="text"
-                            placeholder={loadingEnrollments ? "Syncing database..." : "Search by Student Name or Class..."}
-                            className="w-full pl-12 pr-10 py-4 bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean outline-none transition-all placeholder:text-gray-400"
+                            placeholder={loadingEnrollments ? "Syncing database..." : "Search by Student Name..."}
+                            className="w-full pl-12 pr-10 py-3.5 md:py-4 bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean outline-none transition-all placeholder:text-gray-400"
                             value={searchQuery}
                             onChange={(e) => {
                                 setSearchQuery(e.target.value);
@@ -205,7 +201,7 @@ export default function CreatePaymentPage() {
                                                 >
                                                     <p className="text-sm font-bold text-brand-prussian group-hover:text-brand-cerulean transition-colors">{studentName}</p>
                                                     <div className="flex justify-between items-center mt-1">
-                                                        <p className="text-xs text-gray-500">{className}</p>
+                                                        <p className="text-xs text-gray-500 truncate max-w-[70%]">{className}</p>
                                                         <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${enrollment.paymentStatus === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-red-50 text-red-500'}`}>
                                                             {enrollment.paymentStatus}
                                                         </span>
@@ -225,15 +221,15 @@ export default function CreatePaymentPage() {
                 ) : (
                     // SELECTED STATE
                     <div className="flex items-center justify-between p-4 bg-brand-cerulean/5 border border-brand-cerulean/20 rounded-xl">
-                        <div>
-                            <p className="text-sm font-bold text-brand-prussian">
+                        <div className="min-w-0">
+                            <p className="text-sm font-bold text-brand-prussian truncate">
                                 {typeof selectedEnrollment.student === 'object' ? `${selectedEnrollment.student.firstName} ${selectedEnrollment.student.lastName}` : 'Student'}
                             </p>
-                            <p className="text-xs text-brand-cerulean mt-0.5 font-medium">
+                            <p className="text-xs text-brand-cerulean mt-0.5 font-medium truncate">
                                 {typeof selectedEnrollment.class === 'object' ? selectedEnrollment.class?.name : 'Class'}
                             </p>
                         </div>
-                        <button onClick={handleClearSelection} className="p-2 hover:bg-white rounded-full text-gray-400 hover:text-red-500 transition-all">
+                        <button onClick={handleClearSelection} className="p-2 hover:bg-white rounded-full text-gray-400 hover:text-red-500 transition-all shrink-0">
                             <XMarkIcon className="w-5 h-5" />
                         </button>
                     </div>
@@ -287,8 +283,8 @@ export default function CreatePaymentPage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col gap-3">
+          {/* Sticky Mobile Actions */}
+          <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-100 lg:static lg:bg-transparent lg:border-none lg:p-0 z-50 flex flex-col gap-3">
             <button
               type="submit"
               disabled={isSaving || !selectedEnrollment}
@@ -299,7 +295,7 @@ export default function CreatePaymentPage() {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="w-full bg-white border border-brand-aliceBlue text-gray-400 py-4 rounded-2xl text-sm font-bold uppercase tracking-widest hover:bg-gray-50 transition-all"
+              className="w-full bg-white border border-brand-aliceBlue text-gray-400 py-4 rounded-2xl text-sm font-bold uppercase tracking-widest hover:bg-gray-50 transition-all hidden md:block"
             >
               Cancel Entry
             </button>

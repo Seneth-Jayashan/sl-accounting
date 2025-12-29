@@ -1,5 +1,7 @@
 import axios from "axios";
 import moment from "moment-timezone";
+import dotenv from "dotenv";
+dotenv.config();
 
 // --- CONFIGURATION ---
 const ZOOM_TOKEN_URL = "https://zoom.us/oauth/token";
@@ -10,7 +12,6 @@ const {
   ZOOM_CLIENT_SECRET,
   ZOOM_ACCOUNT_ID,
   ZOOM_USER_ID,
-  // Default to 55 minutes (3300s) to be safe (Zoom tokens last 1 hour)
   ZOOM_TOKEN_CACHE_TTL = 3300, 
 } = process.env;
 

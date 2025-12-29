@@ -50,10 +50,11 @@ export default function AddStudentPage() {
 
   // --- Initial Data Load ---
   useEffect(() => {
+    let isMounted = true;
     const loadBatches = async () => {
       try {
         const response = await BatchService.getAllBatches(true);
-        if (response.batches && response.batches.length > 0) {
+        if (isMounted && response.batches && response.batches.length > 0) {
           setBatches(response.batches);
           // Auto-select first batch
           setProfileData(prev => ({ ...prev, batch: response.batches![0]._id }));
@@ -62,10 +63,11 @@ export default function AddStudentPage() {
         console.error("Failed to load batches", err);
         Swal.fire("Warning", "Failed to load active batches.", "warning");
       } finally {
-        setIsBatchesLoading(false);
+        if (isMounted) setIsBatchesLoading(false);
       }
     };
     loadBatches();
+    return () => { isMounted = false; };
   }, []);
 
   // --- Handlers ---
@@ -107,7 +109,7 @@ export default function AddStudentPage() {
         lastName: profileData.lastName,
         phoneNumber: profileData.phoneNumber,
         batch: profileData.batch,
-        address: profileData.address, // Send full object
+        address: profileData.address,
         email: authData.email,
         password: authData.password,
         role: "student" as const
@@ -134,31 +136,31 @@ export default function AddStudentPage() {
   };
 
   return (
-      <div className="max-w-4xl mx-auto space-y-8 font-sans pb-20">
+      <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 font-sans pb-32 md:pb-20">
         
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <button 
                 onClick={() => navigate("/admin/students")} 
-                className="group flex items-center text-gray-500 hover:text-brand-prussian transition-colors font-medium text-sm uppercase tracking-widest"
+                className="group flex items-center text-gray-500 hover:text-brand-prussian transition-colors font-medium text-xs md:text-sm uppercase tracking-widest"
             >
                 <ArrowLeftIcon className="w-4 h-4 mr-2 stroke-[3px] group-hover:-translate-x-1 transition-transform" /> 
                 Back to Directory
             </button>
-            <h1 className="text-2xl font-bold text-brand-prussian tracking-tight">Register Student</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-brand-prussian tracking-tight">Register Student</h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
             
             {/* 1. PERSONAL DETAILS */}
-            <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-brand-aliceBlue">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-brand-aliceBlue">
                 <div className="flex items-center justify-between mb-6 border-b border-brand-aliceBlue pb-4">
                     <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2 uppercase tracking-wide">
                         <UserCircleIcon className="w-5 h-5 text-brand-cerulean" /> Personal Details
                     </h2>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                     <InputField label="First Name" name="firstName" value={profileData.firstName} onChange={handleProfileChange} required placeholder="e.g. Sahan" />
                     <InputField label="Last Name" name="lastName" value={profileData.lastName} onChange={handleProfileChange} required placeholder="e.g. Perera" />
                     <InputField label="Phone Number" name="phoneNumber" value={profileData.phoneNumber} onChange={handleProfileChange} icon={<PhoneIcon className="w-4 h-4 text-gray-400"/>} placeholder="077 123 4567" />
@@ -167,7 +169,7 @@ export default function AddStudentPage() {
                     <div className="space-y-1.5">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Assigned Batch</label>
                         <div className="relative">
-                            <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                             <select 
                                 name="batch" 
                                 value={profileData.batch} 
@@ -200,7 +202,7 @@ export default function AddStudentPage() {
             </div>
 
             {/* 2. ACCOUNT CREDENTIALS */}
-            <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-brand-aliceBlue">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-brand-aliceBlue">
                 <h2 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-brand-aliceBlue pb-4 uppercase tracking-wide">
                     <EnvelopeIcon className="w-5 h-5 text-brand-cerulean" /> Account Credentials
                 </h2>
@@ -244,19 +246,19 @@ export default function AddStudentPage() {
                 </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-4 pt-2">
+            {/* Actions - Sticky on Mobile */}
+            <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-200 md:static md:bg-transparent md:border-none md:p-0 flex items-center justify-end gap-3 z-50 md:z-auto">
                 <button
                     type="button"
                     onClick={() => navigate("/admin/students")}
-                    className="px-8 py-3 rounded-xl text-gray-400 font-bold text-xs hover:bg-gray-100 transition-colors uppercase tracking-widest"
+                    className="px-6 py-3 md:px-8 md:py-3 rounded-xl text-gray-500 font-bold text-xs hover:bg-gray-100 transition-colors uppercase tracking-widest hidden md:block"
                 >
                     Cancel
                 </button>
                 <button
                     type="submit"
                     disabled={isLoading || isBatchesLoading}
-                    className="flex items-center gap-2 px-8 py-3 rounded-xl bg-brand-cerulean text-white font-bold text-xs uppercase tracking-widest hover:bg-brand-prussian transition-all shadow-lg shadow-brand-cerulean/30 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-brand-cerulean text-white font-bold text-xs uppercase tracking-widest hover:bg-brand-prussian transition-all shadow-lg shadow-brand-cerulean/30 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {isLoading ? "Registering..." : "Create Account"}
                 </button>
@@ -267,7 +269,7 @@ export default function AddStudentPage() {
   );
 }
 
-// --- REUSABLE INPUT COMPONENT (Identical to Update Page) ---
+// --- REUSABLE INPUT COMPONENT ---
 interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label: string;
     icon?: React.ReactNode;
