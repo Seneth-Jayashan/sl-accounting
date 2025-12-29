@@ -50,7 +50,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   const baseBtn =
     "w-full bg-white border border-gray-200 rounded-2xl shadow-inner px-3 pr-10 py-2 text-left transition focus:border-[#0b2540] focus:ring-2 focus:ring-[#0b2540]/10";
   const menuBase =
-    "absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden z-20";
+    "absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden z-20 max-h-60 overflow-auto overscroll-contain";
 
   const handleSelect = (val: string) => {
     onChange(val);

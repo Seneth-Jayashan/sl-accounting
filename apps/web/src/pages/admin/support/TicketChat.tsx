@@ -317,14 +317,14 @@ export default function TicketChatAdmin() {
   }), [tickets]);
 
   return (
-    <div className="bg-[#e9f0f7] min-h-full h-screen lg:h-auto flex flex-col">
-      <main className="flex-1 p-4 lg:p-8 pb-4 lg:pb-10 lg:h-[calc(100vh-64px)] flex justify-center overflow-hidden">
-        <div className="w-full max-w-7xl space-y-4 flex flex-col h-full">
-          
-          {/* Header (Hidden on Mobile if Ticket Selected) */}
-          <div className={`flex-col gap-2 md:flex-row md:items-center md:justify-between shrink-0 ${selectedId ? 'hidden lg:flex' : 'flex'}`}>
+    <div className="bg-[#e9f0f7] min-h-full h-[calc(100vh-64px)] overflow-hidden"> 
+      <main className="h-full w-full max-w-7xl mx-auto flex flex-col lg:p-8">
+        
+        {/* Header - Visible only on Desktop OR Mobile List View */}
+        <div className={`p-4 lg:p-0 shrink-0 ${selectedId ? 'hidden lg:block' : 'block'}`}>
+          <div className="flex flex-col gap-2 mb-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-[#0b2540]">Support Tickets</h1>
+              <h1 className="text-2xl font-bold mb-1 text-[#0b2540]">Support Tickets</h1>
               <p className="text-xs text-gray-500">Manage user inquiries and chat history.</p>
             </div>
             <div className="flex gap-2 text-xs font-medium">
@@ -332,92 +332,107 @@ export default function TicketChatAdmin() {
               <span className="bg-white px-3 py-1 rounded-full shadow-sm border text-blue-600">Active: {stats.open}</span>
             </div>
           </div>
+          {error && <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200">{error}</div>}
+        </div>
 
-          {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200 shrink-0">{error}</div>}
-
-          {loading ? (
-            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm animate-pulse">Loading tickets...</div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0 relative">
-              
-              {/* LEFT COLUMN: Ticket List (Hidden on Mobile if Ticket Selected) */}
-              <div className={`lg:col-span-1 bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden h-full ${selectedId ? 'hidden lg:flex' : 'flex'}`}>
-                <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center shrink-0">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inbox</span>
-                  <div className="flex items-center gap-2">
-                    {selectedCount > 0 ? (
-                      <>
-                        <span className="text-[10px] text-gray-500">Selected: {selectedCount}</span>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-                          onClick={() => setShowBulkDeleteConfirm(true)}
-                          disabled={bulkDeleting || deleting}
-                        >
-                          <TrashIcon className="w-4 h-4" /> Delete
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-gray-600 hover:text-gray-700 disabled:opacity-50"
-                          onClick={clearSelected}
-                          disabled={bulkDeleting}
-                        >
-                          Clear
-                        </button>
-                      </>
-                    ) : (
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm animate-pulse">Loading tickets...</div>
+        ) : (
+          <div className="flex-1 flex overflow-hidden lg:gap-4 relative">
+            
+            {/* LEFT COLUMN: Ticket List */}
+            <div className={`
+              flex-col bg-white lg:rounded-2xl border shadow-sm overflow-hidden
+              ${selectedId ? 'hidden lg:flex lg:w-1/3' : 'flex w-full h-full lg:w-1/3'}
+            `}>
+              <div className="p-3 border-b bg-gray-50/50 flex justify-between items-center shrink-0">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inbox</span>
+                <div className="flex items-center gap-2">
+                  {selectedCount > 0 ? (
+                    <>
+                      <span className="text-[10px] text-gray-500">Selected: {selectedCount}</span>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                        onClick={() => setShowBulkDeleteConfirm(true)}
+                        disabled={bulkDeleting || deleting}
+                        title="Delete selected tickets"
+                      >
+                        <TrashIcon className="w-4 h-4" /> Delete
+                      </button>
                       <button
                         type="button"
                         className="text-xs font-medium text-gray-600 hover:text-gray-700 disabled:opacity-50"
-                        onClick={selectAllVisible}
-                        disabled={tickets.length === 0 || bulkDeleting}
+                        onClick={clearSelected}
+                        disabled={bulkDeleting}
                       >
-                        Select all
+                        Clear
                       </button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {tickets.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400 text-sm">No tickets found.</div>
+                    </>
                   ) : (
-                    <ul className="divide-y divide-gray-100">
-                      {tickets.map((ticket) => (
-                        <TicketListItem 
-                          key={ticket._id} 
-                          ticket={ticket} 
-                          isActive={selectedId === ticket._id}
-                          isSelected={selectedIds.has(ticket._id)}
-                          selectionDisabled={String(ticket.status || "").toLowerCase() !== "closed"}
-                          onToggleSelect={toggleSelected}
-                          onClick={(id) => {
-                            if (selectedId === id) {
-                              // On desktop, clicking same deselects. On mobile, it opens/keeps open.
-                              if (window.innerWidth >= 1024) handleBackToList();
-                            } else {
-                              setSelectedId(id);
-                              navigate(`/admin/chat/ticket/${id}`);
-                            }
-                          }}
-                        />
-                      ))}
-                    </ul>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-gray-600 hover:text-gray-700 disabled:opacity-50"
+                      onClick={selectAllVisible}
+                      disabled={tickets.length === 0 || bulkDeleting}
+                    >
+                      Select all
+                    </button>
                   )}
                 </div>
               </div>
+              <div className="flex-1 overflow-y-auto">
+                {tickets.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400 text-sm">No tickets found.</div>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {tickets.map((ticket) => (
+                      <TicketListItem 
+                        key={ticket._id} 
+                        ticket={ticket} 
+                        isActive={selectedId === ticket._id}
+                        isSelected={selectedIds.has(ticket._id)}
+                        selectionDisabled={String(ticket.status || "").toLowerCase() !== "closed"}
+                        onToggleSelect={toggleSelected}
+                        onClick={(id) => {
+                          const isSame = selectedId === id;
+                          const isDesktop = window.innerWidth >= 1024;
+                          if (isSame && isDesktop) {
+                            // On desktop, allow deselecting to return to the list view
+                            setSelectedId(null);
+                            navigate(`/admin/chat`, { replace: true });
+                            return;
+                          }
+                          // On mobile (or when selecting a different ticket), open the ticket
+                          setSelectedId(id);
+                          navigate(`/admin/chat/ticket/${id}`);
+                        }}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
 
-              {/* RIGHT COLUMN: Chat Area (Full Screen on Mobile if Selected) */}
-              <div className={`lg:col-span-2 flex flex-col gap-3 min-h-0 absolute inset-0 lg:static z-20 lg:z-auto bg-[#e9f0f7] lg:bg-transparent ${selectedId ? 'flex' : 'hidden lg:flex'}`}>
-                
-                {/* Mobile Back Button Header */}
-                <div className="lg:hidden flex items-center gap-2 p-1">
-                    <button onClick={handleBackToList} className="flex items-center text-sm font-semibold text-gray-600 bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-200">
-                        <ArrowLeftIcon className="w-4 h-4 mr-1" /> Back
-                    </button>
-                </div>
+            {/* RIGHT COLUMN: Chat Area */}
+            <div className={`
+              flex-col gap-3 min-h-0 bg-[#e9f0f7] lg:bg-transparent
+              ${selectedId ? 'flex w-full h-full absolute inset-0 z-50 lg:static lg:z-auto lg:w-2/3' : 'hidden lg:flex lg:w-2/3'}
+            `}>
+              {/* Meta Panel */}
+              <div className="bg-white lg:rounded-2xl border-b lg:border shadow-sm p-4 shrink-0 flex items-center">
+                 {/* Back Button (Mobile Only) */}
+                 <button 
+                  onClick={() => {
+                    setSelectedId(null);
+                    navigate('/admin/chat');
+                  }}
+                  className="mr-3 lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+                >
+                  <ArrowLeftIcon className="w-5 h-5" />
+                </button>
 
-                {/* Meta Panel */}
-                <div className="bg-white rounded-2xl border shadow-sm p-4 shrink-0">
+                <div className="flex-1 min-w-0">
                   {loadingTicket ? (
                     <div className="text-sm text-gray-400">Loading details...</div>
                   ) : selectedTicket ? (
@@ -434,35 +449,38 @@ export default function TicketChatAdmin() {
                     </div>
                   )}
                 </div>
+              </div>
 
-                {/* Chat Box */}
-                <div className="flex-1 min-h-0 rounded-2xl overflow-hidden border shadow-sm bg-white relative">
-                  {selectedId && user && selectedTicket ? (
-                    isChatDisabled(selectedTicket.status) ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2 p-4 text-center">
-                        <ExclamationCircleIcon className="w-8 h-8 opacity-50" />
-                        <span className="text-sm">This ticket is Closed. Chat is disabled.</span>
-                      </div>
-                    ) : (
+              {/* Chat Box */}
+              <div className="flex-1 min-h-0 flex flex-col relative bg-white lg:rounded-2xl border shadow-sm overflow-hidden">
+                {selectedId && user && selectedTicket ? (
+                  isChatDisabled(selectedTicket.status) ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                      <ExclamationCircleIcon className="w-8 h-8 opacity-50" />
+                      <span className="text-sm">This ticket is Closed. Chat is disabled.</span>
+                    </div>
+                  ) : (
+                    <div className="h-full w-full">
                       <Chat
                         ticketId={selectedId}
                         userId={user._id}
                         role="admin"
                         readOnly={selectedTicket.status === "Resolved"}
                         heightMode="parent"
+                        hideHeader
                       />
-                    )
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-3">
-                      <ChatBubbleLeftRightIcon className="w-12 h-12 opacity-20" />
-                      <span className="text-sm font-medium">Select a conversation</span>
                     </div>
-                  )}
-                </div>
+                  )
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-3">
+                    <ChatBubbleLeftRightIcon className="w-12 h-12 opacity-20" />
+                    <span className="text-sm font-medium">Select a conversation</span>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
 
       {/* --- MODALS --- */}

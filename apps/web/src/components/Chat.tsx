@@ -26,6 +26,7 @@ interface Props {
   role?: "student" | "admin";
   readOnly?: boolean;
   heightMode?: "viewport" | "parent" | "auto";
+  hideHeader?: boolean;
 }
 
 export default function TicketChat({
@@ -34,6 +35,7 @@ export default function TicketChat({
   role: propRole,
   readOnly: propReadOnly,
   heightMode = "viewport",
+  hideHeader = false,
 }: Props) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -562,20 +564,22 @@ export default function TicketChat({
       style={heightMode === "viewport" && containerHeight ? { height: `${containerHeight}px` } : undefined}
     >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <div>
-          <div className="text-xs text-gray-500">Support Chat</div>
-          {ticketId && (
-            <div className="text-sm font-semibold text-[#053A4E]">
-              Ticket: {ticketId}
-            </div>
-          )}
+      {!hideHeader && (
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <div className="text-xs text-gray-500">Support Chat</div>
+            {ticketId && (
+              <div className="text-sm font-semibold text-[#053A4E]">
+                Ticket: {ticketId}
+              </div>
+            )}
+          </div>
+          <div className="text-xs text-gray-400">Real-time</div>
         </div>
-        <div className="text-xs text-gray-400">Real-time</div>
-      </div>
+      )}
 
       {/* ---------- Messages ---------- */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white overflow-x-hidden">
+      <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3 bg-white overflow-x-hidden">
         {hasOlder && (
           <div className="mb-3 flex items-center justify-between bg-yellow-50 border border-yellow-100 text-yellow-800 px-3 py-2 rounded">
             <div className="text-xs">Showing latest {messages.length} messages. Older messages are hidden.</div>
@@ -600,7 +604,7 @@ export default function TicketChat({
                 : "justify-start"
             } mb-2`}
           >
-            <div className="flex flex-col max-w-[72%] w-full">
+            <div className="flex flex-col max-w-[85%] md:max-w-[72%] w-full">
               <div
                 className={`flex items-end gap-2 ${
                   isOwn(msg) ? "flex-row-reverse" : "flex-row"
@@ -609,7 +613,7 @@ export default function TicketChat({
                 {/* Avatar (LMS style) */}
                 <div className="relative flex-none">
                   <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 ${
+                    className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center overflow-hidden border border-gray-200 ${
                       msg.senderAvatar
                         ? "bg-transparent"
                         : isOwn(msg)
@@ -748,24 +752,13 @@ export default function TicketChat({
               </div>
             )}
 
-            <div className="flex items-end gap-3">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={handleTyping}
-              onKeyDown={handleKeyDown}
-              placeholder="Write a message..."
-                className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-full 
-               focus:ring-2 focus:ring-[#053A4E] resize-none overflow-hidden"
-                style={{ minHeight: "60px", maxHeight: "250px" }}
-            />
-
+            <div className="flex items-end gap-2 md:gap-3">
             {/* Attach */}
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={handlePickFile}
               disabled={pendingAttachments.some((p) => p.uploading)}
-              className={`p-3 rounded-full hover:bg-blue-50 ${
+              className={`p-2 md:p-3 rounded-full hover:bg-blue-50 shrink-0 ${
                 pendingAttachments.some((p) => p.uploading)
                   ? "opacity-60 cursor-not-allowed"
                   : ""
@@ -778,12 +771,23 @@ export default function TicketChat({
                 <FaPaperclip />
               )}
             </motion.button>
+            
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={handleTyping}
+              onKeyDown={handleKeyDown}
+              placeholder="Write a message..."
+                className="flex-1 px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-2xl md:rounded-full 
+               focus:ring-2 focus:ring-[#053A4E] resize-none overflow-hidden text-sm md:text-base"
+                style={{ minHeight: "44px", maxHeight: "150px" }}
+            />
 
             {/* Emoji */}
             <motion.button
               whileHover={{ scale: 1.1 }}
               onClick={() => setShowEmojiPicker((s) => !s)}
-              className="p-3 rounded-full hover:bg-blue-50"
+              className="p-2 md:p-3 rounded-full hover:bg-blue-50 shrink-0"
             >
               <FaSmile />
             </motion.button>
@@ -796,14 +800,14 @@ export default function TicketChat({
                 (!message.trim() && pendingAttachments.every((p) => !p.attachment))
               }
               onClick={handleSend}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
+              className={`flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-full text-sm font-semibold transition-colors shrink-0 ${
                 message.trim() || pendingAttachments.some((p) => !!p.attachment)
                   ? "bg-[#053A4E] text-white"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
               }`}
             >
               <FaPaperPlane />
-              <span>Send</span>
+              <span className="hidden md:inline">Send</span>
             </motion.button>
             </div>
           </div>

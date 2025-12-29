@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
-import { ArrowUpTrayIcon, XMarkIcon, DocumentIcon } from "@heroicons/react/24/outline";
+import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import Dropdown from "../../../components/Dropdown";
 
 const CATEGORIES = [
   "Lecture Notes",
@@ -11,6 +12,47 @@ const CATEGORIES = [
   "Assignments",
   "Other",
 ];
+
+type FileDetailsProps = {
+  file: File;
+  displayName: string;
+  category: string;
+  onDisplayNameChange: (name: string) => void;
+  formatBytes: (bytes?: number) => string;
+  className?: string;
+};
+
+const FileDetails: React.FC<FileDetailsProps> = ({
+  file,
+  displayName,
+  category,
+  onDisplayNameChange,
+  formatBytes,
+  className = "",
+}) => (
+  <div className={`p-4 border rounded-lg bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-4 ${className}`}>
+    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
+      FILE
+    </div>
+    <div className="flex-1">
+      <div className="text-sm font-medium">{displayName || file.name}</div>
+      <div className="text-xs text-gray-400">
+        {file.type || ""} {file.size ? `• ${formatBytes(file.size)}` : ""}
+      </div>
+      <div className="mt-2">
+        <input
+          value={displayName}
+          onChange={(e) => onDisplayNameChange(e.target.value)}
+          className="w-full px-3 py-2 rounded border bg-white text-sm"
+        />
+        <p className="text-xs text-gray-400 mt-1">Edit file name before upload</p>
+      </div>
+    </div>
+    <div className="text-left sm:text-right">
+      <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">{category}</div>
+    </div>
+  </div>
+);
 
 const AdminKnowledgeBase: React.FC = () => {
   const navigate = useNavigate();
@@ -155,12 +197,20 @@ const AdminKnowledgeBase: React.FC = () => {
         const scheduled = schedulePublish && publishAt && new Date(publishAt).getTime() > Date.now();
 
         if (scheduled && publishAt) {
+          const isMobile = window.matchMedia("(max-width: 639px)").matches;
+          const scheduledHtml = isMobile
+            ? `<div class="text-sm">You have successfully scheduled this material.</div><div class="mt-3 text-base font-mono"><span id="kb-countdown">--:--:--</span></div>`
+            : `<div class="text-sm">You have successfully scheduled this material.</div><div class="mt-3 text-lg font-mono"><span id="kb-countdown">--:--:--</span></div>`;
+          // show countdown modal
           Swal.fire({
             title: "Scheduled",
-            html: `<div class="text-sm">Material scheduled successfully.</div><div class="mt-3 text-lg font-mono"><span id="kb-countdown">--:--:--</span></div>`,
+            html: scheduledHtml,
             icon: "success",
             confirmButtonText: "Go to list",
             allowOutsideClick: false,
+            ...(isMobile
+              ? { width: "92%", padding: "1rem", heightAuto: false }
+              : {}),
             didOpen: () => {
               const el = document.getElementById("kb-countdown");
               const target = new Date(publishAt as string).getTime();
@@ -178,12 +228,18 @@ const AdminKnowledgeBase: React.FC = () => {
             },
           }).then(() => navigate("/admin/knowledge-list"));
         } else {
+          const isMobile = window.matchMedia("(max-width: 639px)").matches;
           Swal.fire({
             title: "Published",
             text: "Material published successfully.",
             icon: "success",
             confirmButtonText: "Go to list",
-          }).then(() => navigate("/admin/knowledge-list"));
+            ...(isMobile
+              ? { width: "92%", padding: "1rem", heightAuto: false }
+              : {}),
+          }).then(() => {
+            navigate("/admin/knowledge-list");
+          });
         }
       } else {
         setError(res?.message || "Upload failed");
@@ -208,7 +264,7 @@ const AdminKnowledgeBase: React.FC = () => {
   };
 
   return (
-      <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6 pb-24 md:pb-12">
+      <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-brand-prussian">Upload Material</h1>
           <p className="text-xs md:text-sm text-gray-500 mt-1">
@@ -227,11 +283,12 @@ const AdminKnowledgeBase: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 bg-white p-4 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
-          
-          {/* TITLE INPUT */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6 bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-lg"
+        >
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-gray-700">
               Title <span className="text-red-500">*</span>
             </label>
             <input
@@ -278,22 +335,20 @@ const AdminKnowledgeBase: React.FC = () => {
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
                 Category
               </label>
-              <select
+              <Dropdown
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-cerulean/20 cursor-pointer text-sm font-medium appearance-none"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+                onChange={(v) => setCategory(v)}
+                options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+                wrapperClassName="w-full"
+                className="px-4 py-2 rounded-xl"
+              />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
                 Availability
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <button
                   type="button"
                   onClick={() => {
@@ -301,7 +356,7 @@ const AdminKnowledgeBase: React.FC = () => {
                     setSchedulePublish(false);
                     setPublishAt(null);
                   }}
-                  className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                  className={`w-full sm:w-40 py-2 rounded-xl text-base font-semibold ${
                     isPublished
                       ? "bg-brand-prussian text-white shadow-md"
                       : "bg-gray-100 text-gray-500 hover:bg-gray-200"
@@ -315,7 +370,7 @@ const AdminKnowledgeBase: React.FC = () => {
                     setSchedulePublish(true);
                     setIsPublished(false);
                   }}
-                  className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                  className={`w-full sm:w-40 py-2 rounded-lg text-base font-semibold ${
                     schedulePublish
                       ? "bg-brand-prussian text-white shadow-md"
                       : "bg-gray-100 text-gray-500 hover:bg-gray-200"
@@ -351,8 +406,8 @@ const AdminKnowledgeBase: React.FC = () => {
             {!file ? (
               <div
                 ref={fileAreaRef}
-                className={`relative w-full h-40 bg-gray-50 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center hover:bg-blue-50/50 hover:border-brand-cerulean/50 transition-all cursor-pointer group ${
-                  fileError ? "border-red-300 bg-red-50/50" : "border-gray-300"
+                className={`mt-2 relative w-full aspect-[4/3] sm:aspect-video bg-gray-50 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer border-2 border-dashed ${
+                  fileError ? "border-red-400 bg-red-50" : "border-gray-300"
                 }`}
               >
                 <div className="flex flex-col items-center gap-2">
@@ -373,66 +428,70 @@ const AdminKnowledgeBase: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div ref={fileAreaRef} className="w-full border border-gray-200 rounded-2xl p-4 bg-gray-50/50">
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-brand-cerulean/10 rounded-lg flex items-center justify-center text-brand-cerulean">
-                            <DocumentIcon className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-gray-800 line-clamp-1 break-all">{file.name}</p>
-                            <p className="text-xs text-gray-500 font-medium">{formatBytes(file.size)} • {file.type.split('/')[1]?.toUpperCase() || 'FILE'}</p>
-                        </div>
-                    </div>
-                    <button 
-                        type="button"
-                        onClick={() => {
-                            setFile(null);
-                            setFilePreviewUrl(null);
-                        }}
-                        className="p-1 hover:bg-red-50 hover:text-red-500 rounded-full text-gray-400 transition-colors"
-                    >
-                        <XMarkIcon className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Display Name (Optional)</label>
+              <div ref={fileAreaRef} className="mt-2 w-full">
+                <div className="mb-2 flex justify-start sm:justify-end">
+                  <label className="px-3 py-1 rounded-xl border border-gray-200 text-sm cursor-pointer bg-white">
+                    Update file
                     <input
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:border-brand-cerulean outline-none transition-all"
-                        placeholder="Rename file for students..."
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv"
+                      onChange={handleFileChange}
+                      className="hidden"
                     />
+                  </label>
                 </div>
-
-                {filePreviewUrl && file.type.startsWith("image/") && (
-                    <div className="mt-4">
-                        <img src={filePreviewUrl} alt="preview" className="h-32 rounded-lg object-cover border border-gray-200" />
-                    </div>
+                {filePreviewUrl ? (
+                  <div>
+                    {file?.type === "application/pdf" ? (
+                      <iframe
+                        src={filePreviewUrl}
+                        title="PDF preview"
+                        className="w-full h-56 sm:h-64 border rounded shadow-sm"
+                      />
+                    ) : (
+                      <img
+                        src={filePreviewUrl}
+                        alt="preview"
+                        className="w-full max-h-64 object-contain rounded shadow-sm"
+                      />
+                    )}
+                    <FileDetails
+                      file={file as File}
+                      displayName={displayName}
+                      category={category}
+                      onDisplayNameChange={setDisplayName}
+                      formatBytes={formatBytes}
+                      className="mt-3"
+                    />
+                  </div>
+                ) : (
+                  <FileDetails
+                    file={file as File}
+                    displayName={displayName}
+                    category={category}
+                    onDisplayNameChange={setDisplayName}
+                    formatBytes={formatBytes}
+                  />
                 )}
               </div>
             )}
           </div>
 
-          {/* STICKY ACTION BAR (Mobile) / STATIC (Desktop) */}
-          <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-100 md:static md:bg-transparent md:border-none md:p-0 z-20">
-             <div className="flex gap-3 max-w-3xl mx-auto">
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="flex-1 py-3.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-[2] py-3.5 rounded-xl bg-brand-prussian text-white font-bold text-sm hover:bg-brand-cerulean transition-colors shadow-lg shadow-brand-cerulean/20 disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Uploading..." : "Upload Material"}
-                </button>
-             </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="w-full sm:w-auto px-5 py-2 rounded-xl border border-gray-300 text-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full sm:w-auto px-5 py-2 rounded-xl bg-[#0b2540] text-white font-medium disabled:opacity-60"
+            >
+              {loading ? "Uploading..." : "Upload"}
+            </button>
           </div>
 
         </form>

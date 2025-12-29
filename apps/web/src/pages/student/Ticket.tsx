@@ -223,14 +223,14 @@ export default function StudentTicketPage(): React.ReactElement {
 
   return (
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
+        <div className="bg-white rounded-2xl shadow-sm p-4 md:p-8">
           {ticketId && ticketInfo && !isTicketClosed(ticketInfo) ? (
             // Ticket exists and is not closed: show only chat with heading
             <div>
               <header className="mb-4">
                 <p className="text-sm text-gray-500">Support — Ticket</p>
-                <h1 className="text-2xl font-semibold text-[#053A4E]">Ticket ID: {ticketId}</h1>
-                <p className="text-gray-600">Category: {ticketInfo?.Categories ?? ticketInfo?.category ?? "-"}</p>
+                <h1 className="text-xl md:text-2xl font-semibold text-[#053A4E]">Ticket ID: {ticketId}</h1>
+                <p className="text-sm text-gray-600">Category: {ticketInfo?.Categories ?? ticketInfo?.category ?? "-"}</p>
                 <p className="text-sm text-gray-600">Issue reported: {ticketInfo?.message ?? "-"}</p>
                 <p className="text-xs text-gray-600">Status: {ticketInfo?.status ?? "-"}</p>
                 {!isTicketClosed(ticketInfo) && !isResolved && (
@@ -254,7 +254,7 @@ export default function StudentTicketPage(): React.ReactElement {
             <>
               <header className="mb-6">
                 <p className="text-sm text-gray-500">Support</p>
-                <h1 className="text-3xl font-semibold text-[#053A4E]">Submit a Ticket</h1>
+                <h1 className="text-2xl md:text-3xl font-semibold text-[#053A4E]">Submit a Ticket</h1>
                 <p className="text-gray-600 mt-2">Describe the issue you are facing and we will get back to you.</p>
               </header>
 
