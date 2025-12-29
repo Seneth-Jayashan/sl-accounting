@@ -57,6 +57,7 @@ export default function BottomNavAdmin() {
       title: "Knowledge & Support",
       items: [
         { key: "knowledge", label: "Knowledge Base", href: "/admin/knowledge-base", icon: BookOpenIcon },
+        { key: "knowledge-list", label: "Content List", href: "/admin/knowledge-list", icon: ClipboardDocumentCheckIcon },
         { key: "tickets", label: "Support Tickets", href: "/admin/chat", icon: ChatBubbleLeftRightIcon },
         { key: "contact", label: "Contact Requests", href: "/admin/support", icon: PhoneIcon },
       ]
