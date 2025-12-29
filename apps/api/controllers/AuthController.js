@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { registerSchema } from "../validators/AuthValidator.js";
+import Batch from "../models/Batch.js";
 import { sendVerificationEmail , sendWelcomeEmail } from "../utils/email/Template.js";
 import { sendVerificationSms, sendWelcomeSms } from "../utils/sms/Template.js";
 
