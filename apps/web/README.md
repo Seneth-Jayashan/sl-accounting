@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# SL Accounting - Student Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive web application for managing academic classes, student enrollments, payments, and live sessions. Built with **React**, **TypeScript**, and **Vite**, focusing on performance and a modern user experience.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+* **Role-Based Dashboards**: Distinct interfaces for Admins and Students.
+* **Class & Batch Management**: Organize academic schedules and intakes.
+* **Live Sessions**: Integration with Zoom for managing online classes.
+* **Payment Processing**: Track bank transfers and online gateway transactions.
+* **Support System**: Real-time ticket-based chat support.
+* **Knowledge Base**: Secure file sharing and resource management.
+* **Responsive Design**: Fully optimized for Desktop and Mobile devices.
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* **Framework**: React 18 + Vite
+* **Language**: TypeScript
+* **Styling**: Tailwind CSS
+* **State/Network**: Axios, Context API
+* **Real-time**: Socket.io Client
+* **UI Components**: Headless UI, Heroicons, Framer Motion
+* **Utils**: Moment.js, Zod, SweetAlert2
 
-## Expanding the ESLint configuration
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ Frontend Structure
+src/
+├── components/       # Reusable UI components (Buttons, Modals, etc.)
+├── contexts/         # React Contexts (Auth, Theme)
+├── hooks/            # Custom React Hooks
+├── layouts/          # Dashboard & Page Layouts
+├── pages/            # Application Views (Admin, Student, Auth)
+├── services/         # API Service wrappers (Axios)
+├── types/            # TypeScript Interface definitions
+└── utils/            # Helper functions
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 👨‍💻 Developers Credit
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+SL Accounting – Student Management System was designed and developed by:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Seneth Jayashan**  
+Lead Software Engineer  
+GitHub: https://github.com/seneth-jayashan
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+**Sajana Wickramarathna**
+Software Engineer
+Github: https://github.com/SajanaWickramarathna  
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+All rights reserved by the OneX Universe (Pvt) Ltd.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
