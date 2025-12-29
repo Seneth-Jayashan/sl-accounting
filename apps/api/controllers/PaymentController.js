@@ -86,7 +86,7 @@ export const payHereWebhook = async (req, res) => {
       status_code,
       md5sig,
       custom_1, 
-      payhere_payment_id
+      payment_id
     } = req.body;
 
     if (!merchant_id || !md5sig) {
@@ -128,7 +128,7 @@ export const payHereWebhook = async (req, res) => {
 
     payment.status = paymentStatus;
     payment.payhere_status_code = Number(status_code);
-    payment.payhere_payment_id = payhere_payment_id;
+    payment.payhere_payment_id = payment_id;
     payment.payhere_md5sig = md5sig;
     payment.rawPayload = req.body;
 
@@ -140,7 +140,8 @@ export const payHereWebhook = async (req, res) => {
         try {
             const enrollment = await Enrollment.findById(payment.enrollment);
             if (enrollment) {
-                await enrollment.markPaid(new Date(), payment.paymentDate);
+                // FIXED: Pass payment._id (ObjectId), NOT payment.paymentDate (Date)
+                await enrollment.markPaid(new Date(), payment._id);
             }
         } catch (e) {
             console.error("Failed to update enrollment from webhook:", e.message);
@@ -181,6 +182,8 @@ export const uploadPaymentSlip = async (req, res) => {
 
     await payment.save();
 
+    await Enrollment.findByIdAndUpdate(enrollmentId, { paymentStatus: "pending" });
+
     res.status(201).json({ 
         success: true, 
         message: "Slip uploaded. Pending Admin approval.", 
@@ -220,7 +223,8 @@ export const createPayment = async (req, res) => {
 
     const enrollmentDoc = await Enrollment.findById(enrollment);
     if (enrollmentDoc) {
-        await enrollmentDoc.markPaid(new Date(), null);
+        // FIXED: Link the created payment ID
+        await enrollmentDoc.markPaid(new Date(), payment._id);
     }
 
     return res.status(201).json({ success: true, payment });
@@ -254,7 +258,8 @@ export const updatePaymentStatus = async (req, res) => {
     if (status === "completed" && payment.enrollment) {
         const enrollment = await Enrollment.findById(payment.enrollment);
         if (enrollment) {
-            await enrollment.markPaid(new Date(), payment.paymentDate);
+            // FIXED: Pass payment._id (ObjectId), NOT payment.paymentDate
+            await enrollment.markPaid(payment.paymentDate, payment._id);
         }
     }
 
@@ -313,9 +318,9 @@ export const listPayments = async (req, res) => {
   }
 };
 
-// ==========================================
-// 8. NEW: Get My Payments (Logged In User)
-// ==========================================
+/**
+ * 8. Get My Payments (Logged In User)
+ */
 export const getMyPayments = async (req, res) => {
   try {
     const userId = req.user._id;

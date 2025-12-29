@@ -9,14 +9,14 @@ import {
   ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
 
-
-import PaymentService, { type PaymentData } from "../../../services/PaymentService";
-import EnrollmentService from "../../../services/EnrollmentService";
+// Services
+import PaymentService from "../../../services/PaymentService"; 
+import EnrollmentService, { type EnrollmentResponse } from "../../../services/EnrollmentService";
 
 // Config
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 
 export default function UploadPaymentSlip() {
   const { enrollmentId } = useParams<{ enrollmentId: string }>();
@@ -26,7 +26,7 @@ export default function UploadPaymentSlip() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
-  const [amount, setAmount] = useState(""); // New Amount State
+  const [amount, setAmount] = useState(""); 
   const [loading, setLoading] = useState(false);
   const [className, setClassName] = useState("Loading...");
   
@@ -34,60 +34,68 @@ export default function UploadPaymentSlip() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // 1. Initial Status Check
+  // 1. Status Check & Data Fetching
   useEffect(() => {
     let isMounted = true;
     if (!enrollmentId) return;
 
-    const checkStatus = async () => {
+    const checkEnrollmentStatus = async () => {
         try {
-            // A. Fetch Class Name
-            const enrollmentData = await EnrollmentService.getEnrollmentById(enrollmentId);
-            if (isMounted) {
-                const clsName = typeof enrollmentData.class === 'string' ? 'Class' : enrollmentData.class.name;
-                setClassName(clsName);
-                // Optional: Pre-fill amount with class price if available
-                if (typeof enrollmentData.class !== 'string' && enrollmentData.class.price) {
-                    setAmount(enrollmentData.class.price.toString());
-                }
+            const enrollment: EnrollmentResponse = await EnrollmentService.getEnrollmentById(enrollmentId);
+            
+            if (!isMounted) return;
+
+            // Set Class Details
+            const clsName = typeof enrollment.class === 'object' && enrollment.class !== null 
+                ? (enrollment.class as any).name 
+                : 'Class';
+            
+            setClassName(clsName);
+
+            // Pre-fill amount
+            if (typeof enrollment.class === 'object' && (enrollment.class as any).price) {
+                setAmount((enrollment.class as any).price.toString());
             }
 
-            // B. Check Existing Pending Payments
-            const myPayments = await PaymentService.getMyPayments();
-            const existingPayment = myPayments.find(
-                (p: PaymentData) => 
-                    (typeof p.enrollment === 'string' ? p.enrollment : p.enrollment._id) === enrollmentId
-            );
+            // Validate Status
+            const { paymentStatus } = enrollment;
 
-            if (existingPayment) {
-                if (existingPayment.status === 'pending') {
-                    Swal.fire({
-                        title: 'Slip Already Uploaded!',
-                        text: 'Your slip is under review. Please wait for admin approval.',
-                        icon: 'info',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#0b2540'
-                    }).then(() => navigate("/student/enrollment"));
-                } else if (existingPayment.status === 'completed') {
-                    Swal.fire({
-                        title: 'Already Paid!',
-                        text: 'Redirecting to dashboard...',
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false
-                    }).then(() => navigate("/student/dashboard"));
-                }
+            if (paymentStatus === 'paid') {
+                Swal.fire({
+                    title: 'Already Paid!',
+                    text: 'You have active access to this class. Redirecting...',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => navigate("/student/dashboard"));
+                return;
             }
+
+            if (paymentStatus === 'pending') {
+                Swal.fire({
+                    title: 'Slip Under Review!',
+                    text: 'Your previous slip is pending approval.',
+                    icon: 'info',
+                    confirmButtonText: 'Back',
+                    confirmButtonColor: '#0b2540'
+                }).then(() => navigate("/student/enrollment"));
+                return;
+            }
+
         } catch (err) {
-            console.error("Context Check Error:", err);
-            if (isMounted) setClassName("Unknown Class");
+            console.error("Enrollment Check Error:", err);
+            if (isMounted) {
+                setError("Failed to load enrollment details.");
+                setClassName("Unknown Class");
+            }
         }
     };
-    checkStatus();
+
+    checkEnrollmentStatus();
     return () => { isMounted = false; };
   }, [enrollmentId, navigate]);
 
-  // 2. Cleanup
+  // 2. Cleanup Preview
   useEffect(() => {
       return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
   }, [previewUrl]);
@@ -103,7 +111,7 @@ export default function UploadPaymentSlip() {
           return;
       }
       if (!ALLOWED_TYPES.includes(selectedFile.type)) {
-          setError("Invalid file type (JPG, PNG, PDF only).");
+          setError("Invalid file type (JPG, PNG, JPEG only).");
           return;
       }
 
@@ -122,14 +130,12 @@ export default function UploadPaymentSlip() {
     setError(null);
   };
 
-  // 4. Submit
   const handleUpload = async () => {
     if (!enrollmentId || !file) return;
     
-    // Validate Amount
     const paidAmount = parseFloat(amount);
     if (isNaN(paidAmount) || paidAmount <= 0) {
-        setError("Please enter a valid amount greater than 0.");
+        setError("Please enter a valid amount.");
         return;
     }
 
@@ -137,13 +143,13 @@ export default function UploadPaymentSlip() {
     setError(null);
 
     try {
-      // Pass amount to service
       await PaymentService.uploadPaymentSlip(enrollmentId, file, paidAmount, notes);
       
       setSuccess("Uploaded successfully!");
+      
       Swal.fire({
-          title: 'Upload Successful!',
-          text: 'Your slip has been submitted for verification.',
+          title: 'Slip Uploaded!',
+          text: 'Please wait for admin approval.',
           icon: 'success',
           confirmButtonColor: '#0b2540'
       }).then(() => navigate("/student/enrollment"));
@@ -156,102 +162,106 @@ export default function UploadPaymentSlip() {
   };
 
   return (
-      <div className="p-6 max-w-2xl mx-auto pb-24 font-sans">
+      <div className="p-4 sm:p-6 max-w-xl mx-auto pb-24 font-sans min-h-screen bg-gray-50 flex flex-col justify-center">
         
-        <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-[#0b2540] mb-6 transition-colors">
-          <ArrowLeftIcon className="w-4 h-4 mr-2" /> Back
-        </button>
+        <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-100 p-6 sm:p-10 border border-gray-100">
+            <button onClick={() => navigate(-1)} className="flex items-center text-gray-400 hover:text-[#0b2540] mb-6 transition-colors text-sm font-medium">
+                <ArrowLeftIcon className="w-4 h-4 mr-1" /> Back
+            </button>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Upload Payment Slip</h1>
-        <p className="text-gray-500 mb-8">
-          Verify payment for <span className="font-semibold text-gray-900">{className}</span>.
-        </p>
+            <h1 className="text-2xl font-black text-[#0b2540] mb-2">Upload Slip</h1>
+            <p className="text-gray-500 mb-8 text-sm">
+                For class: <span className="font-bold text-gray-800">{className}</span>
+            </p>
 
-        {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center text-red-600 text-sm">
-                <ExclamationCircleIcon className="w-5 h-5 mr-2 shrink-0" />{error}
-            </div>
-        )}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
-            
-            {/* Amount Input */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amount Paid (LKR) <span className="text-red-500">*</span></label>
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">Rs.</span>
-                    </div>
-                    <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        required
-                        className="w-full pl-10 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0b2540] focus:border-transparent outline-none transition-all font-mono font-bold text-gray-700"
-                        placeholder="0.00"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            {/* File Drop Zone */}
-            {!file ? (
-                <label className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${error ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <CloudArrowUpIcon className={`w-12 h-12 mb-3 ${error ? 'text-red-400' : 'text-gray-400'}`} />
-                        <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> slip</p>
-                        <p className="text-xs text-gray-400">JPG, PNG or PDF (MAX. {MAX_FILE_SIZE_MB}MB)</p>
-                    </div>
-                    <input type="file" className="hidden" accept={ALLOWED_TYPES.join(',')} onChange={handleFileChange} />
-                </label>
-            ) : (
-                <div className="relative w-full h-64 bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center border border-gray-200">
-                    {previewUrl ? (
-                        <img src={previewUrl} alt="Slip Preview" className="h-full w-full object-contain p-2" />
-                    ) : (
-                        <div className="flex flex-col items-center text-gray-500">
-                            <DocumentTextIcon className="w-16 h-16 mb-2 text-gray-400" />
-                            <span className="text-sm font-medium">{file.name}</span>
-                            <span className="text-xs text-gray-400 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                        </div>
-                    )}
-                    <button onClick={handleRemoveFile} className="absolute top-3 right-3 p-2 bg-white/90 text-gray-600 rounded-full hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm border border-gray-200">
-                        <XMarkIcon className="w-5 h-5" />
-                    </button>
+            {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center text-red-600 text-xs font-medium">
+                    <ExclamationCircleIcon className="w-5 h-5 mr-2 shrink-0" />{error}
                 </div>
             )}
 
-            {/* Notes Input */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Reference / Notes (Optional)</label>
-                <textarea 
-                    rows={2}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0b2540] focus:border-transparent outline-none text-sm transition-all"
-                    placeholder="E.g. Transferred from HNB Bank, Ref No: 123456"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                />
+            <div className="space-y-6">
+                
+                {/* Amount */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Amount Paid (LKR) <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <span className="text-gray-400 font-bold">Rs.</span>
+                        </div>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            required
+                            className="w-full pl-12 p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0b2540] focus:border-transparent outline-none transition-all font-mono font-bold text-gray-800 text-lg"
+                            placeholder="0.00"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                {/* Drop Zone */}
+                {!file ? (
+                    <label className={`flex flex-col items-center justify-center w-full h-56 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 group ${error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 hover:bg-blue-50/50 hover:border-blue-200'}`}>
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <div className="p-4 bg-white rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                                <CloudArrowUpIcon className={`w-8 h-8 ${error ? 'text-red-400' : 'text-blue-500'}`} />
+                            </div>
+                            <p className="mb-1 text-sm text-gray-500 font-medium">Click to upload slip</p>
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">JPG, PNG OR JPEG</p>
+                        </div>
+                        <input type="file" className="hidden" accept={ALLOWED_TYPES.join(',')} onChange={handleFileChange} />
+                    </label>
+                ) : (
+                    <div className="relative w-full h-56 bg-gray-900 rounded-2xl overflow-hidden flex items-center justify-center border border-gray-200 group">
+                        {previewUrl ? (
+                            <img src={previewUrl} alt="Slip Preview" className="h-full w-full object-contain p-4 opacity-90 group-hover:opacity-100 transition-opacity" />
+                        ) : (
+                            <div className="flex flex-col items-center text-white">
+                                <DocumentTextIcon className="w-16 h-16 mb-2 opacity-50" />
+                                <span className="text-sm font-medium">{file.name}</span>
+                                <span className="text-xs opacity-50 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                            </div>
+                        )}
+                        <button onClick={handleRemoveFile} className="absolute top-3 right-3 p-2 bg-white/10 backdrop-blur-md text-white rounded-full hover:bg-red-500 transition-colors shadow-lg border border-white/20">
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
+
+                {/* Notes */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Ref / Notes</label>
+                    <textarea 
+                        rows={2}
+                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0b2540] focus:border-transparent outline-none text-sm transition-all resize-none"
+                        placeholder="Bank Ref No, Date, etc."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                    />
+                </div>
+
+                {/* Submit */}
+                <button
+                    onClick={handleUpload}
+                    disabled={!file || !amount || loading || !!success}
+                    className={`w-full py-4 rounded-2xl font-bold text-white transition-all shadow-lg flex items-center justify-center text-sm uppercase tracking-wide ${
+                        !file || !amount || loading || !!success
+                        ? "bg-gray-300 cursor-not-allowed shadow-none text-gray-500" 
+                        : "bg-[#0b2540] hover:bg-[#153454] shadow-blue-900/20 active:scale-95"
+                    }`}
+                >
+                    {loading ? (
+                        <span className="flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                            Uploading...
+                        </span>
+                    ) : success ? "Uploaded" : "Submit Payment Slip"}
+                </button>
+
             </div>
-
-            {/* Submit Button */}
-            <button
-                onClick={handleUpload}
-                disabled={!file || !amount || loading || !!success}
-                className={`w-full py-3.5 rounded-xl font-bold text-white transition-all shadow-lg flex items-center justify-center ${
-                    !file || !amount || loading || !!success
-                    ? "bg-gray-300 cursor-not-allowed shadow-none text-gray-500" 
-                    : "bg-[#0b2540] hover:bg-[#153454] shadow-blue-900/20 transform hover:-translate-y-0.5"
-                }`}
-            >
-                {loading ? (
-                    <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        Uploading...
-                    </span>
-                ) : success ? "Uploaded" : "Submit Payment Slip"}
-            </button>
-
         </div>
       </div>
   );
