@@ -233,10 +233,10 @@ export default function StudentTicketPage(): React.ReactElement {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ticket #{ticketId?.slice(-6)}</p>
-                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isResolved ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                         {ticketInfo?.status ?? "Open"}
-                       </span>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ticket #{ticketId?.slice(-6)}</p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isResolved ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {ticketInfo?.status ?? "Open"}
+                      </span>
                     </div>
                     <h1 className="text-lg md:text-2xl font-semibold text-[#053A4E] line-clamp-1">{ticketInfo?.category ?? "Support Request"}</h1>
                     <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">{ticketInfo?.message}</p>
