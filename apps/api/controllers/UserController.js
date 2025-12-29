@@ -222,6 +222,9 @@ export const getStudentDashboard = async (req, res) => {
       .populate('class', 'name subject timeSchedules coverImage')
       .lean();
 
+    const enrollmentIds = enrollments.map(e => e._id);
+    const enrolledClassIds = enrollments.map(e => e.class?._id);
+
     // 2. Calculate Next Session (Across all classes)
     let nextSession = null;
     const allUpcomingSessions = [];
@@ -249,15 +252,22 @@ export const getStudentDashboard = async (req, res) => {
     }
 
     // 3. Pending Payments & Next Payment Date
+    // FIX: Find payments where 'enrollment' is in the list of the student's enrollment IDs
     const pendingPayments = await Payment.find({ 
-        student: studentId, 
-        status: { $in: ['pending', 'unpaid'] } 
-    }).sort({ dueDate: 1 }).lean(); // Sort by Due Date ascending
+        enrollment: { $in: enrollmentIds }, 
+        status: { $in: ['pending', 'failed'] } // Removed 'unpaid' as it's not in your Schema enum
+    })
+    .populate({
+        path: 'enrollment',
+        select: 'class',
+        populate: { path: 'class', select: 'name' } // Deep populate to get class name
+    })
+    .sort({ paymentDate: -1 }) // Sort by most recent
+    .lean();
 
     const nextPayment = pendingPayments.length > 0 ? pendingPayments[0] : null;
 
     // 4. Fetch Recent Materials
-    const enrolledClassIds = enrollments.map(e => e.class?._id);
     const recentMaterials = await Material.find({ 
         classId: { $in: enrolledClassIds },
         isPublished: true 
@@ -272,7 +282,7 @@ export const getStudentDashboard = async (req, res) => {
         stats: {
             activeClasses: enrollments.length,
             pendingPaymentsCount: pendingPayments.length,
-            attendancePercentage: 92, // Placeholder for now
+            attendancePercentage: 92, // Placeholder
         },
         nextSession: nextSession ? {
             title: nextSession.className,
@@ -281,8 +291,11 @@ export const getStudentDashboard = async (req, res) => {
         } : null,
         nextPayment: nextPayment ? {
             amount: nextPayment.amount,
-            dueDate: nextPayment.dueDate,
-            title: nextPayment.title || "Monthly Fee" // Adjust based on your Payment model
+            // Schema doesn't have dueDate, using createdAt or paymentDate as reference
+            date: nextPayment.paymentDate || nextPayment.createdAt,
+            // Construct title dynamically since Schema doesn't have title
+            title: nextPayment.notes || `Fee for ${nextPayment.enrollment?.class?.name || 'Class'}`,
+            status: nextPayment.status
         } : null,
         recentMaterials,
         // Return top 3 upcoming sessions for the list view

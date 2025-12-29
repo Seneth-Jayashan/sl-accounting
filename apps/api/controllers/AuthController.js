@@ -57,6 +57,8 @@ export const register = async (req, res) => {
     const otpCode = newUser.generateOtpCode();
     await newUser.save();
 
+    const { batch, _id: studentId } = newUser;
+
     const BatchEnroll = await Batch.findById(batch);
     BatchEnroll.students.push(studentId);
     await BatchEnroll.save();

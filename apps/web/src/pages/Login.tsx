@@ -12,14 +12,11 @@ const loginSchema = z.object({
   email: z.string()
     .trim()
     .toLowerCase()
-    .email("Please enter a valid email address")
-    // Removed strict @gmail.com restriction unless strictly business requirement
-    // .refine((val) => val.endsWith("@gmail.com"), { message: "Please log in with your Gmail account" })
-    ,
+    .email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 
-// --- 2. OPTIMIZED BACKGROUND (Fixes Lag) ---
+// --- 2. OPTIMIZED BACKGROUND (Fixes Mobile Lag) ---
 // Using React.memo prevents re-renders when typing in inputs
 const BackgroundGradient = memo(() => (
   <div className="fixed inset-0 w-full h-full overflow-hidden -z-10 bg-[#E8EFF7]">
@@ -69,7 +66,7 @@ const InputField = ({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        // Removed heavy backdrop blur from input itself
+        // Removed heavy backdrop blur from input itself for performance
         className={`w-full bg-white/60 border ${error ? "border-red-400 focus:border-red-500" : "border-white focus:border-[#05668A]"} focus:bg-white text-[#053A4E] pl-12 pr-${rightElement ? "12" : "4"} py-3.5 sm:py-4 rounded-xl sm:rounded-2xl outline-none transition-all shadow-sm`}
       />
       {rightElement && (
@@ -142,13 +139,20 @@ export default function Login() {
 
     } catch (err: any) {
       console.error("Login Error:", err);
+      
+      const status =  err.response?.status;
+      const responseMsg = (err.response?.data?.message || "").toLowerCase();
       const msg = err.message || "Failed to login.";
-      const status = err.response?.status;
-      const responseMsg = err.response?.data?.message || "";
 
-      if (status === 403 && (responseMsg.includes("verify") || responseMsg.includes("active"))) {
-        setIsVerifyModalOpen(true);
-        setGeneralError("Your account is not verified yet.");
+      console.log("Status:", status, "Response Msg:", responseMsg);
+      console.log("General Error Msg:", msg);
+      
+
+      // --- FIXED: Robust check for unverified account ---
+      // Many backends return 403 or 401 with a specific message for unverified accounts
+      if (status === 403 && (responseMsg.includes("verify") || responseMsg.includes("active") || responseMsg.includes("verified"))) {
+        setIsVerifyModalOpen(true); // Open the modal
+        setGeneralError("Your account is not verified yet. Please check your email.");
       } else if (status === 401) {
         setGeneralError("Invalid email or password.");
       } else {
@@ -165,6 +169,7 @@ export default function Login() {
       {/* Optimized Background */}
       <BackgroundGradient />
 
+      {/* Verification Modal */}
       <ResendVerificationModal 
         isOpen={isVerifyModalOpen} 
         onClose={() => setIsVerifyModalOpen(false)} 
@@ -262,7 +267,7 @@ export default function Login() {
           </div>
         </motion.div>
 
-        {/* Right Side: Visual Text (Hidden on Mobile for performance) */}
+        {/* Right Side: Visual Text (Hidden on Mobile for performance/space) */}
         <motion.div 
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
