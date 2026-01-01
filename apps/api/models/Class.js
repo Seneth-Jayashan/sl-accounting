@@ -33,7 +33,7 @@ const classSchema = new mongoose.Schema({
 
   description: { type: String, trim: true },
 
-  // Array of schedules (e.g., Mon 10am, Wed 2pm)
+  // Array of schedules
   timeSchedules: { type: [scheduleSchema], default: [] },
 
   recurrence: { type: String, enum: ["weekly", "daily", "none"], default: "weekly" },
@@ -46,7 +46,6 @@ const classSchema = new mongoose.Schema({
 
   firstSessionDate: { type: Date },
 
-  // Note: For large classes, rely on the 'Enrollment' collection instead of this array
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
   // Linked Sessions (Calendar Events)
@@ -59,11 +58,19 @@ const classSchema = new mongoose.Schema({
   
   level: { type: String, enum: ["general", "ordinary", "advanced"], default: "general" },
   type: { type: String, enum: ["theory", "revision", "paper"], default: "theory" },
-  tags: [{ type: String, index: true }], // 'index: true' here is sufficient
+  tags: [{ type: String, index: true }],
+
+  // --- NEW LINKED CLASS FIELDS ---
+  // If this is a Theory class, these point to the generated variants
+  linkedRevisionClass: { type: mongoose.Schema.Types.ObjectId, ref: "Class", default: null },
+  linkedPaperClass: { type: mongoose.Schema.Types.ObjectId, ref: "Class", default: null },
+
+  // If this is a Revision or Paper class, this points back to the main Theory class
+  parentTheoryClass: { type: mongoose.Schema.Types.ObjectId, ref: "Class", default: null },
 
   // Status flags
   isActive: { type: Boolean, default: true },
-  isPublished: { type: Boolean, default: true },
+  isPublished: { type: Boolean, default: false },
   isDeleted: { type: Boolean, default: false },
 
 }, {
@@ -84,7 +91,6 @@ classSchema.methods.enrollStudent = async function (studentId) {
   if (this.isDeleted || !this.isActive) throw new Error("Class not available");
   
   const sid = studentId.toString();
-  // Avoid duplicates
   if (this.students.some(id => id.toString() === sid)) return this;
   
   this.students.push(studentId);
@@ -99,16 +105,11 @@ classSchema.methods.removeStudent = async function (studentId) {
 
 // --- HOOKS ---
 
-// Auto-generate Slug on Save
 classSchema.pre("save", async function (next) {
-  // Only generate if name changed or slug missing
   if ((this.isNew || this.isModified('name')) && !this.slug) {
     const base = slugify(this.name, { lower: true, strict: true });
     let slug = base;
     let i = 0;
-    
-    // Ensure uniqueness
-    // Note: In extremely high concurrency, this might still clash, but fine for classes
     while (await mongoose.models.Class.exists({ slug, _id: { $ne: this._id } })) {
       i += 1;
       slug = `${base}-${i}`;
@@ -120,14 +121,7 @@ classSchema.pre("save", async function (next) {
 
 // --- INDEXES ---
 
-// Compound index for filtering active/published classes efficiently
 classSchema.index({ isActive: 1, isPublished: 1 });
-
-// Text search index
 classSchema.index({ name: "text", description: "text" });
-
-// Redundant single-field indexes removed to clear warnings:
-// - tags: Defined in schema options
-// - instructor: Field doesn't exist in schema (removed)
 
 export default mongoose.model("Class", classSchema);
