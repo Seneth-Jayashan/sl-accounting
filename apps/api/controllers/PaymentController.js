@@ -1,12 +1,10 @@
 import crypto from "crypto";
 import Payment from "../models/Payment.js";
 import Enrollment from "../models/Enrollment.js";
+import Class from "../models/Class.js"; 
 
 // --- HELPERS ---
 
-/**
- * Compute PayHere md5sig for verification
- */
 function computePayHereMd5sig({ merchant_id, order_id, payhere_amount, payhere_currency, status_code, merchant_secret }) {
   const secretHash = crypto.createHash("md5")
     .update(merchant_secret)
@@ -21,20 +19,81 @@ function computePayHereMd5sig({ merchant_id, order_id, payhere_amount, payhere_c
     .toUpperCase();
 }
 
-/**
- * Helper to ensure amount is always "1000.00" format
- */
 const formatPayHereAmount = (amount) => {
     return parseFloat(amount)
         .toLocaleString('en-us', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         .replace(/,/g, '');
 };
 
-// --- CONTROLLERS ---
+/**
+ * Update Enrollment to mark a specific month as paid
+ */
+const markMonthAsPaid = async (enrollmentId, monthString) => {
+    if (!monthString) return; 
+    
+    try {
+        const enrollment = await Enrollment.findById(enrollmentId);
+        if (enrollment) {
+            if (!enrollment.paidMonths.includes(monthString)) {
+                enrollment.paidMonths.push(monthString);
+                await enrollment.save();
+            }
+        }
+    } catch (e) {
+        console.error(`Failed to mark month ${monthString} as paid for enrollment ${enrollmentId}:`, e);
+    }
+};
 
 /**
- * 1. Generate PayHere Hash (Student Side)
+ * CORE LOGIC: Cascade Approval with Month Tracking
  */
+const approveBundleEnrollments = async (primaryEnrollmentId, paymentId, paymentDate, targetMonth) => {
+    // 1. Fetch Primary Enrollment
+    const primary = await Enrollment.findById(primaryEnrollmentId).populate('class');
+    if (!primary) return;
+
+    // 2. Mark Primary as Paid
+    await primary.markPaid(paymentDate, paymentId);
+    
+    // 3. Mark the specific month as paid
+    if (targetMonth) {
+        await markMonthAsPaid(primary._id, targetMonth);
+    }
+
+    // 4. Check for Linked Classes (Bundle Logic)
+    const classDoc = primary.class;
+    
+    const bundleClassIds = [];
+    if (classDoc.linkedRevisionClass) bundleClassIds.push(classDoc.linkedRevisionClass);
+    if (classDoc.linkedPaperClass) bundleClassIds.push(classDoc.linkedPaperClass);
+
+    if (bundleClassIds.length === 0) return;
+
+    // 5. Find Sibling Enrollments
+    const siblings = await Enrollment.find({
+        student: primary.student,
+        class: { $in: bundleClassIds },
+        createdAt: { 
+            $gte: new Date(primary.createdAt.getTime() - 24 * 60 * 60 * 1000),
+            $lte: new Date(primary.createdAt.getTime() + 24 * 60 * 60 * 1000)
+        }
+    });
+
+    // 6. Mark Siblings as Paid
+    for (const sibling of siblings) {
+        await sibling.markPaid(paymentDate, paymentId);
+        
+        if (targetMonth) {
+            await markMonthAsPaid(sibling._id, targetMonth);
+        }
+    }
+    
+    console.log(`Bundle Approval: Paid Primary ${primary._id} and ${siblings.length} siblings for month ${targetMonth}.`);
+};
+
+
+// --- CONTROLLERS ---
+
 export const createPayHereSignature = async (req, res) => {
     try {
         const { amount, order_id, currency = "LKR" } = req.body;
@@ -73,9 +132,6 @@ export const createPayHereSignature = async (req, res) => {
     }
 };
 
-/**
- * 2. PayHere Webhook (Server-to-Server)
- */
 export const payHereWebhook = async (req, res) => {
   try {
     const {
@@ -86,6 +142,7 @@ export const payHereWebhook = async (req, res) => {
       status_code,
       md5sig,
       custom_1, 
+      custom_2, // Target Month (YYYY-MM)
       payment_id
     } = req.body;
 
@@ -112,6 +169,7 @@ export const payHereWebhook = async (req, res) => {
 
     let payment = await Payment.findOne({ payhere_order_id: order_id });
     const enrollmentId = custom_1 || req.body.enrollment_id;
+    const targetMonth = custom_2; 
 
     if (!payment) {
       payment = new Payment({
@@ -122,7 +180,8 @@ export const payHereWebhook = async (req, res) => {
         payhere_currency,
         paymentDate: new Date(),
         method: "payhere",
-        verified: isSuccess, 
+        verified: isSuccess,
+        targetMonth: targetMonth 
       });
     }
 
@@ -138,13 +197,9 @@ export const payHereWebhook = async (req, res) => {
 
     if (isSuccess && payment.enrollment) {
         try {
-            const enrollment = await Enrollment.findById(payment.enrollment);
-            if (enrollment) {
-                // FIXED: Pass payment._id (ObjectId), NOT payment.paymentDate (Date)
-                await enrollment.markPaid(new Date(), payment._id);
-            }
+            await approveBundleEnrollments(payment.enrollment, payment._id, new Date(), targetMonth);
         } catch (e) {
-            console.error("Failed to update enrollment from webhook:", e.message);
+            console.error("Failed to update bundle enrollments from webhook:", e.message);
         }
     }
 
@@ -156,12 +211,9 @@ export const payHereWebhook = async (req, res) => {
   }
 };
 
-/**
- * 3. Upload Bank Slip (Student Side)
- */
 export const uploadPaymentSlip = async (req, res) => {
   try {
-    const { enrollmentId, amount, notes } = req.body;
+    const { enrollmentId, amount, notes, targetMonth } = req.body; // targetMonth from frontend
     
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     if (!enrollmentId) return res.status(400).json({ message: "Enrollment ID required" });
@@ -177,6 +229,7 @@ export const uploadPaymentSlip = async (req, res) => {
         verified: false,
         paymentDate: new Date(),
         notes: notes,
+        targetMonth: targetMonth, // Save month
         rawPayload: { slipUrl: filePath } 
     });
 
@@ -196,12 +249,9 @@ export const uploadPaymentSlip = async (req, res) => {
   }
 };
 
-/**
- * 4. Create Manual Payment (Admin Only)
- */
 export const createPayment = async (req, res) => {
   try {
-    const { enrollment, amount, transactionId, notes } = req.body;
+    const { enrollment, amount, transactionId, notes, targetMonth } = req.body;
     
     if (!enrollment || amount === undefined) {
       return res.status(400).json({ message: "Enrollment and Amount required" });
@@ -213,6 +263,7 @@ export const createPayment = async (req, res) => {
       method: "manual",
       transactionId,
       notes,
+      targetMonth, 
       gateway: "manual",
       status: "completed",
       verified: true, 
@@ -221,10 +272,8 @@ export const createPayment = async (req, res) => {
 
     await payment.save();
 
-    const enrollmentDoc = await Enrollment.findById(enrollment);
-    if (enrollmentDoc) {
-        // FIXED: Link the created payment ID
-        await enrollmentDoc.markPaid(new Date(), payment._id);
+    if (enrollment) {
+        await approveBundleEnrollments(enrollment, payment._id, new Date(), targetMonth);
     }
 
     return res.status(201).json({ success: true, payment });
@@ -235,9 +284,6 @@ export const createPayment = async (req, res) => {
   }
 };
 
-/**
- * 5. Update Payment Status (Admin Only)
- */
 export const updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -256,11 +302,7 @@ export const updatePaymentStatus = async (req, res) => {
     await payment.save();
 
     if (status === "completed" && payment.enrollment) {
-        const enrollment = await Enrollment.findById(payment.enrollment);
-        if (enrollment) {
-            // FIXED: Pass payment._id (ObjectId), NOT payment.paymentDate
-            await enrollment.markPaid(payment.paymentDate, payment._id);
-        }
+        await approveBundleEnrollments(payment.enrollment, payment._id, payment.paymentDate, payment.targetMonth);
     }
 
     res.json({ success: true, payment });
@@ -271,81 +313,70 @@ export const updatePaymentStatus = async (req, res) => {
   }
 };
 
-/**
- * 6. Get Payment By ID
- */
+// ... (getPaymentById, listPayments, getMyPayments remain same)
 export const getPaymentById = async (req, res) => {
-  try {
-    const payment = await Payment.findById(req.params.id)
-        .populate({
-            path: "enrollment",
-            select: "student class",
-            populate: { path: "class", select: "name price" }
-        });
-
-    if (!payment) return res.status(404).json({ message: "Payment not found" });
-    res.json(payment);
-  } catch (err) {
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-/**
- * 7. List Payments (Admin Only)
- */
-export const listPayments = async (req, res) => {
-  try {
-    const filter = {};
-    if (req.query.enrollment) filter.enrollment = req.query.enrollment;
-    if (req.query.status) filter.status = req.query.status;
-    if (req.query.gateway) filter.gateway = req.query.gateway;
-
-    const payments = await Payment.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(200)
-      .populate({
-        path: "enrollment",
-        populate: [
-          { path: "student", select: "firstName lastName email" },
-          { path: "class", select: "name" }
-        ]
-      });
-
-    res.json(payments);
-  } catch (err) {
-    console.error("List Payments Error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
-/**
- * 8. Get My Payments (Logged In User)
- */
-export const getMyPayments = async (req, res) => {
-  try {
-    const userId = req.user._id;
-
-    // 1. Find all Enrollments belonging to the user
-    const myEnrollments = await Enrollment.find({ student: userId }).select('_id');
-    const enrollmentIds = myEnrollments.map(e => e._id);
-
-    if (enrollmentIds.length === 0) {
-        return res.json([]); // No enrollments = No payments
+    try {
+      const payment = await Payment.findById(req.params.id)
+          .populate({
+              path: "enrollment",
+              select: "student class",
+              populate: { path: "class", select: "name price" }
+          });
+  
+      if (!payment) return res.status(404).json({ message: "Payment not found" });
+      res.json(payment);
+    } catch (err) {
+      res.status(500).json({ message: "Server error" });
     }
-
-    // 2. Find Payments linked to those enrollments
-    const payments = await Payment.find({ enrollment: { $in: enrollmentIds } })
-      .sort({ createdAt: -1 })
-      .populate({
-        path: "enrollment",
-        select: "class", 
-        populate: { path: "class", select: "name" } // Show class name in history
-      });
-
-    res.json(payments);
-
-  } catch (err) {
-    console.error("Get My Payments Error:", err);
-    res.status(500).json({ message: "Server error fetching payment history" });
-  }
+};
+  
+export const listPayments = async (req, res) => {
+    try {
+      const filter = {};
+      if (req.query.enrollment) filter.enrollment = req.query.enrollment;
+      if (req.query.status) filter.status = req.query.status;
+      if (req.query.gateway) filter.gateway = req.query.gateway;
+  
+      const payments = await Payment.find(filter)
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .populate({
+          path: "enrollment",
+          populate: [
+            { path: "student", select: "firstName lastName email" },
+            { path: "class", select: "name" }
+          ]
+        });
+  
+      res.json(payments);
+    } catch (err) {
+      console.error("List Payments Error:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+};
+  
+export const getMyPayments = async (req, res) => {
+    try {
+      const userId = req.user._id;
+      const myEnrollments = await Enrollment.find({ student: userId }).select('_id');
+      const enrollmentIds = myEnrollments.map(e => e._id);
+  
+      if (enrollmentIds.length === 0) {
+          return res.json([]); 
+      }
+  
+      const payments = await Payment.find({ enrollment: { $in: enrollmentIds } })
+        .sort({ createdAt: -1 })
+        .populate({
+          path: "enrollment",
+          select: "class", 
+          populate: { path: "class", select: "name" } 
+        });
+  
+      res.json(payments);
+  
+    } catch (err) {
+      console.error("Get My Payments Error:", err);
+      res.status(500).json({ message: "Server error fetching payment history" });
+    }
 };

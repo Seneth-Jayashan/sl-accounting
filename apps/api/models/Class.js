@@ -68,6 +68,11 @@ const classSchema = new mongoose.Schema({
   // If this is a Revision or Paper class, this points back to the main Theory class
   parentTheoryClass: { type: mongoose.Schema.Types.ObjectId, ref: "Class", default: null },
 
+  // --- BUNDLE PRICING (Admin defined offers) ---
+  bundlePriceRevision: { type: Number, default: null }, // Price for Theory + Revision
+  bundlePricePaper: { type: Number, default: null },    // Price for Theory + Paper
+  bundlePriceFull: { type: Number, default: null },     // Price for Theory + Revision + Paper
+
   // Status flags
   isActive: { type: Boolean, default: true },
   isPublished: { type: Boolean, default: false },

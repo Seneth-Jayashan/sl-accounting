@@ -571,8 +571,9 @@ export const getPublicClass = async (req, res) => {
         path: "sessions",
         select: "index startAt endAt title durationMinutes timezone",
       })
-      .populate("linkedRevisionClass", "name slug type")
-      .populate("linkedPaperClass", "name slug type");
+      .populate("linkedRevisionClass", "name slug type price") // <--- ADD 'price'
+      .populate("linkedPaperClass", "name slug type price");   // <--- ADD 'price'
+
     if (!classDoc) return res.status(404).json({ message: "Class not found" });
     return res.status(200).json(classDoc);
   } catch (error) {
