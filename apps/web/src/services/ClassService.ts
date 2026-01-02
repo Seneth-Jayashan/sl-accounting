@@ -36,6 +36,15 @@ export interface CreateClassPayload {
   // File objects
   coverImage?: File | null;
   images?: File[] | null;
+  autoCreateVariants?: boolean;
+  revisionDay?: number;
+  revisionStartTime?: string;
+  revisionEndTime?: string;
+  revisionPrice?: number; 
+  paperDay?: number;
+  paperStartTime?: string;
+  paperEndTime?: string;
+  paperPrice?: number;
 }
 
 export type UpdateClassPayload = Partial<CreateClassPayload>;
@@ -100,6 +109,16 @@ const buildClassFormData = (data: UpdateClassPayload): FormData => {
       formData.append("images", file); 
     });
   }
+
+  if (data.autoCreateVariants !== undefined) formData.append("autoCreateVariants", String(data.autoCreateVariants));
+  if (data.revisionDay !== undefined) formData.append("revisionDay", String(data.revisionDay));
+  if (data.revisionStartTime) formData.append("revisionStartTime", data.revisionStartTime);
+  if (data.revisionEndTime) formData.append("revisionEndTime", data.revisionEndTime);
+  if (data.revisionPrice !== undefined) formData.append("revisionPrice", String(data.revisionPrice));
+  if (data.paperDay !== undefined) formData.append("paperDay", String(data.paperDay));
+  if (data.paperStartTime) formData.append("paperStartTime", data.paperStartTime);
+  if (data.paperEndTime) formData.append("paperEndTime", data.paperEndTime);
+  if (data.paperPrice !== undefined) formData.append("paperPrice", String(data.paperPrice));
 
   return formData;
 };

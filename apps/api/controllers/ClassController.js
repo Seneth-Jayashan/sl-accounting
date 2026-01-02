@@ -9,7 +9,6 @@ import { createMeeting, deleteMeeting } from "../services/Zoom.js";
 
 const getFilePath = (files, fieldName) => {
   if (files && files[fieldName] && files[fieldName][0]) {
-    // Normalizes paths for Windows/Linux compatibility
     return files[fieldName][0].path.replace(/\\/g, "/");
   }
   return null;
@@ -22,8 +21,13 @@ const getGalleryPaths = (files, fieldName) => {
   return [];
 };
 
-// Logic to calculate exact session timestamps based on day of week
-const getNextSessionMoment = (startDateMoment, targetDayIndex, timeStr, timezone, weekOffset = 0) => {
+const getNextSessionMoment = (
+  startDateMoment,
+  targetDayIndex,
+  timeStr,
+  timezone,
+  weekOffset = 0
+) => {
   let m = startDateMoment.clone().tz(timezone);
   const [hour, minute] = timeStr.split(":").map(Number);
   m.set({ hour, minute, second: 0, millisecond: 0 });
@@ -31,7 +35,7 @@ const getNextSessionMoment = (startDateMoment, targetDayIndex, timeStr, timezone
   if (m.day() !== targetDayIndex) {
     m.day(targetDayIndex);
     if (m.isBefore(startDateMoment)) {
-      m.add(1, 'week');
+      m.add(1, "week");
     }
   }
 
@@ -39,122 +43,294 @@ const getNextSessionMoment = (startDateMoment, targetDayIndex, timeStr, timezone
   return m;
 };
 
+/**
+ * INTERNAL HELPER: Creates one Class Document + Associated Sessions
+ */
+const createSingleClassInternal = async (dbSession, data, filePaths) => {
+  // 1. Prepare configuration object for Mongoose
+  // We intentionally merge everything here to ensure 'type' is respected
+  const classConfig = {
+    ...data,
+    coverImage: filePaths.coverImage,
+    images: filePaths.images,
+    // Ensure defaults if missing
+    timeSchedules: data.timeSchedules || [],
+    totalSessions: data.totalSessions || 1,
+    sessionDurationMinutes: data.sessionDurationMinutes || 120,
+  };
+
+  // 2. Create Class Doc
+  const newClass = new Class(classConfig);
+  const savedClass = await newClass.save({ session: dbSession });
+
+  // 3. Generate Sessions
+  const schedules =
+    Array.isArray(classConfig.timeSchedules) &&
+    classConfig.timeSchedules.length > 0
+      ? classConfig.timeSchedules
+      : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
+
+  const anchorDate = classConfig.firstSessionDate
+    ? moment(classConfig.firstSessionDate)
+    : moment();
+  const savedSessionIds = [];
+  let globalIndex = 1;
+
+  for (let i = 0; i < classConfig.totalSessions; i++) {
+    for (const sch of schedules) {
+      const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "UTC";
+      const startMoment = getNextSessionMoment(
+        anchorDate,
+        sch.day,
+        sch.startTime,
+        tz,
+        i
+      );
+      const endMoment = startMoment
+        .clone()
+        .add(classConfig.sessionDurationMinutes, "minutes");
+
+      const sessionDoc = new Session({
+        class: savedClass._id,
+        index: globalIndex,
+        startAt: startMoment.toDate(),
+        endAt: endMoment.toDate(),
+        timezone: tz,
+      });
+
+      try {
+        const zoomStartTime = startMoment.format("YYYY-MM-DDTHH:mm:ss");
+        const topic = `${savedClass.name} - Session ${globalIndex}`;
+
+        const zoomData = await createMeeting({
+          topic: topic,
+          start_time: zoomStartTime,
+          duration: classConfig.sessionDurationMinutes,
+          timezone: tz,
+          settings: {
+            join_before_host: false,
+            approval_type: 2,
+            host_video: false,
+            participant_video: false,
+            auto_recording: "cloud",
+          },
+        });
+
+        if (zoomData) {
+          sessionDoc.zoomMeetingId = String(zoomData.id);
+          sessionDoc.zoomStartUrl = zoomData.start_url;
+          sessionDoc.zoomJoinUrl = zoomData.join_url;
+        }
+      } catch (zoomErr) {
+        console.error(`Zoom creation warning:`, zoomErr.message);
+      }
+
+      const savedSession = await sessionDoc.save({ session: dbSession });
+      savedSessionIds.push(savedSession._id);
+      globalIndex++;
+    }
+  }
+
+  savedClass.sessions = savedSessionIds;
+  await savedClass.save({ session: dbSession });
+
+  if (classConfig.batch) {
+    const batchToUpdate = await Batch.findById(classConfig.batch).session(
+      dbSession
+    );
+    if (batchToUpdate) {
+      batchToUpdate.classes.push(savedClass._id);
+      await batchToUpdate.save({ session: dbSession });
+    }
+  }
+
+  return savedClass;
+};
+
 // --- CONTROLLERS ---
 
-/**
- * CREATE CLASS (Atomic Transaction)
- */
 export const createClass = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const {
-      timeSchedules = [],
-      totalSessions = 1,
-      sessionDurationMinutes = 120,
-      firstSessionDate,
+      autoCreateVariants,
+      type,
+      revisionDay,
+      revisionStartTime,
+      revisionEndTime,
+      revisionPrice,
+      paperDay,
+      paperStartTime,
+      paperEndTime,
+      paperPrice,
       ...rest
     } = req.body;
 
-    // 1. Handle Files
-    const coverImage = getFilePath(req.files, 'coverImage');
-    const images = getGalleryPaths(req.files, 'images');
+    // FIX: FormData sends "true"/"false" strings
+    const shouldCreateVariants = String(autoCreateVariants) === "true";
 
-    // 2. Create Class Document
-    const newClass = new Class({
+    // 1. Files
+    const filePaths = {
+      coverImage: getFilePath(req.files, "coverImage"),
+      images: getGalleryPaths(req.files, "images") || [],
+    };
+    if (filePaths.images.length === 0) delete filePaths.images;
+
+    // 2. Prepare Primary Data (THEORY)
+    // Explicitly set type to ensure it is passed correctly
+    const primaryData = {
       ...rest,
-      firstSessionDate,
-      timeSchedules,
-      totalSessions,
-      sessionDurationMinutes,
-      coverImage, 
-      images: images.length > 0 ? images : undefined,
-    });
+      type: type || "theory",
+    };
 
-    const savedClass = await newClass.save({ session });
+    // 3. Create PRIMARY Class
+    const primaryClass = await createSingleClassInternal(
+      session,
+      primaryData,
+      filePaths
+    );
 
-    // 3. Generate Sessions
-    const schedules = Array.isArray(timeSchedules) && timeSchedules.length > 0
-        ? timeSchedules
-        : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
+    // 4. Create Variants
+    if (shouldCreateVariants && primaryData.type === "theory") {
+      const timezone =
+        Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Colombo";
 
-    const anchorDate = firstSessionDate ? moment(firstSessionDate) : moment();
-    const savedSessionIds = [];
-    let globalIndex = 1;
+      let revisionId = null;
+      let paperId = null;
 
-    for (let i = 0; i < totalSessions; i++) {
-      for (const sch of schedules) {
-        const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "UTC";
-        const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, i);
-        const endMoment = startMoment.clone().add(sessionDurationMinutes, "minutes");
+      // --- A. REVISION CLASS ---
+      if (revisionDay !== undefined && revisionStartTime && revisionEndTime) {
+        const revisionSchedule = [
+          {
+            day: Number(revisionDay),
+            startTime: revisionStartTime,
+            endTime: revisionEndTime,
+            timezone: timezone,
+          },
+        ];
 
-        const sessionDoc = new Session({
-          class: savedClass._id,
-          index: globalIndex,
-          startAt: startMoment.toDate(),
-          endAt: endMoment.toDate(),
-          timezone: tz,
-        });
+        // Construct FRESH object to avoid reference issues
+        const revisionData = {
+          name: `${primaryData.name} - Revision`,
+          description: primaryData.description,
+          price: revisionPrice ? Number(revisionPrice) : primaryData.price,
+          batch: primaryData.batch,
+          level: primaryData.level,
+          recurrence: primaryData.recurrence,
+          firstSessionDate: primaryData.firstSessionDate,
+          totalSessions: primaryData.totalSessions,
+          tags: primaryData.tags,
+          isPublished: primaryData.isPublished,
 
-        // 4. Create Zoom Meeting (Best Effort)
-        try {
-          const zoomStartTime = startMoment.format("YYYY-MM-DDTHH:mm:ss");
-          const zoomData = await createMeeting({
-            topic: `${savedClass.name} - Session ${globalIndex}`,
-            start_time: zoomStartTime,
-            duration: sessionDurationMinutes,
-            timezone: tz,
-            settings: { join_before_host: false, approval_type: 0, host_video: false, participant_video: false },
-          });
+          // CRITICAL: Explicitly set Type and Link
+          type: "revision",
+          parentTheoryClass: primaryClass._id,
 
-          if (zoomData) {
-              sessionDoc.zoomMeetingId = String(zoomData.id);
-              sessionDoc.zoomStartUrl = zoomData.start_url;
-              sessionDoc.zoomJoinUrl = zoomData.join_url;
-          }
-        } catch (zoomErr) {
-          console.error(`Zoom creation warning (Session ${globalIndex}):`, zoomErr.message);
-        }
+          timeSchedules: revisionSchedule,
+          sessionDurationMinutes: moment(revisionEndTime, "HH:mm").diff(
+            moment(revisionStartTime, "HH:mm"),
+            "minutes"
+          ),
+        };
 
-        const savedSession = await sessionDoc.save({ session });
-        savedSessionIds.push(savedSession._id);
-        globalIndex++;
+        console.log("Creating revision class with data:", revisionData);
+
+        const revClass = await createSingleClassInternal(
+          session,
+          revisionData,
+          filePaths
+        );
+        revisionId = revClass._id;
+
+        console.log("Created revision class with ID:", revisionId);
+        console.log("Revision class data:", revClass);
+      }
+
+      console.log("Paper class data:", {      
+        paperDay,
+        paperStartTime,
+        paperEndTime,
+      });
+
+      // --- B. PAPER CLASS ---
+      if (paperDay !== undefined && paperStartTime && paperEndTime) {
+        const paperSchedule = [
+          {
+            day: Number(paperDay),
+            startTime: paperStartTime,
+            endTime: paperEndTime,
+            timezone: timezone,
+          },
+        ];
+
+        // Construct FRESH object
+        const paperData = {
+          name: `${primaryData.name} - Paper`,
+          description: primaryData.description,
+          price: paperPrice ? Number(paperPrice) : primaryData.price,
+          batch: primaryData.batch,
+          level: primaryData.level,
+          recurrence: primaryData.recurrence,
+          firstSessionDate: primaryData.firstSessionDate,
+          totalSessions: primaryData.totalSessions,
+          tags: primaryData.tags,
+          isPublished: primaryData.isPublished,
+
+          // CRITICAL: Explicitly set Type and Link
+          type: "paper",
+          parentTheoryClass: primaryClass._id,
+
+          timeSchedules: paperSchedule,
+          sessionDurationMinutes: moment(paperEndTime, "HH:mm").diff(
+            moment(paperStartTime, "HH:mm"),
+            "minutes"
+          ),
+        };
+
+        console.log("Creating paper class with data:", paperData);
+
+        const papClass = await createSingleClassInternal(
+          session,
+          paperData,
+          filePaths
+        );
+        paperId = papClass._id;
+
+        console.log("Created paper class with ID:", paperId);
+        console.log("Paper class data:", papClass);
+      }
+
+      // --- C. Update Primary Class Links ---
+      if (revisionId || paperId) {
+        if (revisionId) primaryClass.linkedRevisionClass = revisionId;
+        if (paperId) primaryClass.linkedPaperClass = paperId;
+        await primaryClass.save({ session });
       }
     }
-
-    // 5. Link Sessions
-    savedClass.sessions = savedSessionIds;
-    await savedClass.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
-    // 6. Return Data
-    const populated = await Class.findById(savedClass._id).populate({
-      path: "sessions",
-      options: { sort: { index: 1 } },
+    return res.status(201).json({
+      success: true,
+      message: shouldCreateVariants
+        ? "Theory, Revision, and Paper classes created successfully"
+        : "Class created successfully",
+      class: primaryClass,
     });
-
-    const batchToUpdate = await Batch.findById(rest.batch);
-    if (batchToUpdate) {
-      batchToUpdate.classes.push(savedClass._id);
-      await batchToUpdate.save();
-    }
-
-    return res.status(201).json(populated);
-
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
     console.error("createClass error:", error);
-    return res.status(500).json({ message: "Error creating class", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Error creating class", error: error.message });
   }
 };
 
-/**
- * HELPER: Recreate Sessions (Used in Update)
- */
+// ... (Rest of the file: recreateSessionsForClass, updateClass, deleteClass, etc.) ...
 const recreateSessionsForClass = async (opts) => {
   const {
     classDoc,
@@ -163,32 +339,47 @@ const recreateSessionsForClass = async (opts) => {
     sessionDurationMinutes = 60,
     abortOnZoomFail = false,
   } = opts;
-
-  // Cleanup Old
   const existingSessions = await Session.find({ class: classDoc._id });
   for (const s of existingSessions) {
     if (s.zoomMeetingId) {
-      try { await deleteMeeting(s.zoomMeetingId); } catch (e) { console.error("Zoom delete error:", e.message); }
+      try {
+        await deleteMeeting(s.zoomMeetingId);
+      } catch (e) {
+        console.error("Zoom delete error:", e.message);
+      }
     }
   }
-  if (existingSessions.length > 0) await Session.deleteMany({ class: classDoc._id });
-
-  // Create New
-  const schedules = Array.isArray(timeSchedules) && timeSchedules.length > 0 ? timeSchedules : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
-  const anchorDate = classDoc.firstSessionDate ? moment(classDoc.firstSessionDate) : moment();
+  if (existingSessions.length > 0)
+    await Session.deleteMany({ class: classDoc._id });
+  const schedules =
+    Array.isArray(timeSchedules) && timeSchedules.length > 0
+      ? timeSchedules
+      : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
+  const anchorDate = classDoc.firstSessionDate
+    ? moment(classDoc.firstSessionDate)
+    : moment();
   const savedSessionIds = [];
   let globalIndex = 1;
-
   for (let i = 0; i < totalSessions; i++) {
     for (const sch of schedules) {
       const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "UTC";
-      const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, i);
-      const endMoment = startMoment.clone().add(sessionDurationMinutes, "minutes");
-
+      const startMoment = getNextSessionMoment(
+        anchorDate,
+        sch.day,
+        sch.startTime,
+        tz,
+        i
+      );
+      const endMoment = startMoment
+        .clone()
+        .add(sessionDurationMinutes, "minutes");
       const sessionDoc = new Session({
-        class: classDoc._id, index: globalIndex, startAt: startMoment.toDate(), endAt: endMoment.toDate(), timezone: tz
+        class: classDoc._id,
+        index: globalIndex,
+        startAt: startMoment.toDate(),
+        endAt: endMoment.toDate(),
+        timezone: tz,
       });
-      
       try {
         const zoomStartTime = startMoment.format("YYYY-MM-DDTHH:mm:ss");
         const zoomData = await createMeeting({
@@ -197,16 +388,15 @@ const recreateSessionsForClass = async (opts) => {
           duration: sessionDurationMinutes,
           timezone: tz,
         });
-        if(zoomData) {
-           sessionDoc.zoomMeetingId = String(zoomData.id);
-           sessionDoc.zoomStartUrl = zoomData.start_url;
-           sessionDoc.zoomJoinUrl = zoomData.join_url;
+        if (zoomData) {
+          sessionDoc.zoomMeetingId = String(zoomData.id);
+          sessionDoc.zoomStartUrl = zoomData.start_url;
+          sessionDoc.zoomJoinUrl = zoomData.join_url;
         }
-      } catch(e) { 
-          console.error("Zoom create error during update:", e.message); 
-          if(abortOnZoomFail) throw e; 
+      } catch (e) {
+        console.error("Zoom create error during update:", e.message);
+        if (abortOnZoomFail) throw e;
       }
-      
       const saved = await sessionDoc.save();
       savedSessionIds.push(saved._id);
       globalIndex++;
@@ -215,12 +405,18 @@ const recreateSessionsForClass = async (opts) => {
   return savedSessionIds;
 };
 
-/**
- * UPDATE CLASS
- */
 export const updateClass = async (req, res) => {
   const { classId } = req.params;
-  const { timeSchedules, totalSessions, sessionDurationMinutes, ...otherUpdates } = req.body;
+  console.log("UpdateClass called with ID:", classId);
+  console.log("Request body:", req.body);
+  const { 
+      timeSchedules, 
+      totalSessions, 
+      sessionDurationMinutes, 
+      type, // <--- Extract 'type' here so it is NOT included in 'otherUpdates'
+      ...otherUpdates 
+  } = req.body;
+
   const session = await mongoose.startSession();
 
   try {
@@ -252,6 +448,7 @@ export const updateClass = async (req, res) => {
       if (newImages && newImages.length > 0) classDoc.images = newImages; 
     }
 
+    // Apply updates (Notice 'type' is excluded because we extracted it above)
     Object.assign(classDoc, otherUpdates);
 
     const willReplaceSchedule =
@@ -269,7 +466,6 @@ export const updateClass = async (req, res) => {
     session.endSession();
 
     if (willReplaceSchedule) {
-      // Re-create sessions logic (Non-transactional to avoid long locks with external API)
       const newSessionIds = await recreateSessionsForClass({
         classDoc,
         timeSchedules: classDoc.timeSchedules,
@@ -292,104 +488,93 @@ export const updateClass = async (req, res) => {
   }
 };
 
-/**
- * DELETE CLASS
- */
 export const deleteClass = async (req, res) => {
   const { classId } = req.params;
   try {
     const classDoc = await Class.findById(classId);
     if (!classDoc) return res.status(404).json({ message: "Class not found" });
-
-    // 1. Delete External Zoom Meetings
     const sessions = await Session.find({ class: classDoc._id });
     for (const s of sessions) {
-        if (s.zoomMeetingId) {
-            try { await deleteMeeting(s.zoomMeetingId); } catch (err) { console.warn("Zoom cleanup warning:", err.message); }
+      if (s.zoomMeetingId) {
+        try {
+          await deleteMeeting(s.zoomMeetingId);
+        } catch (err) {
+          console.warn("Zoom cleanup warning:", err.message);
         }
+      }
     }
-
-    // 2. Delete DB Records
     await Session.deleteMany({ class: classDoc._id });
     await Class.findByIdAndDelete(classDoc._id);
-
     return res.status(200).json({ message: "Class deleted successfully" });
   } catch (err) {
-    return res.status(500).json({ message: "Failed to delete", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Failed to delete", error: err.message });
   }
 };
 
-/**
- * GET CLASS BY ID (Protected)
- */
 export const getClassById = async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin';
-    const populateSelect = isAdmin ? "" : "-zoomStartUrl -zoomMeetingId"; 
-
+    const isAdmin = req.user.role === "admin";
+    const populateSelect = isAdmin ? "" : "-zoomStartUrl -zoomMeetingId";
     const classDoc = await Class.findById(req.params.classId)
-        .populate({
-            path: "sessions",
-            select: populateSelect,
-            options: { sort: { index: 1 } }
-        })
-        .populate("batch", "name"); 
-
+      .populate({
+        path: "sessions",
+        select: populateSelect,
+        options: { sort: { index: 1 } },
+      })
+      .populate("batch", "name")
+      .populate("linkedRevisionClass", "name slug")
+      .populate("linkedPaperClass", "name slug")
+      .populate("parentTheoryClass", "name slug");
     if (!classDoc) return res.status(404).json({ message: "Class not found" });
-    
     return res.status(200).json(classDoc);
-  } catch (error) { return res.status(500).json({ message: "Error fetching class", error: error.message }); }
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Error fetching class", error: error.message });
+  }
 };
 
-/**
- * GET ALL CLASSES (Protected / Admin view)
- */
 export const getAllClasses = async (req, res) => {
   try {
     const classes = await Class.find()
-        .populate("batch", "name")
-        .sort({ createdAt: -1 });
+      .populate("batch", "name")
+      .sort({ createdAt: -1 });
     return res.status(200).json(classes);
-  } catch (error) { return res.status(500).json(error); }
+  } catch (error) {
+    return res.status(500).json(error);
+  }
 };
 
-/**
- * GET PUBLIC CLASSES
- */
 export const getAllPublicClasses = async (req, res) => {
   try {
-    const classes = await Class.find({ 
-        isActive: true, 
-        isPublished: true, 
-    })
-    .select("-sessions") 
-    .populate("batch", "name")
-    .sort({ createdAt: -1 });
-
+    const classes = await Class.find({ isActive: true, isPublished: true })
+      .select("-sessions")
+      .populate("batch", "name")
+      .sort({ createdAt: -1 });
     return res.status(200).json(classes);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch public classes" });
   }
 };
 
-/**
- * GET SINGLE PUBLIC CLASS
- */
 export const getPublicClass = async (req, res) => {
   try {
-    const classDoc = await Class.findOne({ 
-        _id: req.params.id, 
-        isActive: true, 
-        isPublished: true 
+    const classDoc = await Class.findOne({
+      _id: req.params.id,
+      isActive: true,
+      isPublished: true,
     })
-    .populate("batch", "name")
-    .populate({
+      .populate("batch", "name")
+      .populate({
         path: "sessions",
-        select: "index startAt endAt title durationMinutes timezone", 
-    });
+        select: "index startAt endAt title durationMinutes timezone",
+      })
+      .populate("linkedRevisionClass", "name slug type price") // <--- ADD 'price'
+      .populate("linkedPaperClass", "name slug type price");   // <--- ADD 'price'
 
     if (!classDoc) return res.status(404).json({ message: "Class not found" });
-
     return res.status(200).json(classDoc);
   } catch (error) {
     console.log("getPublicClass error:", error);
@@ -397,28 +582,27 @@ export const getPublicClass = async (req, res) => {
   }
 };
 
-// --- STATUS CONTROLLERS ---
-// Updated to use classId matching the Route
 export const activateClass = async (req, res) => {
-    try {
-        const { classId } = req.params; // Changed from 'id'
-        const classDoc = await Class.findById(classId);
-        if (!classDoc) return res.status(404).json({ message: "Not found" });
-        
-        classDoc.isActive = true;
-        await classDoc.save();
-        return res.status(200).json({ message: "Activated" });
-    } catch (error) { return res.status(500).json(error); }
+  try {
+    const { classId } = req.params;
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) return res.status(404).json({ message: "Not found" });
+    classDoc.isActive = true;
+    await classDoc.save();
+    return res.status(200).json({ message: "Activated" });
+  } catch (error) {
+    return res.status(500).json(error);
+  }
 };
-
 export const deactivateClass = async (req, res) => {
-    try {
-        const { classId } = req.params; // Changed from 'id'
-        const classDoc = await Class.findById(classId);
-        if (!classDoc) return res.status(404).json({ message: "Not found" });
-        
-        classDoc.isActive = false;
-        await classDoc.save();
-        return res.status(200).json({ message: "Deactivated" });
-    } catch (error) { return res.status(500).json(error); }
+  try {
+    const { classId } = req.params;
+    const classDoc = await Class.findById(classId);
+    if (!classDoc) return res.status(404).json({ message: "Not found" });
+    classDoc.isActive = false;
+    await classDoc.save();
+    return res.status(200).json({ message: "Deactivated" });
+  } catch (error) {
+    return res.status(500).json(error);
+  }
 };

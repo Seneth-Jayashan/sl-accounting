@@ -9,6 +9,7 @@ const paymentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    targetMonth: { type: String }, // Format: "YYYY-MM"
     amount: { type: Number, required: true, min: 0 },
 
     // PayHere fields (optional; filled from IPN)

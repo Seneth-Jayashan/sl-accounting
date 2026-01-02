@@ -1,78 +1,149 @@
+import mongoose from "mongoose";
 import Enrollment from "../models/Enrollment.js";
 import User from "../models/User.js";
 import Class from "../models/Class.js";
+import { format } from "date-fns"; // Recommended for consistent formatting
 
 // --- HELPERS ---
 
-/**
- * Get the end of the month for a specific date.
- * Example: Input Jan 5th -> Returns Jan 31st 23:59:59
- */
 const getEndOfMonth = (date) => {
   const d = new Date(date);
-  // Year, Month + 1, Day 0 gets the last day of the current month
   return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 };
 
 // --- CONTROLLERS ---
 
 /**
- * CREATE ENROLLMENT
- * Logic: Initial enrollment gives access until the end of the CURRENT month.
+ * CREATE OR RETRIEVE ENROLLMENT (Supports Bundles & Month Selection)
  */
 export const createEnrollment = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { class: classId, subscriptionType } = req.body;
+    const { 
+        class: classId, 
+        subscriptionType,
+        // New flags from Frontend
+        includeRevision = false, 
+        includePaper = false 
+    } = req.body;
 
-    // 1. Determine Student ID
-    let studentId;
-    if (req.user.role === 'admin') {
-        studentId = req.body.student || req.user._id;
-    } else {
-        studentId = req.user._id;
+    const studentId = req.user.role === 'admin' ? (req.body.student || req.user._id) : req.user._id;
+
+    // 1. Fetch Main Class with Variants populated
+    const mainClass = await Class.findById(classId)
+        .populate('linkedRevisionClass')
+        .populate('linkedPaperClass')
+        .session(session);
+
+    if (!mainClass) {
+        await session.abortTransaction();
+        return res.status(404).json({ message: "Class not found" });
     }
 
-    // 2. Validate References
-    const [studentExists, classExists] = await Promise.all([
-        User.findById(studentId),
-        Class.findById(classId)
-    ]);
-
-    if (!studentExists) return res.status(404).json({ message: "Student not found" });
-    if (!classExists) return res.status(404).json({ message: "Class not found" });
-
-    // 3. Prevent Duplicates
-    const existing = await Enrollment.findOne({ student: studentId, class: classId });
-    if (existing) {
-      return res.status(409).json({ message: "Student already enrolled in this class" });
+    // 2. Identify all classes to enroll in
+    const classesToEnroll = [mainClass]; // Always include Theory
+    
+    if (includeRevision && mainClass.linkedRevisionClass) {
+        classesToEnroll.push(mainClass.linkedRevisionClass);
+    }
+    if (includePaper && mainClass.linkedPaperClass) {
+        classesToEnroll.push(mainClass.linkedPaperClass);
     }
 
-    // 4. Calculate Access Date (End of Current Month)
-    // Even if joining on Dec 25, access ends Dec 31 (requires renewal for Jan)
-    let accessEndDate = req.body.accessEndDate;
-    if (subscriptionType === "monthly" && !accessEndDate) {
-      accessEndDate = getEndOfMonth(new Date()); 
+    // 3. Process Enrollments (Get Existing OR Create New)
+    const processedEnrollments = [];
+    
+    for (const cls of classesToEnroll) {
+        let enrollment = await Enrollment.findOne({ 
+            student: studentId, 
+            class: cls._id 
+        }).session(session);
+
+        if (!enrollment) {
+            // Create New
+            enrollment = new Enrollment({
+                student: studentId,
+                class: cls._id,
+                subscriptionType: subscriptionType || 'monthly',
+                paymentStatus: "unpaid",
+                isActive: true, // Allow initial access or pending state
+                accessStartDate: new Date(),
+                accessEndDate: getEndOfMonth(new Date()),
+                paidMonths: [], // Initialize empty history
+                // Optional: Link siblings via a group ID if needed, or rely on logic
+            });
+            await enrollment.save({ session });
+
+            // Update Class Student List
+            // Note: We use $addToSet to avoid duplicates at DB level safely
+            await Class.findByIdAndUpdate(cls._id, { 
+                $addToSet: { students: studentId } 
+            }).session(session);
+        }
+
+        processedEnrollments.push(enrollment);
     }
 
-    const newEnrollment = new Enrollment({
-      student: studentId,
-      class: classId,
-      subscriptionType,
-      paymentStatus: "unpaid", // Default
-      isActive: true, // Active initially so they can access free materials or waiting for payment
-      accessStartDate: req.body.accessStartDate || new Date(),
-      accessEndDate,
+    // 4. CALCULATE TOTAL PRICE (Server Side Logic)
+    let totalAmount = mainClass.price || 0; 
+
+    if (includeRevision && includePaper) {
+        if (mainClass.bundlePriceFull != null) {
+            totalAmount = mainClass.bundlePriceFull;
+        } else {
+            const revPrice = mainClass.linkedRevisionClass?.price || 0;
+            const papPrice = mainClass.linkedPaperClass?.price || 0;
+            totalAmount = mainClass.price + revPrice + papPrice;
+        }
+    } 
+    else if (includeRevision) {
+        if (mainClass.bundlePriceRevision != null) {
+            totalAmount = mainClass.bundlePriceRevision;
+        } else {
+            const revPrice = mainClass.linkedRevisionClass?.price || 0;
+            totalAmount = mainClass.price + revPrice;
+        }
+    } 
+    else if (includePaper) {
+        if (mainClass.bundlePricePaper != null) {
+            totalAmount = mainClass.bundlePricePaper;
+        } else {
+            const papPrice = mainClass.linkedPaperClass?.price || 0;
+            totalAmount = mainClass.price + papPrice;
+        }
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // 5. Return Response
+    // Find Primary Enrollment to return as main reference
+    const primaryEnrollment = processedEnrollments.find(e => e.class.toString() === mainClass._id.toString());
+
+    return res.status(200).json({ // Changed to 200 as it might be a retrieval
+        success: true,
+        message: "Enrollment processed successfully",
+        enrollment: primaryEnrollment,
+        allEnrollments: processedEnrollments,
+        // Return paid history so frontend knows which months to disable
+        paidMonths: primaryEnrollment.paidMonths || [], 
+        totalAmount: totalAmount, 
+        breakdown: {
+            theory: true,
+            revision: includeRevision,
+            paper: includePaper
+        }
     });
 
-    // Add student to Class array
-    await classExists.enrollStudent(studentId);
-
-    const saved = await newEnrollment.save();
-    return res.status(201).json(saved);
-
   } catch (err) {
+    if (session.inTransaction()) {
+        await session.abortTransaction();
+    }
+    session.endSession();
     console.error("Error creating enrollment:", err);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -81,8 +152,6 @@ export const createEnrollment = async (req, res) => {
  */
 export const getEnrollmentById = async (req, res) => {
   try {
-    // NOTE: 'findById' triggers the 'post find' middleware in your Model
-    // which automatically checks and updates isExpired/isActive status.
     const enrollment = await Enrollment.findById(req.params.id)
       .populate("student", "firstName lastName email")
       .populate("class", "name grade subject price")
@@ -92,7 +161,6 @@ export const getEnrollmentById = async (req, res) => {
       return res.status(404).json({ message: "Enrollment not found" });
     }
 
-    // Authorization
     const isOwner = enrollment.student._id.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'admin';
 
@@ -119,7 +187,6 @@ export const getAllEnrollments = async (req, res) => {
     if (classId) filter.class = classId;
     if (paymentStatus) filter.paymentStatus = paymentStatus;
 
-    // Triggers lazy update middleware for all docs found
     const enrollments = await Enrollment.find(filter)
       .populate("student", "firstName lastName email phoneNumber")
       .populate("class", "name price coverImage description ")
@@ -165,7 +232,8 @@ export const checkEnrollment = async (req, res) => {
         isEnrolled: !!exists, 
         enrollmentId: exists?._id || null,
         paymentStatus: exists?.paymentStatus || null,
-        isActive: exists?.isActive || false
+        isActive: exists?.isActive || false,
+        paidMonths: exists?.paidMonths || [] // Include history here too
     });
   } catch (err) {
     res.status(500).json({ message: "Server Error" });
@@ -174,54 +242,51 @@ export const checkEnrollment = async (req, res) => {
 
 /**
  * UPDATE ENROLLMENT (Admin)
- * Handles Payment Approvals & Extensions
  */
 export const updateEnrollment = async (req, res) => {
   try {
     const { paymentStatus, accessEndDate } = req.body;
     
-    // 1. Fetch the document first (Crucial for Methods & Middleware)
     const enrollment = await Enrollment.findById(req.params.id);
 
     if (!enrollment) {
       return res.status(404).json({ message: "Enrollment not found" });
     }
 
-    // 2. Handle Payment Approval
+    // 1. Handle Payment Approval
     if (paymentStatus === "paid") {
         const paymentDate = new Date();
         
-        // Use Model Method if available, or manual logic
-        // Logic: Payment Date -> End of THAT Month
         enrollment.paymentStatus = "paid";
         enrollment.isActive = true;
         enrollment.lastPaymentDate = paymentDate;
 
-        // If admin provided a specific date, use it. Otherwise, calc end of current month.
         if (accessEndDate) {
             enrollment.accessEndDate = new Date(accessEndDate);
         } else {
-            // FIXED LOGIC: Get end of CURRENT month (Jan 05 -> Jan 31)
             enrollment.accessEndDate = getEndOfMonth(paymentDate);
         }
 
-        // Set Next Payment Date (1st of Next Month)
+        // Logic: Add paid month to history
+        // If admin manually approves, we assume it's for the month of the accessEndDate
+        const monthString = format(enrollment.accessEndDate, "yyyy-MM");
+        if (!enrollment.paidMonths.includes(monthString)) {
+            enrollment.paidMonths.push(monthString);
+        }
+
         const nextPay = new Date(enrollment.accessEndDate);
-        nextPay.setDate(nextPay.getDate() + 1); // Feb 1st
+        nextPay.setDate(nextPay.getDate() + 1); 
         enrollment.nextPaymentDate = nextPay;
     } 
-    // 3. Handle Revocation / Expiry
+    // 2. Handle Revocation / Expiry
     else if (paymentStatus === "expired" || paymentStatus === "unpaid") {
         enrollment.paymentStatus = paymentStatus;
         enrollment.isActive = false;
-        // Optionally set accessEndDate to yesterday to force expiry logic
     }
 
-    // 4. Handle other updates (notes, etc.)
     if (req.body.notes) enrollment.notes = req.body.notes;
     if (req.body.isBlocked !== undefined) enrollment.isBlocked = req.body.isBlocked;
 
-    // 5. Save (Triggers validations and hooks)
     await enrollment.save();
 
     return res.json(enrollment);

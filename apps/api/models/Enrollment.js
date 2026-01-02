@@ -33,6 +33,8 @@ const enrollmentSchema = new mongoose.Schema(
       index: true,
     },
 
+    paidMonths: [{ type: String }],
+
     // Payment & access
     paymentStatus: {
       type: String,
@@ -136,6 +138,19 @@ enrollmentSchema.methods.revokeAccess = async function () {
   this.isActive = false;
   this.paymentStatus = "expired";
   return this.save();
+};
+
+// Helper to check if a month is paid
+enrollmentSchema.methods.isMonthPaid = function(monthString) {
+    return this.paidMonths.includes(monthString);
+};
+
+// Helper to add a paid month
+enrollmentSchema.methods.addPaidMonth = function(monthString) {
+    if (!this.paidMonths.includes(monthString)) {
+        this.paidMonths.push(monthString);
+    }
+    return this.save();
 };
 
 export default mongoose.model("Enrollment", enrollmentSchema);
