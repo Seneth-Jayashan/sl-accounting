@@ -4,9 +4,9 @@ import { api } from "./api";
 const BASE_URL = "/classes";
 
 export interface SchedulePayload {
-  day: number; // 0 = Sunday ... 6 = Saturday
-  startTime: string; // "HH:mm"
-  endTime: string;   // "HH:mm"
+  day: number; 
+  startTime: string; 
+  endTime: string;   
   timezone?: string;
 }
 
@@ -20,12 +20,13 @@ export interface EnrolledStudent {
 }
 
 export interface CreateClassPayload {
+  // ... (Existing fields)
   name: string;
   description?: string;
-  price?: number; // kept strict as number
-  batch?: string; // ObjectId string
+  price?: number;
+  batch?: string;
   timeSchedules?: SchedulePayload[];
-  firstSessionDate?: string; // ISO string
+  firstSessionDate?: string;
   recurrence?: "weekly" | "daily" | "none";
   totalSessions?: number;
   sessionDurationMinutes?: number;
@@ -33,18 +34,26 @@ export interface CreateClassPayload {
   type?: "theory" | "revision" | "paper";
   tags?: string[];
   isPublished?: boolean;
-  // File objects
   coverImage?: File | null;
   images?: File[] | null;
-  autoCreateVariants?: boolean;
+  
+  // Linking
+  parentTheoryClass?: string; // <--- NEW
+
+  // Variants Flags & Config
+  createRevision?: boolean; 
+  createPaper?: boolean;    
   revisionDay?: number;
   revisionStartTime?: string;
   revisionEndTime?: string;
-  revisionPrice?: number; 
+  revisionPrice?: number;
   paperDay?: number;
   paperStartTime?: string;
   paperEndTime?: string;
   paperPrice?: number;
+  bundlePriceRevision?: number; 
+  bundlePricePaper?: number;    
+  bundlePriceFull?: number;
 }
 
 export type UpdateClassPayload = Partial<CreateClassPayload>;
@@ -55,16 +64,17 @@ export interface ClassData {
   name: string;
   description: string;
   price: number;
-  batch: string | any; // Depending on if your backend populates it
+  batch: string | any; 
   type: "theory" | "revision" | "paper";
+  level: "general" | "ordinary" | "advanced"; 
+  parentTheoryClass?: string | ClassData; // Can be ID or populated object
+  linkedRevisionClass?: string | ClassData;
+  linkedPaperClass?: string | ClassData;
   coverImage?: string;
   images: string[];
   isPublished: boolean;
   students?: EnrolledStudent[];
-  // ... add other fields returned by backend
 }
-
-
 
 interface ClassResponse {
   success: boolean;
@@ -74,15 +84,14 @@ interface ClassResponse {
 }
 
 // --- HELPER: FormData Builder ---
-// Centralizes logic to prevent code duplication
 const buildClassFormData = (data: UpdateClassPayload): FormData => {
   const formData = new FormData();
 
   // Text Fields
-  if (data.name) formData.append("name", data.name);
+if (data.name) formData.append("name", data.name);
   if (data.description) formData.append("description", data.description);
   if (data.price !== undefined) formData.append("price", String(data.price));
-  if (data.batch) formData.append("batch", data.batch); // Removed "bacth" typo
+  if (data.batch) formData.append("batch", data.batch);
   if (data.firstSessionDate) formData.append("firstSessionDate", data.firstSessionDate);
   if (data.recurrence) formData.append("recurrence", data.recurrence);
   if (data.type) formData.append("type", data.type);
@@ -90,36 +99,29 @@ const buildClassFormData = (data: UpdateClassPayload): FormData => {
   if (data.sessionDurationMinutes !== undefined) formData.append("sessionDurationMinutes", String(data.sessionDurationMinutes));
   if (data.level) formData.append("level", data.level);
   if (data.isPublished !== undefined) formData.append("isPublished", String(Boolean(data.isPublished)));
+  if (data.tags && Array.isArray(data.tags)) formData.append("tags", JSON.stringify(data.tags));
+  if (data.timeSchedules && Array.isArray(data.timeSchedules)) formData.append("timeSchedules", JSON.stringify(data.timeSchedules));
+  if (data.coverImage) formData.append("coverImage", data.coverImage);
+  if (data.images && Array.isArray(data.images)) data.images.forEach((file) => formData.append("images", file));
 
-  // Array Fields (Must be stringified for FormData)
-  if (data.tags && Array.isArray(data.tags)) {
-    formData.append("tags", JSON.stringify(data.tags));
-  }
-  if (data.timeSchedules && Array.isArray(data.timeSchedules)) {
-    formData.append("timeSchedules", JSON.stringify(data.timeSchedules));
-  }
+  // Variants & Linking
+  if (data.createRevision !== undefined) formData.append("createRevision", String(data.createRevision));
+  if (data.createPaper !== undefined) formData.append("createPaper", String(data.createPaper));
+  if (data.parentTheoryClass) formData.append("parentTheoryClass", data.parentTheoryClass); // <--- NEW
 
-  // File Fields
-  if (data.coverImage) {
-    formData.append("coverImage", data.coverImage);
-  }
-  
-  if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-    data.images.forEach((file) => {
-      formData.append("images", file); 
-    });
-  }
-
-  if (data.autoCreateVariants !== undefined) formData.append("autoCreateVariants", String(data.autoCreateVariants));
   if (data.revisionDay !== undefined) formData.append("revisionDay", String(data.revisionDay));
   if (data.revisionStartTime) formData.append("revisionStartTime", data.revisionStartTime);
   if (data.revisionEndTime) formData.append("revisionEndTime", data.revisionEndTime);
   if (data.revisionPrice !== undefined) formData.append("revisionPrice", String(data.revisionPrice));
+  
   if (data.paperDay !== undefined) formData.append("paperDay", String(data.paperDay));
   if (data.paperStartTime) formData.append("paperStartTime", data.paperStartTime);
   if (data.paperEndTime) formData.append("paperEndTime", data.paperEndTime);
   if (data.paperPrice !== undefined) formData.append("paperPrice", String(data.paperPrice));
 
+  if (data.bundlePriceRevision !== undefined) formData.append("bundlePriceRevision", String(data.bundlePriceRevision));
+  if (data.bundlePricePaper !== undefined) formData.append("bundlePricePaper", String(data.bundlePricePaper));
+  if (data.bundlePriceFull !== undefined) formData.append("bundlePriceFull", String(data.bundlePriceFull));
   return formData;
 };
 
@@ -146,6 +148,14 @@ const ClassService = {
     return response.data;
   },
 
+  // Helper to fetch only Theory classes for dropdown
+  getTheoryClasses: async () => {
+    const response = await api.get<any[]>(BASE_URL);
+    // Assuming backend returns array of classes. Filter on client side for simplicity.
+    // If backend pagination exists, a dedicated endpoint `/classes?type=theory` is better.
+    return response.data.filter((cls: any) => cls.type === 'theory');
+  },
+
   getClassById: async (id: string) => {
     const response = await api.get<ClassResponse>(`${BASE_URL}/${id}`);
     return response.data;
@@ -163,7 +173,6 @@ const ClassService = {
 
   // UPDATE
   updateClass: async (id: string, data: UpdateClassPayload) => {
-    // Check if we need Multipart (Files exist) or Standard JSON
     const hasFiles = !!(data.coverImage || (data.images && data.images.length));
 
     if (hasFiles) {
@@ -179,7 +188,6 @@ const ClassService = {
 
       return response.data;
     } else {
-      // Send as JSON if no files are involved (Cleaner network request)
       const response = await api.patch<ClassResponse>(`${BASE_URL}/${id}`, data);
       return response.data;
     }

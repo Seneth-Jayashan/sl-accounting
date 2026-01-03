@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import Payment from "../models/Payment.js";
 import Enrollment from "../models/Enrollment.js";
-import Class from "../models/Class.js"; 
+import Class from "../models/Class.js";
 
 // --- HELPERS ---
 
@@ -26,69 +26,38 @@ const formatPayHereAmount = (amount) => {
 };
 
 /**
- * Update Enrollment to mark a specific month as paid
- */
-const markMonthAsPaid = async (enrollmentId, monthString) => {
-    if (!monthString) return; 
-    
-    try {
-        const enrollment = await Enrollment.findById(enrollmentId);
-        if (enrollment) {
-            if (!enrollment.paidMonths.includes(monthString)) {
-                enrollment.paidMonths.push(monthString);
-                await enrollment.save();
-            }
-        }
-    } catch (e) {
-        console.error(`Failed to mark month ${monthString} as paid for enrollment ${enrollmentId}:`, e);
-    }
-};
-
-/**
- * CORE LOGIC: Cascade Approval with Month Tracking
+ * CORE LOGIC: Cascade Approval
+ * When Primary Enrollment (Theory) is paid, update siblings (Revision/Paper).
+ * Handles 'targetMonth' to correctly extend access dates.
  */
 const approveBundleEnrollments = async (primaryEnrollmentId, paymentId, paymentDate, targetMonth) => {
     // 1. Fetch Primary Enrollment
     const primary = await Enrollment.findById(primaryEnrollmentId).populate('class');
     if (!primary) return;
 
-    // 2. Mark Primary as Paid
-    await primary.markPaid(paymentDate, paymentId);
-    
-    // 3. Mark the specific month as paid
-    if (targetMonth) {
-        await markMonthAsPaid(primary._id, targetMonth);
-    }
+    // 2. Mark Primary as Paid (Pass targetMonth)
+    await primary.markPaid(paymentDate, paymentId, targetMonth);
 
-    // 4. Check for Linked Classes (Bundle Logic)
+    // 3. Identify Linked Bundles
     const classDoc = primary.class;
-    
     const bundleClassIds = [];
     if (classDoc.linkedRevisionClass) bundleClassIds.push(classDoc.linkedRevisionClass);
     if (classDoc.linkedPaperClass) bundleClassIds.push(classDoc.linkedPaperClass);
 
     if (bundleClassIds.length === 0) return;
 
-    // 5. Find Sibling Enrollments
+    // 4. Find Sibling Enrollments
     const siblings = await Enrollment.find({
         student: primary.student,
-        class: { $in: bundleClassIds },
-        createdAt: { 
-            $gte: new Date(primary.createdAt.getTime() - 24 * 60 * 60 * 1000),
-            $lte: new Date(primary.createdAt.getTime() + 24 * 60 * 60 * 1000)
-        }
+        class: { $in: bundleClassIds }
     });
 
-    // 6. Mark Siblings as Paid
+    // 5. Mark Siblings as Paid (Pass targetMonth)
     for (const sibling of siblings) {
-        await sibling.markPaid(paymentDate, paymentId);
-        
-        if (targetMonth) {
-            await markMonthAsPaid(sibling._id, targetMonth);
-        }
+        await sibling.markPaid(paymentDate, paymentId, targetMonth);
     }
     
-    console.log(`Bundle Approval: Paid Primary ${primary._id} and ${siblings.length} siblings for month ${targetMonth}.`);
+    console.log(`Bundle Approval: Paid Primary ${primary._id} and ${siblings.length} siblings for ${targetMonth || 'current month'}.`);
 };
 
 
@@ -141,7 +110,7 @@ export const payHereWebhook = async (req, res) => {
       payhere_currency,
       status_code,
       md5sig,
-      custom_1, 
+      custom_1, // Enrollment ID
       custom_2, // Target Month (YYYY-MM)
       payment_id
     } = req.body;
@@ -229,7 +198,7 @@ export const uploadPaymentSlip = async (req, res) => {
         verified: false,
         paymentDate: new Date(),
         notes: notes,
-        targetMonth: targetMonth, // Save month
+        targetMonth: targetMonth, // Save requested month
         rawPayload: { slipUrl: filePath } 
     });
 
@@ -302,6 +271,7 @@ export const updatePaymentStatus = async (req, res) => {
     await payment.save();
 
     if (status === "completed" && payment.enrollment) {
+        // Use payment.targetMonth to unlock specific content
         await approveBundleEnrollments(payment.enrollment, payment._id, payment.paymentDate, payment.targetMonth);
     }
 

@@ -3,9 +3,16 @@ import mongoose from "mongoose";
 // --- HELPER: Get End of Month ---
 const getEndOfMonth = (date) => {
   const d = new Date(date);
-  // Move to the next month, day 0 (which is the last day of the previous month)
-  // Example: Input Jan 5 -> Month becomes Feb, Day 0 -> Jan 31
   return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+};
+
+// --- HELPER: Get End of Specific Target Month string (YYYY-MM) ---
+const getEndOfTargetMonth = (monthString) => {
+    // "2026-02" -> split -> [2026, 2]
+    const [year, month] = monthString.split('-').map(Number);
+    // Date constructor (year, monthIndex, 0) -> Last day of previous month index
+    // month is 2 (Feb). Index 2 is March. Day 0 of March is Last day of Feb.
+    return new Date(year, month, 0, 23, 59, 59, 999);
 };
 
 const attendanceSchema = new mongoose.Schema(
@@ -33,9 +40,9 @@ const enrollmentSchema = new mongoose.Schema(
       index: true,
     },
 
+    // --- NEW: Track history of paid months ---
     paidMonths: [{ type: String }],
 
-    // Payment & access
     paymentStatus: {
       type: String,
       enum: ["paid", "unpaid", "pending", "expired"],
@@ -44,19 +51,13 @@ const enrollmentSchema = new mongoose.Schema(
     lastPayment: { type: mongoose.Schema.Types.ObjectId, ref: "Payment" },
     lastPaymentDate: { type: Date },
     
-    // accessStartDate: When they FIRST joined
     accessStartDate: { type: Date, default: Date.now },
-    
-    // accessEndDate: When their current access expires
     accessEndDate: { type: Date },
 
-    // Enrollment state
     isActive: { type: Boolean, default: true },
     isBlocked: { type: Boolean, default: false },
 
-    // Attendance & progress
     attendance: { type: [attendanceSchema], default: [] },
-
     notes: { type: String },
   },
   { 
@@ -66,91 +67,80 @@ const enrollmentSchema = new mongoose.Schema(
   }
 );
 
-// Prevent duplicate enrollments for same student-class pair
 enrollmentSchema.index({ student: 1, class: 1 }, { unique: true });
 
-// --- 1. VIRTUAL: Check Expiration ---
+// --- VIRTUALS & MIDDLEWARE ---
 enrollmentSchema.virtual('isExpired').get(function() {
   if (!this.accessEndDate) return false;
   return new Date() > this.accessEndDate;
 });
 
-// --- 2. MIDDLEWARE: Lazy Status Update ---
-// Automatically marks enrollment as inactive if accessEndDate has passed
 enrollmentSchema.post(['find', 'findOne'], async function(docs) {
   if (!docs) return;
-  
-  // Normalizing input (findOne returns object, find returns array)
   const enrollments = Array.isArray(docs) ? docs : [docs];
   const now = new Date();
   const updates = [];
 
   for (const doc of enrollments) {
-    // Check if it's active BUT should be expired
     if (doc.isActive && doc.accessEndDate && now > doc.accessEndDate) {
-      console.log(`⏳ Auto-expiring enrollment: ${doc._id}`);
-      
-      // Update the document in memory so the user sees the correct status immediately
       doc.isActive = false;
       doc.paymentStatus = 'expired';
-
-      // Queue a database update to persist this change
       updates.push(mongoose.model("Enrollment").updateOne(
         { _id: doc._id },
         { $set: { isActive: false, paymentStatus: 'expired' } }
       ));
     }
   }
-
-  // Execute updates asynchronously (don't block the response)
-  if (updates.length > 0) {
-    Promise.all(updates).catch(err => console.error("Auto-expire update failed", err));
-  }
+  if (updates.length > 0) Promise.all(updates).catch(e => console.error("Auto-expire failed", e));
 });
 
 // --- METHODS ---
 
 /**
- * Marks the enrollment as paid and extends access to the end of the payment month.
- * @param {Date} paymentDate - The date the payment was made (default: now)
- * @param {ObjectId} paymentId - Optional reference to the Payment record
+ * Marks enrollment as paid.
+ * IF targetMonth is provided, extends access to the end of THAT month.
  */
 enrollmentSchema.methods.markPaid = async function (
   paymentDate = new Date(),
-  paymentId = null
+  paymentId = null,
+  targetMonth = null // <--- NEW PARAM
 ) {
-  // 1. Update Payment Info
   this.paymentStatus = "paid";
-  this.isActive = true; // Reactivate account if it was expired
+  this.isActive = true;
   this.lastPaymentDate = paymentDate;
   if (paymentId) this.lastPayment = paymentId;
 
-  // 2. Calculate New Access End Date
-  // Logic: Access ends at the end of the month of the payment date.
-  // Ex: Paid Jan 5 -> End Jan 31. Paid Feb 20 -> End Feb 28.
-  this.accessEndDate = getEndOfMonth(paymentDate);
+  // --- LOGIC: Access End Date ---
+  if (targetMonth) {
+      // 1. Add to paid history if unique
+      if (!this.paidMonths.includes(targetMonth)) {
+          this.paidMonths.push(targetMonth);
+          this.paidMonths.sort(); // Keep sorted
+      }
+
+      // 2. Extend Access
+      // If paying for a future month, extend expiration to end of that month.
+      const targetEndDate = getEndOfTargetMonth(targetMonth);
+      
+      // Only extend if the new date is further in the future than current
+      if (!this.accessEndDate || targetEndDate > this.accessEndDate) {
+          this.accessEndDate = targetEndDate;
+      }
+  } else {
+      // Fallback: End of current month of payment date
+      const currentMonthEnd = getEndOfMonth(paymentDate);
+      if (!this.accessEndDate || currentMonthEnd > this.accessEndDate) {
+          this.accessEndDate = currentMonthEnd;
+      }
+  }
 
   return this.save();
 };
 
-// Convenience: revoke access
 enrollmentSchema.methods.revokeAccess = async function () {
   this.isActive = false;
   this.paymentStatus = "expired";
   return this.save();
-};
-
-// Helper to check if a month is paid
-enrollmentSchema.methods.isMonthPaid = function(monthString) {
-    return this.paidMonths.includes(monthString);
-};
-
-// Helper to add a paid month
-enrollmentSchema.methods.addPaidMonth = function(monthString) {
-    if (!this.paidMonths.includes(monthString)) {
-        this.paidMonths.push(monthString);
-    }
-    return this.save();
 };
 
 export default mongoose.model("Enrollment", enrollmentSchema);
