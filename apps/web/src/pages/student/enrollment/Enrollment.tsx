@@ -31,7 +31,7 @@ const BANK_DETAILS = {
   accountNumber: import.meta.env.VITE_ACCOUNT_NUMBER,
 };
 
-// --- Updated Interface ---
+// --- Interfaces ---
 interface LinkedClass {
     _id: string;
     name: string;
@@ -66,7 +66,7 @@ export default function EnrollmentPage() {
   const [includeRevision, setIncludeRevision] = useState(false);
   const [includePaper, setIncludePaper] = useState(false);
   
-  // --- NEW: MONTH SELECTION ---
+  // --- MONTH SELECTION ---
   const [targetMonth, setTargetMonth] = useState<string>(format(new Date(), "yyyy-MM")); // Default: Current Month
   const [paidMonths, setPaidMonths] = useState<string[]>([]); // From Backend
 
@@ -88,9 +88,10 @@ export default function EnrollmentPage() {
 
         // B. Fetch Enrollment History (Paid Months)
         // We use enrollInClass to 'get or create' the record and retrieve history
+        // This is safe because unpaid enrollments don't cost anything yet
         const enrollmentRes = await EnrollmentService.enrollInClass(id, user._id);
-        if (enrollmentRes.paidMonths) {
-            setPaidMonths(enrollmentRes.paidMonths);
+        if (enrollmentRes.enrollment?.paidMonths) {
+            setPaidMonths(enrollmentRes.enrollment.paidMonths);
         }
 
       } catch (err) {
@@ -156,7 +157,6 @@ export default function EnrollmentPage() {
       } catch (e: any) {
           const msg = e.message || "";
           if (msg.toLowerCase().includes("already enrolled")) {
-             // Just show error for now if conflict logic is complex
              throw new Error("Enrollment conflict detected. Please contact support.");
           } else {
              throw e;
@@ -411,7 +411,7 @@ export default function EnrollmentPage() {
                  </button>
                </div>
 
-               {/* Bank Details Panel */}
+               {/* Bank Details Panel (Visible only when Bank Transfer selected) */}
                {paymentMethod === "bank" && (
                    <div className="mt-6 p-5 sm:p-6 bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200 animate-fade-in">
                       <div className="flex items-center justify-between mb-4">

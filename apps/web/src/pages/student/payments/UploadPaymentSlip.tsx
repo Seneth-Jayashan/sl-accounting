@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Swal from "sweetalert2"; 
+import { format } from "date-fns";
 import { 
   CloudArrowUpIcon, 
   DocumentTextIcon, 
   XMarkIcon,
   ArrowLeftIcon,
   ExclamationCircleIcon,
+  CalendarDaysIcon
 } from "@heroicons/react/24/outline";
 
 // Services
@@ -21,12 +23,17 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 export default function UploadPaymentSlip() {
   const { enrollmentId } = useParams<{ enrollmentId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Extract State passed from Enrollment Page
+  const { amount: stateAmount, targetMonth } = location.state || {};
 
   // State
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
-  const [amount, setAmount] = useState(""); 
+  // Initialize amount from state if available
+  const [amount, setAmount] = useState(stateAmount ? stateAmount.toString() : ""); 
   const [loading, setLoading] = useState(false);
   const [className, setClassName] = useState("Loading...");
   
@@ -52,35 +59,13 @@ export default function UploadPaymentSlip() {
             
             setClassName(clsName);
 
-            // Pre-fill amount
-            if (typeof enrollment.class === 'object' && (enrollment.class as any).price) {
+            // Pre-fill amount if not passed from state (Fallback)
+            if (!stateAmount && typeof enrollment.class === 'object' && (enrollment.class as any).price) {
                 setAmount((enrollment.class as any).price.toString());
             }
 
-            // Validate Status
-            const { paymentStatus } = enrollment;
-
-            if (paymentStatus === 'paid') {
-                Swal.fire({
-                    title: 'Already Paid!',
-                    text: 'You have active access to this class. Redirecting...',
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
-                }).then(() => navigate("/student/dashboard"));
-                return;
-            }
-
-            if (paymentStatus === 'pending') {
-                Swal.fire({
-                    title: 'Slip Under Review!',
-                    text: 'Your previous slip is pending approval.',
-                    icon: 'info',
-                    confirmButtonText: 'Back',
-                    confirmButtonColor: '#0b2540'
-                }).then(() => navigate("/student/enrollment"));
-                return;
-            }
+            // Note: We don't block 'paid' status here strictly because a user 
+            // might be uploading a slip for a NEW month on an existing enrollment.
 
         } catch (err) {
             console.error("Enrollment Check Error:", err);
@@ -93,7 +78,7 @@ export default function UploadPaymentSlip() {
 
     checkEnrollmentStatus();
     return () => { isMounted = false; };
-  }, [enrollmentId, navigate]);
+  }, [enrollmentId, navigate, stateAmount]);
 
   // 2. Cleanup Preview
   useEffect(() => {
@@ -143,7 +128,14 @@ export default function UploadPaymentSlip() {
     setError(null);
 
     try {
-      await PaymentService.uploadPaymentSlip(enrollmentId, file, paidAmount, notes);
+      // --- CALL UPDATED SERVICE ---
+      await PaymentService.uploadPaymentSlip(
+          enrollmentId, 
+          file, 
+          paidAmount, 
+          notes,
+          targetMonth // <--- PASS MONTH TO BACKEND
+      );
       
       setSuccess("Uploaded successfully!");
       
@@ -152,7 +144,7 @@ export default function UploadPaymentSlip() {
           text: 'Please wait for admin approval.',
           icon: 'success',
           confirmButtonColor: '#0b2540'
-      }).then(() => navigate("/student/enrollment"));
+      }).then(() => navigate("/student/dashboard"));
 
     } catch (err: any) {
       console.error(err);
@@ -170,9 +162,18 @@ export default function UploadPaymentSlip() {
             </button>
 
             <h1 className="text-2xl font-black text-[#0b2540] mb-2">Upload Slip</h1>
-            <p className="text-gray-500 mb-8 text-sm">
-                For class: <span className="font-bold text-gray-800">{className}</span>
-            </p>
+            <div className="mb-8">
+                <p className="text-gray-500 text-sm">
+                    For class: <span className="font-bold text-gray-800">{className}</span>
+                </p>
+                {/* --- DISPLAY SELECTED MONTH --- */}
+                {targetMonth && (
+                    <div className="mt-2 inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-bold border border-blue-100">
+                        <CalendarDaysIcon className="w-4 h-4" />
+                        Billing: {format(new Date(targetMonth), "MMMM yyyy")}
+                    </div>
+                )}
+            </div>
 
             {error && (
                 <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center text-red-600 text-xs font-medium">

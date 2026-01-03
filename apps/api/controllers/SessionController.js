@@ -4,6 +4,7 @@ import Class from "../models/Class.js";
 import Session from "../models/Session.js";
 import { createMeeting, updateMeeting, deleteMeeting } from "../services/Zoom.js";
 import Enrollment from "../models/Enrollment.js";
+import { format } from "date-fns";
 
 // --- HELPER: Field Projection ---
 const getSafeSessionProjection = (user) => {
@@ -290,49 +291,76 @@ export const getSessionsByClassId = async (req, res) => {
   try {
     const { classId } = req.params;
     const userId = req.user._id;
+    
+    // Admin Override: Admins see everything unlocked
+    const isAdmin = req.user.role === 'admin';
 
     // 1. Fetch Enrollment
     const enrollment = await Enrollment.findOne({ class: classId, student: userId });
     
     // 2. Fetch Sessions
-    const sessions = await Session.find({ class: classId }).sort({ startAt: 1 }).lean(); // .lean() converts to plain JS object so we can modify
+    // .lean() converts Mongoose Documents to plain JS objects, allowing us to modify properties easily
+    const sessions = await Session.find({ class: classId }).sort({ startAt: 1 }).lean();
+
+    if (isAdmin) {
+        return res.json(sessions);
+    }
 
     // 3. SECURITY FILTER
     const secureSessions = sessions.map(session => {
         let isLocked = false;
         
         if (!enrollment) {
+            // Not enrolled at all -> Locked
             isLocked = true;
         } else {
+            // --- NEW LOGIC: Month-Based Access ---
+            // 1. Determine which month this session belongs to (e.g., "2026-01")
             const sessionDate = new Date(session.startAt);
-            const joinDate = new Date(enrollment.createdAt);
-            
-            // Restriction A: Join Date
-            if (sessionDate < joinDate) isLocked = true;
-            
-            // Restriction B: Payment (Access End Date)
-            if (enrollment.accessEndDate && sessionDate > enrollment.accessEndDate) {
+            const sessionMonth = format(sessionDate, "yyyy-MM");
+
+            // 2. Check if the user has paid for this specific month
+            // We safely access paidMonths, defaulting to empty array if undefined
+            const paidMonths = enrollment.paidMonths || [];
+            const hasPaidForMonth = paidMonths.includes(sessionMonth);
+
+            if (!hasPaidForMonth) {
                 isLocked = true;
             }
         }
 
-        // IF LOCKED: Remove the video ID from the response
+        // IF LOCKED: Sanitize the object
+        // We strip out all sensitive access links
         if (isLocked) {
             return {
-                ...session,
-                youtubeVideoId: null,      // ERASE THIS
-                recordingUrl: null,        // ERASE THIS
-                zoomJoinUrl: null,         // ERASE THIS
-                isLocked: true             // Flag for frontend
+                _id: session._id,
+                title: session.title,
+                startAt: session.startAt,
+                endAt: session.endAt,
+                index: session.index,
+                description: session.description, // Description might be safe to show
+                isLocked: true,                   // Flag for frontend UI
+                
+                // --- SENSITIVE DATA REMOVED ---
+                youtubeVideoId: null,
+                recordingUrl: null,
+                zoomJoinUrl: null,
+                zoomStartUrl: null,
+                materials: null 
             };
         }
         
-        return session;
+        // IF UNLOCKED: Return full session with isLocked: false
+        return {
+            ...session,
+            isLocked: false
+        };
     });
 
     return res.json(secureSessions);
 
   } catch (error) {
+    console.error("Get Sessions Error:", error);
     return res.status(500).json({ message: "Error fetching sessions" });
   }
 };

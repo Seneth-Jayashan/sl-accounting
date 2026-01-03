@@ -12,6 +12,7 @@ const ViewRecording = lazy(() => import("../pages/student/class/ViewRecording"))
 const Enrollment = lazy(() => import("../pages/student/enrollment/Enrollment"));
 const ViewEnrollment = lazy(() => import("../pages/student/enrollment/ViewEnrollment"));
 const UploadSlip = lazy(() => import("../pages/student/payments/UploadPaymentSlip"));
+const CreatePayment = lazy(() => import("../pages/student/payments/ClassPaymentPage")); 
 const PaymentHistory = lazy(() => import("../pages/student/payments/PaymentHistory"));
 const KnowledgeBase = lazy(() => import("../pages/student/KnowledgeBasestudent"));
 const Profile = lazy(() => import("../pages/student/profile/Profile"));
@@ -34,6 +35,7 @@ export const StudentRoutes = () => {
           <Route path="enrollment" element={<ViewEnrollment />} />
           <Route path="enrollment/:id" element={<Enrollment />} />
           <Route path="payment/upload/:enrollmentId" element={<UploadSlip />} />
+          <Route path="payment/create/:classId" element={<CreatePayment />} />
           <Route path="payments" element={<PaymentHistory />} />
 
           {/* Default Student Route */}

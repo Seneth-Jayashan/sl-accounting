@@ -42,6 +42,7 @@ export interface PaymentData {
   payhere_payment_id?: string;
   transactionId?: string;
   notes?: string;
+  targetMonth?: string; // New field
 }
 
 // --- SERVICE ---
@@ -73,25 +74,27 @@ const PaymentService = {
    * 3. Submit a Bank Transfer Slip
    * Endpoint: POST /api/v1/payments/upload-slip
    */
-  uploadPaymentSlip: async (enrollmentId: string, file: File, amount: number, notes?: string) => {
+  uploadPaymentSlip: async (
+    enrollmentId: string, 
+    file: File, 
+    amount: number, 
+    notes?: string,
+    targetMonth?: string // <--- NEW ARGUMENT
+  ) => {
     const formData = new FormData();
     formData.append("enrollmentId", enrollmentId);
-    
-
     formData.append("amount", amount.toString());
-
-    
-    // IMPORTANT: 'slip' must match the field name in your backend UploadMiddleware
-    formData.append("slip", file); 
+    formData.append("slip", file);
     
     if (notes) formData.append("notes", notes);
+    
+    // --- NEW: Append Target Month ---
+    if (targetMonth) formData.append("targetMonth", targetMonth);
 
     const response = await api.post<{ success: boolean; payment: PaymentData }>(
       `${BASE_URL}/upload-slip`, 
       formData, 
       {
-        // Force browser to set Content-Type to multipart/form-data with boundary
-        // We set it to undefined so Axios/Browser auto-generates the boundary
         headers: {
           "Content-Type": "multipart/form-data" 
         }
@@ -128,7 +131,7 @@ const PaymentService = {
    * 6. Create Manual Payment (Admin Only)
    * Endpoint: POST /api/v1/payments
    */
-  createManualPayment: async (data: { enrollment: string; amount: number; transactionId?: string; notes?: string }) => {
+  createManualPayment: async (data: { enrollment: string; amount: number; transactionId?: string; notes?: string; targetMonth?: string }) => {
     const response = await api.post<{ success: boolean; payment: PaymentData }>(
       BASE_URL, 
       data
