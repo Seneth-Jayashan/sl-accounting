@@ -1,25 +1,9 @@
 import { z } from "zod";
 
-// --- HELPERS ---
-
-// Sharp Helper: Only parses if it's actually a string
-const jsonString = (schema) =>
-  z.preprocess((val) => {
-    if (typeof val === "string") {
-      try {
-        return JSON.parse(val);
-      } catch (e) {
-        return val; // Let Zod handle the type error
-      }
-    }
-    return val; // It's already an object/array, return as is
-  }, schema);
-
+const jsonString = (schema) => z.preprocess((val) => typeof val === "string" ? JSON.parse(val) : val, schema);
 const numeric = () => z.number().or(z.string().transform((val) => Number(val)));
 const boolean = () => z.boolean().or(z.string().transform((val) => val === "true"));
 const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");
-
-// --- SCHEMAS ---
 
 const timeScheduleSchema = z.object({
   day: numeric().pipe(z.number().int().min(0).max(6)),
@@ -40,25 +24,36 @@ export const createClassSchema = z.object({
     price: numeric().pipe(z.number().min(0)),
     level: z.enum(["general", "ordinary", "advanced"]).optional(),
     type: z.enum(["theory", "revision", "paper"]).optional(),
-    batch: objectIdSchema.optional().nullable(), // Allow null for independent classes
+    batch: objectIdSchema.optional().nullable(),
     tags: jsonString(z.array(z.string().trim()).optional()),
     isPublished: boolean().optional(),
-    autoCreateVariants: boolean().optional(),
-    revisionDay: numeric().pipe(z.number().min(0).max(6)).optional(),
-    revisionStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
-    revisionEndTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
-    revisionPrice: numeric().pipe(z.number().min(0)).optional(),
-    paperDay: numeric().pipe(z.number().min(0).max(6)).optional(),
-    paperStartTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
-    paperEndTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(),
-    paperPrice: numeric().pipe(z.number().min(0)).optional(),
+    
+    // Linking
+    parentTheoryClass: objectIdSchema.optional(), // <--- NEW
+
+    // Variants Flags
+    createRevision: boolean().optional(),
+    createPaper: boolean().optional(),
+
+    // Variants Config
+    revisionDay: numeric().optional(),
+    revisionStartTime: z.string().optional(),
+    revisionEndTime: z.string().optional(),
+    revisionPrice: numeric().optional(),
+    
+    paperDay: numeric().optional(),
+    paperStartTime: z.string().optional(),
+    paperEndTime: z.string().optional(),
+    paperPrice: numeric().optional(),
+
+    bundlePriceRevision: numeric().optional(),
+    bundlePricePaper: numeric().optional(),
+    bundlePriceFull: numeric().optional(),
   }),
 });
 
 export const updateClassSchema = z.object({
-  params: z.object({
-    classId: objectIdSchema,
-  }),
+  params: z.object({ classId: objectIdSchema }),
   body: createClassSchema.shape.body.partial().extend({
     isActive: boolean().optional(),
     isPublished: boolean().optional(),
@@ -67,44 +62,20 @@ export const updateClassSchema = z.object({
 });
 
 export const classIdSchema = z.object({
-  params: z.object({
-    classId: objectIdSchema,
-  }),
+  params: z.object({ classId: objectIdSchema }),
 });
-
-// --- MIDDLEWARE ---
 
 export const validate = (schema) => (req, res, next) => {
   try {
-    const parsed = schema.parse({
-      body: req.body,
-      query: req.query,
-      params: req.params,
-    });
-
-    // Safely assign parsed data back to request
-    // Note: We use Object.assign for query/params to avoid breaking Express internals
+    const parsed = schema.parse({ body: req.body, query: req.query, params: req.params });
     if (parsed.body) req.body = parsed.body;
     if (parsed.params) Object.assign(req.params, parsed.params);
     if (parsed.query) Object.assign(req.query, parsed.query);
-
     return next();
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // Format errors nicely
-      const formattedErrors = error.errors.map(e => ({
-        field: e.path.join('.'),
-        message: e.message
-      }));
-
-      return res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: formattedErrors,
-      });
+      return res.status(400).json({ success: false, message: "Validation Error", errors: error.errors });
     }
-
-    console.error("Validation Middleware Error:", error);
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

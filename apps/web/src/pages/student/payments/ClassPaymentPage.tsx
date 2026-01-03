@@ -16,6 +16,7 @@ import {
   CheckCircleIcon,
   CalendarDaysIcon,
   LockClosedIcon,
+  TagIcon
 } from "@heroicons/react/24/outline";
 
 // Services & Context
@@ -40,6 +41,10 @@ interface ClassData {
   firstSessionDate?: string; 
   linkedRevisionClass?: LinkedClass;
   linkedPaperClass?: LinkedClass;
+  // Bundle Prices
+  bundlePriceRevision?: number;
+  bundlePricePaper?: number;
+  bundlePriceFull?: number;
 }
 
 export default function ClassPaymentPage() {
@@ -93,15 +98,14 @@ export default function ClassPaymentPage() {
     loadData();
   }, [classId, user]);
 
-  // --- 2. Generate Month Grid (FIXED) ---
+  // --- 2. Generate Month Grid (Past & Future Logic) ---
   const monthList = useMemo(() => {
       // 1. Get Today
       const today = startOfMonth(new Date());
       
-      // 2. Define Range: STRICTLY -3 months to +3 months (Total 7 months)
-      // We removed the 'firstSessionDate' check so it always shows history
-      const start = subMonths(today, 3); 
-      const end = addMonths(today, 3);
+      // 2. Define Range: STRICTLY -6 months to +12 months
+      const start = subMonths(today, 6); 
+      const end = addMonths(today, 12);
 
       try {
           const months = eachMonthOfInterval({ start, end });
@@ -109,8 +113,8 @@ export default function ClassPaymentPage() {
           return months.map(date => {
               const value = format(date, "yyyy-MM");
               const isPaid = paidMonths.includes(value);
-              const isPast = isBefore(date, today); // Before current month
-              const isFuture = isAfter(date, today); // After current month
+              const isPast = isBefore(date, today); 
+              const isFuture = isAfter(date, today); 
 
               let status: "paid" | "overdue" | "due" | "advance" = "due";
               
@@ -128,21 +132,52 @@ export default function ClassPaymentPage() {
                   shortLabel: format(date, "MMM ''yy"),
                   status
               };
-          }).reverse(); // Show Future at top, Past at bottom
+          }).reverse(); // Show Future at top
       } catch (e) {
           console.error("Date interval error", e);
           return [];
       }
-  }, [paidMonths]); // Removed classData dependency as we calculate strictly from today
+  }, [paidMonths]);
 
-  // --- 3. Calculate Total ---
+  // --- 3. Calculate Total (BUNDLE LOGIC) ---
   const totalAmount = useMemo(() => {
       if (!classData) return 0;
+
+      // 1. Full Bundle (Rev + Paper)
+      if (includeRevision && includePaper && classData.bundlePriceFull != null) {
+          return classData.bundlePriceFull;
+      }
+
+      // 2. Theory + Revision Bundle
+      if (includeRevision && !includePaper && classData.bundlePriceRevision != null) {
+          return classData.bundlePriceRevision;
+      }
+
+      // 3. Theory + Paper Bundle
+      if (!includeRevision && includePaper && classData.bundlePricePaper != null) {
+          return classData.bundlePricePaper;
+      }
+
+      // 4. Fallback: Sum Individual Prices
       let total = classData.price;
-      if (includeRevision && classData.linkedRevisionClass) total += classData.linkedRevisionClass.price;
-      if (includePaper && classData.linkedPaperClass) total += classData.linkedPaperClass.price;
+      if (includeRevision && classData.linkedRevisionClass) {
+          total += classData.linkedRevisionClass.price;
+      }
+      if (includePaper && classData.linkedPaperClass) {
+          total += classData.linkedPaperClass.price;
+      }
       return total;
   }, [classData, includeRevision, includePaper]);
+
+  // Check Discount
+  const isDiscountApplied = useMemo(() => {
+      if (!classData) return false;
+      let standardSum = classData.price;
+      if (includeRevision && classData.linkedRevisionClass) standardSum += classData.linkedRevisionClass.price;
+      if (includePaper && classData.linkedPaperClass) standardSum += classData.linkedPaperClass.price;
+      
+      return totalAmount < standardSum;
+  }, [totalAmount, classData, includeRevision, includePaper]);
 
   const formatPrice = (price: number) => 
     new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(price);
@@ -158,7 +193,9 @@ export default function ClassPaymentPage() {
               includeRevision, includePaper
           });
 
-          const finalAmount = totalAmount; 
+          // Use the server amount if possible, but fallback to local calculation for immediate UI flow
+          // (Server will validate price again on webhook/upload)
+          const finalAmount = enrollmentRes.totalAmount || totalAmount; 
           const enrollmentId = enrollmentRes.enrollment._id;
 
           if (paymentMethod === "bank") {
@@ -361,6 +398,14 @@ export default function ClassPaymentPage() {
                                 <span>{formatPrice(classData.linkedPaperClass.price)}</span>
                             </div>
                         )}
+                        
+                        {/* Discount Badge */}
+                        {isDiscountApplied && classData && (
+                           <div className="flex justify-between text-xs sm:text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
+                              <span className="font-bold flex items-center gap-1"><TagIcon className="w-3 h-3" /> Bundle Savings</span>
+                              <span className="font-bold">- {formatPrice((classData.price + (includeRevision && classData.linkedRevisionClass ? classData.linkedRevisionClass.price : 0) + (includePaper && classData.linkedPaperClass ? classData.linkedPaperClass.price : 0)) - totalAmount)}</span>
+                           </div>
+                       )}
                     </div>
 
                     <div className="flex justify-between items-end mb-8">

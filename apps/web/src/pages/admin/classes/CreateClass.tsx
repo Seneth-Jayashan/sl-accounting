@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import ClassService, { type CreateClassPayload } from "../../../services/ClassService";
 import BatchService from "../../../services/BatchService";
 import {
@@ -10,12 +10,15 @@ import {
   CurrencyDollarIcon,
   ClockIcon,
   AcademicCapIcon,
-  CheckCircleIcon,
   InformationCircleIcon,
-  HashtagIcon,
-  CalendarDaysIcon 
+  TagIcon,
+  SparklesIcon,
+  EyeIcon,
+  XMarkIcon,
+  LinkIcon
 } from "@heroicons/react/24/outline";
 
+// --- CONSTANTS ---
 const DAY_INDEX: Record<string, number> = {
   Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6,
 };
@@ -23,9 +26,10 @@ const DAY_INDEX: Record<string, number> = {
 const INITIAL_FORM = {
   name: "",
   description: "",
-  price: "2000",
+  price: "",
   batch: "",
-  type: "theory",
+  type: "theory", // theory | revision | paper
+  parentTheoryClass: "", // For linking
   day: "Saturday",
   startTime: "08:00",
   endTime: "10:00",
@@ -36,43 +40,56 @@ const INITIAL_FORM = {
   level: "advanced",
   tags: "",
   
-  autoCreateVariants: false,
-  // Revision Details
+  createRevision: false,
+  createPaper: false,
+
   revisionDay: "Sunday",
   revisionStartTime: "08:00",
   revisionEndTime: "10:00",
   revisionPrice: "",
 
-  // Paper Details
   paperDay: "Sunday",
   paperStartTime: "13:00",
   paperEndTime: "15:00",
   paperPrice: "",
+
+  bundlePriceRevision: "",
+  bundlePricePaper: "",
+  bundlePriceFull: "",
 };
 
 export default function CreateClassPage() {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
   const [batches, setBatches] = useState<any[]>([]);
+  const [theoryClasses, setTheoryClasses] = useState<any[]>([]); // <--- List of parents
   const [loadingBatches, setLoadingBatches] = useState(true);
+  
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const fetchBatches = useCallback(async () => {
+  // Fetch Batches & Theory Classes
+  const fetchData = useCallback(async () => {
     try {
       setLoadingBatches(true);
-      const data = await BatchService.getAllBatches(true);
-      setBatches(data.batches || []);
+      const [batchData, theories] = await Promise.all([
+          BatchService.getAllBatches(true),
+          ClassService.getTheoryClasses()
+      ]);
+      setBatches(batchData.batches || []);
+      setTheoryClasses(theories || []);
     } catch (err) {
-      setError("System was unable to load intake batches.");
+      setError("System was unable to load initial data.");
     } finally {
       setLoadingBatches(false);
     }
   }, []);
 
-  useEffect(() => { fetchBatches(); }, [fetchBatches]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
     return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
@@ -80,7 +97,6 @@ export default function CreateClassPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    // Handle Checkbox
     if (e.target.type === 'checkbox') {
         const checked = (e.target as HTMLInputElement).checked;
         setFormData(prev => ({ ...prev, [name]: checked }));
@@ -92,45 +108,42 @@ export default function CreateClassPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) return setError("Invalid format. Use JPG, PNG or WebP.");
     if (file.size > 5 * 1024 * 1024) return setError("File too large. Max 5MB allowed.");
-
     setSelectedImage(file);
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(URL.createObjectURL(file));
     setError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // 1. Basic Validation
+    // Validation
     if (moment(formData.startTime, "HH:mm").isSameOrAfter(moment(formData.endTime, "HH:mm"))) {
-      return setError("Theory Class: End time must be later than start time.");
+      return setError("End time must be later than start time.");
+    }
+    
+    // Link Validation
+    if ((formData.type === 'revision' || formData.type === 'paper') && !formData.parentTheoryClass) {
+        return setError("Please select a Parent Theory Class to link this module to.");
     }
 
-    const dateDay = moment(formData.firstSessionDate).format("dddd");
-    if (formData.firstSessionDate && dateDay !== formData.day) {
-      return setError(`Date conflict: ${formData.firstSessionDate} is a ${dateDay}, but you selected ${formData.day}.`);
-    }
-
-    // 2. Variants Validation (if checked)
-    if (formData.autoCreateVariants && formData.type === 'theory') {
-        if (moment(formData.revisionStartTime, "HH:mm").isSameOrAfter(moment(formData.revisionEndTime, "HH:mm"))) {
+    if (formData.type === 'theory') {
+        if (formData.createRevision && moment(formData.revisionStartTime, "HH:mm").isSameOrAfter(moment(formData.revisionEndTime, "HH:mm"))) {
             return setError("Revision Class: End time must be later than start time.");
         }
-        if (moment(formData.paperStartTime, "HH:mm").isSameOrAfter(moment(formData.paperEndTime, "HH:mm"))) {
+        if (formData.createPaper && moment(formData.paperStartTime, "HH:mm").isSameOrAfter(moment(formData.paperEndTime, "HH:mm"))) {
             return setError("Paper Class: End time must be later than start time.");
-        }
-        // Optional: Check for obvious overlaps (Basic check)
-        if(formData.revisionDay === formData.paperDay && formData.revisionStartTime === formData.paperStartTime) {
-             return setError("Revision and Paper classes cannot start at the exact same time on the same day.");
         }
     }
 
+    setShowPreview(true);
+  };
+
+  const handleFinalSubmit = async () => {
     setIsSaving(true);
     try {
       const payload: CreateClassPayload = {
@@ -153,54 +166,61 @@ export default function CreateClassPage() {
         tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
         coverImage: selectedImage || null,
         
-        // --- NEW FIELDS IN PAYLOAD ---
-        autoCreateVariants: formData.autoCreateVariants,
-        revisionDay: formData.autoCreateVariants ? DAY_INDEX[formData.revisionDay] : undefined,
-        revisionStartTime: formData.autoCreateVariants ? formData.revisionStartTime : undefined,
-        revisionEndTime: formData.autoCreateVariants ? formData.revisionEndTime : undefined,
-        revisionPrice: formData.autoCreateVariants ? Number(formData.revisionPrice) : undefined,
-        
-        paperDay: formData.autoCreateVariants ? DAY_INDEX[formData.paperDay] : undefined,
-        paperStartTime: formData.autoCreateVariants ? formData.paperStartTime : undefined,
-        paperEndTime: formData.autoCreateVariants ? formData.paperEndTime : undefined,
-        paperPrice: formData.autoCreateVariants ? Number(formData.paperPrice) : undefined,
+        parentTheoryClass: (formData.type !== 'theory' && formData.parentTheoryClass) ? formData.parentTheoryClass : undefined,
 
+        // Only send these if type is 'theory'
+        createRevision: formData.type === 'theory' ? formData.createRevision : undefined,
+        createPaper: formData.type === 'theory' ? formData.createPaper : undefined,
+
+        revisionDay: (formData.type === 'theory' && formData.createRevision) ? DAY_INDEX[formData.revisionDay] : undefined,
+        revisionStartTime: (formData.type === 'theory' && formData.createRevision) ? formData.revisionStartTime : undefined,
+        revisionEndTime: (formData.type === 'theory' && formData.createRevision) ? formData.revisionEndTime : undefined,
+        revisionPrice: (formData.type === 'theory' && formData.createRevision) ? Number(formData.revisionPrice) : undefined,
+        
+        paperDay: (formData.type === 'theory' && formData.createPaper) ? DAY_INDEX[formData.paperDay] : undefined,
+        paperStartTime: (formData.type === 'theory' && formData.createPaper) ? formData.paperStartTime : undefined,
+        paperEndTime: (formData.type === 'theory' && formData.createPaper) ? formData.paperEndTime : undefined,
+        paperPrice: (formData.type === 'theory' && formData.createPaper) ? Number(formData.paperPrice) : undefined,
+
+        bundlePriceRevision: (formData.type === 'theory' && formData.createRevision) ? Number(formData.bundlePriceRevision) : undefined,
+        bundlePricePaper: (formData.type === 'theory' && formData.createPaper) ? Number(formData.bundlePricePaper) : undefined,
+        bundlePriceFull: (formData.type === 'theory' && formData.createRevision && formData.createPaper) ? Number(formData.bundlePriceFull) : undefined,
       };
 
       await ClassService.createClass(payload);
       navigate("/admin/classes");
     } catch (err: any) {
       setError(err?.response?.data?.message || "Internal server error occurred.");
+      setShowPreview(false);
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-      <div className="max-w-4xl mx-auto space-y-6 pb-28 md:pb-24">
+      <div className="max-w-3xl mx-auto space-y-8 pb-32 font-sans px-4 sm:px-6">
         
-        {/* Header */}
-        <header className="space-y-2 px-1">
-          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] md:text-xs font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-[0.2em]">
-            <ArrowLeftIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 stroke-[3px]" /> Back to Curriculum
+        <header className="flex flex-col gap-2 pt-6 border-b border-gray-100 pb-6">
+          <button onClick={() => navigate(-1)} className="w-fit flex items-center text-xs font-bold text-gray-400 hover:text-brand-cerulean transition-colors uppercase tracking-widest">
+            <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Back to Curriculum
           </button>
-          <h1 className="text-xl md:text-2xl font-semibold text-brand-prussian tracking-tight">Create Academic Module</h1>
+          <h1 className="text-3xl font-bold text-brand-prussian tracking-tight">Create Module</h1>
+          <p className="text-gray-500 text-sm">Configure a new academic module, set schedules, and define bundling options.</p>
         </header>
 
         {error && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-xs font-medium flex items-center gap-2">
-            <InformationCircleIcon className="w-4 h-4 shrink-0" /> {error}
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border border-red-100 text-red-600 px-5 py-4 rounded-2xl text-sm font-medium flex items-center gap-3 shadow-sm">
+            <InformationCircleIcon className="w-5 h-5 shrink-0" /> {error}
           </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          <div className="lg:col-span-2 space-y-6">
+        <form onSubmit={handlePreSubmit} className="space-y-8">
+            
             <Section title="Module Identity" icon={<AcademicCapIcon className="w-5 h-5"/>}>
-              <div className="space-y-4">
-                <Input label="Module Name" name="name" value={formData.name} onChange={handleChange} required placeholder="e.g. Revision: Financial Accounting" />
+              <div className="grid gap-5">
+                <Input label="Module Name" name="name" value={formData.name} onChange={handleChange} required placeholder="e.g. 2026 Advanced Level Accounting" />
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <Select label="Module Type" name="type" value={formData.type} onChange={handleChange}>
                     <option value="theory">Theory Class</option>
                     <option value="revision">Revision Class</option>
@@ -209,225 +229,302 @@ export default function CreateClassPage() {
                   <Select label="Academic Level" name="level" value={formData.level} onChange={handleChange}>
                     <option value="advanced">Advanced Level</option>
                     <option value="ordinary">Ordinary Level</option>
-                    <option value="general">General</option>
+                    <option value="general">General Education</option>
                   </Select>
                 </div>
 
-                {/* --- AUTO CREATE CHECKBOX --- */}
-                {formData.type === "theory" && (
-                    <div className="flex items-start gap-3 p-4 bg-blue-50/50 rounded-xl border border-blue-100 transition-all">
-                        <div className="flex items-center h-5">
-                            <input
-                                id="autoCreateVariants"
-                                name="autoCreateVariants"
-                                type="checkbox"
-                                checked={formData.autoCreateVariants}
-                                onChange={handleChange}
-                                className="w-4 h-4 text-brand-cerulean border-gray-300 rounded focus:ring-brand-cerulean cursor-pointer"
-                            />
-                        </div>
-                        <div className="ml-1">
-                            <label htmlFor="autoCreateVariants" className="text-sm font-bold text-brand-prussian cursor-pointer select-none">
-                                Auto-create Revision & Paper Classes
-                            </label>
-                            <p className="text-gray-500 text-[11px] mt-1 leading-snug">
-                                Enable this to automatically generate "Revision" and "Paper" classes linked to this Theory class.
-                            </p>
-                        </div>
-                    </div>
+                {/* --- CONDITIONAL PARENT SELECTOR --- */}
+                {formData.type !== 'theory' && (
+                    <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <Select label={`Link to Parent Theory Class`} name="parentTheoryClass" value={formData.parentTheoryClass} onChange={handleChange} required className="bg-white border-blue-200">
+                            <option value="">-- Select Parent Theory Class --</option>
+                            {theoryClasses.map(cls => (
+                                <option key={cls._id} value={cls._id}>
+                                    {cls.name} {cls.batch?.name ? `(${cls.batch.name})` : ''}
+                                </option>
+                            ))}
+                        </Select>
+                        <p className="text-[11px] text-blue-600 mt-2 flex items-center gap-1">
+                            <LinkIcon className="w-3 h-3"/> This {formData.type} class will be linked to the selected Theory class.
+                        </p>
+                    </motion.div>
                 )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select label="Assigned Batch" name="batch" value={formData.batch} onChange={handleChange} required>
-                    <option value="">{loadingBatches ? "Syncing..." : "Select Batch"}</option>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Select label="Batch / Intake" name="batch" value={formData.batch} onChange={handleChange} required>
+                    <option value="">{loadingBatches ? "Loading..." : "Select Batch"}</option>
                     {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
                   </Select>
-                  <Input label="Tags (SEO)" name="tags" value={formData.tags} onChange={handleChange} placeholder="comma, separated" />
+                  <Input label="Search Tags" name="tags" value={formData.tags} onChange={handleChange} placeholder="Comma separated keywords" />
                 </div>
-                <Textarea label="Public Description" name="description" value={formData.description} onChange={handleChange} required rows={3} />
+
+                <Textarea label="Description" name="description" value={formData.description} onChange={handleChange} required rows={4} placeholder="Detailed description of the curriculum..." />
               </div>
             </Section>
 
-            {/* --- PRIMARY SCHEDULE --- */}
-            <Section title="Logistics & Pricing" icon={<ClockIcon className="w-5 h-5"/>}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="relative">
-                  <Input label="Tuition Fee (LKR)" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="0.00" />
-                  <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
-                </div>
-                
-                {/* Primary Day/Time */}
-                <div className="sm:col-span-2 grid grid-cols-3 gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                    <div className="col-span-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Theory Schedule (Primary)</div>
-                    <Select label="Day" name="day" value={formData.day} onChange={handleChange} className="bg-white">
-                        {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
-                    </Select>
-                    <Input label="Start" name="startTime" type="time" value={formData.startTime} onChange={handleChange} className="bg-white" />
-                    <Input label="End" name="endTime" type="time" value={formData.endTime} onChange={handleChange} className="bg-white" />
-                </div>
-
-                <div className="relative">
-                    <Input label="Total Sessions" name="totalSessions" type="number" value={formData.totalSessions} onChange={handleChange} />
-                    <HashtagIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
-                </div>
-                <div className="relative">
-                    <Input label="Duration (Mins)" name="sessionDurationMinutes" type="number" value={formData.sessionDurationMinutes} onChange={handleChange} />
-                    <ClockIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
-                </div>
-
-                <Input label="Commencement Date" name="firstSessionDate" type="date" value={formData.firstSessionDate} onChange={handleChange} />
-                <Select label="Recurrence" name="recurrence" value={formData.recurrence} onChange={handleChange}>
-                  <option value="weekly">Every Week</option>
-                  <option value="daily">Daily</option>
-                  <option value="none">One-time Event</option>
-                </Select>
-              </div>
-            </Section>
-
-            {/* --- VARIANT SCHEDULES (CONDITIONAL) --- */}
-            {formData.autoCreateVariants && formData.type === 'theory' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <Section title="Variant Details" icon={<CalendarDaysIcon className="w-5 h-5"/>}>
-                        <div className="space-y-6">
-                            
-                            {/* --- REVISION BLOCK --- */}
-                            <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Revision Class</span>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    {/* Price Input */}
-                                    <div className="relative">
-                                        <Input 
-                                            label="Revision Fee (LKR)" 
-                                            name="revisionPrice" 
-                                            type="number" 
-                                            value={formData.revisionPrice} 
-                                            onChange={handleChange} 
-                                            placeholder={formData.price} // Show Theory price as hint
-                                            className="bg-white border-indigo-100 focus:border-indigo-300"
-                                        />
-                                        <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
-                                    </div>
-
-                                    {/* Schedule Inputs */}
-                                    <Select label="Day" name="revisionDay" value={formData.revisionDay} onChange={handleChange} className="bg-white border-indigo-100">
-                                        {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
-                                    </Select>
-                                    <div className="flex gap-2">
-                                        <Input label="Start" name="revisionStartTime" type="time" value={formData.revisionStartTime} onChange={handleChange} className="bg-white border-indigo-100" />
-                                        <Input label="End" name="revisionEndTime" type="time" value={formData.revisionEndTime} onChange={handleChange} className="bg-white border-indigo-100" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* --- PAPER BLOCK --- */}
-                            <div className="p-4 bg-orange-50/50 rounded-xl border border-orange-100 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Paper Class</span>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    {/* Price Input */}
-                                    <div className="relative">
-                                        <Input 
-                                            label="Paper Fee (LKR)" 
-                                            name="paperPrice" 
-                                            type="number" 
-                                            value={formData.paperPrice} 
-                                            onChange={handleChange} 
-                                            placeholder={formData.price} // Show Theory price as hint
-                                            className="bg-white border-orange-100 focus:border-orange-300"
-                                        />
-                                        <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-300" />
-                                    </div>
-
-                                    {/* Schedule Inputs */}
-                                    <Select label="Day" name="paperDay" value={formData.paperDay} onChange={handleChange} className="bg-white border-orange-100">
-                                        {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
-                                    </Select>
-                                    <div className="flex gap-2">
-                                        <Input label="Start" name="paperStartTime" type="time" value={formData.paperStartTime} onChange={handleChange} className="bg-white border-orange-100" />
-                                        <Input label="End" name="paperEndTime" type="time" value={formData.paperEndTime} onChange={handleChange} className="bg-white border-orange-100" />
-                                    </div>
-                                </div>
-                            </div>
-
+            <Section title="Schedule & Pricing" icon={<ClockIcon className="w-5 h-5"/>}>
+                <div className="space-y-5">
+                    <div className="bg-brand-aliceBlue/30 border border-brand-aliceBlue p-5 rounded-2xl">
+                        <div className="text-xs font-bold text-brand-prussian uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-brand-cerulean"></span> Primary Schedule
                         </div>
-                    </Section>
-                </motion.div>
-            )}
-          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Select label="Day" name="day" value={formData.day} onChange={handleChange} className="bg-white">
+                                {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
+                            </Select>
+                            <Input label="Start Time" name="startTime" type="time" value={formData.startTime} onChange={handleChange} className="bg-white" />
+                            <Input label="End Time" name="endTime" type="time" value={formData.endTime} onChange={handleChange} className="bg-white" />
+                        </div>
+                    </div>
 
-          <div className="space-y-6">
-            <Section title="Cover Media" icon={<PhotoIcon className="w-5 h-5"/>}>
-               {/* ... (Keep Image upload same as before) ... */}
-               <div className="group relative aspect-video bg-brand-aliceBlue/50 rounded-xl border border-dashed border-gray-200 overflow-hidden hover:border-brand-cerulean transition-all cursor-pointer">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                        <div className="relative">
+                            <Input label="Tuition Fee (LKR)" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="0.00" />
+                            <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-400 pointer-events-none" />
+                        </div>
+                        <Input label="Sessions Count" name="totalSessions" type="number" value={formData.totalSessions} onChange={handleChange} />
+                        <Input label="Duration (Mins)" name="sessionDurationMinutes" type="number" value={formData.sessionDurationMinutes} onChange={handleChange} />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <Input label="Start Date" name="firstSessionDate" type="date" value={formData.firstSessionDate} onChange={handleChange} />
+                        <Select label="Recurrence" name="recurrence" value={formData.recurrence} onChange={handleChange}>
+                            <option value="weekly">Weekly</option>
+                            <option value="daily">Daily</option>
+                            <option value="none">One-time</option>
+                        </Select>
+                    </div>
+                </div>
+            </Section>
+
+            {/* Media */}
+            <Section title="Cover Image" icon={<PhotoIcon className="w-5 h-5"/>}>
+              <div className="group relative aspect-[16/5] bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 hover:border-brand-cerulean transition-all cursor-pointer overflow-hidden flex flex-col items-center justify-center text-center p-6">
                 {imagePreview ? (
-                  <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                  <>
+                    <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover" alt="Preview" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium text-xs backdrop-blur-sm">Click to Change</div>
+                  </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                    <PhotoIcon className="w-8 h-8 text-gray-300 mb-2" />
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Upload Banner</span>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center text-gray-400 group-hover:text-brand-cerulean transition-colors"><PhotoIcon className="w-5 h-5" /></div>
+                    <span className="text-xs font-bold text-gray-500">Upload Cover Banner</span>
                   </div>
                 )}
                 <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
               </div>
             </Section>
 
-            {/* Desktop Actions */}
-            <div className="hidden lg:flex flex-col gap-2">
-              <button type="submit" disabled={isSaving} className="w-full bg-brand-prussian hover:bg-brand-cerulean text-white py-3.5 rounded-xl text-sm font-semibold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
-                {isSaving ? "Creating..." : <><CheckCircleIcon className="w-4 h-4" /> Initialize Module</>}
-              </button>
-              <button type="button" onClick={() => navigate(-1)} className="w-full bg-white border border-gray-100 text-gray-400 py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all">
-                Cancel
-              </button>
-            </div>
-          </div>
+            {/* --- VARIANTS & BUNDLES (ONLY FOR THEORY) --- */}
+            {formData.type === 'theory' && (
+                <div className="space-y-6 pt-4 border-t border-gray-100">
+                    <h3 className="text-lg font-bold text-brand-prussian">Auto-Generate Linked Classes</h3>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label className={`flex items-start gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all ${formData.createRevision ? "border-indigo-400 bg-indigo-50/50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                            <input type="checkbox" className="mt-1 w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-600" name="createRevision" checked={formData.createRevision} onChange={handleChange} />
+                            <div>
+                                <span className="block text-sm font-bold text-gray-900">Include Revision</span>
+                                <span className="text-xs text-gray-500">Create a linked revision class</span>
+                            </div>
+                        </label>
 
-          {/* Sticky Mobile Actions */}
-          <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-100 lg:hidden flex gap-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-             {/* ... Keep same ... */}
-             <button type="button" onClick={() => navigate(-1)} className="flex-1 py-3.5 rounded-xl text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100">Cancel</button>
-             <button type="submit" disabled={isSaving} className="flex-[2] bg-brand-prussian hover:bg-brand-cerulean text-white py-3.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
-               {isSaving ? "Creating..." : "Create Module"}
-             </button>
-          </div>
+                        <label className={`flex items-start gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all ${formData.createPaper ? "border-orange-400 bg-orange-50/50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                            <input type="checkbox" className="mt-1 w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-600" name="createPaper" checked={formData.createPaper} onChange={handleChange} />
+                            <div>
+                                <span className="block text-sm font-bold text-gray-900">Include Paper Class</span>
+                                <span className="text-xs text-gray-500">Create a linked paper discussion</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <AnimatePresence>
+                        {(formData.createRevision || formData.createPaper) && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-8 overflow-hidden">
+                                
+                                <Section title="Linked Schedules" icon={<SparklesIcon className="w-5 h-5"/>}>
+                                    <div className="space-y-6">
+                                        {/* Revision Config */}
+                                        {formData.createRevision && (
+                                            <div className="p-5 rounded-2xl bg-indigo-50/40 border border-indigo-100">
+                                                <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-widest mb-4">Revision Details</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div className="relative">
+                                                        <Input label="Revision Fee" name="revisionPrice" type="number" value={formData.revisionPrice} onChange={handleChange} placeholder={formData.price} className="bg-white border-indigo-200 focus:border-indigo-400" />
+                                                        <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                    </div>
+                                                    <div className="md:col-span-2 grid grid-cols-3 gap-3">
+                                                        <Select label="Day" name="revisionDay" value={formData.revisionDay} onChange={handleChange} className="bg-white border-indigo-200">
+                                                            {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
+                                                        </Select>
+                                                        <Input label="Start" name="revisionStartTime" type="time" value={formData.revisionStartTime} onChange={handleChange} className="bg-white border-indigo-200" />
+                                                        <Input label="End" name="revisionEndTime" type="time" value={formData.revisionEndTime} onChange={handleChange} className="bg-white border-indigo-200" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Paper Config */}
+                                        {formData.createPaper && (
+                                            <div className="p-5 rounded-2xl bg-orange-50/40 border border-orange-100">
+                                                <h3 className="text-xs font-bold text-orange-900 uppercase tracking-widest mb-4">Paper Class Details</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div className="relative">
+                                                        <Input label="Paper Fee" name="paperPrice" type="number" value={formData.paperPrice} onChange={handleChange} placeholder={formData.price} className="bg-white border-orange-200 focus:border-orange-400" />
+                                                        <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                    </div>
+                                                    <div className="md:col-span-2 grid grid-cols-3 gap-3">
+                                                        <Select label="Day" name="paperDay" value={formData.paperDay} onChange={handleChange} className="bg-white border-orange-200">
+                                                            {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
+                                                        </Select>
+                                                        <Input label="Start" name="paperStartTime" type="time" value={formData.paperStartTime} onChange={handleChange} className="bg-white border-orange-200" />
+                                                        <Input label="End" name="paperEndTime" type="time" value={formData.paperEndTime} onChange={handleChange} className="bg-white border-orange-200" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </Section>
+
+                                {/* Bundle Pricing */}
+                                <Section title="Bundle Offers" icon={<TagIcon className="w-5 h-5"/>}>
+                                    <div className="p-5 rounded-2xl bg-green-50/40 border border-green-100">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-xs font-bold text-green-800 uppercase tracking-widest">Package Pricing</h3>
+                                            <span className="text-[10px] text-green-600 font-medium bg-green-100 px-2 py-1 rounded-md">Optional</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                                            {/* Theory + Revision */}
+                                            {formData.createRevision && (
+                                                <div className="relative">
+                                                    <Input label="Theory + Revision" name="bundlePriceRevision" type="number" value={formData.bundlePriceRevision} onChange={handleChange} placeholder={(Number(formData.price) + Number(formData.revisionPrice || 0)).toString()} className="bg-white border-green-200 focus:border-green-400"/>
+                                                    <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                </div>
+                                            )}
+                                            {/* Theory + Paper */}
+                                            {formData.createPaper && (
+                                                <div className="relative">
+                                                    <Input label="Theory + Paper" name="bundlePricePaper" type="number" value={formData.bundlePricePaper} onChange={handleChange} placeholder={(Number(formData.price) + Number(formData.paperPrice || 0)).toString()} className="bg-white border-green-200 focus:border-green-400"/>
+                                                    <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                </div>
+                                            )}
+                                            {/* Full Bundle */}
+                                            {(formData.createRevision && formData.createPaper) && (
+                                                <div className="relative">
+                                                    <Input label="Full Bundle (All 3)" name="bundlePriceFull" type="number" value={formData.bundlePriceFull} onChange={handleChange} placeholder={(Number(formData.price) + Number(formData.revisionPrice || 0) + Number(formData.paperPrice || 0)).toString()} className="bg-white border-green-200 focus:border-green-400 font-bold text-green-800"/>
+                                                    <CurrencyDollarIcon className="absolute right-4 top-9 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Section>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-6 border-t border-gray-100">
+                <button type="button" onClick={() => navigate(-1)} className="flex-1 py-4 rounded-xl text-sm font-bold text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
+                <button type="submit" className="flex-[2] bg-brand-prussian hover:bg-brand-cerulean text-white py-4 rounded-xl text-sm font-bold transition-all shadow-lg shadow-brand-prussian/20 flex items-center justify-center gap-2 active:scale-95">
+                    Review & Create <EyeIcon className="w-4 h-4" />
+                </button>
+            </div>
 
         </form>
+
+        {/* --- CONFIRMATION MODAL --- */}
+        <AnimatePresence>
+            {showPreview && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <motion.div 
+                        initial={{ scale: 0.95, y: 10 }} 
+                        animate={{ scale: 1, y: 0 }} 
+                        exit={{ scale: 0.95, y: 10 }} 
+                        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100"
+                    >
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="text-lg font-bold text-brand-prussian">Confirm Details</h3>
+                            <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-200 rounded-full text-gray-500"><XMarkIcon className="w-5 h-5"/></button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            <div className="bg-brand-aliceBlue/20 p-4 rounded-xl border border-brand-aliceBlue/50 flex gap-4">
+                                {imagePreview && <img src={imagePreview} className="w-16 h-16 object-cover rounded-lg bg-gray-200" alt="Cover" />}
+                                <div>
+                                    <h4 className="font-bold text-brand-prussian text-lg leading-tight">{formData.name}</h4>
+                                    <p className="text-xs text-gray-500 mt-1 capitalize">{formData.type} • {formData.level} Level</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span className="text-xs text-gray-400 font-bold uppercase block mb-1">Schedule</span>
+                                    <p className="font-medium text-gray-800">{formData.day}s</p>
+                                    <p className="text-gray-600">{formData.startTime} - {formData.endTime}</p>
+                                    <p className="font-bold text-brand-cerulean mt-1">LKR {formData.price}</p>
+                                </div>
+                                {formData.parentTheoryClass && (
+                                    <div className="col-span-2 p-3 bg-blue-50 rounded-lg border border-blue-100 text-blue-800 text-xs">
+                                        Linked to Parent Theory Class ID: <b>{formData.parentTheoryClass}</b>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
+                            <button onClick={() => setShowPreview(false)} className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-all text-sm">Edit</button>
+                            <button onClick={handleFinalSubmit} disabled={isSaving} className="flex-[2] py-3 rounded-xl font-bold text-white bg-brand-prussian hover:bg-brand-cerulean shadow-lg transition-all text-sm flex items-center justify-center gap-2">
+                                {isSaving ? "Creating..." : "Confirm & Create"}
+                            </button>
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
       </div>
   );
 }
 
-// ... Internal Components (Section, Input, Select, Textarea) same as previous ...
-const Section = ({ title, icon, children }: any) => (
-  <div className="bg-white p-5 md:p-6 rounded-2xl border border-brand-aliceBlue shadow-sm">
-    <div className="flex items-center gap-2 mb-5 md:mb-6 border-b border-brand-aliceBlue pb-4">
-      <div className="text-brand-cerulean p-1.5 bg-brand-aliceBlue rounded-lg">{icon}</div>
-      <h2 className="text-xs font-bold text-brand-prussian uppercase tracking-widest">{title}</h2>
+// --- SUB COMPONENTS ---
+const Section = ({ title, icon, children }: { title: string, icon: React.ReactNode, children: React.ReactNode }) => (
+  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-50">
+      <div className="text-brand-cerulean p-2 bg-brand-aliceBlue/50 rounded-xl">{icon}</div>
+      <h2 className="text-sm font-bold text-brand-prussian uppercase tracking-widest">{title}</h2>
     </div>
     {children}
   </div>
 );
+
 const Input = ({ label, className, ...props }: any) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
-    <input {...props} className={`w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-3 md:py-2.5 outline-none transition-all text-sm font-medium placeholder:text-gray-300 ${className || ''}`} />
+  <div className="flex flex-col gap-2">
+    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
+    <input {...props} className={`w-full bg-gray-50 border border-gray-200 focus:border-brand-cerulean focus:bg-white focus:ring-4 focus:ring-brand-cerulean/10 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium text-brand-prussian placeholder:text-gray-400 ${className || ''}`} />
   </div>
 );
+
 const Select = ({ label, children, className, ...props }: any) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
-    <select {...props} className={`w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-3 md:py-2.5 outline-none transition-all text-sm font-medium cursor-pointer ${className || ''}`}>
-      {children}
-    </select>
+  <div className="flex flex-col gap-2">
+    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
+    <div className="relative">
+        <select {...props} className={`w-full appearance-none bg-gray-50 border border-gray-200 focus:border-brand-cerulean focus:bg-white focus:ring-4 focus:ring-brand-cerulean/10 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium text-brand-prussian cursor-pointer ${className || ''}`}>
+        {children}
+        </select>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+        </div>
+    </div>
   </div>
 );
+
 const Textarea = ({ label, ...props }: any) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
-    <textarea {...props} className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue focus:border-brand-cerulean focus:bg-white rounded-lg px-4 py-3 md:py-2.5 outline-none transition-all text-sm font-medium resize-none" />
+  <div className="flex flex-col gap-2">
+    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{label}</label>
+    <textarea {...props} className="w-full bg-gray-50 border border-gray-200 focus:border-brand-cerulean focus:bg-white focus:ring-4 focus:ring-brand-cerulean/10 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium text-brand-prussian resize-none placeholder:text-gray-400" />
   </div>
 );

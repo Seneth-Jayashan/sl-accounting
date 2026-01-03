@@ -13,7 +13,9 @@ import {
   VideoCameraIcon,
   TrashIcon,
   XCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  LinkIcon,
+  ArrowTopRightOnSquareIcon
 } from "@heroicons/react/24/outline";
 
 // Components
@@ -68,7 +70,6 @@ export default function ViewClassPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // --- HANDLERS ---
-
   const handleCancelClick = (sessionId: string) => {
     setCancelModal({ isOpen: true, sessionId });
   };
@@ -122,29 +123,109 @@ export default function ViewClassPage() {
   const sessions = (classData as any).sessions || [];
   const nextSession = (classData as any).timeSchedules?.[0];
 
+  // Helper to determine type color
+  const getTypeColor = (type: string) => {
+      switch(type) {
+          case 'revision': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+          case 'paper': return 'bg-orange-100 text-orange-700 border-orange-200';
+          default: return 'bg-brand-aliceBlue text-brand-cerulean border-brand-cerulean/20';
+      }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4 sm:p-6 pb-24 sm:pb-24 animate-in fade-in duration-500">
       
       {/* HEADER */}
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-1 w-full sm:w-auto">
+        <div className="space-y-2 w-full sm:w-auto">
           <button 
             onClick={() => navigate("/admin/classes")} 
             className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest"
           >
             <ArrowLeftIcon className="w-3 h-3 mr-2 stroke-[3px]" /> Curriculum
           </button>
-          <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight truncate max-w-[300px] sm:max-w-none">
-            {classData.name}
-          </h1>
+          
+          <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase border ${getTypeColor(classData.type || 'theory')}`}>
+                      {classData.type || 'Theory'}
+                  </span>
+                  {classData.level && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase border bg-gray-50 text-gray-500 border-gray-200">
+                          {classData.level}
+                      </span>
+                  )}
+              </div>
+              <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight truncate max-w-[500px]">
+                {classData.name}
+              </h1>
+          </div>
         </div>
+
         <button 
           onClick={() => navigate(`/admin/classes/edit/${id}`)} 
-          className="w-full sm:w-auto bg-brand-aliceBlue text-brand-prussian px-4 py-3 sm:py-2 rounded-xl sm:rounded-lg text-sm sm:text-xs font-semibold hover:bg-brand-cerulean hover:text-white transition-all shadow-sm text-center"
+          className="w-full sm:w-auto bg-white border border-gray-200 text-brand-prussian px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center gap-2"
         >
-            Edit Module
+           Edit Module
         </button>
       </header>
+
+      {/* --- LINKED MODULES SECTION (New) --- */}
+      {(classData.parentTheoryClass || classData.linkedRevisionClass || classData.linkedPaperClass) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* If this is a Child, show Parent */}
+              {classData.parentTheoryClass && (
+                  <div 
+                      onClick={() => navigate(`/admin/classes/view/${(classData.parentTheoryClass as any)._id}`)}
+                      className="group cursor-pointer bg-blue-50/50 border border-blue-100 p-4 rounded-2xl flex items-center justify-between hover:border-blue-300 transition-all"
+                  >
+                      <div className="flex items-center gap-3">
+                          <div className="p-2 bg-white rounded-lg text-blue-500 shadow-sm"><LinkIcon className="w-4 h-4"/></div>
+                          <div>
+                              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Parent Theory Class</p>
+                              <p className="text-sm font-bold text-brand-prussian">{(classData.parentTheoryClass as any).name}</p>
+                          </div>
+                      </div>
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+                  </div>
+              )}
+
+              {/* If this is a Parent, show Children */}
+              {classData.linkedRevisionClass && (
+                  <div 
+                      onClick={() => navigate(`/admin/classes/view/${(classData.linkedRevisionClass as any)._id}`)}
+                      className="group cursor-pointer bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl flex items-center justify-between hover:border-indigo-300 transition-all"
+                  >
+                      <div className="flex items-center gap-3">
+                          <div className="p-2 bg-white rounded-lg text-indigo-500 shadow-sm"><AcademicCapIcon className="w-4 h-4"/></div>
+                          <div>
+                              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Linked Revision</p>
+                              <p className="text-sm font-bold text-brand-prussian">{(classData.linkedRevisionClass as any).name}</p>
+                          </div>
+                      </div>
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                  </div>
+              )}
+
+              {classData.linkedPaperClass && (
+                  <div 
+                      onClick={() => navigate(`/admin/classes/view/${(classData.linkedPaperClass as any)._id}`)}
+                      className="group cursor-pointer bg-orange-50/50 border border-orange-100 p-4 rounded-2xl flex items-center justify-between hover:border-orange-300 transition-all"
+                  >
+                      <div className="flex items-center gap-3">
+                          <div className="p-2 bg-white rounded-lg text-orange-500 shadow-sm"><AcademicCapIcon className="w-4 h-4"/></div>
+                          <div>
+                              <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Linked Paper</p>
+                              <p className="text-sm font-bold text-brand-prussian">{(classData.linkedPaperClass as any).name}</p>
+                          </div>
+                      </div>
+                      <ArrowTopRightOnSquareIcon className="w-4 h-4 text-gray-400 group-hover:text-orange-500" />
+                  </div>
+              )}
+          </div>
+      )}
+
 
       {/* STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

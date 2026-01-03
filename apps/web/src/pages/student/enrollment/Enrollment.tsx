@@ -9,7 +9,8 @@ import {
   ArrowLeftIcon,
   ShieldCheckIcon,
   LockClosedIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  TagIcon
 } from "@heroicons/react/24/outline";
 
 // Services & Context
@@ -31,7 +32,7 @@ const BANK_DETAILS = {
   accountNumber: import.meta.env.VITE_ACCOUNT_NUMBER,
 };
 
-// --- Interfaces ---
+// --- Updated Interface ---
 interface LinkedClass {
     _id: string;
     name: string;
@@ -48,6 +49,11 @@ interface ClassData {
   timeSchedules: { day: number; startTime: string; endTime: string }[];
   linkedRevisionClass?: LinkedClass;
   linkedPaperClass?: LinkedClass;
+  
+  // New Bundle Price Fields from Backend
+  bundlePriceRevision?: number;
+  bundlePricePaper?: number;
+  bundlePriceFull?: number;
 }
 
 export default function EnrollmentPage() {
@@ -67,8 +73,8 @@ export default function EnrollmentPage() {
   const [includePaper, setIncludePaper] = useState(false);
   
   // --- MONTH SELECTION ---
-  const [targetMonth, setTargetMonth] = useState<string>(format(new Date(), "yyyy-MM")); // Default: Current Month
-  const [paidMonths, setPaidMonths] = useState<string[]>([]); // From Backend
+  const [targetMonth, setTargetMonth] = useState<string>(format(new Date(), "yyyy-MM")); 
+  const [paidMonths, setPaidMonths] = useState<string[]>([]);
 
   // --- 1. Fetch Class Data & History ---
   useEffect(() => {
@@ -86,9 +92,7 @@ export default function EnrollmentPage() {
         const cls = Array.isArray(data) ? data[0] : data;
         setClassData(cls);
 
-        // B. Fetch Enrollment History (Paid Months)
-        // We use enrollInClass to 'get or create' the record and retrieve history
-        // This is safe because unpaid enrollments don't cost anything yet
+        // B. Fetch Enrollment History
         const enrollmentRes = await EnrollmentService.enrollInClass(id, user._id);
         if (enrollmentRes.enrollment?.paidMonths) {
             setPaidMonths(enrollmentRes.enrollment.paidMonths);
@@ -104,11 +108,10 @@ export default function EnrollmentPage() {
     initPage();
   }, [id, user, authLoading, navigate, location.pathname]);
 
-  // --- 2. Calculate Month Options (Next 6 Months) ---
+  // --- 2. Calculate Month Options ---
   const monthOptions = useMemo(() => {
       const options = [];
       const today = startOfMonth(new Date());
-      
       for (let i = 0; i < 6; i++) {
           const date = addMonths(today, i);
           const value = format(date, "yyyy-MM");
@@ -119,9 +122,26 @@ export default function EnrollmentPage() {
       return options;
   }, [paidMonths]);
 
-  // --- 3. Calculate Estimated Total (Display Only) ---
+  // --- 3. Calculate Estimated Total (UPDATED LOGIC) ---
   const estimatedTotal = useMemo(() => {
       if (!classData) return 0;
+
+      // 1. Full Bundle (Rev + Paper)
+      if (includeRevision && includePaper && classData.bundlePriceFull != null) {
+          return classData.bundlePriceFull;
+      }
+
+      // 2. Theory + Revision Bundle
+      if (includeRevision && !includePaper && classData.bundlePriceRevision != null) {
+          return classData.bundlePriceRevision;
+      }
+
+      // 3. Theory + Paper Bundle
+      if (!includeRevision && includePaper && classData.bundlePricePaper != null) {
+          return classData.bundlePricePaper;
+      }
+
+      // 4. Fallback: Sum Individual Prices
       let total = classData.price;
       if (includeRevision && classData.linkedRevisionClass) {
           total += classData.linkedRevisionClass.price;
@@ -132,13 +152,22 @@ export default function EnrollmentPage() {
       return total;
   }, [classData, includeRevision, includePaper]);
 
+  // Check if a discount is active
+  const isDiscountApplied = useMemo(() => {
+      if (!classData) return false;
+      let standardSum = classData.price;
+      if (includeRevision && classData.linkedRevisionClass) standardSum += classData.linkedRevisionClass.price;
+      if (includePaper && classData.linkedPaperClass) standardSum += classData.linkedPaperClass.price;
+      
+      return estimatedTotal < standardSum;
+  }, [estimatedTotal, classData, includeRevision, includePaper]);
+
   // --- 4. Handle Process ---
   const handleProcess = async () => {
     if (!id || !classData || !user) return;
     
-    // Validate Month Selection
     if (paidMonths.includes(targetMonth)) {
-        setError("You have already paid for this month. Please select a different billing period.");
+        setError("You have already paid for this month.");
         return;
     }
 
@@ -146,39 +175,29 @@ export default function EnrollmentPage() {
     setError(null);
 
     try {
-      let enrollmentResponse;
+      // 1. Create Enrollment (Server validates price)
+      const enrollmentRes = await EnrollmentService.enrollInClass(id, user._id, {
+          includeRevision,
+          includePaper
+      });
       
-      // A. Create/Update Enrollment
-      try {
-          enrollmentResponse = await EnrollmentService.enrollInClass(id, user._id, {
-              includeRevision,
-              includePaper
-          });
-      } catch (e: any) {
-          const msg = e.message || "";
-          if (msg.toLowerCase().includes("already enrolled")) {
-             throw new Error("Enrollment conflict detected. Please contact support.");
-          } else {
-             throw e;
-          }
-      }
+      const enrollmentId = enrollmentRes.enrollment._id; 
       
-      const enrollmentId = enrollmentResponse.enrollment._id; 
-      const finalAmount = enrollmentResponse.totalAmount;
+      // Use the server-calculated amount to be safe, 
+      // but estimatedTotal should match it.
+      const finalAmount = enrollmentRes.totalAmount || estimatedTotal;
 
-      // B. Payment Processing
+      // 2. Payment Processing
       if (paymentMethod === "bank") {
-          // Navigate to upload, passing amount AND targetMonth
           navigate(`/student/payment/upload/${enrollmentId}`, { 
               state: { 
                   amount: finalAmount, 
-                  targetMonth: targetMonth // Pass selected month to upload page
+                  targetMonth: targetMonth 
               } 
           });
       } 
       else if (paymentMethod === "payhere") {
           const orderId = `${enrollmentId}_${Date.now()}`;
-          
           const signatureData = await PaymentService.initiatePayHere(finalAmount, orderId);
 
           const payHereParams = {
@@ -187,7 +206,6 @@ export default function EnrollmentPage() {
               cancel_url: `${window.location.origin}/student/enrollment/${id}?payment=cancel`,
               notify_url: `${NOTIFY_URL_BASE}/payments/payhere-webhook`,
               order_id: orderId,
-              // Item Name includes Month
               items: `${classData.name} - ${format(new Date(targetMonth), "MMMM")}${includeRevision ? " + Rev" : ""}${includePaper ? " + Paper" : ""}`,
               currency: "LKR",
               amount: signatureData.amount,
@@ -200,7 +218,7 @@ export default function EnrollmentPage() {
               city: "Colombo",
               country: "Sri Lanka",
               custom_1: enrollmentId,
-              custom_2: targetMonth // Send Target Month to PayHere
+              custom_2: targetMonth 
           };
 
           const form = document.createElement("form");
@@ -232,7 +250,7 @@ export default function EnrollmentPage() {
   if (loading || authLoading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-brand-prussian">
         <div className="w-10 h-10 border-4 border-gray-200 border-t-brand-cerulean rounded-full animate-spin mb-4"></div>
-        <p className="font-semibold text-gray-500 animate-pulse">Loading enrollment details...</p>
+        <p className="font-semibold text-gray-500 animate-pulse">Loading details...</p>
     </div>
   );
 
@@ -298,10 +316,9 @@ export default function EnrollmentPage() {
                 </div>
             </div>
 
-            {/* 2. Select Billing Month (New) */}
+            {/* 2. Select Billing Month */}
             <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-8">
                 <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Select Billing Month</h3>
-                
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {monthOptions.map((option) => (
                         <button
@@ -311,10 +328,10 @@ export default function EnrollmentPage() {
                             className={`
                                 relative p-3 rounded-xl border text-sm font-medium transition-all flex flex-col items-center justify-center gap-1
                                 ${option.isPaid 
-                                    ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed" // Disabled Style
+                                    ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed" 
                                     : targetMonth === option.value
-                                        ? "bg-brand-cerulean text-white border-brand-cerulean shadow-md" // Selected Style
-                                        : "bg-white border-gray-200 text-gray-600 hover:border-brand-cerulean hover:text-brand-cerulean" // Normal Style
+                                        ? "bg-brand-cerulean text-white border-brand-cerulean shadow-md" 
+                                        : "bg-white border-gray-200 text-gray-600 hover:border-brand-cerulean hover:text-brand-cerulean" 
                                 }
                             `}
                         >
@@ -327,10 +344,9 @@ export default function EnrollmentPage() {
                         </button>
                     ))}
                 </div>
-                
                 {paidMonths.includes(targetMonth) && (
                     <p className="mt-3 text-xs text-red-500 font-medium">
-                        * You have already paid for {format(new Date(targetMonth), "MMMM")}. Please select a different month to continue.
+                        * You have already paid for {format(new Date(targetMonth), "MMMM")}. Please select a different month.
                     </p>
                 )}
             </div>
@@ -376,7 +392,7 @@ export default function EnrollmentPage() {
             <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-8">
                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 sm:mb-6">Select Payment Method</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                 {/* PayHere Option */}
+                 {/* PayHere */}
                  <button 
                    onClick={() => setPaymentMethod("payhere")}
                    className={`relative border-2 rounded-xl sm:rounded-2xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4 transition-all text-left group ${paymentMethod === "payhere" ? "border-brand-cerulean bg-brand-aliceBlue/30 shadow-md ring-1 ring-brand-cerulean/20" : "border-gray-100 hover:border-brand-cerulean/50 hover:bg-gray-50"}`}
@@ -393,7 +409,7 @@ export default function EnrollmentPage() {
                      </div>
                  </button>
 
-                 {/* Bank Transfer Option */}
+                 {/* Bank Transfer */}
                  <button 
                    onClick={() => setPaymentMethod("bank")}
                    className={`relative border-2 rounded-xl sm:rounded-2xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4 transition-all text-left group ${paymentMethod === "bank" ? "border-brand-cerulean bg-brand-aliceBlue/30 shadow-md ring-1 ring-brand-cerulean/20" : "border-gray-100 hover:border-brand-cerulean/50 hover:bg-gray-50"}`}
@@ -411,7 +427,7 @@ export default function EnrollmentPage() {
                  </button>
                </div>
 
-               {/* Bank Details Panel (Visible only when Bank Transfer selected) */}
+               {/* Bank Details Panel */}
                {paymentMethod === "bank" && (
                    <div className="mt-6 p-5 sm:p-6 bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200 animate-fade-in">
                       <div className="flex items-center justify-between mb-4">
@@ -474,6 +490,15 @@ export default function EnrollmentPage() {
                           <span className="font-bold">{formatPrice(classData.linkedPaperClass.price)}</span>
                        </div>
                    )}
+                   
+                   {/* DISCOUNT INDICATION */}
+                   {isDiscountApplied && (
+                       <div className="flex justify-between text-xs sm:text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
+                          <span className="font-bold flex items-center gap-1"><TagIcon className="w-3 h-3" /> Bundle Savings</span>
+                          <span className="font-bold">- {formatPrice((classData.price + (includeRevision && classData.linkedRevisionClass ? classData.linkedRevisionClass.price : 0) + (includePaper && classData.linkedPaperClass ? classData.linkedPaperClass.price : 0)) - estimatedTotal)}</span>
+                       </div>
+                   )}
+
                    <div className="flex justify-between text-xs sm:text-sm">
                       <span className="text-gray-500">Service Charge</span>
                       <span className="text-gray-900 font-medium">LKR 0.00</span>
