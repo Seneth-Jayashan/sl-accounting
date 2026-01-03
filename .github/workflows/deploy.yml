@@ -1,0 +1,47 @@
+name: Deploy SL Accounting LMS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH Password
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: 22
+          script: |
+            # 1. Navigate to project root
+            cd /var/www/sl-accounting
+
+            # 2. Pull the latest code
+            git pull origin main
+
+            # 3. Setup API
+            echo "--- Installing API Dependencies ---"
+            cd apps/api
+            npm install
+
+            # 4. Setup Web (Install deps & Build)
+            echo "--- Building Web ---"
+            cd ../web
+            npm install
+            npm run build
+
+            # 5. Fix Permissions
+            # Since you log in as root, 'sudo' is redundant but harmless
+            echo "--- Updating Permissions ---"
+            cd /var/www/sl-accounting
+            sudo chown -R www-data:www-data /var/www/sl-accounting
+            sudo chmod -R 755 /var/www/sl-accounting
+
+            # 6. Restart Services
+            echo "--- Restarting Services ---"
+            pm2 restart lms-api
+            sudo systemctl restart nginx
