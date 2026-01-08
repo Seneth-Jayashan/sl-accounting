@@ -14,10 +14,19 @@ import {
   XMarkIcon,
   ArrowTopRightOnSquareIcon,
   ArrowPathIcon,
-  PlusIcon 
+  PlusIcon,
+  CalendarDaysIcon
 } from "@heroicons/react/24/outline";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+
+// Helper to format billing month
+const formatBillingMonth = (monthStr?: string) => {
+    if (!monthStr) return "N/A";
+    const [year, month] = monthStr.split("-");
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};
 
 export default function PaymentsPage() {
   const navigate = useNavigate(); 
@@ -73,7 +82,6 @@ export default function PaymentsPage() {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-             {/* --- NEW RECORD PAYMENT BUTTON --- */}
              <button
                onClick={() => navigate("/admin/payments/create")}
                className="flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-brand-cerulean/20 active:scale-95 flex-1 sm:flex-none"
@@ -113,6 +121,7 @@ export default function PaymentsPage() {
                   <thead className="bg-brand-aliceBlue/30 text-[10px] uppercase text-brand-prussian/40 font-bold tracking-widest border-b border-brand-aliceBlue">
                     <tr>
                       <th className="px-6 py-4">Beneficiary & Module</th>
+                      <th className="px-6 py-4">Billing Month</th>
                       <th className="px-6 py-4 text-center">Protocol</th>
                       <th className="px-6 py-4">Timeline</th>
                       <th className="px-8 py-4">Status</th>
@@ -209,6 +218,14 @@ function PaymentRow({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
         <div className="text-[11px] text-gray-400 font-mono mt-1">LKR {payment.amount.toLocaleString()}</div>
       </td>
 
+      {/* NEW: BILLING MONTH COLUMN */}
+      <td className="px-6 py-5">
+         <div className="flex items-center gap-2 bg-brand-aliceBlue/50 px-3 py-1.5 rounded-lg w-fit border border-brand-aliceBlue">
+             <CalendarDaysIcon className="w-4 h-4 text-brand-cerulean/70" />
+             <span className="text-xs font-bold text-brand-prussian">{formatBillingMonth(payment.targetMonth)}</span>
+         </div>
+      </td>
+
       <td className="px-6 py-5">
         <div className="flex flex-col items-center gap-1">
           {payment.method === 'payhere' ? (
@@ -273,7 +290,7 @@ function MobilePaymentCard({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
             <div className="flex items-center gap-2 text-xs text-gray-600 mb-3 bg-gray-50 p-2 rounded-lg">
                 <span className="font-mono font-bold text-brand-cerulean">LKR {payment.amount.toLocaleString()}</span>
                 <span className="text-gray-300">|</span>
-                <span>{moment(payment.paymentDate).format("DD MMM, YYYY")}</span>
+                <span className="font-bold text-brand-prussian">{formatBillingMonth(payment.targetMonth)}</span>
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-brand-aliceBlue">
