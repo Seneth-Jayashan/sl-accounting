@@ -8,7 +8,8 @@ import {
   Sparkles,
   Zap,
   UploadCloud,
-  Calendar
+  Calendar,
+  Book
 } from "lucide-react";
 
 import EnrollmentService, { type EnrollmentResponse, type EnrolledClass } from "../../../services/EnrollmentService";
@@ -109,6 +110,15 @@ export default function ViewEnrollments() {
                                 {f === 'all' ? 'All Courses' : f}
                             </button>
                         ))}
+
+                        <button
+                            onClick={() => navigate(`/classes`)}
+                            className="flex items-center gap-2 bg-brand-prussian text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-brand-cerulean transition-all shadow-sm active:scale-95 shrink-0"
+                        >
+                            <Book size={16} />
+                            <span className="hidden sm:inline">New Classes</span>
+                            <span className="sm:hidden">Class</span>
+                        </button>
                     </div>
                 </div>
             </div>

@@ -2,6 +2,8 @@ import crypto from "crypto";
 import Payment from "../models/Payment.js";
 import Enrollment from "../models/Enrollment.js";
 import Class from "../models/Class.js";
+import { sendAdminPaymentNotificationSms, sendPaymentReceiptSms, sendPaymentVerifiedSms } from "../utils/sms/Template.js";
+const adminPhoneNumber = process.env.ADMIN_PHONE_NUMBER || "+94703999709";
 
 // --- HELPERS ---
 
@@ -172,6 +174,17 @@ export const payHereWebhook = async (req, res) => {
         }
     }
 
+    const enrollment = await Enrollment.findById(payment.enrollment)
+      .populate('student', 'firstName phoneNumber') 
+      .populate('class', 'name');;
+
+    await sendPaymentReceiptSms(
+        enrollment.student.phoneNumber,
+        payment.amount,
+        enrollment.class.name,
+        order_id
+    ).catch(err => console.error("Failed to send payment receipt SMS:", err));
+
     return res.status(200).send("OK");
 
   } catch (err) {
@@ -182,34 +195,59 @@ export const payHereWebhook = async (req, res) => {
 
 export const uploadPaymentSlip = async (req, res) => {
   try {
-    const { enrollmentId, amount, notes, targetMonth } = req.body; // targetMonth from frontend
-    
+    const { enrollmentId, amount, notes, targetMonth } = req.body;
+
+    // 1. Input Validation
     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
     if (!enrollmentId) return res.status(400).json({ message: "Enrollment ID required" });
     if (!amount) return res.status(400).json({ message: "Paid Amount required" });
 
+    // 2. Check if Enrollment exists BEFORE saving payment
+    // Using distinct populate syntax: path first, then select fields
+    const enrollment = await Enrollment.findById(enrollmentId)
+      .populate('student', 'firstName phoneNumber') 
+      .populate('class', 'name');
+
+    if (!enrollment) {
+      return res.status(404).json({ message: "Enrollment not found" });
+    }
+
     const filePath = `/uploads/images/payments/${req.file.filename}`;
 
+    // 3. Create Payment Record
     const payment = new Payment({
-        enrollment: enrollmentId,
-        amount: amount, 
-        method: "bank_transfer",
-        status: "pending", 
-        verified: false,
-        paymentDate: new Date(),
-        notes: notes,
-        targetMonth: targetMonth, // Save requested month
-        rawPayload: { slipUrl: filePath } 
+      enrollment: enrollmentId,
+      amount: amount,
+      method: "bank_transfer",
+      status: "pending",
+      verified: false,
+      paymentDate: new Date(),
+      notes: notes,
+      targetMonth: targetMonth,
+      rawPayload: { slipUrl: filePath }
     });
 
     await payment.save();
 
-    await Enrollment.findByIdAndUpdate(enrollmentId, { paymentStatus: "pending" });
+    enrollment.paymentStatus = "pending";
+    await enrollment.save();
 
-    res.status(201).json({ 
-        success: true, 
-        message: "Slip uploaded. Pending Admin approval.", 
-        payment 
+    try {
+        await sendAdminPaymentNotificationSms(
+            adminPhoneNumber,
+            enrollment.student.firstName, // Ensure student is populated
+            amount,
+            enrollment.class.name,        // Ensure class is populated
+            payment._id
+        );
+    } catch (smsError) {
+        console.error("Failed to send Admin SMS:", smsError);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Slip uploaded. Pending Admin approval.",
+      payment
     });
 
   } catch (err) {
@@ -258,21 +296,46 @@ export const updatePaymentStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body; 
 
+    // 1. Validation
     if (!["completed", "failed", "pending"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    const payment = await Payment.findById(id);
+    // 2. Find and Populate
+    // We must populate enrollment -> student AND enrollment -> class to get phone/names
+    const payment = await Payment.findById(id).populate({
+      path: 'enrollment',
+      populate: { path: 'student class' } 
+    });
+
     if (!payment) return res.status(404).json({ message: "Payment not found" });
 
+    // 3. Update Status
     payment.status = status;
     payment.verified = (status === "completed");
     
+    // 4. Save Changes FIRST (Before sending SMS)
     await payment.save();
 
+    // 5. Handle "Completed" Logic (SMS + Bundle Unlock)
     if (status === "completed" && payment.enrollment) {
-        // Use payment.targetMonth to unlock specific content
-        await approveBundleEnrollments(payment.enrollment, payment._id, payment.paymentDate, payment.targetMonth);
+        
+        // A. Trigger Bundle Logic
+        // payment.enrollment is now an Object (due to populate). 
+        // If approveBundleEnrollments expects an ID, pass payment.enrollment._id
+        await approveBundleEnrollments(
+            payment.enrollment._id, 
+            payment._id, 
+            payment.paymentDate, 
+            payment.targetMonth
+        );
+
+        // B. Send SMS (Non-blocking)
+        sendPaymentVerifiedSms(
+            payment.enrollment.student.phoneNumber,
+            payment.amount,
+            payment.enrollment.class.name
+        ).catch(err => console.error("Failed to send payment verified SMS:", err));
     }
 
     res.json({ success: true, payment });

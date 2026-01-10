@@ -32,7 +32,7 @@ const BANK_DETAILS = {
   accountNumber: import.meta.env.VITE_ACCOUNT_NUMBER,
 };
 
-// --- Updated Interface ---
+// --- Interfaces ---
 interface LinkedClass {
     _id: string;
     name: string;
@@ -50,10 +50,10 @@ interface ClassData {
   linkedRevisionClass?: LinkedClass;
   linkedPaperClass?: LinkedClass;
   
-  // New Bundle Price Fields from Backend
-  bundlePriceRevision?: number;
-  bundlePricePaper?: number;
-  bundlePriceFull?: number;
+  // Bundle Prices
+  bundlePriceRevision?: number; // Theory + Revision
+  bundlePricePaper?: number;    // Theory + Paper
+  bundlePriceFull?: number;     // Theory + Revision + Paper
 }
 
 export default function EnrollmentPage() {
@@ -87,12 +87,10 @@ export default function EnrollmentPage() {
     const initPage = async () => {
       if (!id) return;
       try {
-        // A. Fetch Class Details
         const data = await ClassService.getPublicClassById(id);
         const cls = Array.isArray(data) ? data[0] : data;
         setClassData(cls);
 
-        // B. Fetch Enrollment History
         const enrollmentRes = await EnrollmentService.enrollInClass(id, user._id);
         if (enrollmentRes.enrollment?.paidMonths) {
             setPaidMonths(enrollmentRes.enrollment.paidMonths);
@@ -122,45 +120,44 @@ export default function EnrollmentPage() {
       return options;
   }, [paidMonths]);
 
-  // --- 3. Calculate Estimated Total (UPDATED LOGIC) ---
-  const estimatedTotal = useMemo(() => {
+  // --- 3. PRICING LOGIC (UPDATED) ---
+
+  // A. Calculate the "Standard" price (Sum of individual components)
+  const standardTotal = useMemo(() => {
       if (!classData) return 0;
-
-      // 1. Full Bundle (Rev + Paper)
-      if (includeRevision && includePaper && classData.bundlePriceFull != null) {
-          return classData.bundlePriceFull;
-      }
-
-      // 2. Theory + Revision Bundle
-      if (includeRevision && !includePaper && classData.bundlePriceRevision != null) {
-          return classData.bundlePriceRevision;
-      }
-
-      // 3. Theory + Paper Bundle
-      if (!includeRevision && includePaper && classData.bundlePricePaper != null) {
-          return classData.bundlePricePaper;
-      }
-
-      // 4. Fallback: Sum Individual Prices
       let total = classData.price;
-      if (includeRevision && classData.linkedRevisionClass) {
-          total += classData.linkedRevisionClass.price;
-      }
-      if (includePaper && classData.linkedPaperClass) {
-          total += classData.linkedPaperClass.price;
-      }
+      if (includeRevision && classData.linkedRevisionClass) total += classData.linkedRevisionClass.price;
+      if (includePaper && classData.linkedPaperClass) total += classData.linkedPaperClass.price;
       return total;
   }, [classData, includeRevision, includePaper]);
 
-  // Check if a discount is active
-  const isDiscountApplied = useMemo(() => {
-      if (!classData) return false;
-      let standardSum = classData.price;
-      if (includeRevision && classData.linkedRevisionClass) standardSum += classData.linkedRevisionClass.price;
-      if (includePaper && classData.linkedPaperClass) standardSum += classData.linkedPaperClass.price;
-      
-      return estimatedTotal < standardSum;
-  }, [estimatedTotal, classData, includeRevision, includePaper]);
+  // B. Calculate the "Payable" price (Applying Bundles)
+  const finalTotal = useMemo(() => {
+      if (!classData) return 0;
+
+      // Case 1: All 3 (Theory + Rev + Paper)
+      if (includeRevision && includePaper) {
+          // If a specific full bundle price exists, use it. Otherwise, sum.
+          return classData.bundlePriceFull ?? (classData.price + (classData.linkedRevisionClass?.price || 0) + (classData.linkedPaperClass?.price || 0));
+      }
+
+      // Case 2: Theory + Revision
+      if (includeRevision && !includePaper) {
+          return classData.bundlePriceRevision ?? (classData.price + (classData.linkedRevisionClass?.price || 0));
+      }
+
+      // Case 3: Theory + Paper
+      if (!includeRevision && includePaper) {
+          return classData.bundlePricePaper ?? (classData.price + (classData.linkedPaperClass?.price || 0));
+      }
+
+      // Case 4: Theory Only
+      return classData.price;
+  }, [classData, includeRevision, includePaper]);
+
+  // C. Determine Discount
+  const discountAmount = standardTotal - finalTotal;
+  const isBundleActive = discountAmount > 0;
 
   // --- 4. Handle Process ---
   const handleProcess = async () => {
@@ -175,7 +172,8 @@ export default function EnrollmentPage() {
     setError(null);
 
     try {
-      // 1. Create Enrollment (Server validates price)
+      // 1. Create Enrollment 
+      // We pass the flags so backend also knows which bundles to activate
       const enrollmentRes = await EnrollmentService.enrollInClass(id, user._id, {
           includeRevision,
           includePaper
@@ -183,22 +181,22 @@ export default function EnrollmentPage() {
       
       const enrollmentId = enrollmentRes.enrollment._id; 
       
-      // Use the server-calculated amount to be safe, 
-      // but estimatedTotal should match it.
-      const finalAmount = enrollmentRes.totalAmount || estimatedTotal;
+      // We trust the backend's calculation, but fallback to our frontend calc if needed
+      const amountToPay = enrollmentRes.totalAmount || finalTotal;
 
       // 2. Payment Processing
       if (paymentMethod === "bank") {
           navigate(`/student/payment/upload/${enrollmentId}`, { 
               state: { 
-                  amount: finalAmount, 
-                  targetMonth: targetMonth 
+                  amount: amountToPay, 
+                  targetMonth: targetMonth,
+                  notes: isBundleActive ? "Bundle Price Applied" : "Standard Enrollment"
               } 
           });
       } 
       else if (paymentMethod === "payhere") {
           const orderId = `${enrollmentId}_${Date.now()}`;
-          const signatureData = await PaymentService.initiatePayHere(finalAmount, orderId);
+          const signatureData = await PaymentService.initiatePayHere(amountToPay, orderId);
 
           const payHereParams = {
               merchant_id: signatureData.merchant_id,
@@ -344,28 +342,23 @@ export default function EnrollmentPage() {
                         </button>
                     ))}
                 </div>
-                {paidMonths.includes(targetMonth) && (
-                    <p className="mt-3 text-xs text-red-500 font-medium">
-                        * You have already paid for {format(new Date(targetMonth), "MMMM")}. Please select a different month.
-                    </p>
-                )}
             </div>
 
-            {/* 3. Bundle Options */}
+            {/* 3. Bundle Options (UPDATED UI) */}
             {(classData.linkedRevisionClass || classData.linkedPaperClass) && (
                 <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-5 sm:p-8">
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Customize Enrollment</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Add-On Classes</h3>
                     <div className="space-y-3">
                         
                         {classData.linkedRevisionClass && (
                             <label className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${includeRevision ? "border-brand-cerulean bg-brand-aliceBlue/20" : "border-gray-100 hover:border-gray-200"}`}>
-                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center ${includeRevision ? "bg-brand-cerulean border-brand-cerulean" : "border-gray-300 bg-white"}`}>
+                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${includeRevision ? "bg-brand-cerulean border-brand-cerulean" : "border-gray-300 bg-white"}`}>
                                     {includeRevision && <CheckCircleIcon className="w-4 h-4 text-white" />}
                                 </div>
                                 <input type="checkbox" className="hidden" checked={includeRevision} onChange={(e) => setIncludeRevision(e.target.checked)} />
                                 <div className="flex-1">
-                                    <p className="font-bold text-gray-800 text-sm">Add Revision Class</p>
-                                    <p className="text-xs text-gray-500">Comprehensive revision sessions</p>
+                                    <p className="font-bold text-gray-800 text-sm">{classData.linkedRevisionClass.name}</p>
+                                    <p className="text-xs text-gray-500">Revision Session</p>
                                 </div>
                                 <p className="font-bold text-brand-prussian text-sm">+ {formatPrice(classData.linkedRevisionClass.price)}</p>
                             </label>
@@ -373,17 +366,22 @@ export default function EnrollmentPage() {
 
                         {classData.linkedPaperClass && (
                             <label className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${includePaper ? "border-brand-cerulean bg-brand-aliceBlue/20" : "border-gray-100 hover:border-gray-200"}`}>
-                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center ${includePaper ? "bg-brand-cerulean border-brand-cerulean" : "border-gray-300 bg-white"}`}>
+                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${includePaper ? "bg-brand-cerulean border-brand-cerulean" : "border-gray-300 bg-white"}`}>
                                     {includePaper && <CheckCircleIcon className="w-4 h-4 text-white" />}
                                 </div>
                                 <input type="checkbox" className="hidden" checked={includePaper} onChange={(e) => setIncludePaper(e.target.checked)} />
                                 <div className="flex-1">
-                                    <p className="font-bold text-gray-800 text-sm">Add Paper Class</p>
-                                    <p className="text-xs text-gray-500">Model paper discussions</p>
+                                    <p className="font-bold text-gray-800 text-sm">{classData.linkedPaperClass.name}</p>
+                                    <p className="text-xs text-gray-500">Paper Discussion</p>
                                 </div>
                                 <p className="font-bold text-brand-prussian text-sm">+ {formatPrice(classData.linkedPaperClass.price)}</p>
                             </label>
                         )}
+                    </div>
+                    {/* Visual Hint about bundling */}
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg flex items-start gap-2 text-xs text-blue-700">
+                        <TagIcon className="w-4 h-4 shrink-0 mt-0.5" />
+                        <p>Tip: Select multiple classes to unlock exclusive <strong>Bundle Pricing</strong>.</p>
                     </div>
                 </div>
             )}
@@ -461,7 +459,7 @@ export default function EnrollmentPage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Floating Summary */}
+          {/* RIGHT COLUMN: Floating Summary (UPDATED WITH BUNDLE LOGIC) */}
           <div className="lg:col-span-1">
              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl shadow-gray-200/50 p-6 sm:p-8 sticky top-4 border border-gray-100">
                 <h3 className="font-bold text-gray-900 mb-6 text-base sm:text-lg">Order Summary</h3>
@@ -474,32 +472,33 @@ export default function EnrollmentPage() {
                    
                    <div className="border-t border-dashed border-gray-200 pt-3"></div>
 
+                   {/* Standard Breakdown */}
                    <div className="flex justify-between text-xs sm:text-sm">
                       <span className="text-gray-500">Theory Class</span>
                       <span className="font-medium text-gray-900">{formatPrice(classData.price)}</span>
                    </div>
                    {includeRevision && classData.linkedRevisionClass && (
-                       <div className="flex justify-between text-xs sm:text-sm text-brand-cerulean">
+                       <div className="flex justify-between text-xs sm:text-sm text-gray-500">
                           <span className="font-medium">+ Revision Class</span>
-                          <span className="font-bold">{formatPrice(classData.linkedRevisionClass.price)}</span>
+                          <span className="font-medium">{formatPrice(classData.linkedRevisionClass.price)}</span>
                        </div>
                    )}
                    {includePaper && classData.linkedPaperClass && (
-                       <div className="flex justify-between text-xs sm:text-sm text-brand-cerulean">
+                       <div className="flex justify-between text-xs sm:text-sm text-gray-500">
                           <span className="font-medium">+ Paper Class</span>
-                          <span className="font-bold">{formatPrice(classData.linkedPaperClass.price)}</span>
+                          <span className="font-medium">{formatPrice(classData.linkedPaperClass.price)}</span>
                        </div>
                    )}
                    
-                   {/* DISCOUNT INDICATION */}
-                   {isDiscountApplied && (
-                       <div className="flex justify-between text-xs sm:text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
-                          <span className="font-bold flex items-center gap-1"><TagIcon className="w-3 h-3" /> Bundle Savings</span>
-                          <span className="font-bold">- {formatPrice((classData.price + (includeRevision && classData.linkedRevisionClass ? classData.linkedRevisionClass.price : 0) + (includePaper && classData.linkedPaperClass ? classData.linkedPaperClass.price : 0)) - estimatedTotal)}</span>
+                   {/* DISCOUNT LINE ITEM */}
+                   {isBundleActive && (
+                       <div className="flex justify-between text-xs sm:text-sm text-green-600 bg-green-50 px-2 py-1.5 rounded-lg mt-2">
+                          <span className="font-bold flex items-center gap-1"><TagIcon className="w-3.5 h-3.5" /> Bundle Discount</span>
+                          <span className="font-bold">- {formatPrice(discountAmount)}</span>
                        </div>
                    )}
 
-                   <div className="flex justify-between text-xs sm:text-sm">
+                   <div className="flex justify-between text-xs sm:text-sm pt-2">
                       <span className="text-gray-500">Service Charge</span>
                       <span className="text-gray-900 font-medium">LKR 0.00</span>
                    </div>
@@ -508,7 +507,13 @@ export default function EnrollmentPage() {
                 <div className="flex justify-between items-end mb-8">
                    <div>
                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Total Payable</p>
-                       <span className="text-xl sm:text-2xl font-black text-brand-prussian">{formatPrice(estimatedTotal)}</span>
+                       <div className="flex items-baseline gap-2">
+                            {/* Strikethrough original price if discounted */}
+                            {isBundleActive && (
+                                <span className="text-sm text-gray-400 line-through decoration-gray-400">{formatPrice(standardTotal)}</span>
+                            )}
+                            <span className="text-xl sm:text-2xl font-black text-brand-prussian">{formatPrice(finalTotal)}</span>
+                       </div>
                    </div>
                 </div>
 
@@ -517,8 +522,8 @@ export default function EnrollmentPage() {
                   disabled={submitting}
                   className={`w-full py-3.5 sm:py-4 rounded-xl font-bold text-white shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 text-sm sm:text-sm ${
                     submitting 
-                        ? "bg-gray-400 cursor-not-allowed shadow-none" 
-                        : "bg-brand-prussian hover:bg-brand-cerulean shadow-brand-prussian/20 hover:shadow-brand-cerulean/30"
+                      ? "bg-gray-400 cursor-not-allowed shadow-none" 
+                      : "bg-brand-prussian hover:bg-brand-cerulean shadow-brand-prussian/20 hover:shadow-brand-cerulean/30"
                   }`}
                 >
                   {submitting ? (
