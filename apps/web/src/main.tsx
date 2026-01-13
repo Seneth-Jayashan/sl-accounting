@@ -1,15 +1,22 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App'
-import './index.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
 
-// Prevent native context menu globally
-if (typeof window !== 'undefined' && !(window as any).__disableContextMenu) {
-  const handleContextMenu = (event: MouseEvent) => {
-    event.preventDefault()
-  }
-  document.addEventListener('contextmenu', handleContextMenu)
-  ;(window as any).__disableContextMenu = true
+// --- RIGHT CLICK PROTECTION ---
+// This runs once when the app loads.
+if (typeof window !== 'undefined') {
+  document.addEventListener('contextmenu', (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+
+    // Allow right-click on Inputs and Textareas so users can Paste
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      return;
+    }
+
+    // Block everything else
+    event.preventDefault();
+  });
 }
 
 const rootElement = document.getElementById('root') as HTMLElement;
