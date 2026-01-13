@@ -8,6 +8,7 @@ import {
     eachMonthOfInterval, 
     isBefore, 
     isAfter,
+    isSameMonth 
 } from "date-fns";
 import {
   CreditCardIcon,
@@ -16,7 +17,8 @@ import {
   CheckCircleIcon,
   CalendarDaysIcon,
   LockClosedIcon,
-  TagIcon
+  TagIcon,
+  ShieldCheckIcon
 } from "@heroicons/react/24/outline";
 
 // Services & Context
@@ -30,6 +32,13 @@ const IS_DEV = import.meta.env.MODE === "development";
 const NOTIFY_URL_BASE = import.meta.env.VITE_NOTIFY_URL || "http://localhost:3000";
 const PAYHERE_CHECKOUT_URL = IS_DEV ? "https://sandbox.payhere.lk/pay/checkout" : "https://www.payhere.lk/pay/checkout";
 
+const BANK_DETAILS = {
+  bankName: import.meta.env.VITE_BANK_NAME,
+  branch: import.meta.env.VITE_BRANCH_NAME,
+  accountName: import.meta.env.VITE_ACCOUNT_NAME,
+  accountNumber: import.meta.env.VITE_ACCOUNT_NUMBER,
+};
+
 // --- Interfaces ---
 interface LinkedClass { _id: string; name: string; price: number; }
 interface ClassData {
@@ -41,7 +50,6 @@ interface ClassData {
   firstSessionDate?: string; 
   linkedRevisionClass?: LinkedClass;
   linkedPaperClass?: LinkedClass;
-  // Bundle Prices
   bundlePriceRevision?: number;
   bundlePricePaper?: number;
   bundlePriceFull?: number;
@@ -76,13 +84,13 @@ export default function ClassPaymentPage() {
             setClassData(cls);
 
             const enrollRes = await EnrollmentService.enrollInClass(classId, user._id);
-            if (enrollRes.enrollment.paidMonths) {
+            if (enrollRes.enrollment?.paidMonths) {
                 setPaidMonths(enrollRes.enrollment.paidMonths);
             }
             
             // Auto-select logic
             const currentMonth = format(new Date(), "yyyy-MM");
-            if (!enrollRes.enrollment.paidMonths?.includes(currentMonth)) {
+            if (!enrollRes.enrollment?.paidMonths?.includes(currentMonth)) {
                 setSelectedMonth(currentMonth);
             } else {
                 setSelectedMonth(format(addMonths(new Date(), 1), "yyyy-MM"));
@@ -98,14 +106,11 @@ export default function ClassPaymentPage() {
     loadData();
   }, [classId, user]);
 
-  // --- 2. Generate Month Grid (Past & Future Logic) ---
+  // --- 2. Generate Month Grid (STRICT 7 MONTH RANGE) ---
   const monthList = useMemo(() => {
-      // 1. Get Today
       const today = startOfMonth(new Date());
-      
-      // 2. Define Range: STRICTLY -6 months to +12 months
-      const start = subMonths(today, 6); 
-      const end = addMonths(today, 12);
+      const start = subMonths(today, 3); 
+      const end = addMonths(today, 3);
 
       try {
           const months = eachMonthOfInterval({ start, end });
@@ -113,18 +118,16 @@ export default function ClassPaymentPage() {
           return months.map(date => {
               const value = format(date, "yyyy-MM");
               const isPaid = paidMonths.includes(value);
+              const isCurrent = isSameMonth(date, today);
               const isPast = isBefore(date, today); 
               const isFuture = isAfter(date, today); 
 
               let status: "paid" | "overdue" | "due" | "advance" = "due";
               
-              if (isPaid) {
-                  status = "paid";
-              } else if (isPast) {
-                  status = "overdue";
-              } else if (isFuture) {
-                  status = "advance";
-              }
+              if (isPaid) status = "paid";
+              else if (isPast) status = "overdue";
+              else if (isFuture) status = "advance";
+              else if (isCurrent) status = "due";
 
               return {
                   value,
@@ -132,50 +135,38 @@ export default function ClassPaymentPage() {
                   shortLabel: format(date, "MMM ''yy"),
                   status
               };
-          }).reverse(); // Show Future at top
+          }).reverse(); 
       } catch (e) {
           console.error("Date interval error", e);
           return [];
       }
   }, [paidMonths]);
 
-  // --- 3. Calculate Total (BUNDLE LOGIC) ---
+  // --- 3. Calculate Total ---
   const totalAmount = useMemo(() => {
       if (!classData) return 0;
 
-      // 1. Full Bundle (Rev + Paper)
       if (includeRevision && includePaper && classData.bundlePriceFull != null) {
           return classData.bundlePriceFull;
       }
-
-      // 2. Theory + Revision Bundle
       if (includeRevision && !includePaper && classData.bundlePriceRevision != null) {
           return classData.bundlePriceRevision;
       }
-
-      // 3. Theory + Paper Bundle
       if (!includeRevision && includePaper && classData.bundlePricePaper != null) {
           return classData.bundlePricePaper;
       }
 
-      // 4. Fallback: Sum Individual Prices
       let total = classData.price;
-      if (includeRevision && classData.linkedRevisionClass) {
-          total += classData.linkedRevisionClass.price;
-      }
-      if (includePaper && classData.linkedPaperClass) {
-          total += classData.linkedPaperClass.price;
-      }
+      if (includeRevision && classData.linkedRevisionClass) total += classData.linkedRevisionClass.price;
+      if (includePaper && classData.linkedPaperClass) total += classData.linkedPaperClass.price;
       return total;
   }, [classData, includeRevision, includePaper]);
 
-  // Check Discount
   const isDiscountApplied = useMemo(() => {
       if (!classData) return false;
       let standardSum = classData.price;
       if (includeRevision && classData.linkedRevisionClass) standardSum += classData.linkedRevisionClass.price;
       if (includePaper && classData.linkedPaperClass) standardSum += classData.linkedPaperClass.price;
-      
       return totalAmount < standardSum;
   }, [totalAmount, classData, includeRevision, includePaper]);
 
@@ -193,8 +184,6 @@ export default function ClassPaymentPage() {
               includeRevision, includePaper
           });
 
-          // Use the server amount if possible, but fallback to local calculation for immediate UI flow
-          // (Server will validate price again on webhook/upload)
           const finalAmount = enrollmentRes.totalAmount || totalAmount; 
           const enrollmentId = enrollmentRes.enrollment._id;
 
@@ -255,60 +244,68 @@ export default function ClassPaymentPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/50 py-8 px-4 font-sans">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Header */}
-        <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="p-2 hover:bg-white rounded-full transition-all text-gray-500 hover:text-brand-prussian shadow-sm">
-                <ArrowLeftIcon className="w-5 h-5" />
-            </button>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
             <div>
-                <h1 className="text-2xl font-bold text-brand-prussian">Monthly Payments</h1>
-                <p className="text-sm text-gray-500">Manage fees for <span className="font-semibold text-brand-cerulean">{classData?.name}</span></p>
+                <button onClick={() => navigate(-1)} className="group flex items-center text-sm font-bold text-gray-400 hover:text-brand-cerulean transition-colors mb-2 uppercase tracking-wider">
+                    <ArrowLeftIcon className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Back
+                </button>
+                <h1 className="text-3xl font-black text-brand-prussian tracking-tight">Monthly Payments</h1>
+                <p className="text-gray-500 font-medium">Securely manage your fees for <span className="text-brand-cerulean font-bold">{classData?.name}</span></p>
+            </div>
+            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
+                <LockClosedIcon className="w-4 h-4 text-green-500" />
+                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">SSL Secured Checkout</span>
             </div>
         </div>
 
-        {error && <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium border border-red-100">{error}</div>}
+        {error && (
+            <div className="bg-red-50 border border-red-100 text-red-600 px-6 py-4 rounded-2xl text-sm font-medium flex items-center gap-3 shadow-sm animate-fade-in-up">
+                <span className="w-2 h-2 bg-red-500 rounded-full shrink-0"></span>{error}
+            </div>
+        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             
-            {/* LEFT: Month Selection Grid */}
-            <div className="md:col-span-2 space-y-6">
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h2 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <CalendarDaysIcon className="w-5 h-5 text-gray-400" /> Select Month
-                    </h2>
+            {/* LEFT COLUMN: Configuration */}
+            <div className="lg:col-span-2 space-y-8">
+                
+                {/* 1. Month Selection */}
+                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-brand-aliceBlue/50 rounded-xl text-brand-cerulean"><CalendarDaysIcon className="w-6 h-6" /></div>
+                        <h2 className="text-lg font-bold text-brand-prussian">Select Billing Cycle</h2>
+                    </div>
                     
                     {monthList.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                             {monthList.map((m) => {
                                 const isSelected = selectedMonth === m.value;
                                 const isPaid = m.status === 'paid';
                                 
-                                let borderClass = "border-gray-200 hover:border-gray-300";
-                                let bgClass = "bg-white";
+                                let borderClass = "border-gray-100 hover:border-gray-200 bg-white";
                                 let textClass = "text-gray-600";
                                 let badge = null;
+                                let bgClass = "";
 
                                 if (m.status === 'overdue' && !isPaid) {
-                                    borderClass = "border-red-200";
-                                    bgClass = "bg-red-50/50";
-                                    badge = <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Overdue</span>;
+                                    borderClass = "border-red-100 bg-red-50/30";
+                                    badge = <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full border border-red-200">Overdue</span>;
                                 } else if (m.status === 'advance') {
-                                    badge = <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Advance</span>;
+                                    badge = <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full border border-green-200">Advance</span>;
                                 } else if (m.status === 'due') {
-                                    borderClass = "border-blue-200";
-                                    bgClass = "bg-blue-50/30";
-                                    badge = <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">Due Now</span>;
+                                    borderClass = "border-brand-cerulean/30 bg-brand-aliceBlue/10";
+                                    badge = <span className="text-[10px] font-bold text-brand-cerulean bg-brand-aliceBlue px-2 py-0.5 rounded-full border border-brand-cerulean/20">Due Now</span>;
                                 }
 
                                 if (isSelected) {
-                                    borderClass = "border-brand-cerulean ring-1 ring-brand-cerulean";
-                                    bgClass = "bg-brand-aliceBlue/20";
+                                    borderClass = "border-brand-cerulean ring-2 ring-brand-cerulean bg-brand-aliceBlue/20 shadow-md";
                                 }
 
                                 if (isPaid) {
-                                    bgClass = "bg-gray-50 opacity-70";
+                                    bgClass = "bg-gray-50 opacity-60 cursor-not-allowed";
                                     borderClass = "border-gray-100";
                                 }
 
@@ -317,134 +314,208 @@ export default function ClassPaymentPage() {
                                         key={m.value}
                                         disabled={isPaid}
                                         onClick={() => setSelectedMonth(m.value)}
-                                        className={`relative p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${borderClass} ${bgClass}`}
+                                        className={`relative p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between group ${borderClass} ${bgClass}`}
                                     >
                                         <div>
-                                            <p className={`font-bold text-sm ${textClass}`}>{m.label}</p>
-                                            <p className="text-xs text-gray-400 mt-0.5">{m.status === 'paid' ? 'Access Active' : m.status === 'advance' ? 'Future Payment' : 'Pending Payment'}</p>
+                                            <p className={`font-bold text-sm sm:text-base ${textClass}`}>{m.label}</p>
+                                            <p className="text-xs text-gray-400 mt-1 font-medium group-hover:text-brand-cerulean transition-colors">
+                                                {m.status === 'paid' ? 'Access Active' : m.status === 'advance' ? 'Future Payment' : 'Pending Payment'}
+                                            </p>
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
-                                            {isPaid ? (
-                                                <CheckCircleIcon className="w-6 h-6 text-green-500" />
-                                            ) : (
-                                                badge
-                                            )}
-                                            {isSelected && !isPaid && <div className="w-3 h-3 bg-brand-cerulean rounded-full" />}
+                                            {isPaid ? <CheckCircleIcon className="w-6 h-6 text-green-500" /> : badge}
+                                            {isSelected && !isPaid && <div className="w-3 h-3 bg-brand-cerulean rounded-full animate-bounce" />}
                                         </div>
                                     </button>
                                 );
                             })}
                         </div>
                     ) : (
-                        <div className="text-center py-10 text-gray-400">
-                            <p>No billing cycles available yet.</p>
+                        <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                            <p className="text-gray-400 font-medium">No billing cycles available yet.</p>
                         </div>
                     )}
                 </div>
 
-                {/* Bundle Options */}
+                {/* 2. Bundle Options */}
                 {(classData?.linkedRevisionClass || classData?.linkedPaperClass) && (
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                        <h2 className="font-bold text-gray-800 mb-4">Add Extras</h2>
-                        <div className="space-y-3">
+                    <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2 bg-brand-aliceBlue/50 rounded-xl text-brand-cerulean"><TagIcon className="w-6 h-6" /></div>
+                            <h2 className="text-lg font-bold text-brand-prussian">Customize Your Plan</h2>
+                        </div>
+                        
+                        <div className="space-y-4">
                             {classData.linkedRevisionClass && (
-                                <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${includeRevision ? 'border-brand-cerulean bg-blue-50/30' : 'border-gray-200'}`}>
-                                    <input type="checkbox" className="w-5 h-5 text-brand-cerulean rounded" checked={includeRevision} onChange={e => setIncludeRevision(e.target.checked)} />
-                                    <div className="flex-1">
-                                        <p className="text-sm font-bold text-gray-700">Revision Class</p>
-                                        <p className="text-xs text-gray-500">Add comprehensive revision</p>
+                                <label className={`flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-md ${includeRevision ? 'border-brand-cerulean bg-brand-aliceBlue/20' : 'border-gray-100 hover:border-gray-200'}`}>
+                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${includeRevision ? "bg-brand-cerulean border-brand-cerulean" : "border-gray-300 bg-white"}`}>
+                                        {includeRevision && <CheckCircleIcon className="w-4 h-4 text-white" />}
                                     </div>
-                                    <span className="text-sm font-bold text-brand-prussian">+{formatPrice(classData.linkedRevisionClass.price)}</span>
+                                    <input type="checkbox" className="hidden" checked={includeRevision} onChange={e => setIncludeRevision(e.target.checked)} />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-brand-prussian">Revision Class</p>
+                                        <p className="text-xs text-gray-500 mt-0.5">Add comprehensive revision sessions</p>
+                                    </div>
+                                    <span className="text-sm font-bold text-brand-cerulean">+{formatPrice(classData.linkedRevisionClass.price)}</span>
                                 </label>
                             )}
                             {classData.linkedPaperClass && (
-                                <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${includePaper ? 'border-brand-cerulean bg-blue-50/30' : 'border-gray-200'}`}>
-                                    <input type="checkbox" className="w-5 h-5 text-brand-cerulean rounded" checked={includePaper} onChange={e => setIncludePaper(e.target.checked)} />
-                                    <div className="flex-1">
-                                        <p className="text-sm font-bold text-gray-700">Paper Class</p>
-                                        <p className="text-xs text-gray-500">Add paper discussion</p>
+                                <label className={`flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-md ${includePaper ? 'border-brand-cerulean bg-brand-aliceBlue/20' : 'border-gray-100 hover:border-gray-200'}`}>
+                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${includePaper ? "bg-brand-cerulean border-brand-cerulean" : "border-gray-300 bg-white"}`}>
+                                        {includePaper && <CheckCircleIcon className="w-4 h-4 text-white" />}
                                     </div>
-                                    <span className="text-sm font-bold text-brand-prussian">+{formatPrice(classData.linkedPaperClass.price)}</span>
+                                    <input type="checkbox" className="hidden" checked={includePaper} onChange={e => setIncludePaper(e.target.checked)} />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-brand-prussian">Paper Class</p>
+                                        <p className="text-xs text-gray-500 mt-0.5">Add model paper discussions</p>
+                                    </div>
+                                    <span className="text-sm font-bold text-brand-cerulean">+{formatPrice(classData.linkedPaperClass.price)}</span>
                                 </label>
                             )}
                         </div>
                     </div>
                 )}
+
+                {/* 3. Payment Method */}
+                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-brand-aliceBlue/50 rounded-xl text-brand-cerulean"><CreditCardIcon className="w-6 h-6" /></div>
+                        <h2 className="text-lg font-bold text-brand-prussian">Payment Method</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button 
+                            onClick={() => setPaymentMethod('payhere')}
+                            className={`p-5 rounded-2xl border-2 flex flex-col gap-3 transition-all text-left hover:shadow-md ${paymentMethod === 'payhere' ? 'border-brand-cerulean bg-brand-aliceBlue/20 ring-1 ring-brand-cerulean' : 'border-gray-100 hover:border-gray-200'}`}
+                        >
+                            <div className="flex justify-between w-full">
+                                <CreditCardIcon className={`w-6 h-6 ${paymentMethod === 'payhere' ? 'text-brand-cerulean' : 'text-gray-400'}`} />
+                                {paymentMethod === 'payhere' && <div className="w-3 h-3 bg-brand-cerulean rounded-full" />}
+                            </div>
+                            <div>
+                                <p className="font-bold text-sm text-brand-prussian">Pay Online</p>
+                                <p className="text-[10px] text-gray-500 mt-1">Instant activation via Card/Wallet</p>
+                            </div>
+                        </button>
+
+                        <button 
+                            onClick={() => setPaymentMethod('bank')}
+                            className={`p-5 rounded-2xl border-2 flex flex-col gap-3 transition-all text-left hover:shadow-md ${paymentMethod === 'bank' ? 'border-brand-cerulean bg-brand-aliceBlue/20 ring-1 ring-brand-cerulean' : 'border-gray-100 hover:border-gray-200'}`}
+                        >
+                            <div className="flex justify-between w-full">
+                                <BuildingLibraryIcon className={`w-6 h-6 ${paymentMethod === 'bank' ? 'text-brand-cerulean' : 'text-gray-400'}`} />
+                                {paymentMethod === 'bank' && <div className="w-3 h-3 bg-brand-cerulean rounded-full" />}
+                            </div>
+                            <div>
+                                <p className="font-bold text-sm text-brand-prussian">Bank Transfer</p>
+                                <p className="text-[10px] text-gray-500 mt-1">Manual slip upload required</p>
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Bank Details Panel */}
+                    {paymentMethod === "bank" && (
+                        <div className="mt-6 p-6 bg-gray-50 rounded-2xl border border-gray-200 animate-fade-in">
+                            <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Transfer Details</p>
+                                <span className="text-[10px] bg-white border border-gray-200 px-2 py-1 rounded text-gray-500 font-medium">Business Account</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 text-sm">
+                                <div>
+                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Bank Name</p>
+                                    <p className="font-bold text-gray-800">{BANK_DETAILS.bankName}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Account Number</p>
+                                    <p className="font-mono font-bold text-brand-prussian text-lg tracking-wide">{BANK_DETAILS.accountNumber}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Branch</p>
+                                    <p className="text-gray-700 font-medium">{BANK_DETAILS.branch}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Account Name</p>
+                                    <p className="text-gray-700 font-medium">{BANK_DETAILS.accountName}</p>
+                                </div>
+                            </div>
+                            <div className="mt-5 pt-4 border-t border-gray-200 text-[10px] sm:text-xs text-gray-500 flex items-start sm:items-center gap-2">
+                                <ShieldCheckIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5 sm:mt-0" />
+                                Please save your transfer slip/screenshot to upload in the next step.
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* RIGHT: Payment Summary */}
-            <div className="space-y-6">
-                <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 sticky top-6">
-                    <h3 className="font-bold text-gray-900 mb-6 text-lg">Payment Summary</h3>
+            {/* RIGHT COLUMN: Sticky Summary */}
+            <div className="lg:col-span-1">
+                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 sticky top-6">
+                    <h3 className="font-bold text-brand-prussian mb-6 text-lg">Order Summary</h3>
                     
-                    <div className="space-y-4 mb-6 pb-6 border-b border-gray-100">
-                        <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Selected Month</span>
-                            <span className="font-bold text-brand-prussian">{selectedMonth ? format(new Date(selectedMonth), "MMMM yyyy") : "None"}</span>
+                    <div className="space-y-4 mb-8 pb-8 border-b border-dashed border-gray-200">
+                        <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-xl">
+                            <span className="text-gray-500 font-medium">Billing Period</span>
+                            <span className="font-bold text-brand-prussian">{selectedMonth ? format(new Date(selectedMonth), "MMMM yyyy") : "Select a month"}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Theory Fee</span>
-                            <span className="font-medium">{formatPrice(classData?.price || 0)}</span>
-                        </div>
-                        {includeRevision && classData?.linkedRevisionClass && (
-                            <div className="flex justify-between text-sm text-blue-600">
-                                <span>+ Revision</span>
-                                <span>{formatPrice(classData.linkedRevisionClass.price)}</span>
-                            </div>
-                        )}
-                        {includePaper && classData?.linkedPaperClass && (
-                            <div className="flex justify-between text-sm text-blue-600">
-                                <span>+ Paper</span>
-                                <span>{formatPrice(classData.linkedPaperClass.price)}</span>
-                            </div>
-                        )}
                         
-                        {/* Discount Badge */}
-                        {isDiscountApplied && classData && (
-                           <div className="flex justify-between text-xs sm:text-sm text-green-600 bg-green-50 px-2 py-1 rounded">
-                              <span className="font-bold flex items-center gap-1"><TagIcon className="w-3 h-3" /> Bundle Savings</span>
-                              <span className="font-bold">- {formatPrice((classData.price + (includeRevision && classData.linkedRevisionClass ? classData.linkedRevisionClass.price : 0) + (includePaper && classData.linkedPaperClass ? classData.linkedPaperClass.price : 0)) - totalAmount)}</span>
+                        <div className="space-y-3 pt-2">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Theory Fee</span>
+                                <span className="font-bold text-gray-900">{formatPrice(classData?.price || 0)}</span>
+                            </div>
+                            {includeRevision && classData?.linkedRevisionClass && (
+                                <div className="flex justify-between text-sm text-brand-cerulean">
+                                    <span className="font-medium">+ Revision Class</span>
+                                    <span className="font-bold">{formatPrice(classData.linkedRevisionClass.price)}</span>
+                                </div>
+                            )}
+                            {includePaper && classData?.linkedPaperClass && (
+                                <div className="flex justify-between text-sm text-brand-cerulean">
+                                    <span className="font-medium">+ Paper Class</span>
+                                    <span className="font-bold">{formatPrice(classData.linkedPaperClass.price)}</span>
+                                </div>
+                            )}
+                        </div>
+                        
+                        {isDiscountApplied && (
+                           <div className="flex justify-between items-center text-xs sm:text-sm text-green-700 bg-green-50 px-3 py-2 rounded-xl border border-green-100">
+                              <span className="font-bold flex items-center gap-1"><TagIcon className="w-4 h-4" /> Bundle Savings</span>
+                              <span className="font-bold">- {formatPrice((classData!.price + (includeRevision && classData!.linkedRevisionClass ? classData!.linkedRevisionClass.price : 0) + (includePaper && classData!.linkedPaperClass ? classData!.linkedPaperClass.price : 0)) - totalAmount)}</span>
                            </div>
                        )}
                     </div>
 
                     <div className="flex justify-between items-end mb-8">
-                        <span className="text-xs font-bold text-gray-400 uppercase">Total</span>
-                        <span className="text-3xl font-black text-brand-prussian">{formatPrice(totalAmount)}</span>
-                    </div>
-
-                    {/* Method Selector */}
-                    <div className="grid grid-cols-2 gap-2 mb-6">
-                        <button 
-                            onClick={() => setPaymentMethod('payhere')}
-                            className={`p-3 rounded-xl border text-xs font-bold transition-all ${paymentMethod === 'payhere' ? 'border-brand-cerulean bg-blue-50 text-brand-cerulean' : 'border-gray-200 text-gray-500'}`}
-                        >
-                            <CreditCardIcon className="w-5 h-5 mx-auto mb-1" />
-                            Pay Online
-                        </button>
-                        <button 
-                            onClick={() => setPaymentMethod('bank')}
-                            className={`p-3 rounded-xl border text-xs font-bold transition-all ${paymentMethod === 'bank' ? 'border-brand-cerulean bg-blue-50 text-brand-cerulean' : 'border-gray-200 text-gray-500'}`}
-                        >
-                            <BuildingLibraryIcon className="w-5 h-5 mx-auto mb-1" />
-                            Bank Slip
-                        </button>
+                        <div>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Total Payable</p>
+                            <span className="text-2xl font-black text-brand-prussian tracking-tight">{formatPrice(totalAmount)}</span>
+                        </div>
                     </div>
 
                     <button
                         onClick={handlePayment}
                         disabled={submitting || !selectedMonth}
-                        className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all ${
+                        className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 text-sm ${
                             submitting || !selectedMonth
                             ? "bg-gray-300 cursor-not-allowed shadow-none" 
-                            : "bg-brand-prussian hover:bg-brand-cerulean shadow-blue-900/20 active:scale-95"
+                            : "bg-brand-prussian hover:bg-brand-cerulean shadow-brand-prussian/20 hover:shadow-brand-cerulean/30"
                         }`}
                     >
-                        {submitting ? "Processing..." : paymentMethod === 'payhere' ? "Pay Now" : "Upload Slip"}
+                        {submitting ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                Processing...
+                            </>
+                        ) : (
+                            <>
+                                {paymentMethod === 'payhere' ? "Pay Securely" : "Confirm & Upload"}
+                                <ArrowLeftIcon className="w-4 h-4 rotate-180" />
+                            </>
+                        )}
                     </button>
                     
-                    <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-gray-400">
-                        <LockClosedIcon className="w-3 h-3" /> Secure Payment 
+                    <div className="mt-6 flex items-center justify-center gap-2 text-[10px] text-gray-400 font-medium">
+                        <LockClosedIcon className="w-3 h-3" /> Encrypted & Secure Payment 
                     </div>
                 </div>
             </div>

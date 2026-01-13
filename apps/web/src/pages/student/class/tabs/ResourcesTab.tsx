@@ -1,22 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom"; // Added for navigation
 import { motion } from "framer-motion";
 import { 
   FolderOpen, 
   FileText, 
   Download, 
-  FileCode, 
   RotateCw, 
   Presentation, 
   Image as ImageIcon, 
   File as FileIcon, 
-  FileEdit 
+  FileEdit,
+  Lock,           // Added
+  AlertCircle,     // Added
+  FileCode
 } from "lucide-react";
 import MaterialService, { type MaterialData } from "../../../../services/MaterialService";
+import EnrollmentService, { type EnrollmentResponse } from "../../../../services/EnrollmentService"; // Added
+
+// --- Helpers ---
+const getMonthString = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
 
 export default function ResourcesTab({ classId }: { classId: string }) {
+  const navigate = useNavigate();
   const [materials, setMaterials] = useState<MaterialData[]>([]);
+  const [enrollment, setEnrollment] = useState<EnrollmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // 1. Fetch Data (Materials + Enrollment)
   useEffect(() => {
     if (!classId) {
       setLoading(false);
@@ -24,15 +37,17 @@ export default function ResourcesTab({ classId }: { classId: string }) {
     }
 
     let isMounted = true;
-    const fetchMaterials = async () => {
+    const loadData = async () => {
       setLoading(true);
       try {
-        const res = await MaterialService.getStudentMaterials(classId);
+        const [matRes, enrollRes] = await Promise.all([
+             MaterialService.getStudentMaterials(classId),
+             EnrollmentService.getMyEnrollments()
+        ]);
         
         if (isMounted) {
-            // Robust data extraction
-            const data = (res as any).data || res;
-            
+            // A. Handle Materials Data
+            const data = (matRes as any).data || matRes;
             if (Array.isArray(data)) {
                 setMaterials(data);
             } else if (data && typeof data === 'object') {
@@ -40,19 +55,25 @@ export default function ResourcesTab({ classId }: { classId: string }) {
             } else {
                 setMaterials([]);
             }
+
+            // B. Handle Enrollment Data (Find specific enrollment for this class)
+            const match = enrollRes.find((e: any) => 
+                (typeof e.class === 'string' ? e.class : e.class._id) === classId
+            );
+            setEnrollment(match || null);
         }
       } catch (err) {
-        console.error("Failed to load materials", err);
+        console.error("Failed to load resources data", err);
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
-    fetchMaterials();
+    loadData();
     return () => { isMounted = false; };
   }, [classId]);
 
-  // Icon Helper
+  // 2. Icon Helper
   const getFileIcon = (type: string) => {
     const t = type.toLowerCase();
     switch (t) {
@@ -63,6 +84,27 @@ export default function ResourcesTab({ classId }: { classId: string }) {
       default: return <FileIcon size={20} className="text-gray-400" />;
     }
   };
+
+  // 3. Access Logic Helper
+  const getAccessStatus = (file: MaterialData) => {
+      if (!enrollment) return { locked: true, reason: "Not Enrolled" };
+
+      const fileMonth = getMonthString(file.createdAt);
+      const paidMonths = enrollment.paidMonths || [];
+
+      // Check if the month the file was created in is paid for
+      if (!paidMonths.includes(fileMonth)) {
+          const monthName = new Date(file.createdAt).toLocaleDateString('en-US', { month: 'long' });
+          return { locked: true, reason: `Pay for ${monthName}` };
+      }
+
+      return { locked: false, reason: "" };
+  };
+
+  // 4. Sorted Materials (Newest First)
+  const sortedMaterials = useMemo(() => {
+      return [...materials].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [materials]);
 
   if (loading) {
     return (
@@ -89,46 +131,72 @@ export default function ResourcesTab({ classId }: { classId: string }) {
         </h2>
       </div>
       
-
-      {materials.length > 0 ? (
+      {sortedMaterials.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {materials.map((file) => (
-            <div 
-              key={file._id} 
-              className="bg-white p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-brand-aliceBlue flex items-center justify-between group hover:border-brand-cerulean/20 transition-all duration-300 shadow-sm hover:shadow-md"
-            >
-              <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
-                {/* Icon Container */}
-                <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-brand-aliceBlue/50 rounded-xl sm:rounded-2xl flex items-center justify-center transition-colors duration-300 group-hover:bg-brand-cerulean/5">
-                  {getFileIcon(file.fileType)}
-                </div>
-                
-                <div className="min-w-0">
-                  <h4 className="text-sm font-semibold text-brand-prussian truncate w-full tracking-tight group-hover:text-brand-cerulean transition-colors" title={file.title}>
-                    {file.title}
-                  </h4>
-                  <div className="flex flex-col gap-0.5 mt-0.5">
-                      <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-                        {file.fileSize || "Unknown Size"}
-                      </p>
-                      {file.description && (
-                         <p className="text-[10px] text-gray-400 truncate w-24 sm:w-32 opacity-70">{file.description}</p>
-                      )}
+          {sortedMaterials.map((file) => {
+            const { locked, reason } = getAccessStatus(file);
+
+            return (
+                <div 
+                  key={file._id} 
+                  className={`relative p-5 rounded-[1.5rem] sm:rounded-[2rem] border transition-all duration-300 flex items-center justify-between group ${
+                      locked 
+                      ? "bg-gray-50 border-gray-200" 
+                      : "bg-white border-brand-aliceBlue hover:border-brand-cerulean/20 hover:shadow-md"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
+                    {/* Icon Container */}
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl sm:rounded-2xl flex items-center justify-center transition-colors duration-300 ${
+                        locked 
+                        ? "bg-gray-200 grayscale opacity-50" 
+                        : "bg-brand-aliceBlue/50 group-hover:bg-brand-cerulean/5"
+                    }`}>
+                      {locked ? <Lock size={20} className="text-gray-400"/> : getFileIcon(file.fileType)}
+                    </div>
+                    
+                    <div className="min-w-0">
+                      <h4 className={`text-sm font-semibold truncate w-full tracking-tight transition-colors ${
+                          locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
+                      }`} title={file.title}>
+                        {file.title}
+                      </h4>
+                      <div className="flex flex-col gap-0.5 mt-0.5">
+                          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider flex items-center gap-1">
+                            {locked ? (
+                                <span className="text-red-400 flex items-center gap-1"><AlertCircle size={10} /> {reason}</span>
+                            ) : (
+                                <span>{file.fileSize || "Unknown Size"}</span>
+                            )}
+                          </p>
+                          {file.description && !locked && (
+                              <p className="text-[10px] text-gray-400 truncate w-24 sm:w-32 opacity-70">{file.description}</p>
+                          )}
+                      </div>
+                    </div>
                   </div>
+                  
+                  {locked ? (
+                      <button 
+                        onClick={() => navigate(`/student/payment/create/${classId}`)}
+                        className="p-2.5 bg-gray-100 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all text-[10px] font-bold uppercase tracking-wider w-20 flex justify-center"
+                      >
+                          Unlock
+                      </button>
+                  ) : (
+                      <a 
+                        href={`${import.meta.env.VITE_API_BASE_URL}${file.fileUrl}`} 
+                        target="_blank" 
+                        rel="noreferrer noopener"
+                        className="p-2.5 bg-brand-aliceBlue text-gray-500 rounded-xl hover:bg-brand-prussian hover:text-white transition-all transform active:scale-90"
+                        title="Download File"
+                      >
+                        <Download size={18} />
+                      </a>
+                  )}
                 </div>
-              </div>
-              
-              <a 
-                href={`${import.meta.env.VITE_API_BASE_URL}${file.fileUrl}`} 
-                target="_blank" 
-                rel="noreferrer noopener"
-                className="p-2.5 bg-brand-aliceBlue text-gray-500 rounded-xl hover:bg-brand-prussian hover:text-white transition-all transform active:scale-90"
-                title="Download File"
-              >
-                <Download size={18} />
-              </a>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         /* Empty State */

@@ -212,7 +212,7 @@ export default function StudentDashboardPage() {
                                                     to={`/student/class/${session._id}`}
                                                     className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 bg-brand-cerulean text-white text-sm font-bold rounded-xl hover:bg-brand-prussian transition-all active:scale-95"
                                                 >
-                                                    <Video size={16} /> Join Now
+                                                    <Video size={16} /> View Class
                                                 </Link>
                                             ) : (
                                                 <div className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 bg-gray-100 text-gray-500 text-sm font-bold rounded-xl">

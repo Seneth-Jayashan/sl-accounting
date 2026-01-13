@@ -34,7 +34,9 @@ const sessionSchema = new mongoose.Schema({
 
   notes: { type: String },
 
-  isCancelled: { type: Boolean, default: false }
+  isCancelled: { type: Boolean, default: false },
+  cancelledAt: { type: Date },
+  cancellationReason: { type: String },
 
 }, { timestamps: true });
 

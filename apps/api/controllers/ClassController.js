@@ -146,19 +146,11 @@ export const createClass = async (req, res) => {
 
   try {
     const {
-      // Configuration Flags
       createRevision, createPaper, type, 
-      
-      // Variants Data
       revisionDay, revisionStartTime, revisionEndTime, revisionPrice,
       paperDay, paperStartTime, paperEndTime, paperPrice,
-      
-      // Bundle Data
       bundlePriceRevision, bundlePricePaper, bundlePriceFull,
-      
-      // Linking
       parentTheoryClass, 
-      
       ...rest
     } = req.body;
 
@@ -171,114 +163,126 @@ export const createClass = async (req, res) => {
     };
     if (filePaths.images.length === 0) delete filePaths.images;
 
-    // ---------------------------------------------------------
-    // SCENARIO A: Creating a Linked Child Class (Revision/Paper)
-    // ---------------------------------------------------------
+    // =========================================================
+    // SCENARIO A: Creating Revision or Paper Class (Standalone OR Linked)
+    // =========================================================
     if (type === 'revision' || type === 'paper') {
-        if (!parentTheoryClass) {
-            throw new Error(`A Parent Theory Class is required to create a standalone ${type} class.`);
+        
+        let parent = null;
+
+        // 1. If a Parent is provided, validate it first
+        if (parentTheoryClass) {
+            parent = await Class.findById(parentTheoryClass).session(session);
+            if (!parent) throw new Error("Selected parent class not found.");
+            if (parent.type !== 'theory') throw new Error("Parent class must be of type 'Theory'.");
+
+            // Check existing links to prevent overwriting
+            if (type === 'revision' && parent.linkedRevisionClass) {
+                throw new Error(`This Theory class already has a Revision class linked. Cannot add another.`);
+            }
+            if (type === 'paper' && parent.linkedPaperClass) {
+                throw new Error(`This Theory class already has a Paper class linked. Cannot add another.`);
+            }
         }
 
-        // 1. Fetch Parent & Lock
-        const parent = await Class.findById(parentTheoryClass).session(session);
-        if (!parent) throw new Error("Selected parent class not found.");
-        if (parent.type !== 'theory') throw new Error("Parent class must be of type 'Theory'.");
-
-        // 2. Enforce "One Link Per Type" Constraint
-        if (type === 'revision' && parent.linkedRevisionClass) {
-            throw new Error(`This Theory class already has a Revision class linked (ID: ${parent.linkedRevisionClass}). Cannot add another.`);
-        }
-        if (type === 'paper' && parent.linkedPaperClass) {
-            throw new Error(`This Theory class already has a Paper class linked (ID: ${parent.linkedPaperClass}). Cannot add another.`);
-        }
-
-        // 3. Create Child Class
+        // 2. Create the Class (Standalone or Linked)
+        // If parentTheoryClass is null/undefined, it just saves as null/undefined in DB
         const childData = { ...rest, type, parentTheoryClass };
-        const newChildClass = await createSingleClassInternal(session, childData, filePaths);
+        const newClass = await createSingleClassInternal(session, childData, filePaths);
 
-        // 4. Update Parent with Link
-        if (type === 'revision') parent.linkedRevisionClass = newChildClass._id;
-        if (type === 'paper') parent.linkedPaperClass = newChildClass._id;
-        await parent.save({ session });
+        // 3. If Parent exists, update the link on the Parent side
+        if (parent) {
+            if (type === 'revision') parent.linkedRevisionClass = newClass._id;
+            if (type === 'paper') parent.linkedPaperClass = newClass._id;
+            await parent.save({ session });
+        }
 
         await session.commitTransaction();
         return res.status(201).json({ 
             success: true, 
-            message: `${type} class created and linked to parent successfully.`, 
-            class: newChildClass 
+            message: parent 
+                ? `${type} class created and linked to parent successfully.` 
+                : `Standalone ${type} class created successfully.`, 
+            class: newClass 
         });
-    }
+    } 
 
-    // ---------------------------------------------------------
+    // =========================================================
     // SCENARIO B: Creating a Theory Class (With Optional Variants)
-    // ---------------------------------------------------------
-    const primaryData = {
-      ...rest,
-      type: "theory",
-      bundlePriceRevision: bundlePriceRevision ? Number(bundlePriceRevision) : undefined,
-      bundlePricePaper: bundlePricePaper ? Number(bundlePricePaper) : undefined,
-      bundlePriceFull: bundlePriceFull ? Number(bundlePriceFull) : undefined,
-    };
+    // =========================================================
+    else if (type === 'theory') {
+        
+        const primaryData = {
+            ...rest,
+            type: "theory",
+            bundlePriceRevision: bundlePriceRevision ? Number(bundlePriceRevision) : undefined,
+            bundlePricePaper: bundlePricePaper ? Number(bundlePricePaper) : undefined,
+            bundlePriceFull: bundlePriceFull ? Number(bundlePriceFull) : undefined,
+        };
 
-    // 1. Create Parent Theory Class
-    const primaryClass = await createSingleClassInternal(session, primaryData, filePaths);
+        // 1. Create Parent Theory Class
+        const primaryClass = await createSingleClassInternal(session, primaryData, filePaths);
 
-    // 2. Create Variants if requested
-    let revisionId = null;
-    let paperId = null;
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Colombo";
+        // 2. Create Variants if requested
+        let revisionId = null;
+        let paperId = null;
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Colombo";
 
-    // Auto-create Revision
-    if (shouldCreateRevision && revisionDay !== undefined) {
-        const revClass = await createSingleClassInternal(session, {
-          name: `${primaryData.name} - Revision`,
-          description: primaryData.description,
-          price: revisionPrice ? Number(revisionPrice) : primaryData.price,
-          batch: primaryData.batch,
-          level: primaryData.level,
-          recurrence: primaryData.recurrence,
-          firstSessionDate: primaryData.firstSessionDate,
-          totalSessions: primaryData.totalSessions,
-          tags: primaryData.tags,
-          isPublished: primaryData.isPublished,
-          type: "revision",
-          parentTheoryClass: primaryClass._id, // Link to parent
-          timeSchedules: [{ day: Number(revisionDay), startTime: revisionStartTime, endTime: revisionEndTime, timezone }],
-          sessionDurationMinutes: moment(revisionEndTime, "HH:mm").diff(moment(revisionStartTime, "HH:mm"), "minutes"),
-        }, filePaths);
-        revisionId = revClass._id;
+        // Auto-create Revision
+        if (shouldCreateRevision && revisionDay !== undefined) {
+            const revClass = await createSingleClassInternal(session, {
+                name: `${primaryData.name} - Revision`,
+                description: primaryData.description,
+                price: revisionPrice ? Number(revisionPrice) : primaryData.price,
+                batch: primaryData.batch,
+                level: primaryData.level,
+                recurrence: primaryData.recurrence,
+                firstSessionDate: primaryData.firstSessionDate,
+                totalSessions: primaryData.totalSessions,
+                tags: primaryData.tags,
+                isPublished: primaryData.isPublished,
+                type: "revision",
+                parentTheoryClass: primaryClass._id, 
+                timeSchedules: [{ day: Number(revisionDay), startTime: revisionStartTime, endTime: revisionEndTime, timezone }],
+                sessionDurationMinutes: moment(revisionEndTime, "HH:mm").diff(moment(revisionStartTime, "HH:mm"), "minutes"),
+            }, filePaths);
+            revisionId = revClass._id;
+        }
+
+        // Auto-create Paper
+        if (shouldCreatePaper && paperDay !== undefined) {
+            const papClass = await createSingleClassInternal(session, {
+                name: `${primaryData.name} - Paper`,
+                description: primaryData.description,
+                price: paperPrice ? Number(paperPrice) : primaryData.price,
+                batch: primaryData.batch,
+                level: primaryData.level,
+                recurrence: primaryData.recurrence,
+                firstSessionDate: primaryData.firstSessionDate,
+                totalSessions: primaryData.totalSessions,
+                tags: primaryData.tags,
+                isPublished: primaryData.isPublished,
+                type: "paper",
+                parentTheoryClass: primaryClass._id, 
+                timeSchedules: [{ day: Number(paperDay), startTime: paperStartTime, endTime: paperEndTime, timezone }],
+                sessionDurationMinutes: moment(paperEndTime, "HH:mm").diff(moment(paperStartTime, "HH:mm"), "minutes"),
+            }, filePaths);
+            paperId = papClass._id;
+        }
+
+        // 3. Update Parent with Links
+        if (revisionId || paperId) {
+            if (revisionId) primaryClass.linkedRevisionClass = revisionId;
+            if (paperId) primaryClass.linkedPaperClass = paperId;
+            await primaryClass.save({ session });
+        }
+
+        await session.commitTransaction();
+        return res.status(201).json({ success: true, message: "Class created successfully", class: primaryClass });
+    
+    } else {
+        throw new Error("Invalid class type selected.");
     }
-
-    // Auto-create Paper
-    if (shouldCreatePaper && paperDay !== undefined) {
-        const papClass = await createSingleClassInternal(session, {
-          name: `${primaryData.name} - Paper`,
-          description: primaryData.description,
-          price: paperPrice ? Number(paperPrice) : primaryData.price,
-          batch: primaryData.batch,
-          level: primaryData.level,
-          recurrence: primaryData.recurrence,
-          firstSessionDate: primaryData.firstSessionDate,
-          totalSessions: primaryData.totalSessions,
-          tags: primaryData.tags,
-          isPublished: primaryData.isPublished,
-          type: "paper",
-          parentTheoryClass: primaryClass._id, // Link to parent
-          timeSchedules: [{ day: Number(paperDay), startTime: paperStartTime, endTime: paperEndTime, timezone }],
-          sessionDurationMinutes: moment(paperEndTime, "HH:mm").diff(moment(paperStartTime, "HH:mm"), "minutes"),
-        }, filePaths);
-        paperId = papClass._id;
-    }
-
-    // 3. Update Parent with Links
-    if (revisionId || paperId) {
-        if (revisionId) primaryClass.linkedRevisionClass = revisionId;
-        if (paperId) primaryClass.linkedPaperClass = paperId;
-        await primaryClass.save({ session });
-    }
-
-    await session.commitTransaction();
-    return res.status(201).json({ success: true, message: "Class created successfully", class: primaryClass });
 
   } catch (error) {
     if (session.inTransaction()) await session.abortTransaction();
