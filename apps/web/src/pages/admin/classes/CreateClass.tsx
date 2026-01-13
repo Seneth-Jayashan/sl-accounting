@@ -127,9 +127,9 @@ export default function CreateClassPage() {
     }
     
     // Link Validation
-    if ((formData.type === 'revision' || formData.type === 'paper') && !formData.parentTheoryClass) {
-        return setError("Please select a Parent Theory Class to link this module to.");
-    }
+    // if ((formData.type === 'revision' || formData.type === 'paper') && !formData.parentTheoryClass) {
+    //     return setError("Please select a Parent Theory Class to link this module to.");
+    // }
 
     if (formData.type === 'theory') {
         if (formData.createRevision && moment(formData.revisionStartTime, "HH:mm").isSameOrAfter(moment(formData.revisionEndTime, "HH:mm"))) {
@@ -236,7 +236,7 @@ export default function CreateClassPage() {
                 {/* --- CONDITIONAL PARENT SELECTOR --- */}
                 {formData.type !== 'theory' && (
                     <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                        <Select label={`Link to Parent Theory Class`} name="parentTheoryClass" value={formData.parentTheoryClass} onChange={handleChange} required className="bg-white border-blue-200">
+                        <Select label={`Link to Parent Theory Class`} name="parentTheoryClass" value={formData.parentTheoryClass} onChange={handleChange} className="bg-white border-blue-200">
                             <option value="">-- Select Parent Theory Class --</option>
                             {theoryClasses.map(cls => (
                                 <option key={cls._id} value={cls._id}>
