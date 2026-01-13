@@ -23,7 +23,7 @@ const getNextSessionMoment = (anchorDate, targetDayIndex, timeStr, timezone) => 
 
 const startSessionGenerator = () => {
     // Run every Monday at 02:00 AM
-    cron.schedule("*/5 * * * *", async () => {
+    cron.schedule("0 2 * * 1", async () => {
         console.log("🔄 CRON: Checking for classes that need new sessions...");
         
         try {

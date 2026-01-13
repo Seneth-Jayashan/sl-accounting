@@ -20,10 +20,9 @@ import PaymentService from "../../../services/PaymentService";
 import { useAuth } from "../../../contexts/AuthContext";
 
 // --- Configuration ---
-const IS_DEV = import.meta.env.MODE === "development";
 const NOTIFY_URL_BASE = import.meta.env.VITE_NOTIFY_URL || "http://localhost:3000";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const PAYHERE_CHECKOUT_URL = IS_DEV ? "https://sandbox.payhere.lk/pay/checkout" : "https://www.payhere.lk/pay/checkout";
+const PAYHERE_CHECKOUT_URL = import.meta.env.VITE_PAYHERE_CHECKOUT_URL ;
 
 const BANK_DETAILS = {
   bankName: import.meta.env.VITE_BANK_NAME,

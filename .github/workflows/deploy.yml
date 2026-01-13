@@ -23,21 +23,20 @@ jobs:
             # 2. Pull the latest code
             git pull origin main
 
-            # 3. Setup API
-            echo "--- Installing API Dependencies ---"
+            # 3. Setup API (Backend)
+            echo "--- Setup API ---"
             cd apps/api
             npm install
+            # REMOVED 'npm run build' because you use Server.js directly
 
-            # 4. Setup Web (Install deps & Build)
-            echo "--- Building Web ---"
+            # 4. Setup Web (Frontend)
+            echo "--- Setup Web ---"
             cd ../web
             npm install
             npm run build
 
             # 5. Fix Permissions
-            # Since you log in as root, 'sudo' is redundant but harmless
             echo "--- Updating Permissions ---"
-            cd /var/www/sl-accounting
             sudo chown -R www-data:www-data /var/www/sl-accounting
             sudo chmod -R 755 /var/www/sl-accounting
 
