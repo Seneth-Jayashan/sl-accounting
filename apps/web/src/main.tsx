@@ -1,29 +1,22 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { Toaster, toast } from 'react-hot-toast'
-import App from './App'
-import './index.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
 
-// Prevent native context menu globally
-if (typeof window !== 'undefined' && !(window as any).__disableContextMenu) {
-  const showRightClickToast = (() => {
-    let locked = false
-    return () => {
-      if (locked) return
-      locked = true
-      toast.error('Right click is disabled.', { duration: 1500 })
-      setTimeout(() => {
-        locked = false
-      }, 1200)
+// --- RIGHT CLICK PROTECTION ---
+// This runs once when the app loads.
+if (typeof window !== 'undefined') {
+  document.addEventListener('contextmenu', (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+
+    // Allow right-click on Inputs and Textareas so users can Paste
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+      return;
     }
-  })()
 
-  const handleContextMenu = (event: MouseEvent) => {
-    event.preventDefault()
-    showRightClickToast()
-  }
-  document.addEventListener('contextmenu', handleContextMenu)
-  ;(window as any).__disableContextMenu = true
+    // Block everything else
+    event.preventDefault();
+  });
 }
 
 const rootElement = document.getElementById('root') as HTMLElement;

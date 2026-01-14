@@ -3,6 +3,7 @@ import Enrollment from "../models/Enrollment.js";
 import User from "../models/User.js";
 import Class from "../models/Class.js";
 import { format } from "date-fns"; // Recommended for consistent formatting
+import { sendEnrollmentConfirmationSms } from "../utils/sms/Template.js";
 
 // --- HELPERS ---
 
@@ -18,117 +19,113 @@ const getEndOfMonth = (date) => {
  */
 export const createEnrollment = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
+  let smsQueue = []; // To store SMS data outside the retry loop
 
   try {
     const { 
         class: classId, 
         subscriptionType,
-        // New flags from Frontend
         includeRevision = false, 
         includePaper = false 
     } = req.body;
 
     const studentId = req.user.role === 'admin' ? (req.body.student || req.user._id) : req.user._id;
 
-    // 1. Fetch Main Class with Variants populated
-    const mainClass = await Class.findById(classId)
-        .populate('linkedRevisionClass')
-        .populate('linkedPaperClass')
-        .session(session);
+    // --- START OF AUTOMATIC RETRY BLOCK ---
+    const transactionResult = await session.withTransaction(async () => {
+        // Reset SMS queue in case the transaction retries (prevents duplicate SMS data)
+        smsQueue = []; 
 
-    if (!mainClass) {
-        await session.abortTransaction();
-        return res.status(404).json({ message: "Class not found" });
-    }
+        // 1. Fetch Main Class
+        const mainClass = await Class.findById(classId)
+            .populate('linkedRevisionClass')
+            .populate('linkedPaperClass')
+            .session(session);
 
-    // 2. Identify all classes to enroll in
-    const classesToEnroll = [mainClass]; // Always include Theory
-    
-    if (includeRevision && mainClass.linkedRevisionClass) {
-        classesToEnroll.push(mainClass.linkedRevisionClass);
-    }
-    if (includePaper && mainClass.linkedPaperClass) {
-        classesToEnroll.push(mainClass.linkedPaperClass);
-    }
+        if (!mainClass) {
+            throw new Error("CLASS_NOT_FOUND"); // Custom error to break transaction
+        }
 
-    // 3. Process Enrollments (Get Existing OR Create New)
-    const processedEnrollments = [];
-    
-    for (const cls of classesToEnroll) {
-        let enrollment = await Enrollment.findOne({ 
-            student: studentId, 
-            class: cls._id 
-        }).session(session);
+        // 2. Identify classes
+        const classesToEnroll = [mainClass]; 
+        if (includeRevision && mainClass.linkedRevisionClass) classesToEnroll.push(mainClass.linkedRevisionClass);
+        if (includePaper && mainClass.linkedPaperClass) classesToEnroll.push(mainClass.linkedPaperClass);
 
-        if (!enrollment) {
-            // Create New
-            enrollment = new Enrollment({
-                student: studentId,
-                class: cls._id,
-                subscriptionType: subscriptionType || 'monthly',
-                paymentStatus: "unpaid",
-                isActive: true, // Allow initial access or pending state
-                accessStartDate: new Date(),
-                accessEndDate: getEndOfMonth(new Date()),
-                paidMonths: [], // Initialize empty history
-                // Optional: Link siblings via a group ID if needed, or rely on logic
-            });
-            await enrollment.save({ session });
+        const processedEnrollments = [];
 
-            // Update Class Student List
-            // Note: We use $addToSet to avoid duplicates at DB level safely
-            await Class.findByIdAndUpdate(cls._id, { 
-                $addToSet: { students: studentId } 
+        // 3. Process Enrollments
+        for (const cls of classesToEnroll) {
+            let enrollment = await Enrollment.findOne({ 
+                student: studentId, 
+                class: cls._id 
             }).session(session);
+
+            if (!enrollment) {
+                enrollment = new Enrollment({
+                    student: studentId,
+                    class: cls._id,
+                    subscriptionType: subscriptionType || 'monthly',
+                    paymentStatus: "unpaid",
+                    isActive: true,
+                    accessStartDate: new Date(),
+                    accessEndDate: getEndOfMonth(new Date()),
+                    paidMonths: [], 
+                });
+                await enrollment.save({ session });
+
+                // THE CONFLICT SOURCE: Updating the Class document
+                await Class.findByIdAndUpdate(cls._id, { 
+                    $addToSet: { students: studentId } 
+                }).session(session);
+
+                // Queue SMS (but don't send yet)
+                smsQueue.push({
+                    phone: req.user.phoneNumber,
+                    className: cls.name
+                });
+            }
+            processedEnrollments.push(enrollment);
         }
 
-        processedEnrollments.push(enrollment);
+        // 4. Calculate Price
+        let totalAmount = mainClass.price || 0; 
+        if (includeRevision && includePaper) {
+            totalAmount = mainClass.bundlePriceFull ?? (mainClass.price + (mainClass.linkedRevisionClass?.price || 0) + (mainClass.linkedPaperClass?.price || 0));
+        } else if (includeRevision) {
+            totalAmount = mainClass.bundlePriceRevision ?? (mainClass.price + (mainClass.linkedRevisionClass?.price || 0));
+        } else if (includePaper) {
+            totalAmount = mainClass.bundlePricePaper ?? (mainClass.price + (mainClass.linkedPaperClass?.price || 0));
+        }
+
+        // Return data needed for the response
+        return {
+            processedEnrollments,
+            totalAmount,
+            mainClassId: mainClass._id
+        };
+    });
+    // --- END OF TRANSACTION BLOCK ---
+
+    // End session immediately after success
+    await session.endSession();
+
+    // 5. Send SMS (Non-blocking, outside transaction)
+    if (smsQueue.length > 0) {
+        Promise.allSettled(smsQueue.map(item => 
+            sendEnrollmentConfirmationSms(item.phone, item.className)
+        )).catch(e => console.error("Background SMS Error:", e));
     }
 
-    // 4. CALCULATE TOTAL PRICE (Server Side Logic)
-    let totalAmount = mainClass.price || 0; 
+    // 6. Prepare Response
+    const { processedEnrollments, totalAmount, mainClassId } = transactionResult;
+    const primaryEnrollment = processedEnrollments.find(e => e.class.toString() === mainClassId.toString());
 
-    if (includeRevision && includePaper) {
-        if (mainClass.bundlePriceFull != null) {
-            totalAmount = mainClass.bundlePriceFull;
-        } else {
-            const revPrice = mainClass.linkedRevisionClass?.price || 0;
-            const papPrice = mainClass.linkedPaperClass?.price || 0;
-            totalAmount = mainClass.price + revPrice + papPrice;
-        }
-    } 
-    else if (includeRevision) {
-        if (mainClass.bundlePriceRevision != null) {
-            totalAmount = mainClass.bundlePriceRevision;
-        } else {
-            const revPrice = mainClass.linkedRevisionClass?.price || 0;
-            totalAmount = mainClass.price + revPrice;
-        }
-    } 
-    else if (includePaper) {
-        if (mainClass.bundlePricePaper != null) {
-            totalAmount = mainClass.bundlePricePaper;
-        } else {
-            const papPrice = mainClass.linkedPaperClass?.price || 0;
-            totalAmount = mainClass.price + papPrice;
-        }
-    }
-
-    await session.commitTransaction();
-    session.endSession();
-
-    // 5. Return Response
-    // Find Primary Enrollment to return as main reference
-    const primaryEnrollment = processedEnrollments.find(e => e.class.toString() === mainClass._id.toString());
-
-    return res.status(200).json({ // Changed to 200 as it might be a retrieval
+    return res.status(200).json({ 
         success: true,
         message: "Enrollment processed successfully",
         enrollment: primaryEnrollment,
         allEnrollments: processedEnrollments,
-        // Return paid history so frontend knows which months to disable
-        paidMonths: primaryEnrollment.paidMonths || [], 
+        paidMonths: primaryEnrollment?.paidMonths || [], 
         totalAmount: totalAmount, 
         breakdown: {
             theory: true,
@@ -138,11 +135,14 @@ export const createEnrollment = async (req, res) => {
     });
 
   } catch (err) {
-    if (session.inTransaction()) {
-        await session.abortTransaction();
+    await session.endSession();
+    
+    // Handle Custom Errors
+    if (err.message === "CLASS_NOT_FOUND") {
+        return res.status(404).json({ message: "Class not found" });
     }
-    session.endSession();
-    console.error("Error creating enrollment:", err);
+
+    console.error("Enrollment Error:", err);
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };

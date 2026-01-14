@@ -1,17 +1,21 @@
 import { useState, Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { RotateCw } from "lucide-react"; // Simple spinner for fallback
+import { RotateCw } from "lucide-react"; 
+import { Toaster } from "react-hot-toast"; // <--- 1. Import Toaster
 
 // --- Context & Protected Route Wrapper ---
 import AuthProvider from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
+// --- Custom Hooks ---
+import { useRightClickProtection } from "./hooks/useRightClickProtection"; // <--- 2. Import the Hook
+
 // --- Layouts & Components ---
 import { MainLayout } from "./layouts/MainLayout";
 import { SplashScreen } from "./components/SplashScreen";
 
-// --- Public Pages (Keep standard imports for fast First Contentful Paint) ---
+// --- Public Pages ---
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Login from "./pages/Login";
@@ -25,8 +29,7 @@ import Chat from "./components/Chat";
 
 import "./index.css";
 
-// --- LAZY LOADED MODULES (Fixes Mobile Lag) ---
-// We use a specific syntax here to handle named exports { AdminRoutes }
+// --- LAZY LOADED MODULES ---
 const AdminRoutes = lazy(() => 
   import("./routes/AdminRoutes").then(module => ({ default: module.AdminRoutes }))
 );
@@ -44,6 +47,9 @@ const PageLoader = () => (
 );
 
 function App() {
+  // <--- 3. Activate Right Click Protection ---
+  useRightClickProtection();
+
   // Splash Screen Logic
   const [showSplash, setShowSplash] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -57,6 +63,18 @@ function App() {
 
   return (
     <AuthProvider>
+      {/* <--- 4. Add Toaster Global Component --- */}
+      <Toaster 
+        position="bottom-center"
+        toastOptions={{
+          style: {
+            background: '#333',
+            color: '#fff',
+            zIndex: 9999, // Ensure it sits above modals/splash screen
+          },
+        }}
+      />
+
       <BrowserRouter>
         {/* --- Splash Screen --- */}
         <AnimatePresence mode="wait">

@@ -7,25 +7,26 @@ import EnrollmentService, { type EnrollmentResponse } from "../../../../services
 // Helper to format dates safely
 const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
+// Helper to get YYYY-MM from a date string
+const getMonthString = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
 export default function RecordingsTab({ sessions }: { sessions: any[] }) {
   const navigate = useNavigate();
   const [enrollment, setEnrollment] = useState<EnrollmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Fetch Enrollment to get Join Date & Access Expiry
+  // 1. Fetch Enrollment to get Paid History
   useEffect(() => {
     let isMounted = true;
     const fetchEnrollment = async () => {
       try {
-        // We get all enrollments and find the one matching this class
-        // Alternatively, create a specific endpoint like /api/v1/enrollments/check?classId=... that returns full details
         const myEnrollments = await EnrollmentService.getMyEnrollments();
         
-        // Find enrollment for this specific class
-        // Note: sessions[0].class might be populated or an ID, handle carefully. 
-        // Assuming sessions are passed from ViewClass which has classId in URL params, 
-        // but here we might need to rely on the parent or find a matching class ID from session data.
         if (sessions.length > 0) {
+            // Robustly find the matching enrollment ID
             const classId = typeof sessions[0].class === 'string' ? sessions[0].class : sessions[0].class._id;
             const match = myEnrollments.find((e: any) => 
                 (typeof e.class === 'string' ? e.class : e.class._id) === classId
@@ -48,32 +49,32 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
   // 2. Filter & Sort Recordings
   const recordings = useMemo(() => {
     return sessions
-      .filter(s => s.youtubeVideoId || s.recordingUrl) // Only show if recording exists
+      .filter(s => s.youtubeVideoId || s.recordingUrl)
       .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
   }, [sessions]);
 
-  // 3. Restriction Logic
+  // 3. STRICT MONTHLY ACCESS LOGIC
   const getAccessStatus = (session: any) => {
     if (!enrollment) return { locked: true, reason: "Not Enrolled" };
 
+    // A. Check Join Date (Optional: Prevent accessing content from before they joined at all)
+    // You can disable this if you want back-payments to unlock old content regardless of join date.
+    /*
     const sessionDate = new Date(session.startAt);
-    const joinDate = new Date(enrollment.createdAt); // Or enrollment.accessStartDate
-    
-    // Logic A: Cannot view before Join Date (ignoring time, comparing dates)
+    const joinDate = new Date(enrollment.createdAt);
     if (sessionDate < joinDate) {
         return { locked: true, reason: "Session occurred before you joined" };
     }
+    */
 
-    // Logic B: Cannot view if unpaid (Session date is AFTER their access expiry)
-    // If accessEndDate is null, assume lifetime or active. If date exists, check it.
-    if (enrollment.accessEndDate) {
-        const expiryDate = new Date(enrollment.accessEndDate);
-        // Add a buffer (e.g. end of day)
-        expiryDate.setHours(23, 59, 59); 
+    // B. Check Payment for Specific Month
+    const sessionMonth = getMonthString(session.startAt); // e.g. "2026-02"
+    const paidMonths = enrollment.paidMonths || [];
 
-        if (sessionDate > expiryDate) {
-            return { locked: true, reason: "Payment required for this month" };
-        }
+    if (!paidMonths.includes(sessionMonth)) {
+        // Format readable month name for the error message
+        const monthName = new Date(session.startAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        return { locked: true, reason: `Payment required for ${monthName}` };
     }
 
     return { locked: false, reason: "" };
@@ -133,8 +134,17 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
               </div>
               
               {locked ? (
-                <div className="w-full bg-gray-100 py-3.5 rounded-xl font-medium text-xs text-gray-500 flex items-center justify-center gap-2 border border-gray-200 cursor-not-allowed">
-                    <AlertCircle size={14} /> {reason}
+                <div className="flex flex-col gap-3">
+                    <div className="w-full bg-gray-100 py-3.5 rounded-xl font-medium text-xs text-gray-500 flex items-center justify-center gap-2 border border-gray-200 cursor-not-allowed">
+                        <AlertCircle size={14} /> {reason}
+                    </div>
+                    {/* Optional: Add Pay Button directly here */}
+                    <button 
+                        onClick={() => navigate(`/student/payment/create/${typeof session.class === 'string' ? session.class : session.class._id}`)}
+                        className="text-xs font-bold text-brand-cerulean hover:underline text-center"
+                    >
+                        Pay Now to Unlock
+                    </button>
                 </div>
               ) : (
                 <button 

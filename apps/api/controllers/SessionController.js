@@ -5,6 +5,7 @@ import Session from "../models/Session.js";
 import { createMeeting, updateMeeting, deleteMeeting } from "../services/Zoom.js";
 import Enrollment from "../models/Enrollment.js";
 import { format } from "date-fns";
+import { sendCancellationSms } from "../utils/sms/Template.js";
 
 // --- HELPER: Field Projection ---
 const getSafeSessionProjection = (user) => {
@@ -258,28 +259,57 @@ export const cancelSession = async (req, res) => {
   const { deleteZoomMeeting = true, cancellationReason } = req.body;
 
   try {
+    // 1. Find the Session
     const sessionDoc = await Session.findById(req.params.id);
     if (!sessionDoc) return res.status(404).json({ message: "Session not found" });
 
-    // Handle Zoom
+    // 2. Handle Zoom Deletion
     if (deleteZoomMeeting && sessionDoc.zoomMeetingId) {
       try {
         await deleteMeeting(sessionDoc.zoomMeetingId);
         sessionDoc.zoomMeetingId = null;
         sessionDoc.zoomStartUrl = null;
         sessionDoc.zoomJoinUrl = null;
-      } catch (e) { console.warn("Zoom delete warning:", e.message); }
+      } catch (e) { 
+        console.warn("Zoom delete warning:", e.message); 
+      }
     }
 
+    // 3. Update Session Status
     sessionDoc.isCancelled = true;
     sessionDoc.cancelledAt = new Date();
     sessionDoc.cancellationReason = cancellationReason;
 
     await sessionDoc.save();
 
-    return res.status(200).json({ message: "Session cancelled", session: sessionDoc });
+    // 4. Send Bulk SMS
+    // We must find the Class to get the "Name" and the "Students" list
+    const classDoc = await Class.findById(sessionDoc.class).populate('students', 'phoneNumber');
+
+    if (classDoc && classDoc.students && classDoc.students.length > 0) {
+      
+      const smsPromises = classDoc.students.map(student => {
+        if (student.phoneNumber) {
+           // We use .catch here so one failure doesn't stop the whole loop
+           return sendCancellationSms(
+             student.phoneNumber,
+             classDoc.name,
+             cancellationReason || "Unavoidable reasons"
+           ).catch(err => console.error(`SMS failed for ${student.phoneNumber}`, err));
+        }
+      });
+
+      // Execute all SMS sends in parallel
+      await Promise.all(smsPromises);
+    }
+
+    return res.status(200).json({ 
+        message: "Session cancelled and students notified", 
+        session: sessionDoc 
+    });
 
   } catch (err) {
+    console.error(err);
     return res.status(500).json({ message: err.message });
   }
 };

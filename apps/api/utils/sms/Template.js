@@ -64,7 +64,7 @@ export const sendPaymentReceiptSms = async (phone, amount, className, refId) => 
   // Truncate class name to ensure message fits
   const safeClassName = className.length > 20 ? className.substring(0, 18) + ".." : className;
   
-  const message = `${BRAND_NAME}: Payment received LKR ${amount} for ${safeClassName}. Ref: ${refId}. Thank you!`;
+  const message = `${BRAND_NAME}: Payment received LKR ${amount} through Online Payment Gateway for ${safeClassName}. Ref: ${refId}. Thank you!`;
   
   return SmsSender.send(sanitizePhone(phone), message);
 };
@@ -102,6 +102,28 @@ export const sendCancellationSms = async (phone, className, reason) => {
   return SmsSender.send(sanitizePhone(phone), message);
 };
 
+export const sendAdminPaymentNotificationSms = async (adminPhone, userName, amount, className, refId) => {
+  const message = `Admin Alert: ${userName} made a payment of LKR ${amount} for ${className}. Ref: ${refId}.Please Review.`;
+  return SmsSender.send(sanitizePhone(adminPhone), message);
+};
+
+export const sendPaymentVerifiedSms = async (phone, amount, className) => {
+  const message = `${BRAND_NAME}: Your payment of LKR ${amount} for ${className} has been verified. Thank you!`;
+  return SmsSender.send(sanitizePhone(phone), message);
+};
+
+export const sendClassRescheduleSms = async (phone, className, newTime) => {
+  const message = `${BRAND_NAME}: The session for ${className} has been rescheduled to ${newTime}. Please check your schedule.`;
+  return SmsSender.send(sanitizePhone(phone), message);
+};
+
+export const sendEnrollmentConfirmationSms = async (phone, className) => {
+  const message = `${BRAND_NAME}: You have been successfully enrolled in ${className}. Welcome aboard!`;
+  return SmsSender.send(sanitizePhone(phone), message);
+};
+
+
+
 // Export as a bundle for easier imports if needed
 export default {
   sendVerificationSms,
@@ -109,5 +131,9 @@ export default {
   sendPaymentReceiptSms,
   sendClassReminderSms,
   sendNotificationSms,
-  sendCancellationSms
+  sendCancellationSms,
+  sendAdminPaymentNotificationSms,
+  sendPaymentVerifiedSms,
+  sendClassRescheduleSms,
+  sendEnrollmentConfirmationSms,
 };
