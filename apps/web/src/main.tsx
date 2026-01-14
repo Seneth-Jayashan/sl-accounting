@@ -23,19 +23,6 @@ const rootElement = document.getElementById('root') as HTMLElement;
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <>
-      <App />
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          duration: 1500,
-          style: {
-            background: '#111827',
-            color: '#f9fafb',
-            fontWeight: 600,
-          },
-        }}
-      />
-    </>
+      <App />    
   </React.StrictMode>
 );
