@@ -56,7 +56,7 @@ const AboutHero = () => (
       </h1>
       
       <p className="text-base sm:text-lg md:text-xl text-gray-500 font-sans max-w-2xl mx-auto leading-relaxed px-2">
-        We are dedicated to simplifying complex accounting concepts, making A/L success accessible to every student through innovation, technology, and expert guidance.
+        We asfdsafdsafsdsadad are dedicated to simplifying complex accounting concepts, making A/L success accessible to every student through innovation, technology, and expert guidance.
       </p>
     </motion.div>
   </header>
