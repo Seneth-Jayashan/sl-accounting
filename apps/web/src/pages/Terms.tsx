@@ -10,7 +10,7 @@ const Section: React.FC<{ id: string; title: string; children: React.ReactNode }
 );
 
 const Terms: React.FC = () => {
-  const updated = new Date().toLocaleDateString();
+  const updated = 'January 1, 2026';
 
   return (
     <div className="min-h-screen bg-white">
