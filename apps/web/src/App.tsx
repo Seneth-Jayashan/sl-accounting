@@ -26,6 +26,8 @@ import ViewClassPage from "./pages/ViewClass";
 import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
 import Chat from "./components/Chat";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 import "./index.css";
 
@@ -95,6 +97,8 @@ function App() {
             <Route path="/classes/:id" element={<ViewClassPage />} />
             <Route path="/verification" element={<Verification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/chat/:ticketId" element={<Chat />} />
           </Route>
 
