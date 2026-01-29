@@ -3,14 +3,14 @@ import Email from "../../services/EmailSender.js";
 
 // --- Configuration ---
 // Best practice: Load these from process.env in a real app
-const CLIENT_URL = process.env.CLIENT_URL || "https://app.slaccounting.example";
-const ASSET_URL = process.env.ASSET_URL || "https://example.com"; // For hosting logos
+const CLIENT_URL = process.env.CLIENT_URL || "https://kalumwaduge.com"; // Frontend URL
+const ASSET_URL = process.env.ASSET_URL || "https://kalumwaduge.com"; // For hosting logos
 
 const BRAND = {
   name: "SL Accounting",
   color: "#0B5FFF", // Primary brand color
   logo: `${ASSET_URL}/logo.png`,
-  supportEmail: "support@slaccounting.example",
+  supportEmail: "info@kalumwaduge.com",
   address: "SL Accounting, Colombo, Sri Lanka"
 };
 
