@@ -17,7 +17,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   if (loading) {
     return <LoadingPage />;
   }
-  console.log("ProtectedRoute: User is", user);
 
   // 2. AUTH CHECK: If not logged in, go to Login
   if (!user) {

@@ -111,7 +111,6 @@ const BatchService = {
    */
   getBatchStudents: async (batchId: string) => {
     const response = await api.get(`${BASE_URL}/${batchId}/students`); 
-    console.log("Batch Students Response:", response.data);
     return response.data;
   },
 };

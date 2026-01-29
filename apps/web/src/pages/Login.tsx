@@ -144,8 +144,6 @@ export default function Login() {
       const responseMsg = (err.response?.data?.message || "").toLowerCase();
       const msg = err.message || "Failed to login.";
 
-      console.log("Status:", status, "Response Msg:", responseMsg);
-      console.log("General Error Msg:", msg);
       
 
       // --- FIXED: Robust check for unverified account ---

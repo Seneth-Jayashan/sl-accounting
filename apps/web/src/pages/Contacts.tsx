@@ -126,8 +126,8 @@ const ContactInfo = memo(({ copy }: { copy: any }) => (
             <h3 className="text-lg font-bold text-brand-coral mb-1 font-sinhala">
               {copy.emailTitle}
             </h3>
-            <a href="mailto:info@slaccounting.lk" className="text-brand-aliceBlue/80 hover:text-white transition-colors font-sans block text-sm sm:text-base">
-              info@slaccounting.lk
+            <a href="mailto:info@kalumwaduge.com" className="text-brand-aliceBlue/80 hover:text-white transition-colors font-sans block text-sm sm:text-base">
+              info@kalumwaduge.com
             </a>
           </div>
         </div>

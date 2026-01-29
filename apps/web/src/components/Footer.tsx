@@ -63,12 +63,6 @@ const FooterComponent: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/login" className="hover:text-white hover:translate-x-2 transition-all inline-flex items-center gap-2 group">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#05668A] group-hover:bg-[#EF8D8E] transition-colors"></span>
-                  LMS Login
-                </Link>
-              </li>
-              <li>
                 <Link to="/terms" className="hover:text-white hover:translate-x-2 transition-all inline-flex items-center gap-2 group">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#05668A] group-hover:bg-[#EF8D8E] transition-colors"></span>
                   Terms & Conditions

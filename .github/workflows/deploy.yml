@@ -17,30 +17,45 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: 22
           script: |
+            # 0. Stop script immediately if any command fails
+            set -e
+
             # 1. Navigate to project root
             cd /var/www/sl-accounting
 
-            # 2. Pull the latest code
-            git pull origin main
+            # 2. Fix Permissions FIRST so the git user can write
+            # (Allows the current SSH user to take ownership back from www-data)
+            echo "--- Reclaiming Permissions ---"
+            sudo chown -R $USER:$USER /var/www/sl-accounting
 
-            # 3. Setup API (Backend)
+            # 3. Force Git Update (Safety Nuke)
+            # This discards local server changes and forces it to match GitHub
+            echo "--- Pulling Latest Code ---"
+            git fetch --all
+            git reset --hard origin/main
+
+            # 4. Setup API (Backend)
             echo "--- Setup API ---"
             cd apps/api
-            npm install
-            # REMOVED 'npm run build' because you use Server.js directly
+            npm ci  # 'ci' is faster and cleaner than 'install' for deployments
+            # If you use PM2, reload it gracefully
+            pm2 reload lms-api || pm2 restart lms-api
 
-            # 4. Setup Web (Frontend)
+            # 5. Setup Web (Frontend)
             echo "--- Setup Web ---"
             cd ../web
-            npm install
+            npm ci
+            
+            # IMPORTANT: Ensure your .env file on the server has the new BANK JSON string!
             npm run build
 
-            # 5. Fix Permissions
-            echo "--- Updating Permissions ---"
+            # 6. Fix Permissions for Nginx (Final Step)
+            echo "--- Finalizing Permissions ---"
+            cd /var/www/sl-accounting
             sudo chown -R www-data:www-data /var/www/sl-accounting
             sudo chmod -R 755 /var/www/sl-accounting
 
-            # 6. Restart Services
-            echo "--- Restarting Services ---"
-            pm2 restart lms-api
-            sudo systemctl restart nginx
+            # 7. Restart Nginx to serve new static assets
+            sudo systemctl reload nginx
+            
+            echo "--- Deployment Complete ---"

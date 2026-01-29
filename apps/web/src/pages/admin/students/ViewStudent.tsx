@@ -53,7 +53,6 @@ export default function ViewStudentPage() {
 
       setIsLoading(true);
       try {
-        console.log("Fetching data for student ID:", id); // Debug log
 
         // Parallel Fetch
         const [userRes, enrollmentRes] = await Promise.all([

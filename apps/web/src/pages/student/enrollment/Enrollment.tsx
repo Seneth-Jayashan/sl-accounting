@@ -24,13 +24,8 @@ const NOTIFY_URL_BASE = import.meta.env.VITE_NOTIFY_URL || "http://localhost:300
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const PAYHERE_CHECKOUT_URL = import.meta.env.VITE_PAYHERE_CHECKOUT_URL ;
 
-const BANK_DETAILS = {
-  bankName: import.meta.env.VITE_BANK_NAME,
-  branch: import.meta.env.VITE_BRANCH_NAME,
-  accountName: import.meta.env.VITE_ACCOUNT_NAME,
-  accountNumber: import.meta.env.VITE_ACCOUNT_NUMBER,
-};
-
+// Example: An array of multiple bank objects
+const BANK_OPTIONS = JSON.parse(import.meta.env.VITE_BANK_DETAILS || "[]") as BankAccount[];
 // --- Interfaces ---
 interface LinkedClass {
     _id: string;
@@ -53,6 +48,14 @@ interface ClassData {
   bundlePriceRevision?: number; // Theory + Revision
   bundlePricePaper?: number;    // Theory + Paper
   bundlePriceFull?: number;     // Theory + Revision + Paper
+}
+
+interface BankAccount {
+  id: number;
+  bankName: string;
+  branch: string;
+  accountName: string;
+  accountNumber: string;
 }
 
 export default function EnrollmentPage() {
@@ -426,35 +429,57 @@ export default function EnrollmentPage() {
 
                {/* Bank Details Panel */}
                {paymentMethod === "bank" && (
-                   <div className="mt-6 p-5 sm:p-6 bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200 animate-fade-in">
-                      <div className="flex items-center justify-between mb-4">
-                          <p className="text-xs sm:text-sm font-bold text-gray-700">Transfer Information</p>
-                          <span className="text-[10px] bg-white border border-gray-200 px-2 py-1 rounded text-gray-500">Business Account</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 text-xs sm:text-sm">
-                          <div>
-                              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Bank Name</p>
-                              <p className="font-semibold text-gray-800">{BANK_DETAILS.bankName}</p>
-                          </div>
-                          <div>
-                              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Account Number</p>
-                              <p className="font-mono font-bold text-brand-prussian text-base sm:text-lg tracking-wide">{BANK_DETAILS.accountNumber}</p>
-                          </div>
-                          <div>
-                              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Branch</p>
-                              <p className="text-gray-700">{BANK_DETAILS.branch}</p>
-                          </div>
-                          <div>
-                              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Account Name</p>
-                              <p className="text-gray-700">{BANK_DETAILS.accountName}</p>
-                          </div>
-                      </div>
-                      <div className="mt-5 pt-4 border-t border-gray-200 text-[10px] sm:text-xs text-gray-500 flex items-start sm:items-center gap-2">
-                          <ShieldCheckIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5 sm:mt-0" />
-                          Please save your transfer slip/screenshot to upload in the next step.
-                      </div>
-                   </div>
-               )}
+                    <div className="mt-6 space-y-4"> {/* Space-y-4 add chesamu gap kosam */}
+                        
+                        {BANK_OPTIONS.map((bank) => (
+                            <div key={bank.id} className="p-5 sm:p-6 bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200 animate-fade-in">
+                                
+                                <div className="flex items-center justify-between mb-4">
+                                    <p className="text-xs sm:text-sm font-bold text-gray-700">Transfer Information</p>
+                                    <span className="text-[10px] bg-white border border-gray-200 px-2 py-1 rounded text-gray-500">
+                                        {bank.bankName} Account
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 text-xs sm:text-sm">
+                                    {/* Bank Name */}
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Bank Name</p>
+                                        <p className="font-semibold text-gray-800">{bank.bankName}</p>
+                                    </div>
+                                    
+                                    {/* Account Number */}
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Account Number</p>
+                                        <p className="font-mono font-bold text-brand-prussian text-base sm:text-lg tracking-wide">
+                                            {bank.accountNumber}
+                                        </p>
+                                    </div>
+
+                                    {/* Branch */}
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Branch</p>
+                                        <p className="text-gray-700">{bank.branch}</p>
+                                    </div>
+
+                                    {/* Account Name */}
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Account Name</p>
+                                        <p className="text-gray-700">{bank.accountName}</p>
+                                    </div>
+                                </div>
+
+                                {/* Footer Message */}
+                                <div className="mt-5 pt-4 border-t border-gray-200 text-[10px] sm:text-xs text-gray-500 flex items-start sm:items-center gap-2">
+                                    <ShieldCheckIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5 sm:mt-0" />
+                                    Please save your transfer slip/screenshot.
+                                </div>
+
+                            </div>
+                        ))}
+
+                    </div>
+                )}
             </div>
           </div>
 

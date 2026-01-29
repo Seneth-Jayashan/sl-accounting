@@ -27,9 +27,7 @@ const __dirname = path.dirname(__filename);
 // ==========================================
 // Start the Cron Job to auto-generate Zoom sessions for infinite classes
 try {
-    startSessionGenerator();
-    console.log("✅ Background Job: Session Generator Started");
-    
+    startSessionGenerator();    
     // startEnrollmentCron(); // If you want to use the enrollment expiry job
 } catch (err) {
     console.error("❌ Background Job Error:", err);
