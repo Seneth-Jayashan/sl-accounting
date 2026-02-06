@@ -162,6 +162,7 @@ const VisionMission = () => (
             සිසුන්ට Accounting විෂයයෙහි විශ්වාසය සහ නිපුණතාව ලබා දී, ඔවුන්ගේ අනාගතයේ දී ඉහළ ප්‍රතිඵල ලබා ගැනීමට අත්වැල් පිරිනැමීම මඟින් සරසවි ප්‍රවේශයට මග පෙන්වීම           </p>
         </motion.div>
 
+
         {/* Vision Card */}
         <motion.div variants={fadeInUp} className="bg-white p-8 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-xl border border-white hover:border-brand-coral/30 transition-all group relative overflow-hidden">
            <div className="absolute -top-10 -right-10 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500 rotate-12">
