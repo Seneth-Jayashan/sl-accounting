@@ -59,7 +59,7 @@ const HeroSection = () => (
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-full w-full bg-green-600"></span>
           </span>
-          <span className="text-[10px] sm:text-xs font-bold text-brand-cerulean tracking-wider uppercase font-sans">2026 Enrollments Open</span>
+          <span className="text-[10px] sm:text-xs font-bold text-brand-cerulean tracking-wider uppercase font-sans">2026 2027 2028 Enrollments Open</span>
         </div>
 
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-brand-prussian leading-[1.15] mb-4 sm:mb-6 font-sinhala drop-shadow-sm">
@@ -108,7 +108,7 @@ const HeroSection = () => (
         transition={{ duration: 0.8, delay: 0.2 }}
         className="relative flex justify-center lg:justify-end mt-8 lg:mt-0"
       >
-        <div className="relative w-full max-w-[320px] sm:max-w-[400px] h-[450px] sm:h-[550px]">
+        <div className="relative w-full max-w-[320px] sm:max-w-[480px] h-[450px] sm:h-[550px]">
            {/* Abstract Decoration */}
            <div className="absolute -inset-4 bg-gradient-to-tr from-brand-cerulean to-brand-coral opacity-20 blur-2xl rounded-[3rem] -z-10"></div>
            
@@ -116,7 +116,7 @@ const HeroSection = () => (
            <div className="relative w-full h-full bg-white/40 backdrop-blur-md rounded-[2.5rem] p-3 shadow-2xl border border-white/60">
               <div className="w-full h-full rounded-[2rem] overflow-hidden relative bg-gray-200">
                   <img 
-                      src="kalumwaduge.jpg" 
+                      src="Kalum_Poster.png" 
                       alt="Kalum Waduge - Accounting Instructor" 
                       loading="eager"
                       className="w-full h-full object-cover"

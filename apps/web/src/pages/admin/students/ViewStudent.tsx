@@ -63,6 +63,7 @@ export default function ViewStudentPage() {
         if (isMounted) {
             if (userRes.success && userRes.user) {
                 setStudent(userRes.user as UserData);
+                console.log("Fetched Student Data:", userRes.user);
             } else {
                 throw new Error("Student not found in database.");
             }

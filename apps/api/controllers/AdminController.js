@@ -7,7 +7,7 @@ import Batch from "../models/Batch.js";
 
 // --- HELPER: Find Valid User ---
 const findActiveUser = async (id) => {
-  return User.findOne({ _id: id, isDeleted: false }).select("-password");
+  return User.findOne({ _id: id, isDeleted: false }).select("-password").populate('batch', 'name');;
 };
 
 // ==========================================

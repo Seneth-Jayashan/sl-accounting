@@ -125,7 +125,7 @@ export async function createMeeting(sessionMeta = {}) {
       participant_video: false,
       join_before_host: false,
       mute_upon_entry: true,
-      waiting_room: true,
+      waiting_room: false,
       auto_recording: "cloud", // Important for LMS
       approval_type: 2,        // 2 = No Registration Required
       ...sessionMeta.settings, // Allow override

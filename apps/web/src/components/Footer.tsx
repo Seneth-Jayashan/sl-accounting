@@ -2,7 +2,96 @@ import React, { memo } from 'react';
 import { Phone, Mail, MapPin, Facebook, Youtube, Instagram } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+// Custom Icon for WhatsApp (Matches Lucide Style)
+const WhatsappIcon = ({ size = 24, className }: { size?: number, className?: string }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <circle cx="12" cy="12" r="10" />
+    <path d="M16.5 9a3 3 0 0 0-3-3h-3m-3 3l-2.5-2.5" />
+    <path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1" />
+    <path d="M8 12.5A2.5 2.5 0 0 1 10.5 10" /> {/* Abstracted phone shape for outline style */}
+    <path d="M7.5 18.5 4 20l1.5-3.5" /> {/* Tail */}
+    <path d="M21 12c0 5-4 9-9 9-1.5 0-3-.3-4.5-1" /> {/* Outer circle fix */}
+  </svg>
+);
+
+// We will use a standard path for the actual WhatsApp Logo to ensure recognition
+const WhatsAppLogo = ({ size = 24 }: { size?: number }) => (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" />
+      <path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1" />
+    </svg>
+);
+
+
+// Custom Icon for TikTok (Matches Lucide Style)
+const TiktokIcon = ({ size = 24 }: { size?: number }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+  </svg>
+);
+
 const FooterComponent: React.FC = () => {
+  
+  // Social Media Links Configuration
+  const socialLinks = [
+    { 
+      Icon: Youtube, 
+      href: "https://youtube.com/@slaccounting-kalumwaduge5626?si=Iily215mFs0GvEWz", 
+      label: "YouTube" 
+    },
+    { 
+      Icon: WhatsAppLogo, 
+      href: "https://whatsapp.com/channel/0029Va5mmNGJf05WQhSOTn1W", 
+      label: "WhatsApp Channel" 
+    },
+    { 
+      Icon: Facebook, 
+      href: "https://www.facebook.com/share/16WFNtfLDx/?mibextid=wwXIfr", 
+      label: "Facebook" 
+    },
+    { 
+      Icon: TiktokIcon, 
+      href: "https://www.tiktok.com/@kalumwadugeaccounting?_r=1&_t=ZS-93jMMe9irZ9", 
+      label: "TikTok" 
+    },
+    { 
+      Icon: Instagram, 
+      href: "https://www.instagram.com/kalum_waduge?igsh=YjE5Y3l4YXFhYzl0&utm_source=qr", 
+      label: "Instagram" 
+    }
+  ];
+
   return (
     <footer id="contact" className="w-full bg-[#02121E] text-white pt-16 sm:pt-20 pb-10 px-6 border-t border-[#05668A]/20 relative overflow-hidden">
       
@@ -108,14 +197,10 @@ const FooterComponent: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="border-t border-[#E8EFF7]/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-xs text-[#E8EFF7]/40 text-center md:text-left">
-          <p>© {new Date().getFullYear()} SL Accounting. All rights reserved.<br className="md:hidden"/> Developed by <span className="text-white/60"> <a href='https://onexuniverse.com' target='_blank'>One X Universe (Pvt) Ltd</a></span></p>
+          <p>© {new Date().getFullYear()} SL Accounting. All rights reserved.<br className="md:hidden"/> Developed by <span className="text-white/60"> <a href='https://onexuniverse.com' target='_blank' rel="noopener noreferrer">One X Universe (Pvt) Ltd</a></span></p>
 
           <div className="flex gap-4">
-            {[
-              { Icon: Facebook, href: "https://facebook.com", label: "Facebook" },
-              { Icon: Youtube, href: "https://youtube.com", label: "YouTube" },
-              { Icon: Instagram, href: "https://instagram.com", label: "Instagram" }
-            ].map(({ Icon, href, label }, i) => (
+            {socialLinks.map(({ Icon, href, label }, i) => (
               <a 
                 key={i} 
                 href={href} 
