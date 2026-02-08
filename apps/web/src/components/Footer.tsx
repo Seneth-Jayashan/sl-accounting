@@ -2,29 +2,6 @@ import React, { memo } from 'react';
 import { Phone, Mail, MapPin, Facebook, Youtube, Instagram } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-// Custom Icon for WhatsApp (Matches Lucide Style)
-const WhatsappIcon = ({ size = 24, className }: { size?: number, className?: string }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <circle cx="12" cy="12" r="10" />
-    <path d="M16.5 9a3 3 0 0 0-3-3h-3m-3 3l-2.5-2.5" />
-    <path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1" />
-    <path d="M8 12.5A2.5 2.5 0 0 1 10.5 10" /> {/* Abstracted phone shape for outline style */}
-    <path d="M7.5 18.5 4 20l1.5-3.5" /> {/* Tail */}
-    <path d="M21 12c0 5-4 9-9 9-1.5 0-3-.3-4.5-1" /> {/* Outer circle fix */}
-  </svg>
-);
-
 // We will use a standard path for the actual WhatsApp Logo to ensure recognition
 const WhatsAppLogo = ({ size = 24 }: { size?: number }) => (
     <svg 
