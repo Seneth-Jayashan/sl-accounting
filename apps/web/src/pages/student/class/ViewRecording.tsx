@@ -62,29 +62,42 @@ export default function ViewRecording() {
     return () => { isMounted = false; };
   }, [sessionId]);
 
-  // --- 2. INITIALIZE PLYR ---
+  // --- 2. INITIALIZE PLYR WITH CONTROLS ---
   useEffect(() => {
     if (youtubeId && playerRef.current) {
         if (playerInstance.current) playerInstance.current.destroy();
 
-        // FIX: Cast options to 'any' to fix TS error
+        // FIX: Re-enabled controls array
         playerInstance.current = new Plyr(playerRef.current, {
+            // These are the buttons that will appear in the bottom bar
             controls: [
-                'play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'
+                'play-large', // Big play button in center
+                'play',       // Play/pause in bottom bar
+                'progress',   // Seek bar
+                'current-time', 
+                'duration',
+                'mute', 
+                'volume', 
+                'captions', 
+                'settings',   // Settings menu (Quality/Speed)
+                'pip', 
+                'fullscreen'
             ],
+            // YouTube specific config
             youtube: { 
                 noCookie: true, 
                 rel: 0, 
                 showinfo: 0, 
                 iv_load_policy: 3, 
                 modestbranding: 1,
-                controls: 0, 
-                disablekb: 1 
+                controls: 0, // Keep native YT controls hidden (we use Plyr's)
+                disablekb: 0 // Allow keyboard shortcuts (Space to play, arrows to seek)
             },
-            hideControls: true, 
+            hideControls: false, // Ensure controls are VISIBLE
             clickToPlay: true,
             keyboard: { focused: true, global: true },
-            fullscreen : { enabled: false, fallback: true, iosNative: true },
+            fullscreen : { enabled: true, fallback: true, iosNative: true },
+            // TS Fix: Cast to 'any' allows passing resolution options
             resolution: { default: "720p", options: ["360p", "480p", "720p", "1080p"] }
         } as any);
     }
@@ -94,8 +107,7 @@ export default function ViewRecording() {
     };
   }, [youtubeId]);
 
-  // --- MANUAL PLAY TOGGLE ---
-  // Since we are covering the video with a shield, we need to handle clicks manually
+  // --- MANUAL PLAY TOGGLE (For the Shield Click) ---
   const handleShieldClick = (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -157,16 +169,16 @@ export default function ViewRecording() {
                     ></iframe>
                 </div>
 
-                {/* 2. FULL SECURITY SHIELD */}
-                {/* UPDATED: Changed h-[15%] to h-full. 
-                    This creates a transparent layer over the ENTIRE video.
-                    It intercepts right-clicks (preventing the "Copy Video URL" menu)
-                    and regular clicks (triggering play/pause manually).
+                {/* 2. SECURITY SHIELD (Smart Layer) */}
+                {/* UPDATED LOGIC:
+                    - covers top 85% of video to prevent Right-Click on video face.
+                    - leaves bottom 15% EXPOSED so user can click Play/Seek/Volume/Settings.
+                    - intercepts clicks on the top part to toggle play/pause.
                 */}
                 <div 
-                    className="absolute top-0 left-0 w-full h-full z-[60] bg-transparent cursor-pointer"
+                    className="absolute top-0 left-0 w-full h-[85%] z-[60] bg-transparent cursor-pointer"
                     onClick={handleShieldClick}
-                    onContextMenu={(e) => e.preventDefault()}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 ></div>
                 
                 {/* 3. DYNAMIC MARQUEE WATERMARK */}
@@ -214,6 +226,10 @@ export default function ViewRecording() {
         }
         .animate-marquee-reverse {
             animation: marquee-reverse 25s linear infinite;
+        }
+        /* Optional: Ensure controls are always above watermark */
+        .plyr__controls {
+            z-index: 70 !important;
         }
       `}</style>
     </div>
