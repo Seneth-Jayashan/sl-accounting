@@ -124,7 +124,7 @@ export const sendEnrollmentConfirmationSms = async (phone, className) => {
 
 export const sendTuteDispatchedSms = async (phone, name, className, month, tracking) => {
     const trackingText = tracking ? ` Tracking: ${tracking}` : '';
-    const message = `Hi ${name}, your tute for ${month} (${className}) has been dispatched.${trackingText}`;
+    const message = `Hi ${name}, your tute for ${month} (${className}) has been dispatched.${trackingText}.ඔබට ලැබුණු පසු 0768826142 ට දැනුවත් කරන්න හා ඔබගේ Dashboard එකේ "My Tutes" පිටුව Update කරන්න.`;
     return SmsSender.send(sanitizePhone(phone), message);
 };
 
