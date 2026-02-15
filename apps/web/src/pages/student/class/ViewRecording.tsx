@@ -62,59 +62,81 @@ export default function ViewRecording() {
     return () => { isMounted = false; };
   }, [sessionId]);
 
-  // --- 2. INITIALIZE PLYR WITH CONTROLS ---
+  // --- 2. INITIALIZE PLYR ---
   useEffect(() => {
     if (youtubeId && playerRef.current) {
         if (playerInstance.current) playerInstance.current.destroy();
 
-        // FIX: Re-enabled controls array
-        playerInstance.current = new Plyr(playerRef.current, {
-            // These are the buttons that will appear in the bottom bar
+        // Initialize Plyr
+        const player = new Plyr(playerRef.current, {
             controls: [
-                'play-large', // Big play button in center
-                'play',       // Play/pause in bottom bar
-                'progress',   // Seek bar
-                'current-time', 
-                'duration',
-                'mute', 
-                'volume', 
-                'captions', 
-                'settings',   // Settings menu (Quality/Speed)
-                'pip', 
-                'fullscreen'
+                'play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 
+                'captions', 'settings', 'pip', 'fullscreen'
             ],
-            // YouTube specific config
+            // 1. REMOVE SPEED SETTING: Only allow 'quality' in the settings menu
+            settings: ['quality'], 
             youtube: { 
                 noCookie: true, 
                 rel: 0, 
                 showinfo: 0, 
                 iv_load_policy: 3, 
                 modestbranding: 1,
-                controls: 0, // Keep native YT controls hidden (we use Plyr's)
-                disablekb: 0 // Allow keyboard shortcuts (Space to play, arrows to seek)
+                controls: 0, 
+                disablekb: 0 
             },
-            hideControls: false, // Ensure controls are VISIBLE
+            hideControls: false, 
             clickToPlay: true,
             keyboard: { focused: true, global: true },
             fullscreen : { enabled: true, fallback: true, iosNative: true },
-            // TS Fix: Cast to 'any' allows passing resolution options
             resolution: { default: "720p", options: ["360p", "480p", "720p", "1080p"] }
         } as any);
+
+        playerInstance.current = player;
+
+        // 2. INJECT PERSISTENT SHIELD (Works in Fullscreen)
+        // We append a DOM node directly to the Plyr container so it stays 
+        // inside the fullscreen element when toggled.
+        player.on('ready', () => {
+            const container = player.elements.container;
+            if (!container) return;
+
+            // Check if shield already exists to prevent duplicates
+            if (container.querySelector('.secure-shield-layer')) return;
+
+            const shield = document.createElement('div');
+            shield.className = 'secure-shield-layer';
+            
+            // Style: Covers top 85% to block "Copy Link", leaves bottom 15% for controls
+            Object.assign(shield.style, {
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '85%', // Leaves bottom controls exposed
+                zIndex: '50',
+                background: 'transparent',
+                cursor: 'pointer'
+            });
+
+            // Events: Toggle play on click, Block context menu
+            shield.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                player.togglePlay();
+            });
+
+            shield.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+
+            container.appendChild(shield);
+        });
     }
 
     return () => {
         if (playerInstance.current) playerInstance.current.destroy();
     };
   }, [youtubeId]);
-
-  // --- MANUAL PLAY TOGGLE (For the Shield Click) ---
-  const handleShieldClick = (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (playerInstance.current) {
-          playerInstance.current.togglePlay();
-      }
-  };
 
   // --- RENDER HELPERS ---
   const watermarkText = user 
@@ -169,19 +191,12 @@ export default function ViewRecording() {
                     ></iframe>
                 </div>
 
-                {/* 2. SECURITY SHIELD (Smart Layer) */}
-                {/* UPDATED LOGIC:
-                    - covers top 85% of video to prevent Right-Click on video face.
-                    - leaves bottom 15% EXPOSED so user can click Play/Seek/Volume/Settings.
-                    - intercepts clicks on the top part to toggle play/pause.
-                */}
-                <div 
-                    className="absolute top-0 left-0 w-full h-[85%] z-[60] bg-transparent cursor-pointer"
-                    onClick={handleShieldClick}
-                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                ></div>
+                {/* NOTE: The Secure Shield is now injected via JS in useEffect to support Fullscreen */}
                 
                 {/* 3. DYNAMIC MARQUEE WATERMARK */}
+                {/* Note: This React-rendered watermark might hide in Fullscreen depending on browser/Plyr behavior. 
+                    If you need this strictly in fullscreen, it also needs to be appended via JS like the shield. 
+                    For now, leaving as requested for the overlay fix. */}
                 <div className="absolute inset-0 z-[55] pointer-events-none overflow-hidden flex flex-col justify-between py-10 opacity-30">
                     <div className="whitespace-nowrap animate-marquee">
                         <span className="text-2xl font-black text-white/50 uppercase tracking-[1rem] select-none">
@@ -227,9 +242,10 @@ export default function ViewRecording() {
         .animate-marquee-reverse {
             animation: marquee-reverse 25s linear infinite;
         }
-        /* Optional: Ensure controls are always above watermark */
+        
+        /* Ensure controls stay above the shield */
         .plyr__controls {
-            z-index: 70 !important;
+            z-index: 60 !important;
         }
       `}</style>
     </div>
