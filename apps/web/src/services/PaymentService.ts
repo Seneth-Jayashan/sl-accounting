@@ -12,6 +12,24 @@ export interface PayHereInitResponse {
   currency: string;
 }
 
+// Params for generating the report
+export interface ReportParams {
+  filterType: 'today' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
+  startDate?: string; // YYYY-MM-DD
+  endDate?: string;   // YYYY-MM-DD
+  classId?: string;
+}
+
+export interface PaymentReportResponse {
+    period: {
+        start: string;
+        end: string;
+    };
+    count: number;
+    totalAmount: number;
+    data: PaymentData[];
+}
+
 export interface PaymentData {
   _id: string;
   enrollment: {
@@ -136,6 +154,17 @@ const PaymentService = {
       BASE_URL, 
       data
     );
+    return response.data;
+  },
+
+  /**
+   * 7. Get Payment Report (Admin Only)
+   * Endpoint: GET /api/v1/payments/report/summary
+   */
+  getPaymentReport: async (params: ReportParams) => {
+    const response = await api.get<PaymentReportResponse>(`${BASE_URL}/report/summary`, {
+      params 
+    });
     return response.data;
   },
 

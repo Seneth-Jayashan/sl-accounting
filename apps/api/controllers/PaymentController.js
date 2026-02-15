@@ -2,6 +2,8 @@ import crypto from "crypto";
 import Payment from "../models/Payment.js";
 import Enrollment from "../models/Enrollment.js";
 import Class from "../models/Class.js";
+import TuteDelivery from "../models/TuteDelivery.js";
+import moment from "moment";
 import { sendAdminPaymentNotificationSms, sendPaymentReceiptSms, sendPaymentVerifiedSms } from "../utils/sms/Template.js";
 const adminPhoneNumber = process.env.ADMIN_PHONE_NUMBER || "+94703999709";
 
@@ -25,6 +27,41 @@ const formatPayHereAmount = (amount) => {
     return parseFloat(amount)
         .toLocaleString('en-us', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         .replace(/,/g, '');
+};
+
+const createTuteDeliveryRecord = async (payment, enrollmentId, targetMonth) => {
+    try {
+        if (!targetMonth) return; // Only physical tutes for monthly payments
+        
+        // Check if delivery record already exists for this month
+        const exists = await TuteDelivery.findOne({ 
+            enrollment: enrollmentId, 
+            targetMonth: targetMonth 
+        });
+
+        if (exists) return;
+
+        // Fetch student details for address snapshot
+        const enrollment = await Enrollment.findById(enrollmentId).populate('student');
+        if (!enrollment) return;
+
+        const delivery = new TuteDelivery({
+            enrollment: enrollmentId,
+            student: enrollment.student._id,
+            class: enrollment.class,
+            payment: payment._id,
+            targetMonth: targetMonth,
+            receiverName: `${enrollment.student.firstName} ${enrollment.student.lastName}`,
+            deliveryAddress: enrollment.student.address || "Address not provided", // Ensure User model has address
+            status: "pending"
+        });
+
+        await delivery.save();
+        console.log(`Tute Delivery Queued: ${enrollment.student.firstName} for ${targetMonth}`);
+
+    } catch (err) {
+        console.error("Failed to create Tute Delivery record:", err);
+    }
 };
 
 /**
@@ -169,6 +206,8 @@ export const payHereWebhook = async (req, res) => {
     if (isSuccess && payment.enrollment) {
         try {
             await approveBundleEnrollments(payment.enrollment, payment._id, new Date(), targetMonth);
+            console.log(`Webhook: Approved enrollments for Payment ${payment._id} and Enrollment ${payment.enrollment} for ${targetMonth || 'current month'}.`);
+            await createTuteDeliveryRecord(payment, payment.enrollment, targetMonth);
         } catch (e) {
             console.error("Failed to update bundle enrollments from webhook:", e.message);
         }
@@ -330,6 +369,8 @@ export const updatePaymentStatus = async (req, res) => {
             payment.targetMonth
         );
 
+        await createTuteDeliveryRecord(payment, payment.enrollment._id, payment.targetMonth);
+
         // B. Send SMS (Non-blocking)
         sendPaymentVerifiedSms(
             payment.enrollment.student.phoneNumber,
@@ -412,4 +453,96 @@ export const getMyPayments = async (req, res) => {
       console.error("Get My Payments Error:", err);
       res.status(500).json({ message: "Server error fetching payment history" });
     }
+};
+
+
+export const getPaymentReport = async (req, res) => {
+  try {
+    const { filterType, startDate, endDate, classId } = req.query;
+    
+    let query = { status: "completed" };
+    if (classId) {
+        const enrollments = await Enrollment.find({ class: classId }).select('_id');
+        query.enrollment = { $in: enrollments.map(e => e._id) };
+    }
+
+    // --- Date Filtering Logic ---
+    const now = new Date();
+    let start, end;
+
+    // Only apply date filters if NOT 'all_time'
+    if (filterType !== 'all_time') {
+        switch (filterType) {
+            case "today":
+                start = new Date(now.setHours(0,0,0,0));
+                end = new Date(now.setHours(23,59,59,999));
+                break;
+            case "this_week":
+                const day = now.getDay() || 7; 
+                if(day !== 1) now.setHours(-24 * (day - 1)); 
+                start = new Date(now.setHours(0,0,0,0));
+                end = new Date(); 
+                break;
+            case "last_week":
+                start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7); // Simplified
+                end = now;
+                break;
+            case "this_month":
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                break;
+            case "last_month":
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0);
+                break;
+            case "custom":
+                if (startDate && endDate) {
+                    start = new Date(startDate);
+                    end = new Date(endDate);
+                    end.setHours(23, 59, 59, 999); 
+                }
+                break;
+            default:
+                // If no filter provided, default to 'this_month' to be safe, 
+                // BUT if frontend sends 'all_time', we skip this switch entirely.
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        }
+    }
+
+    // Apply Date Query only if start/end exist
+    if (start && end) {
+        query.paymentDate = { $gte: start, $lte: end };
+    }
+
+    // --- Execute Query ---
+    const payments = await Payment.find(query)
+        .populate({
+            path: "enrollment",
+            select: "student class",
+            populate: [
+                { path: "student", select: "firstName lastName phoneNumber email" },
+                { path: "class", select: "name" }
+            ]
+        })
+        .sort({ paymentDate: -1 });
+
+    // --- Summarize Data ---
+    const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    
+    // For 'all_time', we might not have a precise start/end, so we can send null or the range of data found
+    const periodStart = start || (payments.length > 0 ? payments[payments.length-1].paymentDate : new Date());
+    const periodEnd = end || (payments.length > 0 ? payments[0].paymentDate : new Date());
+
+    res.json({
+        period: { start: periodStart, end: periodEnd },
+        count: payments.length,
+        totalAmount,
+        data: payments
+    });
+
+  } catch (err) {
+    console.error("Report Error:", err);
+    res.status(500).json({ message: "Failed to generate report" });
+  }
 };

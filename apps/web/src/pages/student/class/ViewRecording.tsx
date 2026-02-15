@@ -84,6 +84,8 @@ export default function ViewRecording() {
             hideControls: true, 
             clickToPlay: true,
             keyboard: { focused: true, global: true },
+            fullscreen : { enabled: false, fallback: true, iosNative: true },
+            resolution: { default: "720p", options: ["360p", "480p", "720p", "1080p"] }
         });
     }
 

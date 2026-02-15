@@ -7,7 +7,8 @@ import {
   createPayHereSignature,
   uploadPaymentSlip,
   updatePaymentStatus,
-  getMyPayments // <--- Imported New Controller
+  getPaymentReport,
+  getMyPayments
 } from "../controllers/PaymentController.js"; 
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import createUploader from "../middlewares/UploadMiddleware.js";
@@ -27,7 +28,6 @@ const router = express.Router();
 // ==========================================
 // 1. PUBLIC / CALLBACKS
 // ==========================================
-// No validation middleware here; PayHere sends specific form-data we manually verify in controller
 router.post("/payhere-webhook", express.urlencoded({ extended: true }), payHereWebhook);
 
 // ==========================================
@@ -35,31 +35,38 @@ router.post("/payhere-webhook", express.urlencoded({ extended: true }), payHereW
 // ==========================================
 router.use(protect);
 
-// Get My Payment History 
-// IMPORTANT: Must be defined BEFORE /:id to prevent route collision
+// --- My Payments ---
 router.get("/my-payments", getMyPayments);
 
-// PayHere: Step 1 (Student clicks "Pay Now")
+// --- PayHere Initiate ---
 router.post("/initiate", validate(initiatePayHereSchema), createPayHereSignature);
 
-// Bank Transfer: Step 1 (Student uploads slip)
-// NOTE: Uploader MUST run before Validator to parse the FormData body
+// --- Upload Slip ---
 router.post("/upload-slip", PaymentSlipUploader, validate(uploadSlipSchema), uploadPaymentSlip);
 
-// View Payment Details (Dynamic ID)
+// ==========================================
+// 3. ADMIN ROUTES (Specific Paths First)
+// ==========================================
+
+// Report Route (MUST be before /:id)
+// We apply restrictTo("admin") inline here to keep route ordering clean
+router.get("/report/summary", restrictTo("admin"), getPaymentReport);
+
+// List All Payments (Admin)
+router.get("/", restrictTo("admin"), listPayments);
+
+// Create Manual Payment (Admin)
+router.post("/", restrictTo("admin"), validate(createPaymentSchema), createPayment);
+
+// ==========================================
+// 4. DYNAMIC ROUTES (Must be Last)
+// ==========================================
+
+// Get Payment Details by ID
+// (If this was above /report/summary, "report" would be treated as an ID)
 router.get("/:id", validate(paymentIdSchema), getPaymentById);
 
-// ==========================================
-// 3. ADMIN ROUTES
-// ==========================================
-router.use(restrictTo("admin"));
-
-router.get("/", listPayments); // Query params validation optional, usually safe
-
-// Manual "Cash" payment entry
-router.post("/", validate(createPaymentSchema), createPayment);
-
-// Approve/Reject slips
-router.put("/:id", validate(updatePaymentStatusSchema), updatePaymentStatus);
+// Verify/Reject Payment (Admin)
+router.put("/:id", restrictTo("admin"), validate(updatePaymentStatusSchema), updatePaymentStatus);
 
 export default router;

@@ -26,6 +26,8 @@ const KnowledgeBaseList = lazy(() => import("../pages/admin/KnowledgeBase/Knowle
 const Announcements = lazy(() => import("../pages/admin/announcements/Announcement"));
 const Materials = lazy(() => import("../pages/admin/materials/Materials"));
 const Community = lazy(() => import("../pages/admin/communities/Community"));
+const Reports = lazy(() => import("../pages/admin/reports/PaymentReport"));
+const TuteDelivery = lazy(() => import("../pages/admin/tutes/Tutes"));
 
 export const AdminRoutes = () => {
   return (
@@ -35,6 +37,9 @@ export const AdminRoutes = () => {
         <Route element={<AdminLayout />}>
           
           <Route path="/" element={<Dashboard />} />
+
+          {/* Reports */}
+          <Route path="reports" element={<Reports />} />
           
           {/* Student Management */}
           <Route path="students" element={<Students />} />
@@ -75,6 +80,9 @@ export const AdminRoutes = () => {
 
           {/* Community */}
           <Route path="community" element={<Community />} />
+
+          {/* Tute Delivery */}
+          <Route path="tute-delivery" element={<TuteDelivery />} />
 
           {/* Default Admin Route - Redirects to Dashboard */}
           <Route path="*" element={<Navigate to="/admin/" replace />} />
