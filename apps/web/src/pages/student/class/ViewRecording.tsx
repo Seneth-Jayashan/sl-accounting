@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
 import SessionService from "../../../services/SessionService";
-import { useAuth } from "../../../contexts/AuthContext"; // Assuming you have this
+import { useAuth } from "../../../contexts/AuthContext"; 
 
 // @ts-ignore
 import Plyr from "plyr";
@@ -20,7 +20,7 @@ const extractVideoId = (urlOrId: string): string | null => {
 export default function ViewRecording() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth(); // Get logged-in user for watermark
+  const { user } = useAuth(); 
 
   const [youtubeId, setYoutubeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,6 @@ export default function ViewRecording() {
         if (!sessionId) throw new Error("Invalid Session ID");
         
         const res: any = await SessionService.getSessionById(sessionId);
-        // Handle inconsistent API responses (res.session or just res)
         const s = res.session || res || {};
 
         const rawString = s.youtubeVideoId || s.recordingUrl;
@@ -68,6 +67,7 @@ export default function ViewRecording() {
     if (youtubeId && playerRef.current) {
         if (playerInstance.current) playerInstance.current.destroy();
 
+        // FIX: Cast options to 'any' to fix TS error
         playerInstance.current = new Plyr(playerRef.current, {
             controls: [
                 'play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'
@@ -78,21 +78,31 @@ export default function ViewRecording() {
                 showinfo: 0, 
                 iv_load_policy: 3, 
                 modestbranding: 1,
-                controls: 0, // Hide native YT controls
-                disablekb: 1 // Disable YT keyboard shortcuts
+                controls: 0, 
+                disablekb: 1 
             },
             hideControls: true, 
             clickToPlay: true,
             keyboard: { focused: true, global: true },
             fullscreen : { enabled: false, fallback: true, iosNative: true },
             resolution: { default: "720p", options: ["360p", "480p", "720p", "1080p"] }
-        });
+        } as any);
     }
 
     return () => {
         if (playerInstance.current) playerInstance.current.destroy();
     };
   }, [youtubeId]);
+
+  // --- MANUAL PLAY TOGGLE ---
+  // Since we are covering the video with a shield, we need to handle clicks manually
+  const handleShieldClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (playerInstance.current) {
+          playerInstance.current.togglePlay();
+      }
+  };
 
   // --- RENDER HELPERS ---
   const watermarkText = user 
@@ -147,32 +157,30 @@ export default function ViewRecording() {
                     ></iframe>
                 </div>
 
-                {/* 2. SECURITY SHIELD (Prevents Clicking YouTube Logo/Title) */}
-                {/* Top Bar Shield */}
+                {/* 2. FULL SECURITY SHIELD */}
+                {/* UPDATED: Changed h-[15%] to h-full. 
+                    This creates a transparent layer over the ENTIRE video.
+                    It intercepts right-clicks (preventing the "Copy Video URL" menu)
+                    and regular clicks (triggering play/pause manually).
+                */}
                 <div 
-                    className="absolute top-0 left-0 w-full h-[15%] z-[60] bg-transparent cursor-default"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    className="absolute top-0 left-0 w-full h-full z-[60] bg-transparent cursor-pointer"
+                    onClick={handleShieldClick}
                     onContextMenu={(e) => e.preventDefault()}
                 ></div>
                 
                 {/* 3. DYNAMIC MARQUEE WATERMARK */}
                 <div className="absolute inset-0 z-[55] pointer-events-none overflow-hidden flex flex-col justify-between py-10 opacity-30">
-                    
-                    {/* Top Watermark */}
                     <div className="whitespace-nowrap animate-marquee">
                         <span className="text-2xl font-black text-white/50 uppercase tracking-[1rem] select-none">
                             {watermarkText} &nbsp;&nbsp;&nbsp; {watermarkText}
                         </span>
                     </div>
-
-                    {/* Middle Random Watermark (Static Center) */}
                     <div className="w-full flex justify-center">
-                         <span className="text-4xl font-black text-white/50 uppercase -rotate-12 tracking-widest select-none">
+                          <span className="text-4xl font-black text-white/50 uppercase -rotate-12 tracking-widest select-none">
                             {user?.firstName || "Student"}
                         </span>
                     </div>
-
-                    {/* Bottom Watermark (Reverse Direction) */}
                     <div className="whitespace-nowrap animate-marquee-reverse">
                         <span className="text-xl font-black text-white/50 uppercase tracking-[1rem] select-none">
                             {watermarkText} &nbsp;&nbsp;&nbsp; {watermarkText}
