@@ -425,13 +425,14 @@ export default function UploadPaymentSlip() {
 
                 {/* Notes */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Ref / Notes</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Whatsapp Number / ළගම Post Office එක <span className="text-red-500">*</span></label>
                     <textarea 
                         rows={2}
                         className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean outline-none text-sm transition-all resize-none placeholder:text-gray-400"
-                        placeholder="Bank Reference No, Date, etc."
+                        placeholder="070-1234567 / බද්දේගම තැපැල් කාර්යාලය"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
+                        required={true}
                     />
                 </div>
 

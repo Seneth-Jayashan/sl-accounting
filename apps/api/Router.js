@@ -17,6 +17,7 @@ import zoomRoutes from './routes/ZoomRoutes.js';
 import chatRoutes from './routes/ChatRoutes.js';
 import ticketRoutes from './routes/TicketRoutes.js';
 import contactRoutes from './routes/ContactRoutes.js';
+import tuteDeliveryRoutes from './routes/TuteDeliveryRoutes.js';
 
 const router = express.Router();
 
@@ -46,6 +47,7 @@ router.use('/class-chats', classChatRoutes);
 
 // 3. Finance
 router.use('/payments', paymentRoutes);
+router.use('/tute-delivery', tuteDeliveryRoutes);
 
 // 4. Integrations & Tools
 router.use('/zoom', zoomRoutes);

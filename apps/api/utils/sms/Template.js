@@ -122,6 +122,11 @@ export const sendEnrollmentConfirmationSms = async (phone, className) => {
   return SmsSender.send(sanitizePhone(phone), message);
 };
 
+export const sendTuteDispatchedSms = async (phone, name, className, month, tracking) => {
+    const trackingText = tracking ? ` Tracking: ${tracking}` : '';
+    const message = `Hi ${name}, your tute for ${month} (${className}) has been dispatched.${trackingText}`;
+    return SmsSender.send(sanitizePhone(phone), message);
+};
 
 
 // Export as a bundle for easier imports if needed

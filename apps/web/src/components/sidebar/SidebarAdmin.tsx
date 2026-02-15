@@ -74,6 +74,12 @@ const MENU_STRUCTURE: NavSection[] = [
     ],
   },
   {
+    title: "Tute Delivery",
+    items: [
+      { key: "tute-delivery", label: "Tute Delivery", href: "/admin/tute-delivery", icon: ClipboardDocumentCheckIcon },
+    ],
+  },
+  {
     title: "Knowledge Base",
     items: [
       { key: "knowledge", label: "Library", href: "/admin/knowledge-base", icon: BookOpenIcon },

@@ -16,6 +16,7 @@ const CreatePayment = lazy(() => import("../pages/student/payments/ClassPaymentP
 const PaymentHistory = lazy(() => import("../pages/student/payments/PaymentHistory"));
 const KnowledgeBase = lazy(() => import("../pages/student/KnowledgeBasestudent"));
 const Profile = lazy(() => import("../pages/student/profile/Profile"));
+const MyTutes = lazy(() => import("../pages/student/tutes/MyTutes"));
 
 export const StudentRoutes = () => {
   return (
@@ -37,6 +38,9 @@ export const StudentRoutes = () => {
           <Route path="payment/upload/:enrollmentId" element={<UploadSlip />} />
           <Route path="payment/create/:classId" element={<CreatePayment />} />
           <Route path="payments" element={<PaymentHistory />} />
+
+          {/* Tute Delivery */}
+          <Route path="my-tutes" element={<MyTutes />} />
 
           {/* Default Student Route */}
           <Route path="*" element={<Navigate to="/student/" replace />} />

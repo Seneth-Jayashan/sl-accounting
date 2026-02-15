@@ -15,7 +15,8 @@ import {
   ArrowTopRightOnSquareIcon,
   ArrowPathIcon,
   PlusIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  ChatBubbleBottomCenterTextIcon // <--- Imported
 } from "@heroicons/react/24/outline";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
@@ -216,9 +217,16 @@ function PaymentRow({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
           <CheckCircleIcon className="w-3 h-3 opacity-50" /> {payment.enrollment?.class?.name}
         </div>
         <div className="text-[11px] text-gray-400 font-mono mt-1">LKR {payment.amount.toLocaleString()}</div>
+        
+        {/* --- DISPLAY NOTES (DESKTOP) --- */}
+        {payment.notes && (
+            <div className="mt-2 flex items-start gap-1.5 bg-gray-50 border border-gray-100 p-1.5 rounded-md max-w-[200px]" title={payment.notes}>
+                <ChatBubbleBottomCenterTextIcon className="w-3 h-3 text-gray-400 shrink-0 mt-0.5" />
+                <span className="text-[10px] text-gray-500 leading-tight line-clamp-2">{payment.notes}</span>
+            </div>
+        )}
       </td>
 
-      {/* NEW: BILLING MONTH COLUMN */}
       <td className="px-6 py-5">
          <div className="flex items-center gap-2 bg-brand-aliceBlue/50 px-3 py-1.5 rounded-lg w-fit border border-brand-aliceBlue">
              <CalendarDaysIcon className="w-4 h-4 text-brand-cerulean/70" />
@@ -292,6 +300,14 @@ function MobilePaymentCard({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
                 <span className="text-gray-300">|</span>
                 <span className="font-bold text-brand-prussian">{formatBillingMonth(payment.targetMonth)}</span>
             </div>
+
+            {/* --- DISPLAY NOTES (MOBILE) --- */}
+            {payment.notes && (
+                <div className="mb-3 bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-start gap-2">
+                    <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-800 leading-relaxed">{payment.notes}</p>
+                </div>
+            )}
 
             <div className="flex items-center justify-between pt-3 border-t border-brand-aliceBlue">
                  <div className="flex items-center gap-2">
