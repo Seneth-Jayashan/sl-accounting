@@ -7,7 +7,11 @@ const SmsSender = {
    * @param {string} message - The message content
    * @returns {Promise<object>} - The API response result
    */
+
   send: async (phoneNumber, message) => {
+      if(process.env.NODE_ENV == 'development'){
+        return {success: true, message: "In Development"}
+      }
     // Check if the SMS driver is enabled
     if (process.env.SMS_DRIVER !== 'textlk') {
       console.warn(`SMS_DRIVER is set to ${process.env.SMS_DRIVER}. Skipping Text.lk send.`);
