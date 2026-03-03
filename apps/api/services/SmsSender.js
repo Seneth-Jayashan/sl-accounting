@@ -9,6 +9,7 @@ const SmsSender = {
    */
 
   send: async (phoneNumber, message) => {
+    //if in development, skip sending SMS and return a mock response
       if(process.env.NODE_ENV == 'development'){
         return {success: true, message: "In Development"}
       }
