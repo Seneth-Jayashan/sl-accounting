@@ -116,7 +116,7 @@ const HeroSection = () => (
            <div className="relative w-full h-full bg-white/40 backdrop-blur-md rounded-[2.5rem] p-3 shadow-2xl border border-white/60">
               <div className="w-full h-full rounded-[2rem] overflow-hidden relative bg-gray-200">
                   <img 
-                      src="Kalum_Poster.png" 
+                      src="Kalum_Hero.jpeg" 
                       alt="Kalum Waduge - Accounting Instructor" 
                       loading="eager"
                       className="w-full h-full object-cover"

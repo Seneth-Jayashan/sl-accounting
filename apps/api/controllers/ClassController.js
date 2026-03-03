@@ -133,6 +133,67 @@ const createSingleClassInternal = async (dbSession, data, filePaths) => {
   return savedClass;
 };
 
+/**
+ * Internal Helper: Generates and saves Session documents and Zoom meetings for a given Class document.
+ * Used by both create and update operations.
+ */
+const generateSessionsForClass = async (classDoc, dbSession) => {
+  const schedules = Array.isArray(classDoc.timeSchedules) && classDoc.timeSchedules.length > 0
+      ? classDoc.timeSchedules
+      : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
+
+  const anchorDate = classDoc.firstSessionDate ? moment(classDoc.firstSessionDate) : moment();
+  const savedSessionIds = [];
+  let globalIndex = 1;
+
+  for (let i = 0; i < classDoc.totalSessions; i++) {
+    for (const sch of schedules) {
+      const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "Asia/Colombo";
+      const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, i);
+      const endMoment = startMoment.clone().add(classDoc.sessionDurationMinutes, "minutes");
+
+      const sessionDoc = new Session({
+        class: classDoc._id,
+        index: globalIndex,
+        startAt: startMoment.toDate(),
+        endAt: endMoment.toDate(),
+        timezone: tz,
+      });
+
+      // Create Zoom Meeting
+      try {
+        const zoomData = await createMeeting({
+          topic: `${classDoc.name} - Session ${globalIndex}`,
+          start_time: startMoment.format("YYYY-MM-DDTHH:mm:ss"),
+          duration: classDoc.sessionDurationMinutes,
+          timezone: tz,
+          settings: {
+            join_before_host: false,
+            approval_type: 2, 
+            auto_recording: "cloud",
+          },
+        });
+
+        if (zoomData) {
+          sessionDoc.zoomMeetingId = String(zoomData.id);
+          sessionDoc.zoomStartUrl = zoomData.start_url;
+          sessionDoc.zoomJoinUrl = zoomData.join_url;
+        }
+      } catch (zoomErr) {
+        console.warn(`[Zoom Error] Failed to create meeting for ${classDoc.name}: ${zoomErr.message}`);
+      }
+
+      const savedSession = await sessionDoc.save({ session: dbSession });
+      savedSessionIds.push(savedSession._id);
+      globalIndex++;
+    }
+  }
+
+  // Update Class with new Session IDs
+  classDoc.sessions = savedSessionIds;
+  await classDoc.save({ session: dbSession });
+};
+
 // ==========================================
 // 2. CONTROLLERS
 // ==========================================
@@ -294,28 +355,56 @@ export const createClass = async (req, res) => {
 };
 
 /**
- * Update Class
+ * Update Class (Intelligently handles schedule comparisons and variants)
  */
 export const updateClass = async (req, res) => {
   const { classId } = req.params;
-  const { timeSchedules, totalSessions, sessionDurationMinutes, type, ...otherUpdates } = req.body;
+  
+  // Extract schedule and variant fields separately for deep comparison
+  const { 
+    timeSchedules, 
+    totalSessions, 
+    sessionDurationMinutes, 
+    firstSessionDate,
+    type, 
+    
+    // Variant config
+    createRevision,
+    createPaper,
+    revisionDay,
+    revisionStartTime,
+    revisionEndTime,
+    revisionPrice,
+    paperDay,
+    paperStartTime,
+    paperEndTime,
+    paperPrice,
+    bundlePriceRevision,
+    bundlePricePaper,
+    bundlePriceFull,
+
+    ...otherUpdates 
+  } = req.body;
   
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const classDoc = await Class.findById(classId).session(session);
+    // 1. Fetch Class and populated linked variants
+    const classDoc = await Class.findById(classId)
+        .populate('linkedRevisionClass')
+        .populate('linkedPaperClass')
+        .session(session);
+        
     if (!classDoc) throw new Error("Class not found");
 
-    // 1. Handle Batch Change
+    // 2. Handle Batch Change
     if (otherUpdates.batch && otherUpdates.batch !== String(classDoc.batch)) {
-        // Remove from old
         await Batch.findByIdAndUpdate(classDoc.batch, { $pull: { classes: classDoc._id } }, { session });
-        // Add to new
         await Batch.findByIdAndUpdate(otherUpdates.batch, { $addToSet: { classes: classDoc._id } }, { session });
     }
 
-    // 2. Handle Files
+    // 3. Handle File Uploads (FormData)
     if (req.files) {
       const newCover = getFilePath(req.files, 'coverImage');
       const newImages = getGalleryPaths(req.files, 'images');
@@ -323,52 +412,187 @@ export const updateClass = async (req, res) => {
       if (newImages && newImages.length > 0) classDoc.images = newImages; 
     }
 
-    // 3. Apply Fields
+    // 4. --- SMART SCHEDULE COMPARISON LOGIC (MAIN CLASS) ---
+    let willReplaceSchedule = false;
+
+    // Parse timeSchedules if it arrives as a JSON string (common in FormData)
+    let parsedIncomingSchedules = timeSchedules;
+    if (typeof timeSchedules === 'string') {
+        try { parsedIncomingSchedules = JSON.parse(timeSchedules); } catch (e) {}
+    }
+
+    if (parsedIncomingSchedules) {
+        const existingSchedules = classDoc.timeSchedules ? classDoc.timeSchedules.map(ts => ({
+            day: Number(ts.day),
+            startTime: ts.startTime,
+            endTime: ts.endTime
+        })) : [];
+        
+        const incomingSchedulesClean = parsedIncomingSchedules.map(ts => ({
+            day: Number(ts.day),
+            startTime: ts.startTime,
+            endTime: ts.endTime
+        }));
+
+        if (JSON.stringify(existingSchedules) !== JSON.stringify(incomingSchedulesClean)) {
+            willReplaceSchedule = true;
+        }
+    }
+
+    if (totalSessions !== undefined && Number(totalSessions) !== classDoc.totalSessions) {
+        willReplaceSchedule = true;
+    }
+    if (sessionDurationMinutes !== undefined && Number(sessionDurationMinutes) !== classDoc.sessionDurationMinutes) {
+        willReplaceSchedule = true;
+    }
+    if (firstSessionDate !== undefined && new Date(firstSessionDate).getTime() !== new Date(classDoc.firstSessionDate).getTime()) {
+        willReplaceSchedule = true;
+    }
+
+    // 5. Apply Basic Fields to Main Document
     Object.assign(classDoc, otherUpdates);
+    if (type !== undefined) classDoc.type = type;
+    if (parsedIncomingSchedules) classDoc.timeSchedules = parsedIncomingSchedules;
+    if (totalSessions !== undefined) classDoc.totalSessions = Number(totalSessions);
+    if (sessionDurationMinutes !== undefined) classDoc.sessionDurationMinutes = Number(sessionDurationMinutes);
+    if (firstSessionDate !== undefined) classDoc.firstSessionDate = firstSessionDate;
 
-    // 4. Handle Schedule Changes (Regenerate sessions if needed)
-    const willReplaceSchedule =
-      typeof timeSchedules !== "undefined" ||
-      typeof totalSessions !== "undefined" ||
-      typeof sessionDurationMinutes !== "undefined";
+    // 6. Handle Variants (Revision / Paper Classes)
+    const isCreateRevision = String(createRevision) === 'true';
+    const isCreatePaper = String(createPaper) === 'true';
 
-    if (typeof timeSchedules !== "undefined") classDoc.timeSchedules = timeSchedules;
-    if (typeof totalSessions !== "undefined") classDoc.totalSessions = totalSessions;
-    if (typeof sessionDurationMinutes !== "undefined") classDoc.sessionDurationMinutes = sessionDurationMinutes;
+    if (classDoc.type === 'theory') {
+        // Update Bundle Prices
+        if (bundlePriceRevision !== undefined) classDoc.bundlePriceRevision = Number(bundlePriceRevision);
+        if (bundlePricePaper !== undefined) classDoc.bundlePricePaper = Number(bundlePricePaper);
+        if (bundlePriceFull !== undefined) classDoc.bundlePriceFull = Number(bundlePriceFull);
+
+        // --- UPDATE REVISION CLASS ---
+        if (isCreateRevision && classDoc.linkedRevisionClass) {
+            const revClass = classDoc.linkedRevisionClass; // Already populated
+            let revScheduleChanged = false;
+            
+            if (revisionDay !== undefined || revisionStartTime || revisionEndTime) {
+                const newRevSchedule = {
+                    day: Number(revisionDay ?? revClass.timeSchedules[0]?.day),
+                    startTime: revisionStartTime ?? revClass.timeSchedules[0]?.startTime,
+                    endTime: revisionEndTime ?? revClass.timeSchedules[0]?.endTime
+                };
+                
+                const oldRevSchedule = revClass.timeSchedules[0];
+                if (!oldRevSchedule || 
+                    oldRevSchedule.day !== newRevSchedule.day || 
+                    oldRevSchedule.startTime !== newRevSchedule.startTime || 
+                    oldRevSchedule.endTime !== newRevSchedule.endTime) {
+                    
+                    revScheduleChanged = true;
+                    revClass.timeSchedules = [newRevSchedule];
+                }
+            }
+
+            if (revisionPrice !== undefined) revClass.price = Number(revisionPrice);
+            revClass.name = `${classDoc.name} - Revision`;
+            revClass.description = classDoc.description;
+            if (classDoc.coverImage) revClass.coverImage = classDoc.coverImage;
+
+            await revClass.save({ session });
+
+            // Regenerate Revision Sessions if needed
+            if (revScheduleChanged) {
+                const oldRevSessions = await Session.find({ class: revClass._id }).session(session);
+                for (const s of oldRevSessions) {
+                    if (s.zoomMeetingId) {
+                        try { await deleteMeeting(s.zoomMeetingId); } catch (e) {}
+                    }
+                }
+                await Session.deleteMany({ class: revClass._id }).session(session);
+                await generateSessionsForClass(revClass, session);
+            }
+        }
+
+        // --- UPDATE PAPER CLASS ---
+        if (isCreatePaper && classDoc.linkedPaperClass) {
+            const papClass = classDoc.linkedPaperClass;
+            let papScheduleChanged = false;
+            
+            if (paperDay !== undefined || paperStartTime || paperEndTime) {
+                const newPapSchedule = {
+                    day: Number(paperDay ?? papClass.timeSchedules[0]?.day),
+                    startTime: paperStartTime ?? papClass.timeSchedules[0]?.startTime,
+                    endTime: paperEndTime ?? papClass.timeSchedules[0]?.endTime
+                };
+                
+                const oldPapSchedule = papClass.timeSchedules[0];
+                if (!oldPapSchedule || 
+                    oldPapSchedule.day !== newPapSchedule.day || 
+                    oldPapSchedule.startTime !== newPapSchedule.startTime || 
+                    oldPapSchedule.endTime !== newPapSchedule.endTime) {
+                    
+                    papScheduleChanged = true;
+                    papClass.timeSchedules = [newPapSchedule];
+                }
+            }
+
+            if (paperPrice !== undefined) papClass.price = Number(paperPrice);
+            papClass.name = `${classDoc.name} - Paper Class`;
+            papClass.description = classDoc.description;
+            if (classDoc.coverImage) papClass.coverImage = classDoc.coverImage;
+
+            await papClass.save({ session });
+
+            // Regenerate Paper Sessions if needed
+            if (papScheduleChanged) {
+                const oldPapSessions = await Session.find({ class: papClass._id }).session(session);
+                for (const s of oldPapSessions) {
+                    if (s.zoomMeetingId) {
+                        try { await deleteMeeting(s.zoomMeetingId); } catch (e) {}
+                    }
+                }
+                await Session.deleteMany({ class: papClass._id }).session(session);
+                await generateSessionsForClass(papClass, session);
+            }
+        }
+    }
 
     await classDoc.save({ session });
 
-    // 5. Commit main updates before regenerating sessions (optional, but safe to keep in same transaction)
-    // Note: createMeeting is external, so it's tricky in transactions. 
-    // We keep it inside to ensure DB consistency if Zoom fails completely we might want to rollback or just log.
-    // For now, we proceed within transaction.
-
+    // 7. Handle Session Regeneration for MAIN class ONLY if schedule actually changed
     if (willReplaceSchedule) {
-      // Logic from `recreateSessionsForClass` helper moved inline or imported
-      // For brevity, assuming simple cleanup and regeneration logic similar to create
+      console.log(`Schedule changed for class ${classDoc._id}. Recreating sessions...`);
+      
       const existingSessions = await Session.find({ class: classDoc._id }).session(session);
       
       // Cleanup old Zoom
       for (const s of existingSessions) {
         if (s.zoomMeetingId) {
-            try { await deleteMeeting(s.zoomMeetingId); } catch (e) { console.warn("Zoom cleanup warning", e.message); }
+            try { await deleteMeeting(s.zoomMeetingId); } 
+            catch (e) { console.warn("Zoom cleanup warning", e.message); }
         }
       }
+      
+      // Delete old sessions in database
       await Session.deleteMany({ class: classDoc._id }).session(session);
 
-      // Re-run session generation logic (Simplified call to helper logic)
-      // NOTE: In a real refactor, extract `createSessionLoop` to reuse in Create/Update
-      // ... (Implementation similar to createSingleClassInternal loop) ...
-      // For this output, I will skip re-implementing the loop to save space, 
-      // but in production code, extract the session loop to a function `generateSessions(classDoc, dbSession)`.
+      // Re-run session generation using the helper
+      await generateSessionsForClass(classDoc, session);
+      
+    } else {
+      console.log(`No schedule changes for class ${classDoc._id}. Keeping existing sessions.`);
     }
 
     await session.commitTransaction();
-    return res.status(200).json({ success: true, message: "Class updated", class: classDoc });
+    
+    // Repopulate for response
+    const updatedClass = await Class.findById(classDoc._id)
+        .populate('linkedRevisionClass')
+        .populate('linkedPaperClass');
+
+    return res.status(200).json({ success: true, message: "Class updated successfully", class: updatedClass });
 
   } catch (err) {
     if (session.inTransaction()) await session.abortTransaction();
-    return res.status(500).json({ message: err.message });
+    console.error("Update Class Error:", err);
+    return res.status(500).json({ message: err.message || "Failed to update class" });
   } finally {
     session.endSession();
   }
