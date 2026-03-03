@@ -83,8 +83,8 @@ app.use('/api', limiter); // Apply only to API routes, not static files
 // 2. PARSERS & LOGGING
 // ==========================================
 
-app.use(express.json({ limit: '10mb' })); // Increased limit for base64/files if needed
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '15mb' })); // Increased limit for base64/files if needed
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(cookieParser());
 
 // Development Logging
