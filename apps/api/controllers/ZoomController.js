@@ -136,6 +136,7 @@ async function processRecording(recordingObject) {
     
     // 7. Update Database
     session.youtubeVideoId = youtubeVideoId;
+    session.recordingTitle = topic;
     session.recordingShared = true; // Mark as available
     await session.save();
 

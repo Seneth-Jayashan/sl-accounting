@@ -24,13 +24,18 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
     const fetchEnrollment = async () => {
       try {
         const myEnrollments = await EnrollmentService.getMyEnrollments();
+
+        console.log("Fetched Enrollments:", myEnrollments);
+        console.log("Class Sessions:", sessions);
         
         if (sessions.length > 0) {
             // Robustly find the matching enrollment ID
             const classId = typeof sessions[0].class === 'string' ? sessions[0].class : sessions[0].class._id;
+            console.log("Looking for enrollment with class ID:", classId);
             const match = myEnrollments.find((e: any) => 
                 (typeof e.class === 'string' ? e.class : e.class._id) === classId
             );
+            console.log("Matched Enrollment:", match);
             if (isMounted) setEnrollment(match || null);
         }
       } catch (err) {

@@ -106,7 +106,8 @@ export const getAllUsers = async (req, res) => {
       search, 
       role, 
       batch, 
-      isDeleted
+      isDeleted,
+      isLocked
     } = req.query;
 
     const query = {};
@@ -121,6 +122,10 @@ export const getAllUsers = async (req, res) => {
 
     if (isDeleted !== undefined) {
       query.isDeleted = isDeleted === 'true';
+    }
+
+    if (isLocked !== undefined) {
+      query.isLocked = isLocked === 'true';
     }
 
     if (search) {

@@ -17,7 +17,11 @@ import {
     getAllPublicClasses,
     getPublicClass,
     activateClass,
-    deactivateClass
+    deactivateClass,
+    getClassRecordings,
+    addClassRecording,
+    updateClassRecording,
+    deleteClassRecording
 } from '../controllers/ClassController.js';
 
 const router = express.Router();
@@ -35,6 +39,7 @@ router.use(protect); // Apply Auth Check to all routes below
 
 router.get('/', getAllClasses);
 router.get('/:classId', validate(classIdSchema), getClassById);
+router.get('/:classId/recordings', validate(classIdSchema), getClassRecordings);
 
 // ==========================================
 // 3. ADMIN ROUTES (Strict Access)
@@ -65,5 +70,10 @@ router.route('/:classId')
 // Status Toggles (Standardized to :classId to match validator)
 router.patch('/:classId/activate', validate(classIdSchema), activateClass);
 router.patch('/:classId/deactivate', validate(classIdSchema), deactivateClass);
+
+// Recording Management
+router.post('/:classId/recordings', validate(classIdSchema), addClassRecording);
+router.patch('/:classId/recordings/:recordingId', validate(classIdSchema), updateClassRecording);
+router.delete('/:classId/recordings/:recordingId', validate(classIdSchema), deleteClassRecording);
 
 export default router;

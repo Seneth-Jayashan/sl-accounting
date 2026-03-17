@@ -13,7 +13,9 @@ import {
   TrashIcon,
   ArrowUturnLeftIcon,
   NoSymbolIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  LockClosedIcon,
+  LockOpenIcon
 } from "@heroicons/react/24/outline";
 
 // Services
@@ -226,6 +228,45 @@ export default function StudentsPage() {
     }
   }, [fetchStudents]);
 
+  const handleLock = useCallback(async (id: string) => {
+    setOpenMenuId(null);
+    const result = await Swal.fire({
+      title: "Lock Account?",
+      text: "User login will be blocked until an admin unlocks the account.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Yes, lock account",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await AdminService.lockUser(id);
+        Swal.fire("Locked", "Account has been locked.", "success");
+        fetchStudents();
+      } catch (error) {
+        Swal.fire("Error", "Could not lock user.", "error");
+      }
+    }
+  }, [fetchStudents]);
+
+  const handleUnlock = useCallback(async (id: string) => {
+    setOpenMenuId(null);
+    try {
+      await AdminService.unlockUser(id);
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      });
+      Toast.fire({ icon: 'success', title: 'Account Unlocked' });
+      fetchStudents();
+    } catch (error) {
+      Swal.fire("Error", "Could not unlock user.", "error");
+    }
+  }, [fetchStudents]);
+
   return (
     <div className="space-y-6 font-sans pb-24 md:pb-20"> 
       
@@ -327,6 +368,8 @@ export default function StudentsPage() {
                         onRestore={() => handleRestore(student._id, student.firstName)}
                         onActivate={() => handleActivate(student._id)}
                         onDeactivate={() => handleDeactivate(student._id)}
+                        onLock={() => handleLock(student._id)}
+                        onUnlock={() => handleUnlock(student._id)}
                     />
                     ))}
                 </tbody>
@@ -347,6 +390,8 @@ export default function StudentsPage() {
                         onRestore={() => handleRestore(student._id, student.firstName)}
                         onActivate={() => handleActivate(student._id)}
                         onDeactivate={() => handleDeactivate(student._id)}
+                        onLock={() => handleLock(student._id)}
+                        onUnlock={() => handleUnlock(student._id)}
                     />
                 ))}
             </div>
@@ -368,6 +413,8 @@ interface StudentItemProps {
   onRestore: () => void;
   onActivate: () => void;
   onDeactivate: () => void;
+  onLock: () => void;
+  onUnlock: () => void;
 }
 
 // --- SUB-COMPONENT: Table Row (Desktop) ---
@@ -380,7 +427,9 @@ const StudentRow = React.memo(({
   onDelete,
   onRestore,
   onActivate,
-  onDeactivate
+  onDeactivate,
+  onLock,
+  onUnlock
 }: StudentItemProps) => { // <--- Changed 'any' to 'StudentItemProps'
   
   const displayName = student.firstName ? `${student.firstName} ${student.lastName || ""}` : "Unknown";
@@ -436,7 +485,7 @@ const StudentRow = React.memo(({
         >
           <EllipsisHorizontalIcon className="w-6 h-6" />
         </button>
-        {isOpen && <ActionMenu {...{ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, student }} />}
+        {isOpen && <ActionMenu {...{ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, onLock, onUnlock, student }} />}
       </td>
     </tr>
   );
@@ -452,7 +501,9 @@ const StudentCardMobile = React.memo(({
     onDelete,
     onRestore,
     onActivate,
-    onDeactivate
+    onDeactivate,
+    onLock,
+    onUnlock
   }: StudentItemProps) => { // <--- Changed 'any' to 'StudentItemProps'
     
     const displayName = student.firstName ? `${student.firstName} ${student.lastName || ""}` : "Unknown";
@@ -498,7 +549,7 @@ const StudentCardMobile = React.memo(({
             {/* Action Menu */}
             {isOpen && (
                 <div className="absolute right-4 top-10 z-20 w-48 shadow-xl rounded-xl bg-white border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    <ActionMenu {...{ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, student }} />
+                    <ActionMenu {...{ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, onLock, onUnlock, student }} />
                 </div>
             )}
         </div>
@@ -506,7 +557,7 @@ const StudentCardMobile = React.memo(({
 });
 
 // --- SUB-COMPONENT: Action Menu Content ---
-const ActionMenu = ({ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, student }: any) => (
+          const ActionMenu = ({ onView, onEdit, onDelete, onRestore, onActivate, onDeactivate, onLock, onUnlock, student }: any) => (
     <div className="bg-white">
         <button onClick={onView} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50">
             <EyeIcon className="w-4 h-4 text-gray-400" /> View Details
@@ -520,6 +571,15 @@ const ActionMenu = ({ onView, onEdit, onDelete, onRestore, onActivate, onDeactiv
                 <button onClick={onEdit} className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50">
                     <PencilSquareIcon className="w-4 h-4 text-gray-400" /> Edit Profile
                 </button>
+                {student.isLocked ? (
+                  <button onClick={onUnlock} className="w-full text-left px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-3 transition-colors border-b border-gray-50">
+                    <LockOpenIcon className="w-4 h-4" /> Unlock Login
+                  </button>
+                ) : (
+                  <button onClick={onLock} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors border-b border-gray-50">
+                    <LockClosedIcon className="w-4 h-4" /> Lock Login
+                  </button>
+                )}
                 {student.isActive ? (
                     <button onClick={onDeactivate} className="w-full text-left px-4 py-3 text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-3 transition-colors border-b border-gray-50">
                         <NoSymbolIcon className="w-4 h-4" /> Deactivate

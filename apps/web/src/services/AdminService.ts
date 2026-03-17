@@ -75,6 +75,7 @@ export interface UserQueryParams {
   role?: string;
   batch?: string;
   isDeleted?: boolean;
+  isLocked?: boolean;
 }
 
 // ==========================================

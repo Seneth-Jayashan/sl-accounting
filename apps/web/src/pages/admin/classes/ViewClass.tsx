@@ -22,7 +22,7 @@ import {
 import StudentEnrollmentTab from "../../../components/admin/class/StudentEnrollmentTab";
 
 // Services & Types
-import ClassService, { type ClassData } from "../../../services/ClassService";
+import ClassService, { type ClassData, type ClassRecording } from "../../../services/ClassService";
 import SessionService from "../../../services/SessionService";
 
 // --- SECURITY HELPER ---
@@ -51,15 +51,30 @@ export default function ViewClassPage() {
   });
   const [cancelReason, setCancelReason] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [recordings, setRecordings] = useState<ClassRecording[]>([]);
+  const [recordingName, setRecordingName] = useState("");
+  const [recordingUrl, setRecordingUrl] = useState("");
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+  const [isSavingRecording, setIsSavingRecording] = useState(false);
+  const [editingRecordingId, setEditingRecordingId] = useState("");
+  const [editRecordingName, setEditRecordingName] = useState("");
+  const [isUpdatingRecording, setIsUpdatingRecording] = useState(false);
 
   // --- FETCH DATA ---
   const fetchData = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
     try {
-      const res = await ClassService.getClassById(id);
+      const [res, recordingsRes] = await Promise.all([
+        ClassService.getClassById(id),
+        ClassService.getClassRecordings(id),
+      ]);
       const data = res.class || (res as any); 
       setClassData(data);
+      setRecordings(recordingsRes.recordings || []);
+      if (data?.sessions?.length > 0) {
+        setSelectedSessionId((prev) => prev || data.sessions[0]._id);
+      }
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -113,6 +128,88 @@ export default function ViewClassPage() {
       });
     } catch (err) {
       alert("Delete failed.");
+    }
+  };
+
+  const handleAddRecording = async () => {
+    if (!id || !recordingUrl.trim()) {
+      window.alert("Recording URL is required.");
+      return;
+    }
+
+    if (!selectedSessionId) {
+      window.alert("Please select a session first.");
+      return;
+    }
+
+    if (!isValidUrl(recordingUrl.trim())) {
+      window.alert("Please enter a valid URL starting with http or https.");
+      return;
+    }
+
+    setIsSavingRecording(true);
+    try {
+      const response = await ClassService.addClassRecording(id, {
+        name: recordingName.trim() || undefined,
+        url: recordingUrl.trim(),
+        sessionId: selectedSessionId,
+      });
+
+      if (response.message && response.message.toLowerCase().includes("already exists")) {
+        window.alert("This recording already exists for this class.");
+      } else {
+        setRecordingName("");
+        setRecordingUrl("");
+      }
+      await fetchData();
+    } catch (error: any) {
+      window.alert(error?.response?.data?.message || "Failed to add recording.");
+    } finally {
+      setIsSavingRecording(false);
+    }
+  };
+
+  const handleDeleteRecording = async (recordingId: string) => {
+    if (!id) return;
+    const ok = window.confirm("Delete this recording from the class?");
+    if (!ok) return;
+
+    try {
+      await ClassService.deleteClassRecording(id, recordingId);
+      await fetchData();
+    } catch (error: any) {
+      window.alert(error?.response?.data?.message || "Failed to delete recording.");
+    }
+  };
+
+  const handleStartEditRecording = (recording: ClassRecording) => {
+    setEditingRecordingId(recording._id);
+    setEditRecordingName(recording.name || "");
+  };
+
+  const handleCancelEditRecording = () => {
+    setEditingRecordingId("");
+    setEditRecordingName("");
+  };
+
+  const handleSaveRecordingName = async (recordingId: string) => {
+    if (!id) return;
+    const trimmed = editRecordingName.trim();
+    if (!trimmed) {
+      window.alert("Recording name is required.");
+      return;
+    }
+
+    setIsUpdatingRecording(true);
+    try {
+      await ClassService.updateClassRecording(id, recordingId, { name: trimmed });
+      await fetchData();
+      setEditingRecordingId("");
+      setEditRecordingName("");
+    } catch (error: any) {
+      window.alert(error?.response?.data?.message || "Failed to update recording name.");
+    } finally {
+      setIsUpdatingRecording(false);
     }
   };
 
@@ -270,6 +367,114 @@ export default function ViewClassPage() {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-3"
             >
+              <div className="bg-white border border-brand-aliceBlue rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recording Manager</p>
+                  <h3 className="text-sm sm:text-base font-bold text-brand-prussian mt-1">Add class recordings</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-3">
+                  <select
+                    value={selectedSessionId}
+                    onChange={(e) => setSelectedSessionId(e.target.value)}
+                    className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                  >
+                    <option value="">Select Session</option>
+                    {sessions.map((session: any) => (
+                      <option key={session._id} value={session._id}>
+                        Session {session.index} - {moment(session.startAt).format("DD MMM YYYY")}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={recordingName}
+                    onChange={(e) => setRecordingName(e.target.value)}
+                    placeholder="Recording name (optional)"
+                    className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                  />
+                  <input
+                    value={recordingUrl}
+                    onChange={(e) => setRecordingUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                  />
+                  <button
+                    onClick={handleAddRecording}
+                    disabled={isSavingRecording}
+                    className="px-4 py-2.5 rounded-xl bg-brand-cerulean text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-prussian transition-colors disabled:opacity-60"
+                  >
+                    {isSavingRecording ? "Saving..." : "Add"}
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {recordings.length === 0 ? (
+                    <p className="text-xs text-gray-400 font-medium">No recordings added for this class yet.</p>
+                  ) : (
+                    recordings.map((recording) => (
+                      <div key={recording._id} className="border border-brand-aliceBlue rounded-xl px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+                        <div className="min-w-0">
+                          {editingRecordingId === recording._id ? (
+                            <input
+                              value={editRecordingName}
+                              onChange={(e) => setEditRecordingName(e.target.value)}
+                              className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-lg px-2.5 py-1.5 text-sm font-semibold text-brand-prussian outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                            />
+                          ) : (
+                            <p className="text-sm font-semibold text-brand-prussian truncate">{recording.name}</p>
+                          )}
+                          {typeof recording.session === "object" && recording.session?.index && (
+                            <p className="text-[11px] text-gray-400 font-semibold mb-1">Session {recording.session.index}</p>
+                          )}
+                          <a
+                            href={recording.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-brand-cerulean hover:underline break-all"
+                          >
+                            {recording.url}
+                          </a>
+                        </div>
+                        <div className="self-start sm:self-auto flex items-center gap-2">
+                          {editingRecordingId === recording._id ? (
+                            <>
+                              <button
+                                onClick={() => handleSaveRecordingName(recording._id)}
+                                disabled={isUpdatingRecording}
+                                className="px-3 py-2 rounded-lg border border-emerald-100 text-emerald-600 hover:bg-emerald-50 text-xs font-bold uppercase tracking-wide disabled:opacity-60"
+                              >
+                                {isUpdatingRecording ? "Saving" : "Save"}
+                              </button>
+                              <button
+                                onClick={handleCancelEditRecording}
+                                disabled={isUpdatingRecording}
+                                className="px-3 py-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 text-xs font-bold uppercase tracking-wide"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleStartEditRecording(recording)}
+                              className="px-3 py-2 rounded-lg border border-blue-100 text-blue-600 hover:bg-blue-50 text-xs font-bold uppercase tracking-wide"
+                            >
+                              Edit
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleDeleteRecording(recording._id)}
+                            className="px-3 py-2 rounded-lg border border-red-100 text-red-600 hover:bg-red-50 text-xs font-bold uppercase tracking-wide"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
               {sessions.length > 0 ? (
                 sessions.map((session: any) => (
                   <SessionRow 

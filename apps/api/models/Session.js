@@ -15,6 +15,7 @@ const sessionSchema = new mongoose.Schema({
   zoomStartUrl: { type: String },    
   zoomJoinUrl: { type: String },     
   youtubeVideoId: { type: String },  
+  recordingTitle: { type: String, trim: true },
   recordingShared: { type: Boolean, default: false },
 
   attendance: [
