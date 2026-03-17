@@ -19,6 +19,46 @@ import {
   DocumentArrowDownIcon
 } from "@heroicons/react/24/outline";
 
+const SINHALA_FONT_URL = "https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSansSinhala/NotoSansSinhala-Regular.ttf";
+const SINHALA_FONT_VFS_NAME = "NotoSansSinhala-Regular.ttf";
+const SINHALA_FONT_FAMILY = "NotoSansSinhala";
+
+let isSinhalaFontRegistered = false;
+
+const containsSinhalaChars = (value: string) => /[\u0D80-\u0DFF]/.test(value);
+
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+};
+
+const ensureSinhalaFont = async (doc: jsPDF) => {
+  if (isSinhalaFontRegistered) {
+    return true;
+  }
+
+  const response = await fetch(SINHALA_FONT_URL);
+  if (!response.ok) {
+    return false;
+  }
+
+  const fontBuffer = await response.arrayBuffer();
+  const fontBase64 = arrayBufferToBase64(fontBuffer);
+
+  doc.addFileToVFS(SINHALA_FONT_VFS_NAME, fontBase64);
+  doc.addFont(SINHALA_FONT_VFS_NAME, SINHALA_FONT_FAMILY, "normal");
+  isSinhalaFontRegistered = true;
+  return true;
+};
+
 // --- TYPES ---
 type FilterType = "all_time" | "today" | "this_week" | "last_week" | "this_month" | "last_month" | "custom";
 type TabType = "pending" | "shipped" | "delivered";
@@ -121,7 +161,7 @@ export default function TuteDeliveryPage() {
     return formatAddressForDisplay(studentAny.address || "");
   };
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = async () => {
     if (!deliveries.length) {
       window.alert("No delivery records available for PDF export.");
       return;
@@ -144,7 +184,22 @@ export default function TuteDeliveryPage() {
 
     let y = margin;
 
-    doc.setFont("times", "normal");
+    const requiresSinhalaFont = deliveries.some((delivery) => {
+      const studentName = `${delivery.student?.firstName || ""} ${delivery.student?.lastName || ""}`.trim();
+      const studentAddress = getAddressParts(delivery).address || "";
+      return containsSinhalaChars(studentName) || containsSinhalaChars(studentAddress);
+    });
+
+    let useSinhalaFont = false;
+    if (requiresSinhalaFont) {
+      try {
+        useSinhalaFont = await ensureSinhalaFont(doc);
+      } catch (error) {
+        console.error("Failed to load Sinhala font for PDF:", error);
+      }
+    }
+
+    doc.setFont(useSinhalaFont ? SINHALA_FONT_FAMILY : "times", "normal");
 
     deliveries.forEach((delivery) => {
       // Create new page if row exceeds bounds
@@ -224,11 +279,11 @@ export default function TuteDeliveryPage() {
       // 5. Class Name - Month (Bottom Right of Right Column)
       const tagText = `${delivery.class?.name || ""} - ${delivery.targetMonth || ""}`.trim();
       doc.setFontSize(10);
-      doc.setFont("times", "bold");
+      doc.setFont(useSinhalaFont ? SINHALA_FONT_FAMILY : "times", useSinhalaFont ? "normal" : "bold");
       doc.text(tagText, pageWidth - margin, bottomY - 10, { align: "right" });
       
       // Reset font back to normal for next loop
-      doc.setFont("times", "normal");
+      doc.setFont(useSinhalaFont ? SINHALA_FONT_FAMILY : "times", "normal");
 
       // ==========================================
       // HORIZONTAL SEPARATOR LINE
