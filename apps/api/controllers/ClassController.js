@@ -23,6 +23,60 @@ const getGalleryPaths = (files, fieldName) => {
   return [];
 };
 
+const extractYouTubeVideoId = (input = "") => {
+  const raw = String(input).trim();
+  if (!raw) return null;
+
+  const idLike = raw.match(/^[a-zA-Z0-9_-]{11}$/);
+  if (idLike) return raw;
+
+  try {
+    const parsed = new URL(raw);
+    const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+
+    if (host === "youtu.be") {
+      const shortId = parsed.pathname.split("/").filter(Boolean)[0];
+      return shortId && /^[a-zA-Z0-9_-]{11}$/.test(shortId) ? shortId : null;
+    }
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const v = parsed.searchParams.get("v");
+      if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
+
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      const possibleId = parts[1];
+      if (
+        ["embed", "shorts", "live"].includes(parts[0]) &&
+        possibleId &&
+        /^[a-zA-Z0-9_-]{11}$/.test(possibleId)
+      ) {
+        return possibleId;
+      }
+    }
+  } catch (error) {
+    return null;
+  }
+
+  return null;
+};
+
+const toRecordingDto = (sessionDoc) => {
+  const videoId = sessionDoc.youtubeVideoId;
+  return {
+    _id: sessionDoc._id,
+    name: sessionDoc.recordingTitle || `Session ${sessionDoc.index} Recording`,
+    url: `https://www.youtube.com/watch?v=${videoId}`,
+    source: "session",
+    session: {
+      _id: sessionDoc._id,
+      index: sessionDoc.index,
+      startAt: sessionDoc.startAt,
+    },
+    createdAt: sessionDoc.updatedAt,
+    updatedAt: sessionDoc.updatedAt,
+  };
+};
+
 /**
  * Calculates the start date/time for a specific session index based on weekly recurrence.
  */
@@ -765,5 +819,158 @@ export const deactivateClass = async (req, res) => {
     return res.status(200).json({ message: "Deactivated", class: classDoc });
   } catch (error) {
     return res.status(500).json(error);
+  }
+};
+
+export const getClassRecordings = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const classExists = await Class.exists({ _id: classId });
+    if (!classExists) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    const sessions = await Session.find({
+      class: classId,
+      youtubeVideoId: { $exists: true, $nin: [null, ""] },
+    })
+      .select("_id index startAt youtubeVideoId recordingTitle updatedAt")
+      .sort({ startAt: -1 });
+
+    const recordings = sessions.map(toRecordingDto);
+    return res.status(200).json({ success: true, recordings });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch recordings" });
+  }
+};
+
+export const addClassRecording = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { name, url, sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ success: false, message: "Session is required" });
+    }
+
+    if (!url || !String(url).trim()) {
+      return res.status(400).json({ success: false, message: "YouTube URL or Video ID is required" });
+    }
+
+    const classExists = await Class.exists({ _id: classId });
+    if (!classExists) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    const targetSession = await Session.findOne({ _id: sessionId, class: classId });
+    if (!targetSession) {
+      return res.status(400).json({ success: false, message: "Session does not belong to this class" });
+    }
+
+    const youtubeVideoId = extractYouTubeVideoId(url);
+    if (!youtubeVideoId) {
+      return res.status(400).json({ success: false, message: "Invalid YouTube URL or Video ID" });
+    }
+
+    const existing = await Session.findOne({
+      class: classId,
+      youtubeVideoId,
+      _id: { $ne: targetSession._id },
+    }).select("_id index startAt youtubeVideoId recordingTitle updatedAt");
+
+    if (existing) {
+      return res.status(200).json({
+        success: true,
+        message: "Recording already exists for this class",
+        recording: toRecordingDto(existing),
+      });
+    }
+
+    targetSession.youtubeVideoId = youtubeVideoId;
+    targetSession.recordingShared = true;
+    if (name && String(name).trim()) {
+      targetSession.recordingTitle = String(name).trim();
+    }
+    await targetSession.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Recording added",
+      recording: toRecordingDto(targetSession),
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to add recording", error: error.message });
+  }
+};
+
+export const updateClassRecording = async (req, res) => {
+  try {
+    const { classId, recordingId } = req.params;
+    const { name, url } = req.body;
+
+    if (!name && !url) {
+      return res.status(400).json({ success: false, message: "Provide name or url to update" });
+    }
+
+    const classExists = await Class.exists({ _id: classId });
+    if (!classExists) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    const sessionDoc = await Session.findOne({ _id: recordingId, class: classId });
+    if (!sessionDoc || !sessionDoc.youtubeVideoId) {
+      return res.status(404).json({ success: false, message: "Recording not found" });
+    }
+
+    if (name) sessionDoc.recordingTitle = String(name).trim();
+
+    if (url) {
+      const newVideoId = extractYouTubeVideoId(url);
+      if (!newVideoId) {
+        return res.status(400).json({ success: false, message: "Invalid YouTube URL or Video ID" });
+      }
+
+      const duplicate = await Session.findOne({
+        class: classId,
+        youtubeVideoId: newVideoId,
+        _id: { $ne: recordingId },
+      }).select("_id");
+
+      if (duplicate) {
+        return res.status(409).json({ success: false, message: "Another recording already uses this url" });
+      }
+
+      sessionDoc.youtubeVideoId = newVideoId;
+      sessionDoc.recordingShared = true;
+    }
+
+    await sessionDoc.save();
+    return res.status(200).json({ success: true, message: "Recording updated", recording: toRecordingDto(sessionDoc) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to update recording", error: error.message });
+  }
+};
+
+export const deleteClassRecording = async (req, res) => {
+  try {
+    const { classId, recordingId } = req.params;
+    const classExists = await Class.exists({ _id: classId });
+    if (!classExists) {
+      return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    const sessionDoc = await Session.findOne({ _id: recordingId, class: classId });
+    if (!sessionDoc || !sessionDoc.youtubeVideoId) {
+      return res.status(404).json({ success: false, message: "Recording not found" });
+    }
+
+    sessionDoc.youtubeVideoId = undefined;
+    sessionDoc.recordingShared = false;
+    sessionDoc.recordingTitle = undefined;
+    await sessionDoc.save();
+
+    return res.status(200).json({ success: true, message: "Recording removed" });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to remove recording", error: error.message });
   }
 };

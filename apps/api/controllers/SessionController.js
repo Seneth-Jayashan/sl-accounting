@@ -394,3 +394,111 @@ export const getSessionsByClassId = async (req, res) => {
     return res.status(500).json({ message: "Error fetching sessions" });
   }
 };
+
+/**
+ * GET SESSION ATTENDANCE WITH STUDENT DETAILS
+ * Role: Admin Only
+ * GET /sessions/:id/attendance
+ */
+export const getSessionAttendance = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch session with attendance records
+    const session = await Session.findById(id).populate({
+      path: "attendance.student",
+      select: "firstName lastName email phoneNumber avatar"
+    });
+
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    // Format attendance data
+    const attendanceData = (session.attendance || []).map((record) => ({
+      _id: record._id || `${record.student._id}-${record.joinedAt}`,
+      student: {
+        _id: record.student._id,
+        firstName: record.student.firstName,
+        lastName: record.student.lastName,
+        email: record.student.email,
+        phoneNumber: record.student.phoneNumber,
+        avatar: record.student.avatar
+      },
+      joinedAt: record.joinedAt,
+      leftAt: record.leftAt,
+      durationMinutes: record.durationMinutes
+    }));
+
+    return res.status(200).json({
+      session: {
+        _id: session._id,
+        title: session.title,
+        index: session.index,
+        startAt: session.startAt,
+        endAt: session.endAt
+      },
+      totalAttended: attendanceData.length,
+      attendance: attendanceData
+    });
+  } catch (error) {
+    console.error("Get Session Attendance Error:", error);
+    return res.status(500).json({ message: "Error fetching session attendance", error: error.message });
+  }
+};
+
+/**
+ * GET CLASS ATTENDANCE SUMMARY (All Sessions)
+ * Role: Admin Only
+ * GET /sessions/class/:classId/attendance-summary
+ */
+export const getClassAttendanceSummary = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    // Fetch all sessions for the class
+    const sessions = await Session.find({ class: classId })
+      .populate({
+        path: "attendance.student",
+        select: "firstName lastName email"
+      })
+      .sort({ startAt: 1 });
+
+    if (!sessions || sessions.length === 0) {
+      return res.status(200).json({
+        totalSessions: 0,
+        sessionSummary: []
+      });
+    }
+
+    // Build summary: For each session, show attendance count
+    const sessionSummary = sessions.map((session) => ({
+      _id: session._id,
+      title: session.title,
+      index: session.index,
+      startAt: session.startAt,
+      endAt: session.endAt,
+      attendanceCount: (session.attendance || []).length,
+      attendance: (session.attendance || []).map((record) => ({
+        _id: record._id || `${record.student._id}-${record.joinedAt}`,
+        student: {
+          _id: record.student._id,
+          firstName: record.student.firstName,
+          lastName: record.student.lastName,
+          email: record.student.email
+        },
+        joinedAt: record.joinedAt,
+        leftAt: record.leftAt,
+        durationMinutes: record.durationMinutes
+      }))
+    }));
+
+    return res.status(200).json({
+      totalSessions: sessions.length,
+      sessionSummary
+    });
+  } catch (error) {
+    console.error("Get Class Attendance Summary Error:", error);
+    return res.status(500).json({ message: "Error fetching attendance summary", error: error.message });
+  }
+};

@@ -15,14 +15,15 @@ import {
   XCircleIcon,
   ExclamationTriangleIcon,
   LinkIcon,
-  ArrowTopRightOnSquareIcon
+  ArrowTopRightOnSquareIcon,
+  CheckCircleIcon
 } from "@heroicons/react/24/outline";
 
 // Components
 import StudentEnrollmentTab from "../../../components/admin/class/StudentEnrollmentTab";
 
 // Services & Types
-import ClassService, { type ClassData } from "../../../services/ClassService";
+import ClassService, { type ClassData, type ClassRecording } from "../../../services/ClassService";
 import SessionService from "../../../services/SessionService";
 
 // --- SECURITY HELPER ---
@@ -42,7 +43,14 @@ export default function ViewClassPage() {
   // State
   const [isLoading, setIsLoading] = useState(true);
   const [classData, setClassData] = useState<ClassData | null>(null);
-  const [activeTab, setActiveTab] = useState<"students" | "sessions">("sessions");
+  const [activeTab, setActiveTab] = useState<"students" | "sessions" | "attendance">("sessions");
+  
+  // Attendance State
+  const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
+  const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
+  const [selectedSessionForAttendance, setSelectedSessionForAttendance] = useState("");
+  const [selectedStudentForAttendance, setSelectedStudentForAttendance] = useState("");
+  const [isMarkingAttendance, setIsMarkingAttendance] = useState(false);
   
   // Modal State
   const [cancelModal, setCancelModal] = useState<{ isOpen: boolean; sessionId: string | null }>({
@@ -51,15 +59,30 @@ export default function ViewClassPage() {
   });
   const [cancelReason, setCancelReason] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [recordings, setRecordings] = useState<ClassRecording[]>([]);
+  const [recordingName, setRecordingName] = useState("");
+  const [recordingUrl, setRecordingUrl] = useState("");
+  const [selectedSessionId, setSelectedSessionId] = useState("");
+  const [isSavingRecording, setIsSavingRecording] = useState(false);
+  const [editingRecordingId, setEditingRecordingId] = useState("");
+  const [editRecordingName, setEditRecordingName] = useState("");
+  const [isUpdatingRecording, setIsUpdatingRecording] = useState(false);
 
   // --- FETCH DATA ---
   const fetchData = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
     try {
-      const res = await ClassService.getClassById(id);
+      const [res, recordingsRes] = await Promise.all([
+        ClassService.getClassById(id),
+        ClassService.getClassRecordings(id),
+      ]);
       const data = res.class || (res as any); 
       setClassData(data);
+      setRecordings(recordingsRes.recordings || []);
+      if (data?.sessions?.length > 0) {
+        setSelectedSessionId((prev) => prev || data.sessions[0]._id);
+      }
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -68,6 +91,67 @@ export default function ViewClassPage() {
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // --- ATTENDANCE HANDLER ---
+  const handleAttendanceTabClick = async () => {
+    setActiveTab("attendance");
+    if (!id || attendanceSummary) return; // Already loaded
+
+    setIsLoadingAttendance(true);
+    try {
+      const data = await SessionService.getClassAttendanceSummary(id);
+      setAttendanceSummary(data);
+      if (data.sessionSummary?.length > 0) {
+        setSelectedSessionForAttendance(data.sessionSummary[0]._id);
+      }
+    } catch (err) {
+      console.error("Failed to fetch attendance:", err);
+      alert("Failed to load attendance data. Please try again.");
+    } finally {
+      setIsLoadingAttendance(false);
+    }
+  };
+
+  // --- MANUAL ATTENDANCE HANDLERS ---
+  const handleMarkAttendance = async () => {
+    if (!selectedSessionForAttendance || !selectedStudentForAttendance) {
+      alert("Please select both a session and a student.");
+      return;
+    }
+
+    setIsMarkingAttendance(true);
+    try {
+      await SessionService.markAttendanceStart(selectedSessionForAttendance, selectedStudentForAttendance);
+      alert("Student attendance marked successfully!");
+      
+      // Refresh attendance data
+      if (id) {
+        const data = await SessionService.getClassAttendanceSummary(id);
+        setAttendanceSummary(data);
+      }
+      
+      setSelectedStudentForAttendance("");
+    } catch (error: any) {
+      alert(error?.response?.data?.message || "Failed to mark attendance.");
+    } finally {
+      setIsMarkingAttendance(false);
+    }
+  };
+
+  const handleRemoveAttendance = async (sessionId: string, studentId: string) => {
+    if (!window.confirm("Remove this student from attendance?")) return;
+
+    try {
+      // We can use the Session model's methods through API
+      // For now, we'll refresh data after removal
+      if (id) {
+        const data = await SessionService.getClassAttendanceSummary(id);
+        setAttendanceSummary(data);
+      }
+    } catch (error: any) {
+      alert("Failed to remove attendance.");
+    }
+  };
 
   // --- HANDLERS ---
   const handleCancelClick = (sessionId: string) => {
@@ -113,6 +197,88 @@ export default function ViewClassPage() {
       });
     } catch (err) {
       alert("Delete failed.");
+    }
+  };
+
+  const handleAddRecording = async () => {
+    if (!id || !recordingUrl.trim()) {
+      window.alert("Recording URL is required.");
+      return;
+    }
+
+    if (!selectedSessionId) {
+      window.alert("Please select a session first.");
+      return;
+    }
+
+    if (!isValidUrl(recordingUrl.trim())) {
+      window.alert("Please enter a valid URL starting with http or https.");
+      return;
+    }
+
+    setIsSavingRecording(true);
+    try {
+      const response = await ClassService.addClassRecording(id, {
+        name: recordingName.trim() || undefined,
+        url: recordingUrl.trim(),
+        sessionId: selectedSessionId,
+      });
+
+      if (response.message && response.message.toLowerCase().includes("already exists")) {
+        window.alert("This recording already exists for this class.");
+      } else {
+        setRecordingName("");
+        setRecordingUrl("");
+      }
+      await fetchData();
+    } catch (error: any) {
+      window.alert(error?.response?.data?.message || "Failed to add recording.");
+    } finally {
+      setIsSavingRecording(false);
+    }
+  };
+
+  const handleDeleteRecording = async (recordingId: string) => {
+    if (!id) return;
+    const ok = window.confirm("Delete this recording from the class?");
+    if (!ok) return;
+
+    try {
+      await ClassService.deleteClassRecording(id, recordingId);
+      await fetchData();
+    } catch (error: any) {
+      window.alert(error?.response?.data?.message || "Failed to delete recording.");
+    }
+  };
+
+  const handleStartEditRecording = (recording: ClassRecording) => {
+    setEditingRecordingId(recording._id);
+    setEditRecordingName(recording.name || "");
+  };
+
+  const handleCancelEditRecording = () => {
+    setEditingRecordingId("");
+    setEditRecordingName("");
+  };
+
+  const handleSaveRecordingName = async (recordingId: string) => {
+    if (!id) return;
+    const trimmed = editRecordingName.trim();
+    if (!trimmed) {
+      window.alert("Recording name is required.");
+      return;
+    }
+
+    setIsUpdatingRecording(true);
+    try {
+      await ClassService.updateClassRecording(id, recordingId, { name: trimmed });
+      await fetchData();
+      setEditingRecordingId("");
+      setEditRecordingName("");
+    } catch (error: any) {
+      window.alert(error?.response?.data?.message || "Failed to update recording name.");
+    } finally {
+      setIsUpdatingRecording(false);
     }
   };
 
@@ -255,6 +421,11 @@ export default function ViewClassPage() {
             label="Session Controls" 
           />
           <TabTrigger 
+            active={activeTab === "attendance"} 
+            onClick={handleAttendanceTabClick} 
+            label="Attendance" 
+          />
+          <TabTrigger 
             active={activeTab === "students"} 
             onClick={() => setActiveTab("students")} 
             label="Enrollment" 
@@ -270,6 +441,114 @@ export default function ViewClassPage() {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-3"
             >
+              <div className="bg-white border border-brand-aliceBlue rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recording Manager</p>
+                  <h3 className="text-sm sm:text-base font-bold text-brand-prussian mt-1">Add class recordings</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-3">
+                  <select
+                    value={selectedSessionId}
+                    onChange={(e) => setSelectedSessionId(e.target.value)}
+                    className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                  >
+                    <option value="">Select Session</option>
+                    {sessions.map((session: any) => (
+                      <option key={session._id} value={session._id}>
+                        Session {session.index} - {moment(session.startAt).format("DD MMM YYYY")}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={recordingName}
+                    onChange={(e) => setRecordingName(e.target.value)}
+                    placeholder="Recording name (optional)"
+                    className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                  />
+                  <input
+                    value={recordingUrl}
+                    onChange={(e) => setRecordingUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                  />
+                  <button
+                    onClick={handleAddRecording}
+                    disabled={isSavingRecording}
+                    className="px-4 py-2.5 rounded-xl bg-brand-cerulean text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-prussian transition-colors disabled:opacity-60"
+                  >
+                    {isSavingRecording ? "Saving..." : "Add"}
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {recordings.length === 0 ? (
+                    <p className="text-xs text-gray-400 font-medium">No recordings added for this class yet.</p>
+                  ) : (
+                    recordings.map((recording) => (
+                      <div key={recording._id} className="border border-brand-aliceBlue rounded-xl px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+                        <div className="min-w-0">
+                          {editingRecordingId === recording._id ? (
+                            <input
+                              value={editRecordingName}
+                              onChange={(e) => setEditRecordingName(e.target.value)}
+                              className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-lg px-2.5 py-1.5 text-sm font-semibold text-brand-prussian outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                            />
+                          ) : (
+                            <p className="text-sm font-semibold text-brand-prussian truncate">{recording.name}</p>
+                          )}
+                          {typeof recording.session === "object" && recording.session?.index && (
+                            <p className="text-[11px] text-gray-400 font-semibold mb-1">Session {recording.session.index}</p>
+                          )}
+                          <a
+                            href={recording.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-brand-cerulean hover:underline break-all"
+                          >
+                            {recording.url}
+                          </a>
+                        </div>
+                        <div className="self-start sm:self-auto flex items-center gap-2">
+                          {editingRecordingId === recording._id ? (
+                            <>
+                              <button
+                                onClick={() => handleSaveRecordingName(recording._id)}
+                                disabled={isUpdatingRecording}
+                                className="px-3 py-2 rounded-lg border border-emerald-100 text-emerald-600 hover:bg-emerald-50 text-xs font-bold uppercase tracking-wide disabled:opacity-60"
+                              >
+                                {isUpdatingRecording ? "Saving" : "Save"}
+                              </button>
+                              <button
+                                onClick={handleCancelEditRecording}
+                                disabled={isUpdatingRecording}
+                                className="px-3 py-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 text-xs font-bold uppercase tracking-wide"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleStartEditRecording(recording)}
+                              className="px-3 py-2 rounded-lg border border-blue-100 text-blue-600 hover:bg-blue-50 text-xs font-bold uppercase tracking-wide"
+                            >
+                              Edit
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleDeleteRecording(recording._id)}
+                            className="px-3 py-2 rounded-lg border border-red-100 text-red-600 hover:bg-red-50 text-xs font-bold uppercase tracking-wide"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
               {sessions.length > 0 ? (
                 sessions.map((session: any) => (
                   <SessionRow 
@@ -283,6 +562,161 @@ export default function ViewClassPage() {
                   <div className="p-10 text-center border-2 border-dashed border-brand-aliceBlue rounded-xl">
                     <p className="text-gray-400 text-sm font-medium">No sessions scheduled yet.</p>
                   </div>
+              )}
+            </motion.div>
+          ) : activeTab === "attendance" ? (
+            <motion.div
+              key="attendance"
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              {isLoadingAttendance ? (
+                <div className="flex justify-center py-12">
+                  <ArrowPathIcon className="w-6 h-6 text-brand-cerulean animate-spin" />
+                </div>
+              ) : attendanceSummary && attendanceSummary.sessionSummary && attendanceSummary.sessionSummary.length > 0 ? (
+                <>
+                  {/* MANUAL ATTENDANCE MARKING */}
+                  {/* <div className="bg-white border border-brand-aliceBlue rounded-2xl p-4 shadow-sm space-y-3">
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Manual Mark Attendance</p>
+                      <p className="text-xs text-gray-500 mt-0.5">If Zoom webhook missed a student, manually add them here</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+                      <select
+                        value={selectedSessionForAttendance}
+                        onChange={(e) => setSelectedSessionForAttendance(e.target.value)}
+                        className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                      >
+                        <option value="">Select Session</option>
+                        {attendanceSummary.sessionSummary.map((session: any) => (
+                          <option key={session._id} value={session._id}>
+                            Session {session.index} - {moment(session.startAt).format("DD MMM YYYY")}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={selectedStudentForAttendance}
+                        onChange={(e) => setSelectedStudentForAttendance(e.target.value)}
+                        disabled={!selectedSessionForAttendance}
+                        className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20 disabled:opacity-50"
+                      >
+                        <option value="">Select Student</option>
+                        {selectedSessionForAttendance && classData && classData.students
+                          ? (classData.students as any[]).map((student: any) => {
+                              // Check if already marked present
+                              const session = attendanceSummary.sessionSummary.find(
+                                (s: any) => s._id === selectedSessionForAttendance
+                              );
+                              const alreadyPresent = session?.attendance?.some(
+                                (att: any) => att.student._id === student._id
+                              );
+                              
+                              return !alreadyPresent ? (
+                                <option key={student._id} value={student._id}>
+                                  {student.firstName} {student.lastName}
+                                </option>
+                              ) : null;
+                            })
+                          : null}
+                      </select>
+
+                      <button
+                        onClick={handleMarkAttendance}
+                        disabled={isMarkingAttendance || !selectedSessionForAttendance || !selectedStudentForAttendance}
+                        className="px-4 py-2.5 rounded-xl bg-brand-cerulean text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-prussian transition-colors disabled:opacity-60"
+                      >
+                        {isMarkingAttendance ? "Marking..." : "Mark Present"}
+                      </button>
+                    </div>
+                  </div> */}
+
+                  {/* ATTENDANCE OVERVIEW */}
+                  <div className="bg-gradient-to-r from-brand-cerulean/10 to-brand-prussian/10 border border-brand-cerulean/20 rounded-2xl p-4">
+                    <div className="flex items-center gap-3">
+                      <UserGroupIcon className="w-5 h-5 text-brand-cerulean" />
+                      <div>
+                        <p className="text-[10px] font-bold text-brand-cerulean uppercase tracking-widest">Attendance Overview</p>
+                        <p className="text-sm font-semibold text-brand-prussian">
+                          {attendanceSummary.totalSessions} Sessions with {attendanceSummary.sessionSummary.reduce((acc: number, sess: any) => acc + sess.attendanceCount, 0)} Total Attendances
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {attendanceSummary.sessionSummary.map((session: any, idx: number) => (
+                    <div key={session._id} className="bg-white border border-brand-aliceBlue rounded-2xl overflow-hidden shadow-sm">
+                      {/* Session Header */}
+                      <div className="bg-gradient-to-r from-brand-aliceBlue/30 to-transparent p-4 flex items-center justify-between border-b border-brand-aliceBlue">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-brand-cerulean text-white flex items-center justify-center text-sm font-bold">
+                            {session.index}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-brand-prussian">{moment(session.startAt).format("DD MMM YYYY")}</p>
+                            <p className="text-xs text-gray-400">
+                              {moment(session.startAt).format("hh:mm A")} - {moment(session.endAt).format("hh:mm A")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-brand-cerulean">{session.attendanceCount}</p>
+                          <p className="text-[10px] text-gray-400 font-medium">Attended</p>
+                        </div>
+                      </div>
+
+                      {/* Attendance List */}
+                      {session.attendance && session.attendance.length > 0 ? (
+                        <div className="divide-y divide-brand-aliceBlue">
+                          {session.attendance.map((record: any) => (
+                            <div key={record._id} className="p-4 flex items-center justify-between hover:bg-brand-aliceBlue/20 transition-colors">
+                              <div className="flex items-center gap-3">
+                                {record.student?.avatar ? (
+                                  <img 
+                                    src={record.student.avatar} 
+                                    alt={record.student.firstName} 
+                                    className="w-10 h-10 rounded-full object-cover border border-brand-aliceBlue"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-brand-aliceBlue flex items-center justify-center text-sm font-bold text-brand-cerulean">
+                                    {record.student?.firstName?.charAt(0)}{record.student?.lastName?.charAt(0)}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-brand-prussian truncate">
+                                    {record.student?.firstName} {record.student?.lastName}
+                                  </p>
+                                  <p className="text-xs text-gray-400 truncate">{record.student?.email}</p>
+                                </div>
+                              </div>
+                              <div className="text-right flex items-center gap-3">
+                                <div>
+                                  <p className="text-xs font-bold text-brand-cerulean">{record.durationMinutes} min</p>
+                                  <p className="text-[10px] text-gray-400">
+                                    {moment(record.joinedAt).format("hh:mm A")}
+                                  </p>
+                                </div>
+                                <CheckCircleIcon className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center">
+                          <p className="text-sm text-gray-400 font-medium">No attendance records for this session.</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div className="p-10 text-center border-2 border-dashed border-brand-aliceBlue rounded-xl">
+                  <p className="text-gray-400 text-sm font-medium">No attendance data available yet.</p>
+                </div>
               )}
             </motion.div>
           ) : (

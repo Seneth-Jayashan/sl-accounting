@@ -7,12 +7,18 @@ import {
   MapPinIcon,
   ShieldCheckIcon,
   BookOpenIcon,
-  ClockIcon
+    ClockIcon,
+    CurrencyDollarIcon,
+    CreditCardIcon
 } from "@heroicons/react/24/outline";
 
 // Layouts & Services
-import UserService, { type UserData } from "../../../services/AdminService";
-import EnrollmentService, { type EnrollmentResponse, type EnrolledClass } from "../../../services/EnrollmentService";
+import UserService, {
+    type UserData,
+    type AdminStudentEnrollment,
+    type AdminStudentPayment,
+    type AdminStudentPaidClassSummary,
+} from "../../../services/AdminService";
 import { useAuth } from "../../../contexts/AuthContext";
 
 // --- HELPERS ---
@@ -30,7 +36,17 @@ export default function ViewStudentPage() {
   
   // State
   const [student, setStudent] = useState<UserData | null>(null);
-  const [enrollments, setEnrollments] = useState<EnrollmentResponse[]>([]);
+    const [enrollments, setEnrollments] = useState<AdminStudentEnrollment[]>([]);
+    const [payments, setPayments] = useState<AdminStudentPayment[]>([]);
+    const [lifetimePaidClasses, setLifetimePaidClasses] = useState<AdminStudentPaidClassSummary[]>([]);
+    const [stats, setStats] = useState<{
+        totalEnrollments: number;
+        activeEnrollments: number;
+        totalPayments: number;
+        completedPayments: number;
+        lifetimePaidAmount: number;
+        totalPaidClasses: number;
+    } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,25 +70,18 @@ export default function ViewStudentPage() {
       setIsLoading(true);
       try {
 
-        // Parallel Fetch
-        const [userRes, enrollmentRes] = await Promise.all([
-            UserService.getUserById(id),
-            EnrollmentService.getAllEnrollments({ studentId: id }) // Ensure backend supports query param
-        ]);
+        const userRes = await UserService.getUserById(id);
 
         if (isMounted) {
             if (userRes.success && userRes.user) {
                 setStudent(userRes.user as UserData);
+                setEnrollments(userRes.enrollments || []);
+                setPayments(userRes.payments || []);
+                setLifetimePaidClasses(userRes.lifetimePaidClasses || []);
+                setStats(userRes.stats || null);
             } else {
                 throw new Error("Student not found in database.");
             }
-            
-            // Handle Enrollments (check if array or object wrapper)
-            const enrolledList = Array.isArray(enrollmentRes) 
-                ? enrollmentRes 
-                : (enrollmentRes as any).enrollments || [];
-                
-            setEnrollments(enrolledList);
         }
       } catch (err: any) {
         console.error("Load Error Details:", err);
@@ -211,7 +220,7 @@ export default function ViewStudentPage() {
             {enrollments.length > 0 ? (
                 <div className="space-y-4">
                     {enrollments.map((enr) => {
-                        const classData = typeof enr.class === 'string' ? null : (enr.class as EnrolledClass);
+                        const classData = typeof enr.class === 'string' ? null : enr.class;
                         return (
                             <div key={enr._id} className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 border border-gray-100">
                                 <div className="w-12 h-12 bg-white rounded-lg border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
@@ -241,7 +250,72 @@ export default function ViewStudentPage() {
             )}
           </div>
 
-          {/* 3. System Meta */}
+                    {/* 3. Lifetime Paid Classes */}
+                    <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 md:col-span-2">
+                        <h2 className="text-base md:text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
+                            <CurrencyDollarIcon className="w-5 h-5 text-brand-cerulean" /> Lifetime Paid Classes
+                        </h2>
+
+                        {lifetimePaidClasses.length > 0 ? (
+                            <div className="space-y-3">
+                                {lifetimePaidClasses.map((item) => (
+                                    <div key={item.class._id} className="rounded-xl border border-gray-100 bg-gray-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                        <div>
+                                            <p className="font-bold text-sm text-gray-900">{item.class.name}</p>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Payments: {item.paymentCount} | Months: {item.paidMonths?.length || 0}
+                                            </p>
+                                        </div>
+                                        <div className="text-left md:text-right">
+                                            <p className="text-sm font-black text-emerald-700">LKR {Number(item.totalPaidAmount || 0).toLocaleString()}</p>
+                                            <p className="text-xs text-gray-500">Last paid: {item.lastPaidAt ? formatDate(item.lastPaidAt) : "N/A"}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-gray-400">
+                                <p className="text-sm">No completed payments found.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 4. Payment Details */}
+                    <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300 md:col-span-2">
+                        <h2 className="text-base md:text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
+                            <CreditCardIcon className="w-5 h-5 text-brand-cerulean" /> Payment Details
+                        </h2>
+
+                        {payments.length > 0 ? (
+                            <div className="space-y-3">
+                                {payments.map((payment) => (
+                                    <div key={payment._id} className="rounded-xl border border-gray-100 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                        <div>
+                                            <p className="font-bold text-sm text-gray-900">
+                                                {payment.enrollment?.class?.name || "Unknown Class"}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                {payment.method} | {payment.targetMonth || "No target month"}
+                                            </p>
+                                            <p className="text-xs text-gray-400 mt-1">{payment.paymentDate ? formatDate(payment.paymentDate) : "No payment date"}</p>
+                                        </div>
+                                        <div className="text-left md:text-right">
+                                            <p className="text-sm font-black text-gray-900">LKR {Number(payment.amount || 0).toLocaleString()}</p>
+                                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${payment.status === "completed" ? "bg-emerald-100 text-emerald-700" : payment.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>
+                                                {payment.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-gray-400">
+                                <p className="text-sm">No payment records found.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 5. System Meta */}
           <div className="md:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4 sm:gap-6 items-start sm:items-center justify-between text-sm text-gray-500">
               <div className="flex items-center gap-2">
                 <CalendarDaysIcon className="w-4 h-4" />
@@ -251,6 +325,12 @@ export default function ViewStudentPage() {
                 <ClockIcon className="w-4 h-4" />
                 <span>Last Login: <span className="text-gray-900 font-medium">{student.lastLogin ? formatDate(student.lastLogin.toString()) : "Never"}</span></span>
               </div>
+                            {stats && (
+                                <div className="flex items-center gap-2">
+                                    <CurrencyDollarIcon className="w-4 h-4" />
+                                    <span>Lifetime Paid: <span className="text-gray-900 font-medium">LKR {Number(stats.lifetimePaidAmount || 0).toLocaleString()}</span></span>
+                                </div>
+                            )}
           </div>
 
         </div>

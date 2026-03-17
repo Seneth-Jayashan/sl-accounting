@@ -11,6 +11,9 @@ import sessionRoutes from './routes/SessionRoutes.js';
 import enrollmentRoutes from './routes/EnrollmentRoutes.js';
 import announcementRoutes from './routes/AnnouncementRoutes.js';
 import MaterialRoutes from './routes/MaterialRoutes.js';
+import QuizRoutes from './routes/QuizRoutes.js';
+import QuizSubmissionRoutes from './routes/QuizSubmissionRoutes.js';
+import QuizResultRoutes from './routes/QuizResultRoutes.js';
 import paymentRoutes from './routes/PaymentRoutes.js';
 import knowledgeRoutes from './routes/KnowledgeRoutes.js';
 import zoomRoutes from './routes/ZoomRoutes.js';
@@ -44,6 +47,10 @@ router.use('/enrollments', enrollmentRoutes);
 router.use('/announcements', announcementRoutes);
 router.use('/materials', MaterialRoutes);
 router.use('/class-chats', classChatRoutes);
+router.use('/quizzes', QuizRoutes);
+router.use('/submissions', QuizSubmissionRoutes);
+router.use('/results', QuizResultRoutes);
+
 
 // 3. Finance
 router.use('/payments', paymentRoutes);

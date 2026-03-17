@@ -31,9 +31,13 @@ const userSchema = new mongoose.Schema(
       city: String,
       state: String,
       zipCode: String,
+      nearestPostOffice: String,
     },
 
     profileImage: { type: String, default: null },
+
+    // Zoom Integration
+    zoomUserId: { type: String, sparse: true, index: true },
 
     // OTP fields (hashed for security)
     otp: { type: String, select: false },

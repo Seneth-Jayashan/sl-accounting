@@ -62,6 +62,43 @@ export default function ViewRecording() {
     return () => { isMounted = false; };
   }, [sessionId]);
 
+  // --- 3. PREVENT URL SHARING & COPY ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Block Ctrl+C / Cmd+C (Copy)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+      }
+      // Block Ctrl+X / Cmd+X (Cut)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+        e.preventDefault();
+      }
+      // Block Ctrl+V / Cmd+V (Paste)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+      }
+      // Block Ctrl+Shift+C (Inspect Element)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'c') {
+        e.preventDefault();
+      }
+      // Block Ctrl+Shift+I (Developer Tools)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'i') {
+        e.preventDefault();
+      }
+      // Block Ctrl+Shift+J (Console)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'j') {
+        e.preventDefault();
+      }
+      // Block F12 (Developer Tools)
+      if (e.key === 'F12') {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // --- 2. INITIALIZE PLYR ---
   useEffect(() => {
     if (youtubeId && playerRef.current) {
@@ -73,22 +110,24 @@ export default function ViewRecording() {
                 'play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 
                 'captions', 'settings', 'pip', 'fullscreen'
             ],
-            // 1. REMOVE SPEED SETTING: Only allow 'quality' in the settings menu
-            settings: ['quality'], 
+            // Enable speed settings only (YouTube handles quality natively)
+            settings: ['speed'], 
+            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] },
             youtube: { 
                 noCookie: true, 
                 rel: 0, 
                 showinfo: 0, 
                 iv_load_policy: 3, 
                 modestbranding: 1,
-                controls: 0, 
-                disablekb: 0 
+                controls: 1,  // Enable YouTube native controls for quality selection
+                disablekb: 0,
+                fs: 1  // Allow fullscreen from YouTube player
             },
             hideControls: false, 
             clickToPlay: true,
             keyboard: { focused: true, global: true },
             fullscreen : { enabled: true, fallback: true, iosNative: true },
-            resolution: { default: "720p", options: ["360p", "480p", "720p", "1080p"] }
+            resolution: { default: "1080p", options: ["360p", "480p", "720p", "1080p"] }
         } as any);
 
         playerInstance.current = player;
@@ -106,19 +145,22 @@ export default function ViewRecording() {
             const shield = document.createElement('div');
             shield.className = 'secure-shield-layer';
             
-            // Style: Covers top 85% to block "Copy Link", leaves bottom 15% for controls
+            // Style: Covers entire video to prevent URL exposure
             Object.assign(shield.style, {
                 position: 'absolute',
                 top: '0',
                 left: '0',
                 width: '100%',
-                height: '85%', // Leaves bottom controls exposed
+                height: '100%',
                 zIndex: '50',
                 background: 'transparent',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                MozUserSelect: 'none'
             });
 
-            // Events: Toggle play on click, Block context menu
+            // Events: Toggle play on click, Block context menu, Block drag
             shield.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -127,9 +169,29 @@ export default function ViewRecording() {
 
             shield.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
+            });
+
+            shield.addEventListener('dragstart', (e) => {
+                e.preventDefault();
+            });
+
+            shield.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            shield.addEventListener('mousedown', (e) => {
+                // Prevent text selection
+                e.preventDefault();
             });
 
             container.appendChild(shield);
+
+            // Block context menu and all interactions on shield
+            shield.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
         });
     }
 
@@ -170,12 +232,17 @@ export default function ViewRecording() {
         </button>
         <div>
             <h1 className="font-bold text-sm md:text-base">Class Recording</h1>
-            <p className="text-xs text-gray-500">Secure Playback Mode</p>
+            <p className="text-xs text-gray-500">Secure Playback • Speed Control Available • Auto Quality</p>
         </div>
       </div>
 
       {/* Main Player Area */}
-      <div className="flex-1 flex items-center justify-center bg-black p-4 relative">
+      <div 
+        className="flex-1 flex items-center justify-center bg-black p-4 relative"
+        onCopy={(e) => e.preventDefault()}
+        onCut={(e) => e.preventDefault()}
+        onPaste={(e) => e.preventDefault()}
+      >
         <div className="w-full max-w-5xl aspect-video border border-gray-800 bg-gray-900 shadow-2xl rounded-xl overflow-hidden relative group">
           
           {youtubeId ? (
@@ -184,19 +251,17 @@ export default function ViewRecording() {
                 {/* 1. PLYR VIDEO PLAYER */}
                 <div ref={playerRef} className="plyr__video-embed w-full h-full" id="player">
                     <iframe
-                        src={`https://www.youtube-nocookie.com/embed/${youtubeId}?origin=${window.location.origin}&iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&controls=0`}
+                        src={`https://www.youtube-nocookie.com/embed/${youtubeId}?origin=${window.location.origin}&iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&controls=0&fs=0`}
                         allowFullScreen
                         allow="autoplay"
                         title="Secure Player"
                     ></iframe>
                 </div>
 
-                {/* NOTE: The Secure Shield is now injected via JS in useEffect to support Fullscreen */}
+                {/* 2. SECURE SHIELD - Prevents URL copying and iframe inspection */}
+                {/* The shield is injected via JS in useEffect to support Fullscreen mode */}
                 
                 {/* 3. DYNAMIC MARQUEE WATERMARK */}
-                {/* Note: This React-rendered watermark might hide in Fullscreen depending on browser/Plyr behavior. 
-                    If you need this strictly in fullscreen, it also needs to be appended via JS like the shield. 
-                    For now, leaving as requested for the overlay fix. */}
                 <div className="absolute inset-0 z-[55] pointer-events-none overflow-hidden flex flex-col justify-between py-10 opacity-30">
                     <div className="whitespace-nowrap animate-marquee">
                         <span className="text-2xl font-black text-white/50 uppercase tracking-[1rem] select-none">
@@ -226,8 +291,21 @@ export default function ViewRecording() {
         </div>
       </div>
       
-      {/* CSS for Marquee Animation */}
+      {/* CSS for Marquee Animation & Protection */}
       <style>{`
+        /* Disable all text selection everywhere */
+        * {
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            user-select: none !important;
+        }
+
+        /* Prevent iframe interaction */
+        .plyr__video-embed iframe {
+            pointer-events: none !important;
+        }
+
         @keyframes marquee {
             0% { transform: translateX(100%); }
             100% { transform: translateX(-100%); }
@@ -243,9 +321,20 @@ export default function ViewRecording() {
             animation: marquee-reverse 25s linear infinite;
         }
         
-        /* Ensure controls stay above the shield */
+        /* Ensure controls stay above the shield & watermark */
         .plyr__controls {
             z-index: 60 !important;
+            pointer-events: auto !important;
+        }
+
+        /* Protect shield from pointer events falling through */
+        .secure-shield-layer {
+            pointer-events: auto !important;
+        }
+
+        /* Disable dragging on entire page within this component */
+        [draggable="true"] {
+            pointer-events: none !important;
         }
       `}</style>
     </div>

@@ -121,6 +121,15 @@ export const login = async (req, res) => {
         return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
+    // 3.5 Device/session limit for students only
+    // Each refresh token represents an active device session.
+    if (user.role === "student" && (user.refreshTokens || []).length >= 2) {
+      return res.status(403).json({
+        success: false,
+        message: "Maximum 2 devices allowed. Please logout from another device first.",
+      });
+    }
+
     // 4. Successful Login Reset
     user.loginAttempts = 0;
     user.isLocked = false;

@@ -65,6 +65,7 @@ const MENU_STRUCTURE: NavSection[] = [
       { key: "classes", label: "Classes", href: "/admin/classes", icon: AcademicCapIcon },
       { key: "materials", label: "Materials", href: "/admin/materials", icon: BookOpenIcon },
       { key: "sessions", label: "Sessions", href: "/admin/sessions", icon: BookOpenIcon },
+      { key: "quizzes", label: "Quizzes", href: "/admin/quizzes", icon: ClipboardDocumentCheckIcon },
     ],
   },
   {

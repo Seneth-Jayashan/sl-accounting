@@ -61,6 +61,7 @@ export interface UpdateProfilePayload {
     city?: string;
     state?: string;
     zipCode?: string;
+    nearestPostOffice?: string;
   };
 }
 

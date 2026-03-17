@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import dotenv from 'dotenv';
 import Session from '../models/Session.js';
+import User from '../models/User.js';
 
 // --- CONFIGURATION ---
 dotenv.config();
@@ -57,6 +58,34 @@ export const handleWebhook = async (req, res) => {
       // Trigger background processing (Fire & Forget)
       processRecording(payload.object).catch(err => 
         console.error("Background Processing Failed:", err.message)
+      );
+      return;
+    }
+
+    // D. PARTICIPANT JOINED EVENT
+    if (event === 'meeting.participant_joined') {
+      console.log(`👤 Event Received: Participant Joined`);
+      
+      // Respond immediately
+      res.status(200).send('Event received'); 
+
+      // Process attendance marking (Fire & Forget)
+      handleParticipantJoined(payload.object).catch(err => 
+        console.error("Attendance Join Processing Failed:", err.message)
+      );
+      return;
+    }
+
+    // E. PARTICIPANT LEFT EVENT
+    if (event === 'meeting.participant_left') {
+      console.log(`👤 Event Received: Participant Left`);
+      
+      // Respond immediately
+      res.status(200).send('Event received'); 
+
+      // Process attendance marking (Fire & Forget)
+      handleParticipantLeft(payload.object).catch(err => 
+        console.error("Attendance Leave Processing Failed:", err.message)
       );
       return;
     }
@@ -136,6 +165,7 @@ async function processRecording(recordingObject) {
     
     // 7. Update Database
     session.youtubeVideoId = youtubeVideoId;
+    session.recordingTitle = topic;
     session.recordingShared = true; // Mark as available
     await session.save();
 
@@ -149,6 +179,103 @@ async function processRecording(recordingObject) {
     if (err.response) {
         console.error('API Error Details:', err.response.data);
     }
+  }
+}
+
+// ==========================================
+// 2B. ATTENDANCE HANDLERS (Participant Join/Leave)
+// ==========================================
+
+async function handleParticipantJoined(meetingObject) {
+  try {
+    const meetingId = String(meetingObject.id);
+    const participant = meetingObject.participant;
+
+    if (!participant || !participant.user_id) {
+      console.log('⚠️ Invalid participant data');
+      return;
+    }
+
+    console.log(`\n--- 👤 PARTICIPANT JOINED: ${participant.user_id} (${participant.name}) ---`);
+
+    // 1. Find Session by Zoom Meeting ID
+    const session = await Session.findOne({ zoomMeetingId: meetingId });
+    if (!session) {
+      console.log(`⚠️ No Session found for Zoom Meeting ${meetingId}`);
+      return;
+    }
+
+    // 2. Map Zoom user ID to our Student ID
+    // Zoom sends user_id; we need to find our User model that has zoomUserId or email match
+    let student = null;
+    
+    // Try to find by Zoom user ID first (if we store it)
+    student = await User.findOne({ zoomUserId: participant.user_id });
+    
+    // If not found, try by email
+    if (!student && participant.email) {
+      student = await User.findOne({ email: participant.email });
+    }
+
+    if (!student) {
+      console.log(`⚠️ Could not map Zoom user ${participant.user_id} to Student`);
+      return;
+    }
+
+    // 3. Check if already marked as present for this session
+    const alreadyPresent = (session.attendance || []).some(
+      a => a.student.toString() === student._id.toString()
+    );
+
+    if (!alreadyPresent) {
+      console.log(`✅ Recording attendance for ${student.firstName} ${student.lastName}`);
+      await session.markAttendanceStart(student._id);
+    } else {
+      console.log(`ℹ️ Student already marked present for this session`);
+    }
+
+  } catch (error) {
+    console.error('❌ Error in handleParticipantJoined:', error.message);
+  }
+}
+
+async function handleParticipantLeft(meetingObject) {
+  try {
+    const meetingId = String(meetingObject.id);
+    const participant = meetingObject.participant;
+
+    if (!participant || !participant.user_id) {
+      console.log('⚠️ Invalid participant data');
+      return;
+    }
+
+    console.log(`\n--- 🚪 PARTICIPANT LEFT: ${participant.user_id} ---`);
+
+    // 1. Find Session by Zoom Meeting ID
+    const session = await Session.findOne({ zoomMeetingId: meetingId });
+    if (!session) {
+      console.log(`⚠️ No Session found for Zoom Meeting ${meetingId}`);
+      return;
+    }
+
+    // 2. Map Zoom user ID to our Student ID
+    let student = null;
+    student = await User.findOne({ zoomUserId: participant.user_id });
+    if (!student && participant.email) {
+      student = await User.findOne({ email: participant.email });
+    }
+
+    if (!student) {
+      console.log(`⚠️ Could not map Zoom user ${participant.user_id} to Student`);
+      return;
+    }
+
+    // 3. Mark attendance end time
+    console.log(`✅ Recording departure for ${student.firstName} ${student.lastName}`);
+    await session.markAttendanceEnd(student._id);
+
+  } catch (error) {
+    console.error('❌ Error in handleParticipantLeft:', error.message);
   }
 }
 

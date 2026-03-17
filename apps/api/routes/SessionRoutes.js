@@ -7,7 +7,9 @@ import {
     getAllSessions,
     updateSession,
     deleteSession,
-    cancelSession
+    cancelSession,
+    getSessionAttendance,
+    getClassAttendanceSummary
 } from '../controllers/SessionController.js';
 
 const router = express.Router();
@@ -16,18 +18,27 @@ const router = express.Router();
 router.use(protect);
 
 // ==========================================
-// 1. READ OPERATIONS (Available to Students & Admin)
+// SPECIFIC CLASS ROUTES (Must come BEFORE /:id)
 // ==========================================
-router.get('/', getAllSessions);
-router.get('/:id', getSessionById);
-router.get('/class/:classId', getSessionsByClassId);
-
-// ==========================================
-// 2. WRITE OPERATIONS (Admin ONLY)
-// ==========================================
+// Attendance summary for all sessions in a class
+router.get('/class/:classId/attendance-summary', restrictTo('admin'), getClassAttendanceSummary);
 
 // Create a session for a specific class
 router.post('/class/:classId', restrictTo('admin'), createSessionForClass);
+
+// Get sessions by class ID
+router.get('/class/:classId', getSessionsByClassId);
+
+// ==========================================
+// SPECIFIC SESSION ROUTES (After /class routes)
+// ==========================================
+router.get('/', getAllSessions);
+
+// Session attendance details
+router.get('/:id/attendance', restrictTo('admin'), getSessionAttendance);
+
+// Session CRUD operations
+router.get('/:id', getSessionById);
 
 router.route('/:id')
     .put(restrictTo('admin'), updateSession)

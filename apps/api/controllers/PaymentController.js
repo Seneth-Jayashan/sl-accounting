@@ -51,8 +51,6 @@ const createTuteDeliveryRecord = async (payment, enrollmentId, targetMonth) => {
             class: enrollment.class,
             payment: payment._id,
             targetMonth: targetMonth,
-            receiverName: `${enrollment.student.firstName} ${enrollment.student.lastName}`,
-            deliveryAddress: enrollment.student.address || "Address not provided", // Ensure User model has address
             status: "pending"
         });
 

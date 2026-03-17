@@ -17,6 +17,7 @@ const PaymentHistory = lazy(() => import("../pages/student/payments/PaymentHisto
 const KnowledgeBase = lazy(() => import("../pages/student/KnowledgeBasestudent"));
 const Profile = lazy(() => import("../pages/student/profile/Profile"));
 const MyTutes = lazy(() => import("../pages/student/tutes/MyTutes"));
+const TakeQuiz = lazy(() => import("../pages/student/class/TakeQuiz"));
 
 export const StudentRoutes = () => {
   return (
@@ -31,6 +32,7 @@ export const StudentRoutes = () => {
           <Route path="classes" element={<Classes />} />
           <Route path="class/:id" element={<ViewClass />} />
           <Route path="class/recording/:sessionId" element={<ViewRecording />} />
+          <Route path="class/quizzes/start/:id" element={<TakeQuiz />} />
 
           {/* Enrollment & Payments */}
           <Route path="enrollment" element={<ViewEnrollment />} />

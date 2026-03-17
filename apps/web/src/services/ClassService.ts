@@ -19,6 +19,17 @@ export interface EnrolledStudent {
   phoneNumber?: string;
 }
 
+export interface ClassRecording {
+  _id: string;
+  name: string;
+  url: string;
+  source: "session";
+  session?: string | { _id: string; index?: number; startAt?: string } | null;
+  addedBy?: string | { _id: string; firstName?: string; lastName?: string; email?: string } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface CreateClassPayload {
   // ... (Existing fields)
   name: string;
@@ -74,6 +85,7 @@ export interface ClassData {
   images: string[];
   isPublished: boolean;
   students?: EnrolledStudent[];
+  recordings?: ClassRecording[];
 }
 
 interface ClassResponse {
@@ -158,6 +170,32 @@ const ClassService = {
 
   getClassById: async (id: string) => {
     const response = await api.get<ClassResponse>(`${BASE_URL}/${id}`);
+    return response.data;
+  },
+
+  getClassRecordings: async (id: string) => {
+    const response = await api.get<{ success: boolean; recordings: ClassRecording[] }>(`${BASE_URL}/${id}/recordings`);
+    return response.data;
+  },
+
+  addClassRecording: async (id: string, payload: { name?: string; url: string; sessionId: string }) => {
+    const response = await api.post<{ success: boolean; message: string; recording: ClassRecording }>(
+      `${BASE_URL}/${id}/recordings`,
+      payload
+    );
+    return response.data;
+  },
+
+  updateClassRecording: async (id: string, recordingId: string, payload: { name?: string; url?: string }) => {
+    const response = await api.patch<{ success: boolean; message: string; recording: ClassRecording }>(
+      `${BASE_URL}/${id}/recordings/${recordingId}`,
+      payload
+    );
+    return response.data;
+  },
+
+  deleteClassRecording: async (id: string, recordingId: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`${BASE_URL}/${id}/recordings/${recordingId}`);
     return response.data;
   },
 

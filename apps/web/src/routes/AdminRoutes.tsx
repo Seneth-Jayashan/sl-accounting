@@ -28,6 +28,10 @@ const Materials = lazy(() => import("../pages/admin/materials/Materials"));
 const Community = lazy(() => import("../pages/admin/communities/Community"));
 const Reports = lazy(() => import("../pages/admin/reports/PaymentReport"));
 const TuteDelivery = lazy(() => import("../pages/admin/tutes/Tutes"));
+const Quizzes = lazy(() => import("../pages/admin/quizzes/Quizzes"));
+const CreateQuiz = lazy(() => import("../pages/admin/quizzes/CreateQuiz"));
+const ViewQuiz = lazy(() => import("../pages/admin/quizzes/ViewQuiz"));
+const UpdateQuiz = lazy(() => import("../pages/admin/quizzes/UpdateQuiz"));
 
 export const AdminRoutes = () => {
   return (
@@ -56,6 +60,12 @@ export const AdminRoutes = () => {
           {/* Sessions */}
           <Route path="sessions" element={<Sessions />} />
           <Route path="sessions/create" element={<AddSession />} />
+
+          {/* Quizzes */}
+          <Route path="quizzes" element={<Quizzes />} />
+          <Route path="quizzes/create" element={<CreateQuiz />} />
+          <Route path="quizzes/view/:id" element={<ViewQuiz />} />
+          <Route path="quizzes/edit/:id" element={<UpdateQuiz />} />
 
           {/* Batches */}
           <Route path="batches" element={<Batches />} />
