@@ -10,6 +10,7 @@ interface AddressType {
   city: string;
   state: string;
   zipCode: string;
+  nearestPostOffice: string;
 }
 
 interface PersonalForm {
@@ -29,14 +30,14 @@ export default function PersonalTab() {
     firstName: "",
     lastName: "",
     phoneNumber: "",
-    address: { street: "", city: "", state: "", zipCode: "" } as AddressType
+    address: { street: "", city: "", state: "", zipCode: "", nearestPostOffice: "" } as AddressType
   });
 
   // Load data from User context
   useEffect(() => {
     if (user) {
       // Check if address is stored as object or string in DB
-      let parsedAddress: AddressType = { street: "", city: "", state: "", zipCode: "" };
+      let parsedAddress: AddressType = { street: "", city: "", state: "", zipCode: "", nearestPostOffice: "" };
       
       const rawAddr = (user as any).address;
       if (rawAddr && typeof rawAddr === 'object') {
@@ -221,6 +222,19 @@ export default function PersonalTab() {
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                     />
                 </div>
+
+                    {/* Nearest Post Office */}
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nearest Post Office</label>
+                      <input
+                        type="text"
+                        disabled={!isEditing}
+                        value={formData.address.nearestPostOffice}
+                        onChange={(e) => handleAddressChange("nearestPostOffice", e.target.value)}
+                        placeholder="Example: Colombo 05 Post Office"
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                      />
+                    </div>
             </div>
         </div>
 

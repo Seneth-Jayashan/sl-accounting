@@ -14,6 +14,13 @@ export interface User {
   phoneNumber?: string;
   profileImage?: string;
   batch?: string; // --- UPDATE: Added batch here likely needed for UI
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    nearestPostOffice?: string;
+  };
 }
 
 export interface RegisterPayload {
@@ -157,9 +164,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (res.data.user) {
           setUser(res.data.user);
-        } else {
-          await fetchMe();
         }
+
+        // Always hydrate full user profile (address, batch, etc.) after login.
+        await fetchMe();
       }
     } catch (error) {
       throw error;

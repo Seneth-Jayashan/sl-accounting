@@ -31,6 +31,7 @@ const userSchema = new mongoose.Schema(
       city: String,
       state: String,
       zipCode: String,
+      nearestPostOffice: String,
     },
 
     profileImage: { type: String, default: null },
