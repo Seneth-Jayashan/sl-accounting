@@ -146,7 +146,7 @@ export default function TuteDeliveryPage() {
 
     doc.setFont("times", "normal");
 
-    deliveries.forEach((delivery, index) => {
+    deliveries.forEach((delivery) => {
       // Create new page if row exceeds bounds
       if (y + rowHeight > pageHeight - margin) {
         doc.addPage();

@@ -48,9 +48,6 @@ export default function ViewClassPage() {
   // Attendance State
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
-  const [selectedSessionForAttendance, setSelectedSessionForAttendance] = useState("");
-  const [selectedStudentForAttendance, setSelectedStudentForAttendance] = useState("");
-  const [isMarkingAttendance, setIsMarkingAttendance] = useState(false);
   
   // Modal State
   const [cancelModal, setCancelModal] = useState<{ isOpen: boolean; sessionId: string | null }>({
@@ -101,55 +98,11 @@ export default function ViewClassPage() {
     try {
       const data = await SessionService.getClassAttendanceSummary(id);
       setAttendanceSummary(data);
-      if (data.sessionSummary?.length > 0) {
-        setSelectedSessionForAttendance(data.sessionSummary[0]._id);
-      }
     } catch (err) {
       console.error("Failed to fetch attendance:", err);
       alert("Failed to load attendance data. Please try again.");
     } finally {
       setIsLoadingAttendance(false);
-    }
-  };
-
-  // --- MANUAL ATTENDANCE HANDLERS ---
-  const handleMarkAttendance = async () => {
-    if (!selectedSessionForAttendance || !selectedStudentForAttendance) {
-      alert("Please select both a session and a student.");
-      return;
-    }
-
-    setIsMarkingAttendance(true);
-    try {
-      await SessionService.markAttendanceStart(selectedSessionForAttendance, selectedStudentForAttendance);
-      alert("Student attendance marked successfully!");
-      
-      // Refresh attendance data
-      if (id) {
-        const data = await SessionService.getClassAttendanceSummary(id);
-        setAttendanceSummary(data);
-      }
-      
-      setSelectedStudentForAttendance("");
-    } catch (error: any) {
-      alert(error?.response?.data?.message || "Failed to mark attendance.");
-    } finally {
-      setIsMarkingAttendance(false);
-    }
-  };
-
-  const handleRemoveAttendance = async (sessionId: string, studentId: string) => {
-    if (!window.confirm("Remove this student from attendance?")) return;
-
-    try {
-      // We can use the Session model's methods through API
-      // For now, we'll refresh data after removal
-      if (id) {
-        const data = await SessionService.getClassAttendanceSummary(id);
-        setAttendanceSummary(data);
-      }
-    } catch (error: any) {
-      alert("Failed to remove attendance.");
     }
   };
 
@@ -648,7 +601,7 @@ export default function ViewClassPage() {
                     </div>
                   </div>
 
-                  {attendanceSummary.sessionSummary.map((session: any, idx: number) => (
+                  {attendanceSummary.sessionSummary.map((session: any) => (
                     <div key={session._id} className="bg-white border border-brand-aliceBlue rounded-2xl overflow-hidden shadow-sm">
                       {/* Session Header */}
                       <div className="bg-gradient-to-r from-brand-aliceBlue/30 to-transparent p-4 flex items-center justify-between border-b border-brand-aliceBlue">
