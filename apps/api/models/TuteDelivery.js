@@ -36,10 +36,6 @@ const tuteDeliverySchema = new mongoose.Schema(
     sentAt: { type: Date },
     trackingId: { type: String }, // SL Post Tracking Number
     courierService: { type: String, default: "SL Post" },
-    
-    // Snapshot of address at time of payment (in case they move)
-    deliveryAddress: { type: String },
-    receiverName: { type: String },
   },
   { timestamps: true }
 );

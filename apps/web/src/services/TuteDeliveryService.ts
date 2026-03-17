@@ -12,7 +12,13 @@ export interface TuteDeliveryData {
     firstName: string;
     lastName: string;
     phoneNumber?: string;
-    address?: string;
+    address?: string | {
+      street?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+      nearestPostOffice?: string;
+    };
   };
   class: {
     _id: string;
@@ -26,10 +32,6 @@ export interface TuteDeliveryData {
   sentAt?: string; // ISO Date
   trackingId?: string;
   courierService?: string;
-  
-  // Snapshot data
-  deliveryAddress?: string;
-  receiverName?: string;
   
   createdAt: string;
 }
