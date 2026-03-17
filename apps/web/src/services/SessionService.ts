@@ -24,6 +24,46 @@ export interface SessionData {
   updatedAt: string;
 }
 
+export interface StudentAttendanceRecord {
+  _id: string;
+  student: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+    avatar?: string;
+  };
+  joinedAt: string;
+  leftAt?: string;
+  durationMinutes: number;
+}
+
+export interface SessionAttendanceResponse {
+  session: {
+    _id: string;
+    title: string;
+    index: number;
+    startAt: string;
+    endAt: string;
+  };
+  totalAttended: number;
+  attendance: StudentAttendanceRecord[];
+}
+
+export interface ClassAttendanceSummary {
+  totalSessions: number;
+  sessionSummary: Array<{
+    _id: string;
+    title: string;
+    index: number;
+    startAt: string;
+    endAt: string;
+    attendanceCount: number;
+    attendance: StudentAttendanceRecord[];
+  }>;
+}
+
 export interface CreateSessionPayload {
   startAt: string | Date;
   durationMinutes: number;
@@ -124,6 +164,52 @@ const SessionService = {
    */
   deleteSession: async (id: string) => {
     const response = await api.delete<SessionResponse>(`${BASE_URL}/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Fetch attendance records for a specific session (Admin Only)
+   */
+  getSessionAttendance: async (sessionId: string): Promise<SessionAttendanceResponse> => {
+    const response = await api.get<SessionAttendanceResponse>(`${BASE_URL}/${sessionId}/attendance`);
+    return response.data;
+  },
+
+  /**
+   * Fetch attendance summary for all sessions in a class (Admin Only)
+   */
+  getClassAttendanceSummary: async (classId: string): Promise<ClassAttendanceSummary> => {
+    const response = await api.get<ClassAttendanceSummary>(`${BASE_URL}/class/${classId}/attendance-summary`);
+    return response.data;
+  },
+
+  /**
+   * Manually mark attendance start for a student (Admin/Instructor Only)
+   */
+  markAttendanceStart: async (sessionId: string, studentId: string) => {
+    const response = await api.post(`/attendance/start`, {
+      sessionId,
+      studentId
+    });
+    return response.data;
+  },
+
+  /**
+   * Manually mark attendance end for a student (Admin/Instructor Only)
+   */
+  markAttendanceEnd: async (sessionId: string, studentId: string) => {
+    const response = await api.post(`/attendance/end`, {
+      sessionId,
+      studentId
+    });
+    return response.data;
+  },
+
+  /**
+   * Clear all attendance for a session (Admin/Instructor Only)
+   */
+  clearSessionAttendance: async (sessionId: string) => {
+    const response = await api.delete(`/attendance/${sessionId}/clear`);
     return response.data;
   }
 };

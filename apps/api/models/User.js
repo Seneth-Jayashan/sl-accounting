@@ -35,6 +35,9 @@ const userSchema = new mongoose.Schema(
 
     profileImage: { type: String, default: null },
 
+    // Zoom Integration
+    zoomUserId: { type: String, sparse: true, index: true },
+
     // OTP fields (hashed for security)
     otp: { type: String, select: false },
     otpExpiresAt: { type: Date, index: true }, // Index useful for cleanup jobs

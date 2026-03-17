@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import Class from "../models/Class.js";
 import Payment from "../models/Payment.js"; // Required for Dashboard Revenue & Top Students
+import Enrollment from "../models/Enrollment.js";
 import { sendVerificationEmail } from "../utils/email/Template.js";
 import { sendVerificationSms } from "../utils/sms/Template.js";
 import Batch from "../models/Batch.js";
@@ -163,7 +164,88 @@ export const getUserById = async (req, res) => {
   try {
     const user = await findActiveUser(id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    return res.status(200).json({ success: true, user });
+
+    const enrollments = await Enrollment.find({ student: id })
+      .populate("class", "name coverImage price type level")
+      .populate("lastPayment", "amount status paymentDate method targetMonth")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const enrollmentIds = enrollments.map((enr) => enr._id);
+
+    const payments = enrollmentIds.length
+      ? await Payment.find({ enrollment: { $in: enrollmentIds } })
+          .populate({
+            path: "enrollment",
+            select: "class paymentStatus accessStartDate accessEndDate paidMonths",
+            populate: { path: "class", select: "name coverImage price type level" },
+          })
+          .sort({ paymentDate: -1, createdAt: -1 })
+          .lean()
+      : [];
+
+    const paidByClass = new Map();
+
+    for (const payment of payments) {
+      if (payment.status !== "completed") continue;
+
+      const classData = payment.enrollment?.class;
+      if (!classData?._id) continue;
+
+      const classId = String(classData._id);
+      if (!paidByClass.has(classId)) {
+        paidByClass.set(classId, {
+          class: {
+            _id: classData._id,
+            name: classData.name,
+            coverImage: classData.coverImage || null,
+            type: classData.type || null,
+            level: classData.level || null,
+            price: classData.price || 0,
+          },
+          totalPaidAmount: 0,
+          paymentCount: 0,
+          paidMonths: new Set(),
+          lastPaidAt: null,
+        });
+      }
+
+      const item = paidByClass.get(classId);
+      item.totalPaidAmount += Number(payment.amount || 0);
+      item.paymentCount += 1;
+
+      if (payment.targetMonth) item.paidMonths.add(payment.targetMonth);
+
+      const paidAt = payment.paymentDate || payment.createdAt;
+      if (!item.lastPaidAt || new Date(paidAt) > new Date(item.lastPaidAt)) {
+        item.lastPaidAt = paidAt;
+      }
+    }
+
+    const lifetimePaidClasses = Array.from(paidByClass.values())
+      .map((item) => ({
+        ...item,
+        paidMonths: Array.from(item.paidMonths).sort(),
+      }))
+      .sort((a, b) => Number(b.totalPaidAmount || 0) - Number(a.totalPaidAmount || 0));
+
+    const stats = {
+      totalEnrollments: enrollments.length,
+      activeEnrollments: enrollments.filter((enr) => enr.isActive).length,
+      totalPayments: payments.length,
+      completedPayments: payments.filter((p) => p.status === "completed").length,
+      lifetimePaidAmount: lifetimePaidClasses.reduce((sum, item) => sum + Number(item.totalPaidAmount || 0), 0),
+      totalPaidClasses: lifetimePaidClasses.length,
+    };
+
+    return res.status(200).json({
+      success: true,
+      user,
+      enrollments,
+      payments,
+      lifetimePaidClasses,
+      stats,
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

@@ -68,6 +68,75 @@ export interface UserListResponse {
   totalUsers: number;
 }
 
+export interface AdminStudentEnrollment {
+  _id: string;
+  class?: {
+    _id: string;
+    name: string;
+    coverImage?: string;
+    price?: number;
+    type?: string;
+    level?: string;
+  } | string;
+  paymentStatus: string;
+  isActive: boolean;
+  accessStartDate?: string;
+  accessEndDate?: string;
+  paidMonths?: string[];
+  createdAt: string;
+}
+
+export interface AdminStudentPayment {
+  _id: string;
+  amount: number;
+  status: "completed" | "pending" | "failed";
+  method: string;
+  paymentDate?: string;
+  targetMonth?: string;
+  transactionId?: string;
+  notes?: string;
+  enrollment?: {
+    _id: string;
+    class?: {
+      _id: string;
+      name: string;
+      coverImage?: string;
+      type?: string;
+    };
+  };
+}
+
+export interface AdminStudentPaidClassSummary {
+  class: {
+    _id: string;
+    name: string;
+    coverImage?: string | null;
+    type?: string | null;
+    level?: string | null;
+    price?: number;
+  };
+  totalPaidAmount: number;
+  paymentCount: number;
+  paidMonths: string[];
+  lastPaidAt?: string;
+}
+
+export interface AdminStudentProfileResponse {
+  success: boolean;
+  user: UserData;
+  enrollments: AdminStudentEnrollment[];
+  payments: AdminStudentPayment[];
+  lifetimePaidClasses: AdminStudentPaidClassSummary[];
+  stats: {
+    totalEnrollments: number;
+    activeEnrollments: number;
+    totalPayments: number;
+    completedPayments: number;
+    lifetimePaidAmount: number;
+    totalPaidClasses: number;
+  };
+}
+
 export interface UserQueryParams {
   page?: number;
   limit?: number;
@@ -105,7 +174,7 @@ const AdminService = {
   },
 
   getUserById: async (id: string) => {
-    const response = await api.get<{ success: boolean; user: UserData  }>(`${BASE_URL}/users/${id}`);
+    const response = await api.get<AdminStudentProfileResponse>(`${BASE_URL}/users/${id}`);
     return response.data;
   },
 
