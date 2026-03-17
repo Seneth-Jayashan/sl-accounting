@@ -25,17 +25,13 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
       try {
         const myEnrollments = await EnrollmentService.getMyEnrollments();
 
-        console.log("Fetched Enrollments:", myEnrollments);
-        console.log("Class Sessions:", sessions);
         
         if (sessions.length > 0) {
             // Robustly find the matching enrollment ID
             const classId = typeof sessions[0].class === 'string' ? sessions[0].class : sessions[0].class._id;
-            console.log("Looking for enrollment with class ID:", classId);
             const match = myEnrollments.find((e: any) => 
                 (typeof e.class === 'string' ? e.class : e.class._id) === classId
             );
-            console.log("Matched Enrollment:", match);
             if (isMounted) setEnrollment(match || null);
         }
       } catch (err) {
@@ -129,7 +125,7 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
                   <h4 className={`text-base font-semibold line-clamp-2 leading-snug transition-colors ${
                       locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
                   }`}>
-                    {session.title || `Session ${session.index}`}
+                    {session.recordingTitle || `Session ${session.index}`}
                   </h4>
                   <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
                     <Calendar size={12} />
