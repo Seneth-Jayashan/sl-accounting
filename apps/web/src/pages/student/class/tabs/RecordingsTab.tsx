@@ -24,6 +24,7 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
     const fetchEnrollment = async () => {
       try {
         const myEnrollments = await EnrollmentService.getMyEnrollments();
+        console.log("My Enrollments:", myEnrollments);
 
         
         if (sessions.length > 0) {
@@ -56,6 +57,8 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
 
   // 3. STRICT MONTHLY ACCESS LOGIC
   const getAccessStatus = (session: any) => {
+    console.log("Checking access for session:", session._id);
+    console.log("Enrollment record:", enrollment);
     if (!enrollment) return { locked: true, reason: "Not Enrolled" };
 
     // A. Check Join Date (Optional: Prevent accessing content from before they joined at all)
