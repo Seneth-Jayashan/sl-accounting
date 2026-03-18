@@ -25,14 +25,15 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
       try {
         const myEnrollments = await EnrollmentService.getMyEnrollments();
         console.log("My Enrollments:", myEnrollments);
-
         
         if (sessions.length > 0) {
             // Robustly find the matching enrollment ID
             const classId = typeof sessions[0].class === 'string' ? sessions[0].class : sessions[0].class._id;
+            console.log("Looking for enrollment with class ID:", classId);
             const match = myEnrollments.find((e: any) => 
                 (typeof e.class === 'string' ? e.class : e.class._id) === classId
             );
+            console.log("Matched Enrollment:", match);
             if (isMounted) setEnrollment(match || null);
         }
       } catch (err) {
@@ -57,9 +58,8 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
 
   // 3. STRICT MONTHLY ACCESS LOGIC
   const getAccessStatus = (session: any) => {
-    console.log("Checking access for session:", session._id);
-    console.log("Enrollment record:", enrollment);
     if (!enrollment) return { locked: true, reason: "Not Enrolled" };
+    console.log(`Checking access for session ${session._id} with startAt ${session.startAt}`);
 
     // A. Check Join Date (Optional: Prevent accessing content from before they joined at all)
     // You can disable this if you want back-payments to unlock old content regardless of join date.
