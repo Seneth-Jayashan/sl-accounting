@@ -24,18 +24,30 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
     const fetchEnrollment = async () => {
       try {
         const myEnrollments = await EnrollmentService.getMyEnrollments();
-        console.log("My Enrollments:", myEnrollments);
-        console.log("Sessions for Enrollment Check:", sessions);
         
-        if (sessions.length > 0) {
-            // Robustly find the matching enrollment ID
-            const classId = typeof sessions[0].class === 'string' ? sessions[0].class : sessions[0].class._id;
-            console.log("Looking for enrollment with class ID:", classId);
-            const match = myEnrollments.find((e: any) => 
-                (typeof e.class === 'string' ? e.class : e.class._id) === classId
-            );
-            console.log("Matched Enrollment:", match);
-            if (isMounted) setEnrollment(match || null);
+        if (sessions?.length > 0) {
+            // 1. Find the first session in the array that actually has a 'class' property
+            const sessionWithClass = sessions.find((session: any) => session.class != null);
+
+            if (sessionWithClass) {
+                const sessionClass = sessionWithClass.class;
+                
+                // 2. Extract the classId (whether it's a string or a populated object)
+                const classId = typeof sessionClass === 'string' ? sessionClass : sessionClass?._id;
+
+
+                if (classId) {
+                    // 3. Find the matching enrollment
+                    const match = myEnrollments.find((e: any) => {
+                        const enrollClassId = typeof e.class === 'string' ? e.class : e.class?._id;
+                        return enrollClassId === classId;
+                    });
+
+                    if (isMounted) setEnrollment(match || null);
+                }
+            } else {
+                if (isMounted) setEnrollment(null);
+            }
         }
       } catch (err) {
         console.error("Failed to load enrollment rights", err);
@@ -60,7 +72,6 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
   // 3. STRICT MONTHLY ACCESS LOGIC
   const getAccessStatus = (session: any) => {
     if (!enrollment) return { locked: true, reason: "Not Enrolled" };
-    console.log(`Checking access for session ${session._id} with startAt ${session.startAt}`);
 
     // A. Check Join Date (Optional: Prevent accessing content from before they joined at all)
     // You can disable this if you want back-payments to unlock old content regardless of join date.
