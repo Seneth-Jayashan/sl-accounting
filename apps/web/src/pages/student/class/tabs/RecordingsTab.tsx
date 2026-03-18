@@ -25,6 +25,7 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
       try {
         const myEnrollments = await EnrollmentService.getMyEnrollments();
         console.log("My Enrollments:", myEnrollments);
+        console.log("Sessions for Enrollment Check:", sessions);
         
         if (sessions.length > 0) {
             // Robustly find the matching enrollment ID
