@@ -124,10 +124,13 @@ export const login = async (req, res) => {
     // 3.5 Device/session limit for students only
     // Each refresh token represents an active device session.
     if (user.role === "student" && (user.refreshTokens || []).length >= 2) {
-      return res.status(403).json({
-        success: false,
-        message: "Maximum 2 devices allowed. Please logout from another device first.",
-      });
+      //TODO : Clear cuurent refresh tokens.
+        user.refreshTokens = [];
+        await user.save();
+      // return res.status(403).json({
+      //   success: false,
+      //   message: "Maximum 2 devices allowed. Please logout from another device first.",
+      // });
     }
 
     // 4. Successful Login Reset
