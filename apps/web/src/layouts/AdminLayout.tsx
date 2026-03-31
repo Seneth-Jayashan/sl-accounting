@@ -65,10 +65,9 @@ export default function AdminLayout() {
             <div className="px-5 py-5 space-y-3">
               <p className="text-sm text-brand-prussian font-semibold">Updated Functions</p>
               <ul className="space-y-2 text-sm text-gray-700 list-disc list-inside">
-                <li>Tute Delivery PDF</li>
-                <li>Student Account Lock</li>
-                <li>Recording Management</li>
-                <li>Recording Speed Change</li>
+                <li>Add Lesson Pack Management</li>
+                <li>Student Account Password Change</li>
+                <li>Quiz Exam Management</li>
               </ul>
               <p className="text-xs text-gray-500">This notice is shown on admin side only and expires automatically after 24 hours.</p>
             </div>
