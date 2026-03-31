@@ -93,6 +93,14 @@ export default function ViewRecording() {
       if (e.key === 'F12') {
         e.preventDefault();
       }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+      }
+      // Block Ctrl+P / Cmd+P (Print)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -196,7 +204,10 @@ export default function ViewRecording() {
     }
 
     return () => {
-        if (playerInstance.current) playerInstance.current.destroy();
+        if (playerInstance.current) {
+            playerInstance.current.destroy();
+            playerInstance.current = null; // MUST nullify it!
+        }
     };
   }, [youtubeId]);
 

@@ -6,9 +6,10 @@ import { sendVerificationEmail } from "../utils/email/Template.js";
 import { sendVerificationSms } from "../utils/sms/Template.js";
 import Batch from "../models/Batch.js";
 
-// --- HELPER: Find Valid User ---
 const findActiveUser = async (id) => {
-  return User.findOne({ _id: id, isDeleted: false }).select("-password").populate('batch', 'name');;
+  return await User.findOne({ _id: id, isDeleted: false })
+    .populate("batch", "name")
+    .select("-password");
 };
 
 // ==========================================
@@ -17,17 +18,14 @@ const findActiveUser = async (id) => {
 
 export const getDashboardSummary = async (req, res) => {
   try {
-    // 1. Fetch Key Stats
     const totalStudents = await User.countDocuments({ role: "student", isDeleted: false });
     const activeClasses = await Class.countDocuments({ isPublished: true });
 
-    // Revenue Aggregation (Handle case where Payment model might be empty)
     const revenueAgg = await Payment.aggregate([
       { $group: { _id: null, total: { $sum: "$amount" } } }
     ]);
     const totalRevenue = revenueAgg[0]?.total || 0;
 
-    // 2. Fetch Recent Activity (New Registrations)
     const recentUsers = await User.find({ role: "student", isDeleted: false })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -41,7 +39,6 @@ export const getDashboardSummary = async (req, res) => {
       createdAt: u.createdAt,
     }));
 
-    // 3. Top Performing Students (Based on Total Payments)
     const topStudents = await Payment.aggregate([
       { $group: { _id: "$student", totalPaid: { $sum: "$amount" } } },
       { $sort: { totalPaid: -1 } },
@@ -54,13 +51,11 @@ export const getDashboardSummary = async (req, res) => {
           totalPaid: 1, 
           firstName: "$studentInfo.firstName", 
           lastName: "$studentInfo.lastName",
-          batch: "$studentInfo.batch" // Assuming batch exists on user
+          batch: "$studentInfo.batch"
         } 
       }
     ]);
 
-    // 4. Find Next Upcoming Class
-    // Finds the first class with a schedule. In production, you'd calculate the nearest date logic here.
     const nextClassObj = await Class.findOne({ isPublished: true }).select("name type timeSchedules");
     
     let nextClass = null;
@@ -69,7 +64,6 @@ export const getDashboardSummary = async (req, res) => {
         _id: nextClassObj._id,
         name: nextClassObj.name,
         subject: nextClassObj.type,
-        // For demo: Use current time. Implement specific schedule logic if needed.
         startTime: new Date().toISOString() 
       };
     }
@@ -80,8 +74,8 @@ export const getDashboardSummary = async (req, res) => {
         totalStudents,
         totalRevenue,
         activeClasses,
-        studentGrowth: 12, // Placeholder for calculated growth
-        revenueGrowth: 8,  // Placeholder for calculated growth
+        studentGrowth: 12, 
+        revenueGrowth: 8, 
       },
       recentActivity,
       topStudents,
@@ -90,7 +84,6 @@ export const getDashboardSummary = async (req, res) => {
 
   } catch (error) {
     console.error("Dashboard Summary Error:", error);
-    // Return empty/zero structure on error to prevent frontend crash
     return res.status(500).json({ success: false, message: "Failed to load dashboard data" });
   }
 };
@@ -137,10 +130,13 @@ export const getAllUsers = async (req, res) => {
       ];
     }
 
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+
     const users = await User.find(query)
       .populate("batch", "name") 
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(limitNum)
+      .skip((pageNum - 1) * limitNum)
       .select("-password")
       .sort({ createdAt: -1 }); 
 
@@ -270,7 +266,7 @@ export const createUser = async (req, res) => {
       phoneNumber,
       batch,
       role: role || "student",
-      isVerified: true, // Admin created users are verified by default
+      isVerified: true, 
       address: {
         street: address?.street || "",
         city: address?.city || "",
@@ -302,7 +298,7 @@ export const updateUserProfile = async (req, res) => {
     if (phoneNumber) user.phoneNumber = phoneNumber;
 
     if (batch){
-      if(user.batch === null){
+      if(!user.batch){
         user.batch = batch;
       }else{
         const OldBatch = await Batch.findById(user.batch);
@@ -319,7 +315,6 @@ export const updateUserProfile = async (req, res) => {
       }
     }
 
-    // Handle Address Parsing (FormData sends object as string)
     if (address) {
       try {
         user.address = typeof address === 'string' ? JSON.parse(address) : address;
@@ -329,7 +324,6 @@ export const updateUserProfile = async (req, res) => {
     }
 
     if (req.file) {
-      // Normalize path for Windows compatibility
       user.profileImage = req.file.path.replace(/\\/g, "/");
     }
 
@@ -356,11 +350,10 @@ export const updateUserEmail = async (req, res) => {
       if (emailExists) return res.status(400).json({ success: false, message: "Email already in use" });
 
       user.email = email.toLowerCase();
-      user.isVerified = false; // Reset verification
+      user.isVerified = false;
       const otpCode = user.generateOtpCode();
       await user.save();
 
-      // Attempt to send verification
       try {
         await Promise.all([
           sendVerificationEmail(user.email, otpCode),
@@ -386,12 +379,12 @@ export const updateUserEmail = async (req, res) => {
 export const updateUserPassword = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await findActiveUser(id).select('+password');
+    const user = await findActiveUser(id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const { newPassword } = req.body;
-    user.password = newPassword; // Hashed by pre-save hook
-    user.refreshTokens = []; // Security: Invalidate sessions
+    user.password = newPassword; 
+    user.refreshTokens = [];
     
     await user.save();
     return res.status(200).json({ success: true, message: "User password updated successfully" });
@@ -450,7 +443,7 @@ export const deactivateUserAccount = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     user.isActive = false;
-    user.refreshTokens = []; // Kill sessions
+    user.refreshTokens = [];
     await user.save();
     return res.status(200).json({ success: true, message: "Account deactivated" });
   } catch (error) {
@@ -480,7 +473,6 @@ export const deleteUserAccount = async (req, res) => {
 
 export const restoreUserAccount = async (req, res) => {
   try {
-    // Explicitly find deleted users
     const user = await User.findOne({ _id: req.params.id, isDeleted: true });
     
     if (!user) return res.status(404).json({ success: false, message: "Deleted user not found" });

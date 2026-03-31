@@ -10,18 +10,13 @@ import { sendCancellationSms } from "../utils/sms/Template.js";
 // --- HELPER: Field Projection ---
 const getSafeSessionProjection = (user) => {
   const isAdmin = user.role === 'admin';
-  // Students should NEVER see the Zoom Host URL (start_url)
   return isAdmin ? "" : "-zoomStartUrl -zoomMeetingId"; 
 };
 
-/**
- * CREATE SESSION (Atomic Transaction)
- * Role: Admin Only (Enforced by Middleware)
- */
 export const createSessionForClass = async (req, res) => {
   const { classId } = req.params;
   const {
-    startAt, // Expect ISO String: "2024-01-01T10:00:00.000Z"
+    startAt, 
     durationMinutes = 60,
     title,
     notes,
@@ -36,18 +31,15 @@ export const createSessionForClass = async (req, res) => {
     const classDoc = await Class.findById(classId).session(session);
     if (!classDoc) throw new Error("Class not found");
 
-    // 1. Time Validation
     const tz = req.body.timezone || classDoc.timezone || process.env.DEFAULT_TIMEZONE || "UTC";
     const startMoment = moment.tz(startAt, tz);
     if (!startMoment.isValid()) throw new Error("Invalid startAt date format.");
 
     const endMoment = startMoment.clone().add(durationMinutes, "minutes");
 
-    // 2. Determine Index
     const lastSession = await Session.findOne({ class: classId }).sort({ index: -1 }).session(session);
     const nextIndex = lastSession ? (lastSession.index + 1) : 1;
 
-    // 3. Create Session Doc
     const sessionDoc = new Session({
       class: classId,
       index: nextIndex,
@@ -59,7 +51,6 @@ export const createSessionForClass = async (req, res) => {
       materials
     });
 
-    // 4. Create Zoom (External API)
     if (!skipZoom) {
       try {
         const zoomData = await createMeeting({
@@ -76,16 +67,14 @@ export const createSessionForClass = async (req, res) => {
 
         if (zoomData) {
           sessionDoc.zoomMeetingId = String(zoomData.id);
-          sessionDoc.zoomStartUrl = zoomData.start_url; // Host Link
-          sessionDoc.zoomJoinUrl = zoomData.join_url;   // Student Link
+          sessionDoc.zoomStartUrl = zoomData.start_url;
+          sessionDoc.zoomJoinUrl = zoomData.join_url;
         }
       } catch (zoomErr) {
         console.error("Zoom create failed:", zoomErr.message);
-        // We continue creation without Zoom, but log the error.
       }
     }
 
-    // 5. Save DB
     const savedSession = await sessionDoc.save({ session });
     
     classDoc.sessions.push(savedSession._id);
@@ -103,9 +92,6 @@ export const createSessionForClass = async (req, res) => {
   }
 };
 
-/**
- * GET ALL SESSIONS
- */
 export const getAllSessions = async (req, res) => {
   try {
     const { classId, from, to, isCancelled, page = 1, limit = 50 } = req.query;
@@ -119,7 +105,6 @@ export const getAllSessions = async (req, res) => {
       if (to) query.startAt.$lte = new Date(to);
     }
 
-    // Security: Filter fields based on role
     const projection = getSafeSessionProjection(req.user);
 
     const sessions = await Session.find(query)
@@ -134,9 +119,6 @@ export const getAllSessions = async (req, res) => {
   }
 };
 
-/**
- * GET SESSION BY ID
- */
 export const getSessionById = async (req, res) => {
   try {
     const projection = getSafeSessionProjection(req.user);
@@ -150,10 +132,6 @@ export const getSessionById = async (req, res) => {
   }
 };
 
-/**
- * UPDATE SESSION
- * Role: Admin Only
- */
 export const updateSession = async (req, res) => {
   const { 
     startAt, durationMinutes, title, notes, materials, skipZoom 
@@ -163,25 +141,21 @@ export const updateSession = async (req, res) => {
     const sessionDoc = await Session.findById(req.params.id);
     if (!sessionDoc) return res.status(404).json({ message: "Session not found" });
 
-    // 1. Update Basic Fields
     if (title) sessionDoc.title = title;
     if (notes) sessionDoc.notes = notes;
     if (materials) sessionDoc.materials = materials;
 
-    // 2. Handle Time Updates & Zoom Sync
     let timeChanged = false;
     if (startAt) {
-      const startMoment = moment(startAt); // Assume UTC/ISO from frontend
+      const startMoment = moment(startAt); 
       if (startMoment.isValid()) {
         sessionDoc.startAt = startMoment.toDate();
-        // Recalculate endAt based on existing duration or new duration
         const dur = durationMinutes ? Number(durationMinutes) : moment(sessionDoc.endAt).diff(moment(sessionDoc.startAt), 'minutes');
         sessionDoc.endAt = startMoment.clone().add(dur, 'minutes').toDate();
         timeChanged = true;
       }
     }
 
-    // 3. Zoom Update Logic
     if (!skipZoom && sessionDoc.zoomMeetingId) {
       try {
         const updatePayload = {};
@@ -205,10 +179,7 @@ export const updateSession = async (req, res) => {
   }
 };
 
-/**
- * DELETE SESSION
- * Role: Admin Only
- */
+
 export const deleteSession = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -222,12 +193,10 @@ export const deleteSession = async (req, res) => {
 
     const classDoc = await Class.findById(sessionDoc.class).session(session);
     if (classDoc) {
-        // Unlink from Class
         classDoc.sessions = classDoc.sessions.filter(s => s.toString() !== sessionDoc._id.toString());
         await classDoc.save({ session });
     }
 
-    // Delete Zoom
     if (sessionDoc.zoomMeetingId) {
       try {
         await deleteMeeting(sessionDoc.zoomMeetingId);
@@ -236,7 +205,6 @@ export const deleteSession = async (req, res) => {
       }
     }
 
-    // Delete Session
     await Session.deleteOne({ _id: sessionDoc._id }).session(session);
 
     await session.commitTransaction();
@@ -251,19 +219,13 @@ export const deleteSession = async (req, res) => {
   }
 };
 
-/**
- * CANCEL SESSION
- * Role: Admin Only
- */
 export const cancelSession = async (req, res) => {
   const { deleteZoomMeeting = true, cancellationReason } = req.body;
 
   try {
-    // 1. Find the Session
     const sessionDoc = await Session.findById(req.params.id);
     if (!sessionDoc) return res.status(404).json({ message: "Session not found" });
 
-    // 2. Handle Zoom Deletion
     if (deleteZoomMeeting && sessionDoc.zoomMeetingId) {
       try {
         await deleteMeeting(sessionDoc.zoomMeetingId);
@@ -275,22 +237,18 @@ export const cancelSession = async (req, res) => {
       }
     }
 
-    // 3. Update Session Status
     sessionDoc.isCancelled = true;
     sessionDoc.cancelledAt = new Date();
     sessionDoc.cancellationReason = cancellationReason;
 
     await sessionDoc.save();
 
-    // 4. Send Bulk SMS
-    // We must find the Class to get the "Name" and the "Students" list
     const classDoc = await Class.findById(sessionDoc.class).populate('students', 'phoneNumber');
 
     if (classDoc && classDoc.students && classDoc.students.length > 0) {
       
       const smsPromises = classDoc.students.map(student => {
         if (student.phoneNumber) {
-           // We use .catch here so one failure doesn't stop the whole loop
            return sendCancellationSms(
              student.phoneNumber,
              classDoc.name,
@@ -299,7 +257,6 @@ export const cancelSession = async (req, res) => {
         }
       });
 
-      // Execute all SMS sends in parallel
       await Promise.all(smsPromises);
     }
 
@@ -314,43 +271,30 @@ export const cancelSession = async (req, res) => {
   }
 };
 
-
-// In your Backend API (e.g., SessionController.js)
-
 export const getSessionsByClassId = async (req, res) => {
   try {
     const { classId } = req.params;
     const userId = req.user._id;
     
-    // Admin Override: Admins see everything unlocked
     const isAdmin = req.user.role === 'admin';
 
-    // 1. Fetch Enrollment
     const enrollment = await Enrollment.findOne({ class: classId, student: userId });
     
-    // 2. Fetch Sessions
-    // .lean() converts Mongoose Documents to plain JS objects, allowing us to modify properties easily
     const sessions = await Session.find({ class: classId }).sort({ startAt: 1 }).lean();
 
     if (isAdmin) {
         return res.json(sessions);
     }
 
-    // 3. SECURITY FILTER
     const secureSessions = sessions.map(session => {
         let isLocked = false;
         
         if (!enrollment) {
-            // Not enrolled at all -> Locked
             isLocked = true;
         } else {
-            // --- NEW LOGIC: Month-Based Access ---
-            // 1. Determine which month this session belongs to (e.g., "2026-01")
             const sessionDate = new Date(session.startAt);
             const sessionMonth = format(sessionDate, "yyyy-MM");
 
-            // 2. Check if the user has paid for this specific month
-            // We safely access paidMonths, defaulting to empty array if undefined
             const paidMonths = enrollment.paidMonths || [];
             const hasPaidForMonth = paidMonths.includes(sessionMonth);
 
@@ -359,8 +303,6 @@ export const getSessionsByClassId = async (req, res) => {
             }
         }
 
-        // IF LOCKED: Sanitize the object
-        // We strip out all sensitive access links
         if (isLocked) {
             return {
                 _id: session._id,
@@ -368,10 +310,9 @@ export const getSessionsByClassId = async (req, res) => {
                 startAt: session.startAt,
                 endAt: session.endAt,
                 index: session.index,
-                description: session.description, // Description might be safe to show
-                isLocked: true,                   // Flag for frontend UI
+                description: session.description, 
+                isLocked: true,
                 
-                // --- SENSITIVE DATA REMOVED ---
                 youtubeVideoId: null,
                 recordingUrl: null,
                 zoomJoinUrl: null,
@@ -380,7 +321,6 @@ export const getSessionsByClassId = async (req, res) => {
             };
         }
         
-        // IF UNLOCKED: Return full session with isLocked: false
         return {
             ...session,
             isLocked: false
@@ -395,16 +335,10 @@ export const getSessionsByClassId = async (req, res) => {
   }
 };
 
-/**
- * GET SESSION ATTENDANCE WITH STUDENT DETAILS
- * Role: Admin Only
- * GET /sessions/:id/attendance
- */
 export const getSessionAttendance = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Fetch session with attendance records
     const session = await Session.findById(id).populate({
       path: "attendance.student",
       select: "firstName lastName email phoneNumber avatar"
@@ -414,21 +348,24 @@ export const getSessionAttendance = async (req, res) => {
       return res.status(404).json({ message: "Session not found" });
     }
 
-    // Format attendance data
-    const attendanceData = (session.attendance || []).map((record) => ({
-      _id: record._id || `${record.student._id}-${record.joinedAt}`,
-      student: {
-        _id: record.student._id,
-        firstName: record.student.firstName,
-        lastName: record.student.lastName,
-        email: record.student.email,
-        phoneNumber: record.student.phoneNumber,
-        avatar: record.student.avatar
-      },
-      joinedAt: record.joinedAt,
-      leftAt: record.leftAt,
-      durationMinutes: record.durationMinutes
-    }));
+    const attendanceData = (session.attendance || []).map((record) => {
+      const studentExists = !!record.student;
+
+      return {
+        _id: record._id || `${studentExists ? record.student._id : 'unknown'}-${record.joinedAt}`,
+        student: studentExists ? {
+          _id: record.student._id,
+          firstName: record.student.firstName,
+          lastName: record.student.lastName,
+          email: record.student.email,
+          phoneNumber: record.student.phoneNumber,
+          avatar: record.student.avatar
+        } : { firstName: "Deleted", lastName: "User" },
+        joinedAt: record.joinedAt,
+        leftAt: record.leftAt,
+        durationMinutes: record.durationMinutes
+      };
+    });
 
     return res.status(200).json({
       session: {
@@ -447,16 +384,10 @@ export const getSessionAttendance = async (req, res) => {
   }
 };
 
-/**
- * GET CLASS ATTENDANCE SUMMARY (All Sessions)
- * Role: Admin Only
- * GET /sessions/class/:classId/attendance-summary
- */
 export const getClassAttendanceSummary = async (req, res) => {
   try {
     const { classId } = req.params;
 
-    // Fetch all sessions for the class
     const sessions = await Session.find({ class: classId })
       .populate({
         path: "attendance.student",
@@ -471,7 +402,6 @@ export const getClassAttendanceSummary = async (req, res) => {
       });
     }
 
-    // Build summary: For each session, show attendance count
     const sessionSummary = sessions.map((session) => ({
       _id: session._id,
       title: session.title,

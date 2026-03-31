@@ -278,3 +278,30 @@ export const sendWelcomeEmail = async (to, name) => {
     text 
   });
 };
+
+export const sendAnnouncementEmail = async (to, announcement) => {
+  const preheader = `New announcement: ${announcement.title}`;
+  const className = announcement.class ? announcement.class.name : "your class";  
+  const announcementUrl = `${CLIENT_URL}/student/class/${announcement.class}/announcements`;
+
+  const html =  buildHtmlLayout({
+    preheader,
+    title: `New Announcement: ${announcement.title}`,
+    introHtml: `
+      <p class="body-text">There is a new announcement for <strong>${escapeHtml(className)}</strong>:</p>
+      <p class="body-text" style="background:#f3f4f6; padding: 16px; border-radius: 8px; border: 1px dashed #d1d5db;">
+        ${escapeHtml(announcement.content)}
+      </p>
+      <p class="body-text">Click the button below to view all announcements for this class.</p>
+    `,
+    cta: { text: "View Announcements", url: announcementUrl },
+    footerHtml: "You are receiving this email because you are enrolled in this class."
+  })
+
+  return Email.sendEmail({ 
+    to, 
+    subject: `New Announcement for ${className}: ${announcement.title}`, 
+    html, 
+    text: `New announcement for ${className}:\n\n${announcement.content}\n\nView all announcements: ${announcementUrl}`
+  });
+};

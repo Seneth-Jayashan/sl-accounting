@@ -92,7 +92,7 @@ const PaymentService = {
    * 3. Submit a Bank Transfer Slip
    * Endpoint: POST /api/v1/payments/upload-slip
    */
-  uploadPaymentSlip: async (
+uploadPaymentSlip: async (
     enrollmentId: string, 
     file: File, 
     amount: number, 
@@ -102,7 +102,7 @@ const PaymentService = {
     const formData = new FormData();
     formData.append("enrollmentId", enrollmentId);
     formData.append("amount", amount.toString());
-    formData.append("slip", file);
+    formData.append("slip", file); // Matches upload.single("slip") on backend
     
     if (notes) formData.append("notes", notes);
     
@@ -111,11 +111,11 @@ const PaymentService = {
 
     const response = await api.post<{ success: boolean; payment: PaymentData }>(
       `${BASE_URL}/upload-slip`, 
-      formData, 
+      formData,
       {
         headers: {
-          "Content-Type": "multipart/form-data" 
-        }
+          "Content-Type": "multipart/form-data", // <--- CRITICAL FIX: Required for files!
+        },
       }
     );
     return response.data;

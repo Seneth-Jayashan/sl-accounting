@@ -143,9 +143,24 @@ const UpdateQuiz: React.FC = () => {
     });
   };
 
+  // FIX: Auto-format options array based on question type selection
   const handleQuestionChange = (qIndex: number, field: keyof QuizQuestion, value: any) => {
     setQuizData(prev => {
       const updatedQs = [...prev.questions!];
+      
+      if (field === "questionType") {
+        if (value === "true-false") {
+          updatedQs[qIndex].options = [
+            { optionText: "True", isCorrect: true },
+            { optionText: "False", isCorrect: false }
+          ];
+        } else if (value === "short-answer") {
+          updatedQs[qIndex].options = [
+            { optionText: updatedQs[qIndex].options[0]?.optionText || "", isCorrect: true }
+          ];
+        }
+      }
+      
       updatedQs[qIndex] = { ...updatedQs[qIndex], [field]: value };
       return { ...prev, questions: updatedQs };
     });
@@ -226,7 +241,7 @@ const UpdateQuiz: React.FC = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 min-h-screen pb-24">
       <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
         
         {/* Header Actions */}
@@ -386,68 +401,113 @@ const UpdateQuiz: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Question Text & Points */}
+                {/* Question Text, Type & Points */}
                 <div className="grid grid-cols-12 gap-4 mb-4">
-                  <div className="col-span-12 md:col-span-9">
+                  <div className="col-span-12 md:col-span-6">
+                    <label className="block text-xs text-gray-500 mb-1">Question Text</label>
                     <textarea 
                       required
                       rows={2}
                       value={q.questionText}
                       onChange={(e) => handleQuestionChange(qIndex, "questionText", e.target.value)}
                       placeholder="Type your accounting question here..."
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                     />
                   </div>
+                  
+                  {/* FIX: Question Type Selector */}
+                  <div className="col-span-6 md:col-span-3">
+                    <label className="block text-xs text-gray-500 mb-1">Question Type</label>
+                    <select
+                      value={q.questionType}
+                      onChange={(e) => handleQuestionChange(qIndex, "questionType", e.target.value)}
+                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="mcq">Multiple Choice</option>
+                      <option value="multi-select">Multiple Select</option>
+                      <option value="true-false">True / False</option>
+                      <option value="short-answer">Short Answer</option>
+                    </select>
+                  </div>
+
                   <div className="col-span-6 md:col-span-3">
                     <label className="block text-xs text-gray-500 mb-1">Points</label>
                     <input 
                       type="number" min="1"
                       value={q.points}
                       onChange={(e) => handleQuestionChange(qIndex, "points", Number(e.target.value))}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
 
-                {/* Options Builder */}
-                <div className="space-y-3 mb-4">
+                {/* FIX: Dynamic Options Builder */}
+                <div className="space-y-3 mb-4 border-t border-gray-100 pt-4">
                   <label className="block text-sm font-medium text-gray-700">Answers</label>
-                  {q.options.map((opt, optIndex) => (
-                    <div key={optIndex} className="flex items-center gap-3">
-                      <input 
-                        type={q.questionType === "multi-select" ? "checkbox" : "radio"}
-                        name={`correct-option-${qIndex}`}
-                        checked={opt.isCorrect}
-                        onChange={() => handleSetCorrectOption(qIndex, optIndex)}
-                        className="w-5 h-5 text-blue-600 cursor-pointer"
-                        title="Mark as correct answer"
-                      />
+                  
+                  {q.questionType === "short-answer" ? (
+                    // SHORT ANSWER UI
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 flex items-center justify-center rounded-full bg-green-500 text-white flex-shrink-0">
+                        <CheckCircle2 size={16} />
+                      </div>
                       <input 
                         required
                         type="text"
-                        value={opt.optionText}
-                        onChange={(e) => handleOptionTextChange(qIndex, optIndex, e.target.value)}
-                        placeholder={`Option ${optIndex + 1}`}
-                        className={`flex-1 p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 ${opt.isCorrect ? 'border-green-400 bg-green-50' : 'border-gray-300'}`}
+                        value={q.options[0]?.optionText || ""}
+                        onChange={(e) => handleOptionTextChange(qIndex, 0, e.target.value)}
+                        placeholder="Type the exact correct answer here..."
+                        className="flex-1 p-2 border border-green-400 bg-green-50 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                      <button 
-                        type="button"
-                        onClick={() => removeOption(qIndex, optIndex)}
-                        disabled={q.options.length <= 2}
-                        className="text-gray-400 hover:text-red-500 disabled:opacity-30 p-1"
-                      >
-                        <X size={18}/>
-                      </button>
                     </div>
-                  ))}
-                  
-                  <button 
-                    type="button"
-                    onClick={() => addOption(qIndex)}
-                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-2 font-medium"
-                  >
-                    <PlusCircle size={16}/> Add Option
-                  </button>
+                  ) : (
+                    // MCQ, MULTI-SELECT, TRUE-FALSE UI
+                    <>
+                      {q.options.map((opt, optIndex) => (
+                        <div key={optIndex} className="flex items-center gap-3">
+                          <input 
+                            type={q.questionType === "multi-select" ? "checkbox" : "radio"}
+                            name={`correct-option-${qIndex}`}
+                            checked={opt.isCorrect}
+                            onChange={() => handleSetCorrectOption(qIndex, optIndex)}
+                            className="w-5 h-5 text-blue-600 cursor-pointer"
+                            title="Mark as correct answer"
+                          />
+                          <input 
+                            required
+                            type="text"
+                            value={opt.optionText}
+                            onChange={(e) => handleOptionTextChange(qIndex, optIndex, e.target.value)}
+                            placeholder={`Option ${optIndex + 1}`}
+                            disabled={q.questionType === "true-false"}
+                            className={`flex-1 p-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 ${
+                              opt.isCorrect ? 'border-green-400 bg-green-50' : 'border-gray-300'
+                            } ${q.questionType === "true-false" ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+                          />
+                          {q.questionType !== "true-false" && (
+                            <button 
+                              type="button"
+                              onClick={() => removeOption(qIndex, optIndex)}
+                              disabled={q.options.length <= 2}
+                              className="text-gray-400 hover:text-red-500 disabled:opacity-30 p-1"
+                            >
+                              <X size={18}/>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {q.questionType !== "true-false" && (
+                        <button 
+                          type="button"
+                          onClick={() => addOption(qIndex)}
+                          className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-2 font-medium"
+                        >
+                          <PlusCircle size={16}/> Add Option
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Accounting Explanation */}

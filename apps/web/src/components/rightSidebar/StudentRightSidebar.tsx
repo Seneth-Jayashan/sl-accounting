@@ -44,7 +44,7 @@ export default function StudentRightSidebar() {
         // For safety, we often fetch all relevant data. 
         
         // 1. Get My Enrollments to filter relevant sessions
-        const enrollments = await EnrollmentService.getAllEnrollments(); // Assuming this returns logged-in user's enrollments by default or filterable
+        const enrollments = await EnrollmentService.getMyEnrollments(); // Assuming this returns logged-in user's enrollments by default or filterable
         const myClassIds = new Set(
             (Array.isArray(enrollments) ? enrollments : (enrollments as any).enrollments || [])
             .map((e: any) => typeof e.class === 'object' ? e.class._id : e.class)

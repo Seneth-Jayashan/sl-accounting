@@ -148,6 +148,7 @@ export default function ViewClassPage() {
         const updatedSessions = (prev as any).sessions.filter((s: any) => s._id !== sessionId);
         return { ...prev, sessions: updatedSessions };
       });
+      setAttendanceSummary(null);
     } catch (err) {
       alert("Delete failed.");
     }

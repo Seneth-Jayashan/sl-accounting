@@ -5,16 +5,15 @@ import {
   updateUserPassword,
   deleteUserAccount,
   getStudentDashboard,
-} from "../controllers/UserController.js"; // Removed Auth controllers
+} from "../controllers/UserController.js";
 
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import {
-  validate,
   updateProfileSchema,
   updateEmailSchema,
   updatePasswordSchema,
-} from "../validators/UserValidator.js"; // Removed Auth validators
-
+} from "../validators/UserValidator.js";
+import {validate} from "../middlewares/ValidateMiddleware.js";
 import createUploader from "../middlewares/UploadMiddleware.js";
 
 const profileUploadMiddleware = createUploader(
@@ -28,7 +27,6 @@ const router = express.Router();
 // PROFILE ROUTES (Self-Management)
 // ==========================================
 
-// Update Profile Info (with Image Upload)
 router.put(
   "/profile",
   protect,
@@ -37,7 +35,6 @@ router.put(
   updateUserProfile
 );
 
-// Update Email (Triggers Re-verification)
 router.put(
   "/email", 
   protect, 
@@ -45,7 +42,6 @@ router.put(
   updateUserEmail
 );
 
-// Update Password (Authenticated)
 router.put(
   "/password",
   protect,
@@ -53,10 +49,8 @@ router.put(
   updateUserPassword
 );
 
-// Delete Account (Soft Delete)
 router.delete("/delete-account", protect, deleteUserAccount);
 
-// Dashboard Data for Students
 router.get('/student/dashboard', protect, getStudentDashboard);
 
 export default router;

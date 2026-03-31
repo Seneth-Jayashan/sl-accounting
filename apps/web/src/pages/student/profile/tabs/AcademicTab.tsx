@@ -72,6 +72,7 @@ export default function AcademicTab() {
         {enrollments.length > 0 ? (
             <div className="space-y-3">
                 {enrollments.map((enroll) => {
+                    if(!enroll.lessonPack){
                     const classData = enroll.class as any; 
                     return (
                         <div key={enroll._id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-brand-cerulean/30 hover:bg-gray-50 transition-all">
@@ -91,12 +92,52 @@ export default function AcademicTab() {
                             </div>
                         </div>
                     );
+                  }
                 })}
             </div>
         ) : (
             <div className="text-center py-8 text-gray-400">
                 <BookOpen size={32} className="mx-auto mb-2 opacity-50" />
                 <p>You haven't enrolled in any classes yet.</p>
+            </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <BookOpen className="text-brand-cerulean" /> Enrolled Lesson Packs
+        </h2>
+        
+        {enrollments.length > 0 ? (
+            <div className="space-y-3">
+                {enrollments.map((enroll) => {
+                    if(enroll.lessonPack){
+                    const packData = enroll.lessonPack as any; 
+                    return (
+                        <div key={enroll._id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-brand-cerulean/30 hover:bg-gray-50 transition-all">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-brand-cerulean/10 text-brand-cerulean flex items-center justify-center font-bold">
+                                    {packData.title ? packData.title.charAt(0) : "L"}
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-sm text-gray-800">{packData.title || "Lesson Pack Name Unavailable"}</h4>
+                                    <p className="text-xs text-gray-500 capitalize">{packData.description || "General Description"}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${enroll.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                    {enroll.isActive ? 'Active' : 'Expired'}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                  }
+                })}
+            </div>
+        ) : (
+            <div className="text-center py-8 text-gray-400">
+                <BookOpen size={32} className="mx-auto mb-2 opacity-50" />
+                <p>You haven't enrolled in any lesson packs yet.</p>
             </div>
         )}
       </div>

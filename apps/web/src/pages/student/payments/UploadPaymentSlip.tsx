@@ -40,26 +40,20 @@ interface LinkedClass {
     price: number; 
 }
 
-// We define a local ClassData that can handle both string IDs and Objects
 interface LocalClassData {
-  _id: string;
+  _id?: string;
   name: string;
   price: number;
-  level: string;
+  level?: string;
   coverImage?: string;
-  timeSchedules: { day: number; startTime: string; endTime: string }[];
-  
-  // These can be an ID string OR a populated object
+  timeSchedules?: { day: number; startTime: string; endTime: string }[];
   linkedRevisionClass?: LinkedClass | string;
   linkedPaperClass?: LinkedClass | string;
-  
   bundlePriceRevision?: number;
   bundlePricePaper?: number;
   bundlePriceFull?: number;
 }
 
-// --- TYPE GUARD HELPER ---
-// This tells TypeScript: "If this function returns true, 'cls' is definitely a LinkedClass object"
 const isLinkedClass = (cls: any): cls is LinkedClass => {
     return cls && typeof cls === 'object' && 'price' in cls;
 };
@@ -86,6 +80,7 @@ export default function UploadPaymentSlip() {
   const [classData, setClassData] = useState<LocalClassData | null>(null);
 
   // Selection State
+  // Fallback to current month ONLY if stateMonth isn't provided
   const [selectedMonth, setSelectedMonth] = useState<string>(stateMonth || format(new Date(), "yyyy-MM"));
   const [includeRevision, setIncludeRevision] = useState(false);
   const [includePaper, setIncludePaper] = useState(false);
@@ -107,27 +102,32 @@ export default function UploadPaymentSlip() {
             if (!isMounted) return;
             setEnrollment(enrollRes);
 
-            // B. Get Class Details
-            const classId = typeof enrollRes.class === 'string' ? enrollRes.class : (enrollRes.class as any)._id;
-            const classRes = await ClassService.getPublicClassById(classId);
-            
-            // Handle API response structure
-            const cls = (classRes as any).class || (Array.isArray(classRes) ? classRes[0] : classRes);
-            
-            if (isMounted && cls) {
-                // Cast to our local flexible interface
-                setClassData(cls as unknown as LocalClassData);
-
-                // Pre-fill amount logic
-                if (!stateAmount) {
-                     setManualAmount(cls.price.toString());
-                } else {
-                     setManualAmount(stateAmount.toString());
+            // B. Check if it's a Class or a Lesson Pack
+            if (enrollRes.class) {
+                // IT IS A STANDARD CLASS
+                const classId = typeof enrollRes.class === 'string' ? enrollRes.class : (enrollRes.class as any)._id;
+                const classRes = await ClassService.getPublicClassById(classId);
+                const cls = (classRes as any).class || (Array.isArray(classRes) ? classRes[0] : classRes);
+                
+                if (isMounted && cls) {
+                    setClassData(cls as unknown as LocalClassData);
+                    if (!stateAmount) setManualAmount(cls.price.toString());
+                    else setManualAmount(stateAmount.toString());
+                }
+            } else if (enrollRes.lessonPack) {
+                // IT IS A LESSON PACK (PLAYLIST)
+                if (isMounted) {
+                    // Create dummy class data just for the UI display
+                    setClassData({ 
+                        name: "Premium Video Playlist", 
+                        price: stateAmount || 0 
+                    } as LocalClassData);
+                    setManualAmount(stateAmount ? stateAmount.toString() : "0");
                 }
             }
         } catch (err) {
             console.error("Data Load Error:", err);
-            if (isMounted) setError("Failed to load class details.");
+            if (isMounted) setError("Failed to load details.");
         } finally {
             if (isMounted) setLoading(false);
         }
@@ -139,18 +139,14 @@ export default function UploadPaymentSlip() {
 
   // --- 2. CALCULATE DYNAMIC TOTAL ---
   const calculatedTotal = useMemo(() => {
-      // Use manual amount if pre-configured or data missing
       if (isPreConfigured || !classData) return Number(manualAmount);
 
-      // 1. Bundle Logic (Server defined prices)
       if (includeRevision && includePaper && classData.bundlePriceFull != null) return classData.bundlePriceFull;
       if (includeRevision && !includePaper && classData.bundlePriceRevision != null) return classData.bundlePriceRevision;
       if (!includeRevision && includePaper && classData.bundlePricePaper != null) return classData.bundlePricePaper;
 
-      // 2. Sum Logic (Fallback)
       let total = classData.price;
       
-      // FIX: Use type guard before accessing .price
       if (includeRevision && isLinkedClass(classData.linkedRevisionClass)) {
           total += classData.linkedRevisionClass.price;
       }
@@ -161,7 +157,6 @@ export default function UploadPaymentSlip() {
       return total;
   }, [classData, includeRevision, includePaper, isPreConfigured, manualAmount]);
 
-  // Sync calculation to input field
   useEffect(() => {
       if (!isPreConfigured && classData) {
           setManualAmount(calculatedTotal.toString());
@@ -176,11 +171,9 @@ export default function UploadPaymentSlip() {
 
       try {
           const months = eachMonthOfInterval({ start, end });
-
           return months.map(date => {
               const value = format(date, "yyyy-MM");
               const isPaid = enrollment?.paidMonths?.includes(value) || false;
-              
               const isCurrent = isSameMonth(date, today);
               const isPast = isBefore(date, today); 
               const isFuture = isAfter(date, today); 
@@ -200,7 +193,6 @@ export default function UploadPaymentSlip() {
               };
           }).reverse();
       } catch (e) {
-          console.error("Date error", e);
           return [];
       }
   }, [enrollment]);
@@ -228,7 +220,7 @@ export default function UploadPaymentSlip() {
     
     const finalAmount = parseFloat(manualAmount);
     if (isNaN(finalAmount) || finalAmount <= 0) return setError("Please enter a valid amount.");
-    if (!selectedMonth) return setError("Billing month is required.");
+    if (!selectedMonth) return setError("Billing month/type is required.");
 
     setUploading(true);
     setError(null);
@@ -277,7 +269,7 @@ export default function UploadPaymentSlip() {
                     </button>
                     <h1 className="text-3xl font-black text-brand-prussian tracking-tight">Upload Payment Slip</h1>
                     <p className="text-gray-500 font-medium mt-1">
-                        For class: <span className="font-bold text-brand-cerulean">{classData?.name || "Loading..."}</span>
+                        For: <span className="font-bold text-brand-cerulean">{classData?.name || "Loading..."}</span>
                     </p>
                 </div>
             </div>
@@ -292,11 +284,18 @@ export default function UploadPaymentSlip() {
                 
                 {/* 1. MONTH SELECTION (Conditional) */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Billing Month <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Billing Cycle <span className="text-red-500">*</span></label>
                     {isPreConfigured ? (
                         <div className="inline-flex items-center gap-2 bg-brand-aliceBlue/50 text-brand-prussian px-5 py-3 rounded-2xl text-sm font-bold border border-brand-aliceBlue w-full">
                             <CalendarDaysIcon className="w-5 h-5 text-brand-cerulean" />
-                            {format(new Date(selectedMonth), "MMMM yyyy")}
+                            
+                            {/* FIX: Avoid parsing 'Lifetime Access' as a Date */}
+                            {selectedMonth === "Lifetime Access" ? (
+                                "Lifetime Access"
+                            ) : (
+                                format(new Date(selectedMonth), "MMMM yyyy")
+                            )}
+                            
                             <span className="ml-auto text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded font-bold uppercase tracking-wider">Locked</span>
                         </div>
                     ) : (
@@ -349,7 +348,6 @@ export default function UploadPaymentSlip() {
                             <span className="text-xs font-bold uppercase tracking-widest">Add Extras</span>
                         </div>
                         <div className="space-y-3">
-                            {/* FIX: Use Type Guard Check */}
                             {isLinkedClass(classData?.linkedRevisionClass) && (
                                 <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all bg-white hover:shadow-sm ${includeRevision ? 'border-brand-cerulean ring-1 ring-brand-cerulean' : 'border-gray-200'}`}>
                                     <input type="checkbox" className="w-5 h-5 text-brand-cerulean rounded border-gray-300 focus:ring-brand-cerulean" checked={includeRevision} onChange={e => setIncludeRevision(e.target.checked)} />
@@ -357,7 +355,6 @@ export default function UploadPaymentSlip() {
                                     <span className="text-sm font-bold text-brand-prussian">+{formatPrice(classData!.linkedRevisionClass!.price)}</span>
                                 </label>
                             )}
-                            {/* FIX: Use Type Guard Check */}
                             {isLinkedClass(classData?.linkedPaperClass) && (
                                 <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all bg-white hover:shadow-sm ${includePaper ? 'border-brand-cerulean ring-1 ring-brand-cerulean' : 'border-gray-200'}`}>
                                     <input type="checkbox" className="w-5 h-5 text-brand-cerulean rounded border-gray-300 focus:ring-brand-cerulean" checked={includePaper} onChange={e => setIncludePaper(e.target.checked)} />

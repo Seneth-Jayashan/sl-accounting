@@ -15,7 +15,6 @@ const {
   ZOOM_TOKEN_CACHE_TTL = 3300, 
 } = process.env;
 
-// In-Memory Cache
 let tokenCache = {
   access_token: null,
   expires_at: 0,
@@ -23,17 +22,12 @@ let tokenCache = {
 
 // --- HELPERS ---
 
-/**
- * Get Server-to-Server OAuth Token
- * Grant Type: account_credentials
- */
+
 async function fetchAccessToken() {
-  // 1. Check Cache
   if (tokenCache.access_token && Date.now() < tokenCache.expires_at) {
     return tokenCache.access_token;
   }
 
-  // 2. Prepare Credentials
   if (!ZOOM_CLIENT_ID || !ZOOM_CLIENT_SECRET || !ZOOM_ACCOUNT_ID) {
     throw new Error("Missing Zoom API Credentials in .env");
   }
@@ -52,9 +46,7 @@ async function fetchAccessToken() {
       },
     });
 
-    // 3. Update Cache
     tokenCache.access_token = data.access_token;
-    // Expire 30 seconds early to avoid race conditions
     const ttlSeconds = data.expires_in || ZOOM_TOKEN_CACHE_TTL;
     tokenCache.expires_at = Date.now() + (ttlSeconds - 30) * 1000;
 
@@ -66,9 +58,7 @@ async function fetchAccessToken() {
   }
 }
 
-/**
- * Helper to make authenticated requests
- */
+
 async function zoomRequest(method, endpoint, data = null) {
   const token = await fetchAccessToken();
   try {
@@ -76,6 +66,7 @@ async function zoomRequest(method, endpoint, data = null) {
       method,
       url: `${ZOOM_API_BASE}${endpoint}`,
       data,
+      timeout: 5000, // 5 seconds timeout
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -83,12 +74,9 @@ async function zoomRequest(method, endpoint, data = null) {
     });
     return response.data;
   } catch (err) {
-    // 404 is often a valid "state" (e.g. deleting something that's gone)
-    // We let the caller handle it or throw a standardized error
     const status = err.response?.status;
     const errorData = err.response?.data;
     
-    // Attach status to error object for easy checking upstream
     const customError = new Error(errorData?.message || "Zoom API Error");
     customError.status = status;
     customError.details = errorData;
@@ -98,17 +86,10 @@ async function zoomRequest(method, endpoint, data = null) {
 
 // --- EXPORTED SERVICES ---
 
-/**
- * Create Meeting
- * @param {Object} sessionMeta 
- * { topic, start_time (ISO), duration (min), timezone, settings }
- */
 export async function createMeeting(sessionMeta = {}) {
   const userId = ZOOM_USER_ID || "me";
   const timezone = sessionMeta.timezone || "Asia/Colombo";
 
-  // Zoom requires "YYYY-MM-DDTHH:mm:ss" relative to the timezone provided.
-  // We use moment-tz to strip the offset and send strict "Wall Time".
   let formattedStartTime;
   if (sessionMeta.start_time) {
       formattedStartTime = moment(sessionMeta.start_time).tz(timezone).format("YYYY-MM-DDTHH:mm:ss");
@@ -128,7 +109,7 @@ export async function createMeeting(sessionMeta = {}) {
       waiting_room: false,
       auto_recording: "cloud", // Important for LMS
       approval_type: 2,        // 2 = No Registration Required
-      ...sessionMeta.settings, // Allow override
+      ...sessionMeta.settings,
     },
   };
 
@@ -136,7 +117,7 @@ export async function createMeeting(sessionMeta = {}) {
     return await zoomRequest("POST", `/users/${encodeURIComponent(userId)}/meetings`, body);
   } catch (err) {
     console.error("Create Meeting Failed:", err.message);
-    throw err; // Re-throw to controller
+    throw err; 
   }
 }
 
@@ -144,24 +125,21 @@ export async function createMeeting(sessionMeta = {}) {
  * Delete Meeting
  */
 export async function deleteMeeting(meetingId) {
-  if (!meetingId) return true; // Already "deleted" if null
+  if (!meetingId) return true; 
   try {
     await zoomRequest("DELETE", `/meetings/${encodeURIComponent(meetingId)}`);
     return true;
   } catch (err) {
-    if (err.status === 404) return true; // Treat 404 as success (already deleted)
+    if (err.status === 404) return true;
     console.error("Delete Meeting Failed:", err.message);
     throw err;
   }
 }
 
-/**
- * Update Meeting
- */
+
 export async function updateMeeting(meetingId, payload) {
   if (!meetingId) throw new Error("Meeting ID required");
   
-  // If updating time, ensure formatting matches Zoom requirement
   if (payload.start_time) {
      const tz = payload.timezone || "Asia/Colombo";
      payload.start_time = moment(payload.start_time).tz(tz).format("YYYY-MM-DDTHH:mm:ss");

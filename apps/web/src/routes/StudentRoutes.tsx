@@ -18,6 +18,11 @@ const KnowledgeBase = lazy(() => import("../pages/student/KnowledgeBasestudent")
 const Profile = lazy(() => import("../pages/student/profile/Profile"));
 const MyTutes = lazy(() => import("../pages/student/tutes/MyTutes"));
 const TakeQuiz = lazy(() => import("../pages/student/class/TakeQuiz"));
+const QuizHistory = lazy(() => import("../pages/student/quizzes/QuizHistory"));
+const QuizResult = lazy(() => import("../pages/student/quizzes/QuizResult"));
+import StudentLessonPacks from "../pages/student/lessonPacks/LessonPacks";
+import WatchLessonPack from "../pages/student/lessonPacks/WatchLessonPack";
+import LessonPackPaymentPage from "../pages/student/payments/LessonPackPaymentPage";
 
 export const StudentRoutes = () => {
   return (
@@ -33,6 +38,15 @@ export const StudentRoutes = () => {
           <Route path="class/:id" element={<ViewClass />} />
           <Route path="class/recording/:sessionId" element={<ViewRecording />} />
           <Route path="class/quizzes/start/:id" element={<TakeQuiz />} />
+
+          {/* Quiz History & Results */}
+          <Route path="quizzes/history" element={<QuizHistory />} />
+          <Route path="quizzes/result/:id" element={<QuizResult />} />
+
+          {/* Lesson Packs */}
+          <Route path="lesson-packs" element={<StudentLessonPacks />} />
+          <Route path="lesson-packs/:id" element={<WatchLessonPack />} />
+          <Route path="/payment/lesson-pack/:id" element={<LessonPackPaymentPage />} />
 
           {/* Enrollment & Payments */}
           <Route path="enrollment" element={<ViewEnrollment />} />

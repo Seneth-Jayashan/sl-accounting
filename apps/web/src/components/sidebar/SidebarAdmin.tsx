@@ -62,10 +62,11 @@ const MENU_STRUCTURE: NavSection[] = [
     items: [
       { key: "announcements", label: "Announcements", href: "/admin/announcements", icon: MegaphoneIcon },
       { key: "batches", label: "Batches", href: "/admin/batches", icon: ClipboardDocumentCheckIcon },
-      { key: "classes", label: "Classes", href: "/admin/classes", icon: AcademicCapIcon },
+      { key: "classes", label: "Live Classes", href: "/admin/classes", icon: AcademicCapIcon },
       { key: "materials", label: "Materials", href: "/admin/materials", icon: BookOpenIcon },
       { key: "sessions", label: "Sessions", href: "/admin/sessions", icon: BookOpenIcon },
       { key: "quizzes", label: "Quizzes", href: "/admin/quizzes", icon: ClipboardDocumentCheckIcon },
+      { key: "lesson-packs", label: "Lesson Packs", href: "/admin/lesson-packs", icon: BookOpenIcon },
     ],
   },
   {

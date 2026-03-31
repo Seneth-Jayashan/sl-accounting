@@ -111,7 +111,9 @@ if (data.name) formData.append("name", data.name);
   if (data.sessionDurationMinutes !== undefined) formData.append("sessionDurationMinutes", String(data.sessionDurationMinutes));
   if (data.level) formData.append("level", data.level);
   if (data.isPublished !== undefined) formData.append("isPublished", String(Boolean(data.isPublished)));
-  if (data.tags && Array.isArray(data.tags)) formData.append("tags", JSON.stringify(data.tags));
+  if (data.tags && Array.isArray(data.tags)) {
+      data.tags.forEach((tag) => formData.append("tags", tag));
+  }
   if (data.timeSchedules && Array.isArray(data.timeSchedules)) formData.append("timeSchedules", JSON.stringify(data.timeSchedules));
   if (data.coverImage) formData.append("coverImage", data.coverImage);
   if (data.images && Array.isArray(data.images)) data.images.forEach((file) => formData.append("images", file));
@@ -144,13 +146,11 @@ const ClassService = {
   createClass: async (data: CreateClassPayload) => {
     const formData = buildClassFormData(data);
     
-    const response = await api.post<ClassResponse>(BASE_URL, formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data" 
-        }
+    const response = await api.post<ClassResponse>(BASE_URL, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
       }
-    );
+    });
     return response.data;
   },
 
@@ -189,7 +189,7 @@ const ClassService = {
   updateClassRecording: async (id: string, recordingId: string, payload: { name?: string; url?: string }) => {
     const response = await api.patch<{ success: boolean; message: string; recording: ClassRecording }>(
       `${BASE_URL}/${id}/recordings/${recordingId}`,
-      payload
+      payload,
     );
     return response.data;
   },
@@ -216,13 +216,11 @@ const ClassService = {
     if (hasFiles) {
       const formData = buildClassFormData(data);
 
-      const response = await api.patch<ClassResponse>(`${BASE_URL}/${id}`, formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data" 
-          }
+      const response = await api.patch<ClassResponse>(`${BASE_URL}/${id}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
         }
-      );
+      });
 
       return response.data;
     } else {

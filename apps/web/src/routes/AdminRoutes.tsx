@@ -32,6 +32,9 @@ const Quizzes = lazy(() => import("../pages/admin/quizzes/Quizzes"));
 const CreateQuiz = lazy(() => import("../pages/admin/quizzes/CreateQuiz"));
 const ViewQuiz = lazy(() => import("../pages/admin/quizzes/ViewQuiz"));
 const UpdateQuiz = lazy(() => import("../pages/admin/quizzes/UpdateQuiz"));
+import QuizAnalytics from "../pages/admin/quizzes/QuizAnalytics";
+import AdminSubmissionReview from "../pages/admin/quizzes/AdminSubmissionReview";
+import LessonPacks from "../pages/admin/lessonPacks/LessonPacks";
 
 export const AdminRoutes = () => {
   return (
@@ -66,10 +69,15 @@ export const AdminRoutes = () => {
           <Route path="quizzes/create" element={<CreateQuiz />} />
           <Route path="quizzes/view/:id" element={<ViewQuiz />} />
           <Route path="quizzes/edit/:id" element={<UpdateQuiz />} />
+          <Route path="quizzes/analytics/:id" element={<QuizAnalytics />} />
+          <Route path="quizzes/submission/:id" element={<AdminSubmissionReview />} />
 
           {/* Batches */}
           <Route path="batches" element={<Batches />} />
           <Route path="batches/view/:id" element={<ViewBatch />} />
+
+          {/* Lesson Packs */}
+          <Route path="lesson-packs" element={<LessonPacks />} />
 
           {/* Announcements */}
           <Route path="announcements" element={<Announcements />} />

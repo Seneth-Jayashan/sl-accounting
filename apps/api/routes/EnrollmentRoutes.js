@@ -6,7 +6,8 @@ import {
   deleteEnrollment,
   checkEnrollment,
   getAllEnrollments,
-  getMyEnrollments
+  getMyEnrollments,
+  enrollInLessonPack
 } from "../controllers/EnrollmentController.js";
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 
@@ -29,6 +30,8 @@ router.get("/my-enrollments", getMyEnrollments);
 
 // Get All Enrollments (Admin Only)
 router.get("/", restrictTo("admin"), getAllEnrollments);
+
+router.post("/lesson-pack", restrictTo("student"), enrollInLessonPack);
 
 
 // ==========================================

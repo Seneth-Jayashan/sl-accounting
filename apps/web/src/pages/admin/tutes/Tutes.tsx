@@ -559,7 +559,7 @@ function DeliveryRow({ delivery, currentTab, onDispatch }: { delivery: TuteDeliv
                       </div>
                   )}
                   <div className="text-[9px] text-gray-400 mt-0.5">
-                      {new Date(delivery.sentAt!).toLocaleDateString()}
+                      {delivery.sentAt ? new Date(delivery.sentAt).toLocaleDateString() : "Date Unknown"}
                   </div>
               </div>
           </td>
@@ -631,7 +631,7 @@ function MobileDeliveryCard({ delivery, currentTab, onDispatch }: { delivery: Tu
                     </div>
                     <div className="flex justify-between items-end mt-2">
                         <div className="text-[10px] text-gray-400">
-                            Sent on {new Date(delivery.sentAt!).toLocaleDateString()}
+                            Sent on {delivery.sentAt ? new Date(delivery.sentAt).toLocaleDateString() : "Date Unknown"}
                         </div>
                         {currentTab === 'delivered' && (
                              <span className="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">

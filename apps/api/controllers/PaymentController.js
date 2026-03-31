@@ -31,9 +31,8 @@ const formatPayHereAmount = (amount) => {
 
 const createTuteDeliveryRecord = async (payment, enrollmentId, targetMonth) => {
     try {
-        if (!targetMonth) return; // Only physical tutes for monthly payments
+        if (!targetMonth) return;
         
-        // Check if delivery record already exists for this month
         const exists = await TuteDelivery.findOne({ 
             enrollment: enrollmentId, 
             targetMonth: targetMonth 
@@ -41,7 +40,6 @@ const createTuteDeliveryRecord = async (payment, enrollmentId, targetMonth) => {
 
         if (exists) return;
 
-        // Fetch student details for address snapshot
         const enrollment = await Enrollment.findById(enrollmentId).populate('student');
         if (!enrollment) return;
 
@@ -68,33 +66,40 @@ const createTuteDeliveryRecord = async (payment, enrollmentId, targetMonth) => {
  * Handles 'targetMonth' to correctly extend access dates.
  */
 const approveBundleEnrollments = async (primaryEnrollmentId, paymentId, paymentDate, targetMonth) => {
-    // 1. Fetch Primary Enrollment
+    // 1. Populate 'class' to check for bundles
     const primary = await Enrollment.findById(primaryEnrollmentId).populate('class');
     if (!primary) return;
 
-    // 2. Mark Primary as Paid (Pass targetMonth)
+    // 2. Always mark the main enrollment as paid (Works for both Class and Lesson Pack)
     await primary.markPaid(paymentDate, paymentId, targetMonth);
 
-    // 3. Identify Linked Bundles
+    // 3. --- CRITICAL FIX: Check if class exists ---
     const classDoc = primary.class;
+    
+    // If there is no class (it's a Lesson Pack), stop here. 
+    // Lesson Packs don't have "bundle siblings" like Revision or Paper classes.
+    if (!classDoc) {
+        console.log(`Lesson Pack Approval: Paid Enrollment ${primary._id} (Lifetime Access).`);
+        return;
+    }
+
+    // 4. Standard Class Bundle Logic
     const bundleClassIds = [];
     if (classDoc.linkedRevisionClass) bundleClassIds.push(classDoc.linkedRevisionClass);
     if (classDoc.linkedPaperClass) bundleClassIds.push(classDoc.linkedPaperClass);
 
     if (bundleClassIds.length === 0) return;
 
-    // 4. Find Sibling Enrollments
+    // Find and update the linked Revision/Paper class enrollments for the same student
     const siblings = await Enrollment.find({
         student: primary.student,
         class: { $in: bundleClassIds }
     });
 
-    // 5. Mark Siblings as Paid (Pass targetMonth)
     for (const sibling of siblings) {
         await sibling.markPaid(paymentDate, paymentId, targetMonth);
     }
     
-    console.log(`Bundle Approval: Paid Primary ${primary._id} and ${siblings.length} siblings for ${targetMonth || 'current month'}.`);
 };
 
 
@@ -147,8 +152,8 @@ export const payHereWebhook = async (req, res) => {
       payhere_currency,
       status_code,
       md5sig,
-      custom_1, // Enrollment ID
-      custom_2, // Target Month (YYYY-MM)
+      custom_1, 
+      custom_2,
       payment_id
     } = req.body;
 
@@ -213,14 +218,18 @@ export const payHereWebhook = async (req, res) => {
 
     const enrollment = await Enrollment.findById(payment.enrollment)
       .populate('student', 'firstName phoneNumber') 
-      .populate('class', 'name');;
+      .populate('class', 'name');
 
-    await sendPaymentReceiptSms(
-        enrollment.student.phoneNumber,
-        payment.amount,
-        enrollment.class.name,
-        order_id
-    ).catch(err => console.error("Failed to send payment receipt SMS:", err));
+    if (enrollment && enrollment.student && enrollment.class) {
+        await sendPaymentReceiptSms(
+            enrollment.student.phoneNumber,
+            payment.amount,
+            enrollment.class.name,
+            order_id
+        ).catch(err => console.error("Failed to send payment receipt SMS:", err));
+    } else {
+        console.warn(`Webhook Success: Payment ${payment._id} processed, but Enrollment/Student was missing. SMS skipped.`);
+    }
 
     return res.status(200).send("OK");
 
@@ -234,16 +243,16 @@ export const uploadPaymentSlip = async (req, res) => {
   try {
     const { enrollmentId, amount, notes, targetMonth } = req.body;
 
-    // 1. Input Validation
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    // 1. Check for file
+    if (!req.file) return res.status(400).json({ message: "No file uploaded. Check FormData field name." });
     if (!enrollmentId) return res.status(400).json({ message: "Enrollment ID required" });
     if (!amount) return res.status(400).json({ message: "Paid Amount required" });
 
-    // 2. Check if Enrollment exists BEFORE saving payment
-    // Using distinct populate syntax: path first, then select fields
+    // 2. Populate BOTH class and lessonPack to avoid crashes
     const enrollment = await Enrollment.findById(enrollmentId)
       .populate('student', 'firstName phoneNumber') 
-      .populate('class', 'name');
+      .populate('class', 'name')
+      .populate('lessonPack', 'title'); // <--- CRITICAL FIX
 
     if (!enrollment) {
       return res.status(404).json({ message: "Enrollment not found" });
@@ -251,7 +260,6 @@ export const uploadPaymentSlip = async (req, res) => {
 
     const filePath = `/uploads/images/payments/${req.file.filename}`;
 
-    // 3. Create Payment Record
     const payment = new Payment({
       enrollment: enrollmentId,
       amount: amount,
@@ -269,12 +277,20 @@ export const uploadPaymentSlip = async (req, res) => {
     enrollment.paymentStatus = "pending";
     await enrollment.save();
 
+    // 3. Safely determine the item name for the SMS
+    let itemName = "Premium Item";
+    if (enrollment.class && enrollment.class.name) {
+        itemName = enrollment.class.name;
+    } else if (enrollment.lessonPack && enrollment.lessonPack.title) {
+        itemName = enrollment.lessonPack.title;
+    }
+
     try {
         await sendAdminPaymentNotificationSms(
             adminPhoneNumber,
-            enrollment.student.firstName, // Ensure student is populated
+            enrollment.student.firstName,
             amount,
-            enrollment.class.name,        // Ensure class is populated
+            itemName, // <--- Safely passes Class Name OR Playlist Title
             payment._id
         );
     } catch (smsError) {
@@ -333,13 +349,10 @@ export const updatePaymentStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body; 
 
-    // 1. Validation
     if (!["completed", "failed", "pending"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    // 2. Find and Populate
-    // We must populate enrollment -> student AND enrollment -> class to get phone/names
     const payment = await Payment.findById(id).populate({
       path: 'enrollment',
       populate: { path: 'student class' } 
@@ -347,19 +360,13 @@ export const updatePaymentStatus = async (req, res) => {
 
     if (!payment) return res.status(404).json({ message: "Payment not found" });
 
-    // 3. Update Status
     payment.status = status;
     payment.verified = (status === "completed");
     
-    // 4. Save Changes FIRST (Before sending SMS)
     await payment.save();
 
-    // 5. Handle "Completed" Logic (SMS + Bundle Unlock)
-    if (status === "completed" && payment.enrollment) {
+    if (status === "completed" && payment.enrollment && !payment.enrollment?.lessonPack) {
         
-        // A. Trigger Bundle Logic
-        // payment.enrollment is now an Object (due to populate). 
-        // If approveBundleEnrollments expects an ID, pass payment.enrollment._id
         await approveBundleEnrollments(
             payment.enrollment._id, 
             payment._id, 
@@ -369,12 +376,13 @@ export const updatePaymentStatus = async (req, res) => {
 
         await createTuteDeliveryRecord(payment, payment.enrollment._id, payment.targetMonth);
 
-        // B. Send SMS (Non-blocking)
+        if (payment.enrollment && payment.enrollment.student && payment.enrollment.class) {
         sendPaymentVerifiedSms(
             payment.enrollment.student.phoneNumber,
             payment.amount,
             payment.enrollment.class.name
         ).catch(err => console.error("Failed to send payment verified SMS:", err));
+    }
     }
 
     res.json({ success: true, payment });
@@ -385,7 +393,6 @@ export const updatePaymentStatus = async (req, res) => {
   }
 };
 
-// ... (getPaymentById, listPayments, getMyPayments remain same)
 export const getPaymentById = async (req, res) => {
     try {
       const payment = await Payment.findById(req.params.id)
@@ -416,7 +423,9 @@ export const listPayments = async (req, res) => {
           path: "enrollment",
           populate: [
             { path: "student", select: "firstName lastName email" },
-            { path: "class", select: "name" }
+            { path: "class", select: "name" },
+            { path: "lessonPack", select: "title" }
+
           ]
         });
   
@@ -464,56 +473,47 @@ export const getPaymentReport = async (req, res) => {
         query.enrollment = { $in: enrollments.map(e => e._id) };
     }
 
-    // --- Date Filtering Logic ---
-    const now = new Date();
+    const current = moment();
     let start, end;
 
-    // Only apply date filters if NOT 'all_time'
     if (filterType !== 'all_time') {
         switch (filterType) {
             case "today":
-                start = new Date(now.setHours(0,0,0,0));
-                end = new Date(now.setHours(23,59,59,999));
+                start = current.clone().startOf('day').toDate();
+                end = current.clone().endOf('day').toDate();
                 break;
             case "this_week":
-                const day = now.getDay() || 7; 
-                if(day !== 1) now.setHours(-24 * (day - 1)); 
-                start = new Date(now.setHours(0,0,0,0));
-                end = new Date(); 
+                start = current.clone().startOf('isoWeek').toDate(); // Starts on Monday
+                end = current.clone().endOf('day').toDate();
                 break;
             case "last_week":
-                start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7); // Simplified
-                end = now;
+                start = current.clone().subtract(1, 'week').startOf('isoWeek').toDate();
+                end = current.clone().subtract(1, 'week').endOf('isoWeek').toDate();
                 break;
             case "this_month":
-                start = new Date(now.getFullYear(), now.getMonth(), 1);
-                end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                start = current.clone().startOf('month').toDate();
+                end = current.clone().endOf('month').toDate();
                 break;
             case "last_month":
-                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                end = new Date(now.getFullYear(), now.getMonth(), 0);
+                start = current.clone().subtract(1, 'month').startOf('month').toDate();
+                end = current.clone().subtract(1, 'month').endOf('month').toDate();
                 break;
             case "custom":
                 if (startDate && endDate) {
-                    start = new Date(startDate);
-                    end = new Date(endDate);
-                    end.setHours(23, 59, 59, 999); 
+                    start = moment(startDate).startOf('day').toDate();
+                    end = moment(endDate).endOf('day').toDate();
                 }
                 break;
             default:
-                // If no filter provided, default to 'this_month' to be safe, 
-                // BUT if frontend sends 'all_time', we skip this switch entirely.
-                start = new Date(now.getFullYear(), now.getMonth(), 1);
-                end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                start = current.clone().startOf('month').toDate();
+                end = current.clone().endOf('month').toDate();
         }
     }
 
-    // Apply Date Query only if start/end exist
     if (start && end) {
         query.paymentDate = { $gte: start, $lte: end };
     }
 
-    // --- Execute Query ---
     const payments = await Payment.find(query)
         .populate({
             path: "enrollment",
@@ -525,10 +525,8 @@ export const getPaymentReport = async (req, res) => {
         })
         .sort({ paymentDate: -1 });
 
-    // --- Summarize Data ---
     const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
     
-    // For 'all_time', we might not have a precise start/end, so we can send null or the range of data found
     const periodStart = start || (payments.length > 0 ? payments[payments.length-1].paymentDate : new Date());
     const periodEnd = end || (payments.length > 0 ? payments[0].paymentDate : new Date());
 

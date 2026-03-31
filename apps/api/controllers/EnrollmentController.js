@@ -2,24 +2,22 @@ import mongoose from "mongoose";
 import Enrollment from "../models/Enrollment.js";
 import User from "../models/User.js";
 import Class from "../models/Class.js";
-import { format } from "date-fns"; // Recommended for consistent formatting
+import { format } from "date-fns";
 import { sendEnrollmentConfirmationSms } from "../utils/sms/Template.js";
-
+import LessonPack from "../models/LessonPack.js";
 // --- HELPERS ---
 
-const getEndOfMonth = (date) => {
+export const getEndOfMonth = (date) => {
   const d = new Date(date);
   return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 };
 
 // --- CONTROLLERS ---
 
-/**
- * CREATE OR RETRIEVE ENROLLMENT (Supports Bundles & Month Selection)
- */
+
 export const createEnrollment = async (req, res) => {
   const session = await mongoose.startSession();
-  let smsQueue = []; // To store SMS data outside the retry loop
+  let smsQueue = [];
 
   try {
     const { 
@@ -31,29 +29,24 @@ export const createEnrollment = async (req, res) => {
 
     const studentId = req.user.role === 'admin' ? (req.body.student || req.user._id) : req.user._id;
 
-    // --- START OF AUTOMATIC RETRY BLOCK ---
     const transactionResult = await session.withTransaction(async () => {
-        // Reset SMS queue in case the transaction retries (prevents duplicate SMS data)
         smsQueue = []; 
 
-        // 1. Fetch Main Class
         const mainClass = await Class.findById(classId)
             .populate('linkedRevisionClass')
             .populate('linkedPaperClass')
             .session(session);
 
         if (!mainClass) {
-            throw new Error("CLASS_NOT_FOUND"); // Custom error to break transaction
+            throw new Error("CLASS_NOT_FOUND");
         }
 
-        // 2. Identify classes
         const classesToEnroll = [mainClass]; 
         if (includeRevision && mainClass.linkedRevisionClass) classesToEnroll.push(mainClass.linkedRevisionClass);
         if (includePaper && mainClass.linkedPaperClass) classesToEnroll.push(mainClass.linkedPaperClass);
 
         const processedEnrollments = [];
 
-        // 3. Process Enrollments
         for (const cls of classesToEnroll) {
             let enrollment = await Enrollment.findOne({ 
                 student: studentId, 
@@ -73,12 +66,10 @@ export const createEnrollment = async (req, res) => {
                 });
                 await enrollment.save({ session });
 
-                // THE CONFLICT SOURCE: Updating the Class document
                 await Class.findByIdAndUpdate(cls._id, { 
                     $addToSet: { students: studentId } 
                 }).session(session);
 
-                // Queue SMS (but don't send yet)
                 smsQueue.push({
                     phone: req.user.phoneNumber,
                     className: cls.name
@@ -87,7 +78,6 @@ export const createEnrollment = async (req, res) => {
             processedEnrollments.push(enrollment);
         }
 
-        // 4. Calculate Price
         let totalAmount = mainClass.price || 0; 
         if (includeRevision && includePaper) {
             totalAmount = mainClass.bundlePriceFull ?? (mainClass.price + (mainClass.linkedRevisionClass?.price || 0) + (mainClass.linkedPaperClass?.price || 0));
@@ -97,26 +87,21 @@ export const createEnrollment = async (req, res) => {
             totalAmount = mainClass.bundlePricePaper ?? (mainClass.price + (mainClass.linkedPaperClass?.price || 0));
         }
 
-        // Return data needed for the response
         return {
             processedEnrollments,
             totalAmount,
             mainClassId: mainClass._id
         };
     });
-    // --- END OF TRANSACTION BLOCK ---
 
-    // End session immediately after success
     await session.endSession();
 
-    // 5. Send SMS (Non-blocking, outside transaction)
     if (smsQueue.length > 0) {
         Promise.allSettled(smsQueue.map(item => 
             sendEnrollmentConfirmationSms(item.phone, item.className)
         )).catch(e => console.error("Background SMS Error:", e));
     }
 
-    // 6. Prepare Response
     const { processedEnrollments, totalAmount, mainClassId } = transactionResult;
     const primaryEnrollment = processedEnrollments.find(e => e.class.toString() === mainClassId.toString());
 
@@ -137,7 +122,6 @@ export const createEnrollment = async (req, res) => {
   } catch (err) {
     await session.endSession();
     
-    // Handle Custom Errors
     if (err.message === "CLASS_NOT_FOUND") {
         return res.status(404).json({ message: "Class not found" });
     }
@@ -147,9 +131,6 @@ export const createEnrollment = async (req, res) => {
   }
 };
 
-/**
- * GET ENROLLMENT BY ID
- */
 export const getEnrollmentById = async (req, res) => {
   try {
     const enrollment = await Enrollment.findById(req.params.id)
@@ -175,9 +156,6 @@ export const getEnrollmentById = async (req, res) => {
   }
 };
 
-/**
- * GET ALL ENROLLMENTS (Admin)
- */
 export const getAllEnrollments = async (req, res) => {
   try {
     const { classId, studentId, paymentStatus } = req.query;
@@ -199,15 +177,14 @@ export const getAllEnrollments = async (req, res) => {
   }
 };
 
-/**
- * GET MY ENROLLMENTS
- */
 export const getMyEnrollments = async (req, res) => {
   try {
     const enrollments = await Enrollment.find({ student: req.user._id })
       .populate("class", "name price coverImage description")
       .populate("lastPayment")
+      .populate("lessonPack", "title price coverImage description")
       .sort({ createdAt: -1 });
+
 
     res.json(enrollments);
   } catch (err) {
@@ -216,9 +193,6 @@ export const getMyEnrollments = async (req, res) => {
   }
 };
 
-/**
- * CHECK STATUS
- */
 export const checkEnrollment = async (req, res) => {
   try {
     const { classId } = req.query;
@@ -233,16 +207,13 @@ export const checkEnrollment = async (req, res) => {
         enrollmentId: exists?._id || null,
         paymentStatus: exists?.paymentStatus || null,
         isActive: exists?.isActive || false,
-        paidMonths: exists?.paidMonths || [] // Include history here too
+        paidMonths: exists?.paidMonths || []
     });
   } catch (err) {
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-/**
- * UPDATE ENROLLMENT (Admin)
- */
 export const updateEnrollment = async (req, res) => {
   try {
     const { paymentStatus, accessEndDate } = req.body;
@@ -253,7 +224,6 @@ export const updateEnrollment = async (req, res) => {
       return res.status(404).json({ message: "Enrollment not found" });
     }
 
-    // 1. Handle Payment Approval
     if (paymentStatus === "paid") {
         const paymentDate = new Date();
         
@@ -267,8 +237,6 @@ export const updateEnrollment = async (req, res) => {
             enrollment.accessEndDate = getEndOfMonth(paymentDate);
         }
 
-        // Logic: Add paid month to history
-        // If admin manually approves, we assume it's for the month of the accessEndDate
         const monthString = format(enrollment.accessEndDate, "yyyy-MM");
         if (!enrollment.paidMonths.includes(monthString)) {
             enrollment.paidMonths.push(monthString);
@@ -278,7 +246,6 @@ export const updateEnrollment = async (req, res) => {
         nextPay.setDate(nextPay.getDate() + 1); 
         enrollment.nextPaymentDate = nextPay;
     } 
-    // 2. Handle Revocation / Expiry
     else if (paymentStatus === "expired" || paymentStatus === "unpaid") {
         enrollment.paymentStatus = paymentStatus;
         enrollment.isActive = false;
@@ -296,20 +263,81 @@ export const updateEnrollment = async (req, res) => {
   }
 };
 
-/**
- * DELETE ENROLLMENT
- */
 export const deleteEnrollment = async (req, res) => {
   try {
-    const deletedEnrollment = await Enrollment.findByIdAndDelete(req.params.id);
-
-    if (!deletedEnrollment) {
+    const enrollment = await Enrollment.findById(req.params.id);
+    if (!enrollment) {
       return res.status(404).json({ message: "Enrollment not found" });
     }
+
+    await Class.findByIdAndUpdate(enrollment.class, {
+      $pull: { students: enrollment.student }
+    });
+
+    await enrollment.deleteOne();
 
     res.json({ message: "Enrollment deleted successfully" });
   } catch (err) {
     console.error("Error deleting enrollment:", err);
     res.status(500).json({ message: "Server error" });
   }
+};
+
+export const enrollInLessonPack = async (req, res) => {
+    try {
+        const { lessonPack } = req.body;
+        const studentId = req.user._id;
+
+        // 1. Validate the Lesson Pack exists
+        const pack = await LessonPack.findById(lessonPack);
+        if (!pack) {
+            return res.status(404).json({ success: false, message: "Lesson Pack not found." });
+        }
+
+        if (!pack.isPublished) {
+            return res.status(403).json({ success: false, message: "This Lesson Pack is not currently available for purchase." });
+        }
+
+        // 2. Check if the student is already enrolled
+        let existingEnrollment = await Enrollment.findOne({
+            student: studentId,
+            lessonPack: pack._id
+        });
+
+        if (existingEnrollment) {
+            // If they are already enrolled (but maybe haven't paid yet), 
+            // return the existing record so the frontend can send them to the payment gateway.
+            return res.status(200).json({
+                success: true,
+                message: "Enrollment record retrieved.",
+                enrollment: existingEnrollment,
+                totalAmount: pack.price
+            });
+        }
+
+        // 3. Create a new enrollment record
+        // Smart Feature: If the admin set the price to 0, grant instant access!
+        const isFree = pack.price === 0;
+
+        const newEnrollment = await Enrollment.create({
+            student: studentId,
+            lessonPack: pack._id,
+            paymentStatus: isFree ? "paid" : "pending",
+            isActive: isFree,
+            enrollmentDate: new Date(),
+            subscriptionType: "one-time", // Differentiates it from monthly classes
+            paidMonths: [] // Not used for lifetime lesson packs, but keeps schema happy
+        });
+
+        res.status(201).json({
+            success: true,
+            message: isFree ? "Successfully enrolled!" : "Enrollment created. Pending payment.",
+            enrollment: newEnrollment,
+            totalAmount: pack.price
+        });
+
+    } catch (error) {
+        console.error("Lesson Pack Enrollment Error:", error);
+        res.status(500).json({ success: false, message: "Failed to process enrollment." });
+    }
 };

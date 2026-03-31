@@ -28,7 +28,6 @@ const phoneRegex = /^(\+94|0)?7\d{8}$/;
 // 2. SCHEMAS
 // ==========================================
 
-// Create User Schema (For Admin "Add Student")
 export const createUserSchema = z.object({
   body: z.object({
     firstName: z.string().trim().min(1, "First name is required").max(50),
@@ -38,11 +37,9 @@ export const createUserSchema = z.object({
     phoneNumber: z.string().trim().regex(phoneRegex, "Invalid SL phone number"),
     role: z.enum(["student", "admin"]).optional(),
     
-    // Optional fields (Backend handles auto-generation/defaults)
     regNo: z.string().optional(),
     batch: z.string().optional(),
     
-    // Address can be string or object
     address: z.union([
         z.string(), 
         z.object({ 
@@ -55,7 +52,6 @@ export const createUserSchema = z.object({
   }),
 });
 
-// Update Profile Schema
 export const updateProfileSchema = z.object({
   body: z.object({
     firstName: z.string().trim().min(1).max(50).optional(),
@@ -74,7 +70,6 @@ export const updateProfileSchema = z.object({
   }),
 });
 
-// Security Update Schemas
 export const updateEmailSchema = z.object({
   body: z.object({
     email: gmailValidator,
@@ -86,56 +81,3 @@ export const updatePasswordSchema = z.object({
     newPassword: passwordValidator,
   }),
 });
-
-// ==========================================
-// 3. ROBUST MIDDLEWARE (Fixes the crash)
-// ==========================================
-
-export const validate = (schema) => (req, res, next) => {
-  try {
-    // 1. Safe Parse
-    const result = schema.safeParse({
-      body: req.body,
-      query: req.query,
-      params: req.params,
-    });
-
-    // 2. Handle Failure
-    if (!result.success) {
-      
-      // Safety Check: Ensure 'errors' array exists
-      const zodErrors = result.error.errors || [];
-
-      const formattedErrors = zodErrors.map((e) => {
-        // e.path is like ['body', 'password']. slice(1) removes 'body'.
-        const fieldPath = e.path.length > 1 ? e.path.slice(1).join(".") : e.path.join(".");
-        
-        return {
-          field: fieldPath,
-          message: e.message,
-        };
-      });
-
-      // Log for debugging on server console
-      // console.log("Validation Failed:", formattedErrors);
-
-      return res.status(400).json({
-        success: false,
-        // Show the first error message as the main alert message
-        message: formattedErrors.length > 0 ? formattedErrors[0].message : "Validation Error",
-        errors: formattedErrors,
-      });
-    }
-
-    // 3. Handle Success (Assign cleaned data)
-    if (result.data.body) req.body = result.data.body;
-    if (result.data.query) req.query = result.data.query;
-    if (result.data.params) req.params = result.data.params;
-
-    next();
-
-  } catch (err) {
-    console.error("Validator System Error:", err);
-    return res.status(500).json({ success: false, message: "Internal Validator Error" });
-  }
-};

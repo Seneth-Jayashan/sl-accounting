@@ -32,6 +32,11 @@ export interface EnrollmentResponse {
   createdAt: string;
   updatedAt: string;
   paidMonths: string[];
+  lessonPack?: {
+    _id: string;
+    title: string;
+    price: number;
+  };
 }
 
 // Response from Creating Enrollment (Includes totalAmount for payment)
@@ -166,6 +171,14 @@ const EnrollmentService = {
    */
   deleteEnrollment: async (id: string) => {
     const response = await api.delete<{ success: boolean; message: string }>(`${BASE_URL}/${id}`);
+    return response.data;
+  },
+
+  // Add this inside EnrollmentService in EnrollmentService.ts
+  enrollInLessonPack: async (lessonPackId: string) => {
+    const response = await api.post("/enrollments/lesson-pack", {
+      lessonPack: lessonPackId
+    });
     return response.data;
   },
 };

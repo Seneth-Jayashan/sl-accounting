@@ -11,11 +11,9 @@ import { fileURLToPath } from 'url';
 
 // --- JOBS ---
 import startSessionGenerator from "./jobs/SessionGenerator.js";
-// Optional: Import Enrollment Cron if you used that too
-// import startEnrollmentCron from "./jobs/EnrollmentCron.js"; 
+import startEnrollmentCron from './jobs/EnrollmentCron.js';
 
 dotenv.config();
-// Import Router synchronously to avoid top-level await issues in some environments
 import apiRouter from './Router.js';
 
 const app = express();
@@ -25,10 +23,9 @@ const __dirname = path.dirname(__filename);
 // ==========================================
 // 0. INITIALIZE BACKGROUND JOBS
 // ==========================================
-// Start the Cron Job to auto-generate Zoom sessions for infinite classes
 try {
-    startSessionGenerator();    
-    // startEnrollmentCron(); // If you want to use the enrollment expiry job
+    startSessionGenerator();
+    startEnrollmentCron();    
 } catch (err) {
     console.error("❌ Background Job Error:", err);
 }
@@ -36,17 +33,12 @@ try {
 // ==========================================
 // 1. SECURITY & PROXY CONFIG
 // ==========================================
-
-// Trust the first proxy (NGINX/Heroku/Vercel)
 app.set('trust proxy', 1);
 
-// Helmet: Secure HTTP Headers
-// Cross-Origin Resource Policy: "cross-origin" allows frontend to load images/videos from this API
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS: Allow configured frontend origins (supports comma-separated list)
 const parseOrigins = (raw) =>
   (raw || "")
     .split(",")
@@ -56,7 +48,6 @@ const parseOrigins = (raw) =>
 const CLIENT_ORIGINS = parseOrigins(process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN) || ["http://localhost:5173"];
 
 const corsOrigin = (origin, callback) => {
-  // Allow same-origin / tools with no Origin header (e.g., curl, health checks)
   if (!origin) return callback(null, true);
   if (CLIENT_ORIGINS.includes(origin)) return callback(null, true);
   return callback(new Error(`CORS blocked for origin: ${origin}`));
@@ -64,12 +55,11 @@ const corsOrigin = (origin, callback) => {
 
 app.use(cors({
   origin: corsOrigin,
-  credentials: true, // Allow cookies
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Rate Limiting: Prevent Brute Force / DDoS
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 300, // Limit each IP to 300 requests per window
@@ -77,13 +67,13 @@ const limiter = rateLimit({
   legacyHeaders: false, // Disable X-RateLimit-* headers
   message: { message: "Too many requests from this IP, please try again later." }
 });
-app.use('/api', limiter); // Apply only to API routes, not static files
+app.use('/api', limiter); 
 
 // ==========================================
 // 2. PARSERS & LOGGING
 // ==========================================
 
-app.use(express.json({ limit: '15mb' })); // Increased limit for base64/files if needed
+app.use(express.json({ limit: '15mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(cookieParser());
 
@@ -96,35 +86,28 @@ if (process.env.NODE_ENV !== 'production') {
 // 3. STATIC FILES
 // ==========================================
 
-// Serve uploaded files publicly (e.g., Profile Pictures)
-// Security Note: Ensure no sensitive docs (NICs/Slips) are stored here.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ==========================================
 // 4. ROUTING
 // ==========================================
 
-// System Health Checks (No Rate Limit)
 app.get('/health', (req, res) => res.status(200).json({ status: 'UP', timestamp: new Date() }));
 app.get('/api/version', (req, res) => res.json({ name: 'LMS-API', version: process.env.LMS_API_VERSION || '1.0.0' }));
 
-// Main API Router
 app.use('/api/v1', apiRouter);
 
 // ==========================================
 // 5. ERROR HANDLING
 // ==========================================
 
-// 404 Handler
 app.use((req, res, next) => {
   next(createError(404, `Route not found: ${req.originalUrl}`));
 });
 
-// Global Error Handler
 app.use((err, req, res, next) => {
   const status = err.status || 500;
   
-  // Log critical server errors
   if (status === 500) console.error("🔥 Server Error:", err);
 
   res.status(status).json({

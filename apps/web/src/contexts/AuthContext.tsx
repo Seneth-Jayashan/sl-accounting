@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { api, setAccessToken } from "../services/api";
+import ReactHotToast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
@@ -99,6 +100,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener("auth:session-expired", handleSessionExpired);
   }, [logout]);
 
+  useEffect(() => {
+    const handleTokenRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      setAccessTokenState(customEvent.detail);
+    };
+
+    window.addEventListener("auth:token-refreshed", handleTokenRefresh);
+    return () => window.removeEventListener("auth:token-refreshed", handleTokenRefresh);
+  }, []);
+
   // INITIALIZATION: Restore Session
   useEffect(() => {
     const initializeAuth = async () => {
@@ -127,9 +138,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
              throw new Error("Failed to fetch user");
           }
         }
-      } catch (err) {
-        setAccessTokenState(null);
-        setUser(null);
+      } catch (err: any) {
+        // Only destroy the session if the backend explicitly rejected the token
+        if (err.response?.status === 401 || err.response?.status === 403) {
+            setAccessTokenState(null);
+            setUser(null);
+            setAccessToken(null);
+        } else {
+            console.error("Network or Server error during hydration:", err);
+            // Optionally: Trigger a toast notification here
+            ReactHotToast.error(getErrorMessage(err, "Failed to restore session. Please try again."));
+        }
       } finally {
         setLoading(false);
       }

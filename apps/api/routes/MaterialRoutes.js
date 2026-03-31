@@ -51,8 +51,8 @@ router.delete(
 // STUDENT ROUTES
 // ==========================================
 
-router.post(
-    "/view-class", 
+router.get(
+    "/view-class/:classId", 
     protect, 
     MaterialController.getStudentMaterials
 );

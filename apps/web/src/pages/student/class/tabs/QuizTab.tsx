@@ -68,6 +68,7 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {quizzes.map((quiz) => {
         const isScheduled = quiz.quizType === "schedule";
+        const isFuture = isScheduled && quiz.scheduledAt ? new Date(quiz.scheduledAt) > new Date() : false;
         const isLive = quiz.quizType === "live";
         
         return (
@@ -124,10 +125,15 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
             <div className="p-4 bg-gray-50 mt-auto border-t border-gray-100">
               <button
                 onClick={() => navigate(`/student/class/quizzes/start/${quiz._id}`)}
-                className="w-full py-2.5 bg-brand-prussian text-white text-sm font-bold rounded-xl hover:bg-brand-cerulean transition-colors flex items-center justify-center gap-2"
+                disabled={isFuture}
+                className={`w-full py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                    isFuture 
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                    : 'bg-brand-prussian text-white hover:bg-brand-cerulean'
+                }`}
               >
-                <PlayCircle size={18} />
-                Go to Exam
+                {isFuture ? <Clock size={18} /> : <PlayCircle size={18} />}
+                {isFuture ? 'Not Yet Open' : 'Go to Exam'}
               </button>
             </div>
           </div>

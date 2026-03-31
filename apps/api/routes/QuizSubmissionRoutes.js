@@ -13,11 +13,11 @@ import {
 
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 import { 
-  validate, 
   startQuizSchema, 
   submitQuizSchema,
   getAnalyticsSchema 
 } from "../validators/QuizSubmissionValidator.js";
+import {validate} from "../middlewares/ValidateMiddleware.js";
 
 const router = express.Router();
 

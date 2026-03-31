@@ -33,8 +33,8 @@ const MaterialService = {
   uploadMaterial: async (formData: FormData) => {
     const response = await api.post<MaterialResponse>(BASE_URL, formData, {
       headers: {
-        "Content-Type": "multipart/form-data",
-      },
+        "Content-Type": "multipart/form-data"
+      }
     });
     return response.data;
   },
@@ -53,9 +53,7 @@ const MaterialService = {
    * Student: Fetch materials for their specific class
    */
   getStudentMaterials: async (classId: string) => {
-    const response = await api.post<MaterialResponse>(`${BASE_URL}/view-class`, { 
-      classId 
-    });
+    const response = await api.get<MaterialResponse>(`${BASE_URL}/view-class/${classId}`);
     return response.data;
   },
 

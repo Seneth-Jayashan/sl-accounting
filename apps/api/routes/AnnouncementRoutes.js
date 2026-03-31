@@ -9,8 +9,8 @@ const router = express.Router();
 // ==========================================
 
 // Changed to POST because student is sending classId in req.body
-router.post(
-    "/view-class", 
+router.get(
+    "/view-class/:classId", 
     protect, 
     AnnouncementController.getStudentAnnouncements
 );

@@ -1,7 +1,7 @@
 import Announcement from "../models/Announcement.js"; // Adjust path as needed
+import { sendAnnouncementEmail } from "../utils/email/Template.js";
 
 class AnnouncementController {
-    // 1. Create a new announcement for a specific class
     async createAnnouncement(req, res) {
         try {
             const { title, content, classId, isPublished } = req.body;
@@ -19,7 +19,6 @@ class AnnouncementController {
         }
     }
 
-    // 2. Get all announcements (Optional: Filter by class)
     async getAllAnnouncements(req, res) {
         try {
             const { classId } = req.query;
@@ -38,7 +37,7 @@ class AnnouncementController {
 
     async getStudentAnnouncements(req, res) {
         try {
-            const { classId } = req.body; 
+            const { classId } = req.params;
 
             if (!classId) {
                 return res.status(400).json({ 
@@ -83,7 +82,7 @@ class AnnouncementController {
     async toggleVisibility(req, res) {
         try {
             const { id } = req.params;
-            const announcement = await Announcement.findById(id);
+            const announcement = await Announcement.findById(id).populate("class", "name students email");
 
             if (!announcement) {
                 return res.status(404).json({ success: false, message: "Announcement not found" });
@@ -91,8 +90,21 @@ class AnnouncementController {
 
             announcement.isPublished = !announcement.isPublished;
             await announcement.save();
-
             res.status(200).json({ success: true, isPublished: announcement.isPublished });
+
+            if (announcement.isPublished) {
+                const students = announcement.class?.students || [];
+                console.log(`Announcement published. Sending emails to ${students.length} students.`);
+                Promise.all(
+                    students.map(student => {
+                        if (student.email) {
+                            return sendAnnouncementEmail(student.email, announcement);
+                        }
+                    })
+                ).catch(err => {
+                    console.error("Failed to send background emails:", err);
+                });
+            }
         } catch (error) {
             res.status(400).json({ success: false, message: error.message });
         }

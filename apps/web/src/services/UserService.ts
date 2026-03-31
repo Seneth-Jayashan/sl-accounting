@@ -187,7 +187,11 @@ const UserService = {
     const response = await api.put<{ success: boolean; user: User }>(
       `${USERS_BASE}/profile`,
       formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
+      {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      }
     );
     return response.data;
   },

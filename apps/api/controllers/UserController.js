@@ -7,12 +7,6 @@ import Material from '../models/Material.js';
 import { sendVerificationEmail } from '../utils/email/Template.js';
 import { sendVerificationSms } from '../utils/sms/Template.js';
 
-// --- HELPER: Escape Regex Characters ---
-// Prevents server crashes if user searches for symbols like "(", "[", "*"
-const escapeRegex = (text) => {
-  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-};
-
 // ==========================================
 // PUBLIC / PROTECTED ROUTES
 // ==========================================

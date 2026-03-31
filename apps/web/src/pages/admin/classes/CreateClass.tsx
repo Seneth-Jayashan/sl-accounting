@@ -144,6 +144,7 @@ export default function CreateClassPage() {
   };
 
   const handleFinalSubmit = async () => {
+    const safeNumber = (val: string) => val.trim() === "" ? undefined : Number(val);
     setIsSaving(true);
     try {
       const payload: CreateClassPayload = {
@@ -175,16 +176,16 @@ export default function CreateClassPage() {
         revisionDay: (formData.type === 'theory' && formData.createRevision) ? DAY_INDEX[formData.revisionDay] : undefined,
         revisionStartTime: (formData.type === 'theory' && formData.createRevision) ? formData.revisionStartTime : undefined,
         revisionEndTime: (formData.type === 'theory' && formData.createRevision) ? formData.revisionEndTime : undefined,
-        revisionPrice: (formData.type === 'theory' && formData.createRevision) ? Number(formData.revisionPrice) : undefined,
+        revisionPrice: (formData.type === 'theory' && formData.createRevision) ? safeNumber(formData.revisionPrice) : undefined,
         
         paperDay: (formData.type === 'theory' && formData.createPaper) ? DAY_INDEX[formData.paperDay] : undefined,
         paperStartTime: (formData.type === 'theory' && formData.createPaper) ? formData.paperStartTime : undefined,
         paperEndTime: (formData.type === 'theory' && formData.createPaper) ? formData.paperEndTime : undefined,
-        paperPrice: (formData.type === 'theory' && formData.createPaper) ? Number(formData.paperPrice) : undefined,
+        paperPrice: (formData.type === 'theory' && formData.createPaper) ? safeNumber(formData.paperPrice) : undefined,
 
-        bundlePriceRevision: (formData.type === 'theory' && formData.createRevision) ? Number(formData.bundlePriceRevision) : undefined,
-        bundlePricePaper: (formData.type === 'theory' && formData.createPaper) ? Number(formData.bundlePricePaper) : undefined,
-        bundlePriceFull: (formData.type === 'theory' && formData.createRevision && formData.createPaper) ? Number(formData.bundlePriceFull) : undefined,
+        bundlePriceRevision: (formData.type === 'theory' && formData.createRevision) ? safeNumber(formData.bundlePriceRevision) : undefined,
+        bundlePricePaper: (formData.type === 'theory' && formData.createPaper) ? safeNumber(formData.bundlePricePaper) : undefined,
+        bundlePriceFull: (formData.type === 'theory' && formData.createRevision && formData.createPaper) ? safeNumber(formData.bundlePriceFull) : undefined,
       };
 
       await ClassService.createClass(payload);

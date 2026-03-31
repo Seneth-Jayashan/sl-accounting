@@ -2,12 +2,12 @@ import Session from "../models/Session.js";
 import Class from "../models/Class.js";
 import mongoose from "mongoose";
 
-/**
- * Helper: Check if user is instructor of the class or admin
- */
+
 const isInstructorOrAdmin = (req, classDoc) => {
   if (!req.user) return false;
-  if (req.user.isAdmin) return true;
+  
+  if (req.user.role === 'admin') return true;
+  
   return classDoc.instructor && classDoc.instructor.toString() === req.user._id.toString();
 };
 

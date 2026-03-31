@@ -13,9 +13,8 @@ import {
 
 import { protect } from "../middlewares/AuthMiddleware.js";
 import createUploader from "../middlewares/UploadMiddleware.js";
-
-// Validation Middleware & Schemas
-import { validate, registerSchema, loginSchema } from "../validators/AuthValidator.js";
+import { registerSchema, loginSchema } from "../validators/AuthValidator.js";
+import {validate} from "../middlewares/ValidateMiddleware.js";
 import { 
   verifyEmailSchema, 
   resendOtpSchema, 
@@ -33,7 +32,7 @@ const router = express.Router();
 router.post("/register", profileUploadMiddleware, validate(registerSchema), register);
 router.post("/login", validate(loginSchema), login);
 router.post("/refresh", refresh);
-router.post("/logout", logout); // Note: 'protect' is often optional for logout if relying on cookie clearing
+router.post("/logout", logout);
 router.get("/me", protect, me);
 
 // ==========================================

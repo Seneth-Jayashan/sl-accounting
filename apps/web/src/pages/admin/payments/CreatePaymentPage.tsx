@@ -100,11 +100,7 @@ export default function CreatePaymentPage() {
     setSelectedEnrollment(enrollment);
     setSearchQuery(""); 
     setIsDropdownOpen(false);
-    
-    if (typeof enrollment.class === 'object' && enrollment.class !== null) {
-        const price = enrollment.class.price ? enrollment.class.price.toString() : "";
-        setFormData(prev => ({ ...prev, amount: price }));
-    }
+    setFormData(prev => ({ ...prev, amount: "" }));
     };
 
   const handleClearSelection = () => {

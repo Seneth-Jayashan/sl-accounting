@@ -86,17 +86,25 @@ export default function ClassPaymentPage() {
             const cls = Array.isArray(clsRes) ? clsRes[0] : clsRes;
             setClassData(cls);
 
-            const enrollRes = await EnrollmentService.enrollInClass(classId, user._id);
-            if (enrollRes.enrollment?.paidMonths) {
-                setPaidMonths(enrollRes.enrollment.paidMonths);
-            }
-            
-            // Auto-select logic
-            const currentMonth = format(new Date(), "yyyy-MM");
-            if (!enrollRes.enrollment?.paidMonths?.includes(currentMonth)) {
-                setSelectedMonth(currentMonth);
-            } else {
-                setSelectedMonth(format(addMonths(new Date(), 1), "yyyy-MM"));
+            try {
+                const enrollRes = await EnrollmentService.enrollInClass(classId, user._id);
+                
+                if (enrollRes && enrollRes.enrollment) {
+                    if (enrollRes.enrollment.paidMonths) {
+                        setPaidMonths(enrollRes.enrollment.paidMonths);
+                    }
+                    
+                    const currentMonth = format(new Date(), "yyyy-MM");
+                    if (!enrollRes.enrollment.paidMonths?.includes(currentMonth)) {
+                        setSelectedMonth(currentMonth);
+                    } else {
+                        setSelectedMonth(format(addMonths(new Date(), 1), "yyyy-MM"));
+                    }
+                }
+            } catch (enrollErr) {
+                // It's okay if enrollment fails (e.g. they are new). Just set current month.
+                console.warn("No prior enrollment found or creation pending:", enrollErr);
+                setSelectedMonth(format(new Date(), "yyyy-MM"));
             }
 
         } catch (err) {

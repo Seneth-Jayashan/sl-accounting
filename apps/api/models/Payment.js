@@ -9,7 +9,6 @@ const paymentSchema = new mongoose.Schema(
       index: true,
     },
     
-    // NEW: Which month is this payment covering? (e.g. "2026-02")
     targetMonth: { type: String }, 
 
     amount: { type: Number, required: true, min: 0 },

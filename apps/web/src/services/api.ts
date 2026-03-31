@@ -92,9 +92,11 @@ api.interceptors.response.use(
       );
 
       const newAccessToken = response.data?.accessToken;
-
-      // Update state
       setAccessToken(newAccessToken);
+
+      window.dispatchEvent(
+        new CustomEvent("auth:token-refreshed", { detail: newAccessToken })
+      );
 
       // Process the queue with the new token
       processQueue(null, newAccessToken);

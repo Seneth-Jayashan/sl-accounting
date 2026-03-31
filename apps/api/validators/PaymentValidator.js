@@ -2,29 +2,21 @@ import { z } from "zod";
 
 // --- HELPERS ---
 
-// Robust numeric coercion
-const numeric = () => z.union([z.number(), z.string()])
-  .transform((val) => {
-    const num = Number(val);
-    if (isNaN(num)) {
-      throw new z.ZodError([{ 
-        code: z.ZodIssueCode.custom, 
-        message: "Invalid number format", 
-        path: [] 
-      }]);
-    }
-    return num;
-  });
-
 const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");
-// Regex for YYYY-MM format
-const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Invalid month format (YYYY-MM)");
+
+// Allow either standard billing months OR our new one-time playlist bypass
+const monthSchema = z.custom((val) => {
+  if (typeof val !== "string") return false;
+  if (val === "Lifetime Access") return true;
+  // standard YYYY-MM regex
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(val);
+}, "Invalid month format. Expected YYYY-MM or 'Lifetime Access'");
 
 // --- SCHEMAS ---
 
 export const initiatePayHereSchema = z.object({
   body: z.object({
-    amount: numeric().pipe(z.number().positive("Amount must be positive")),
+    amount: z.coerce.number().positive("Amount must be positive"),
     order_id: z.string().min(1, "Order ID is required"),
     currency: z.string().default("LKR"),
   }),
@@ -33,9 +25,9 @@ export const initiatePayHereSchema = z.object({
 export const uploadSlipSchema = z.object({
   body: z.object({
     enrollmentId: objectIdSchema,
-    amount: numeric().pipe(z.number().positive("Paid amount must be positive")),
+    amount: z.coerce.number().positive("Paid amount must be positive"),
     notes: z.string().optional(),
-    targetMonth: monthSchema.optional(), // <--- NEW
+    targetMonth: monthSchema.optional(), // Now safely accepts "Lifetime Access"
   }),
 });
 
@@ -43,11 +35,11 @@ export const uploadSlipSchema = z.object({
 export const createPaymentSchema = z.object({
   body: z.object({
     enrollment: objectIdSchema,
-    amount: numeric().pipe(z.number().nonnegative("Amount cannot be negative")),
+    amount: z.coerce.number().nonnegative("Amount cannot be negative"),
     transactionId: z.string().optional(),
     notes: z.string().optional(),
     method: z.enum(["manual", "bank_transfer", "payhere"]).default("payhere"),
-    targetMonth: monthSchema.optional(), // <--- NEW
+    targetMonth: monthSchema.optional(), 
   }),
 });
 

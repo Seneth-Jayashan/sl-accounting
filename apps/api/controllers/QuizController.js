@@ -1,14 +1,10 @@
 import Quiz from "../models/Quiz.js";
 
-/**
- * @desc    Create a New Quiz
- * @route   POST /api/quizzes
- */
+
 export const createQuiz = async (req, res) => {
     try {
         const { title, class: classId, duration, questions } = req.body;
 
-        // Basic validation
         if (!title || !classId || !duration) {
             return res.status(400).json({ success: false, message: "Missing required fields" });
         }
@@ -22,14 +18,11 @@ export const createQuiz = async (req, res) => {
     }
 };
 
-/**
- * @desc    Get All Quizzes (Admin View - includes all metadata)
- * @route   GET /api/quizzes
- */
+
 export const getAllQuizzes = async (req, res) => {
     try {
         const quizzes = await Quiz.find({ isDeleted: false })
-            .populate("class", "className") // Assuming 'className' exists in your Class model
+            .populate("class", "name price coverImage description") 
             .sort({ createdAt: -1 });
 
         res.status(200).json({ success: true, count: quizzes.length, data: quizzes });
@@ -38,10 +31,6 @@ export const getAllQuizzes = async (req, res) => {
     }
 };
 
-/**
- * @desc    Get Single Quiz by ID (Admin/Edit View)
- * @route   GET /api/quizzes/:id
- */
 export const getQuizById = async (req, res) => {
     try {
         const quiz = await Quiz.findOne({ _id: req.params.id, isDeleted: false });
@@ -56,21 +45,17 @@ export const getQuizById = async (req, res) => {
     }
 };
 
-/**
- * @desc    Update Quiz Details & Questions
- * @route   PUT /api/quizzes/:id
- */
 export const updateQuiz = async (req, res) => {
     try {
-        const updatedQuiz = await Quiz.findByIdAndUpdate(
-            req.params.id,
-            { $set: req.body },
-            { new: true, runValidators: true }
-        );
+        const quiz = await Quiz.findById(req.params.id);
 
-        if (!updatedQuiz) {
+        if (!quiz) {
             return res.status(404).json({ success: false, message: "Quiz not found" });
         }
+
+        Object.assign(quiz, req.body);
+        
+        const updatedQuiz = await quiz.save();
 
         res.status(200).json({ success: true, data: updatedQuiz });
     } catch (error) {
@@ -78,15 +63,11 @@ export const updateQuiz = async (req, res) => {
     }
 };
 
-/**
- * @desc    Soft Delete Quiz
- * @route   DELETE /api/quizzes/:id
- */
 export const deleteQuiz = async (req, res) => {
     try {
         const quiz = await Quiz.findByIdAndUpdate(
             req.params.id,
-            { isDeleted: true, isActive: false },
+            { isDeleted: true, isActive: false, deletedDate: new Date() },
             { new: true }
         );
 

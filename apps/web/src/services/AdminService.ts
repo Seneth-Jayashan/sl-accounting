@@ -186,14 +186,12 @@ const AdminService = {
   // --- PROFILE UPDATES ---
 
   updateUserProfile: async (id: string, formData: FormData) => {
-    // Note: We use FormData here because it might contain an image file
-    const response = await api.put<{ success: boolean; user: UserData }>(
-      `${BASE_URL}/users/${id}/profile`, 
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
-    return response.data.user;
-  },
+      const response = await api.put<{ success: boolean; user: UserData }>(
+        `${BASE_URL}/users/${id}/profile`, 
+        formData
+      );
+      return response.data.user;
+    },
 
   updateUserEmail: async (id: string, email: string) => {
     const response = await api.put(`${BASE_URL}/users/${id}/email`, { email });

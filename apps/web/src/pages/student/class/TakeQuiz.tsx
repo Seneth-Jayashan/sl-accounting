@@ -1,14 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
-  Clock, 
-  AlertCircle, 
-  CheckCircle2, 
-  ChevronRight, 
-  ChevronLeft,
-  FileText,
-  ShieldAlert,
-  Loader2
+  Clock, AlertCircle, CheckCircle2, ChevronRight, 
+  ChevronLeft, FileText, ShieldAlert, Loader2
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import QuizService, { type Quiz, type StudentAnswer } from "../../../services/QuizService";
@@ -29,13 +23,21 @@ const TakeQuiz: React.FC = () => {
   const [answers, setAnswers] = useState<StudentAnswer[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
-  // 1. Fetch Quiz Details (Pre-Exam)
+  // --- NEW: Refs for escaping the React closure loop ---
+  const isSubmittingRef = useRef(false);
+  const answersRef = useRef<StudentAnswer[]>([]);
+
+  // Keep answersRef synced with state so handleFinalSubmit always has the latest answers
+  // without needing to be recreated (which breaks the timer interval)
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  // 1. Fetch Quiz Details & Auto-Recovery
   useEffect(() => {
     const fetchQuiz = async () => {
-      // FIX: Handle missing ID properly so it doesn't spin forever
       if (!id) {
         toast.error("Quiz ID is missing from the URL!");
-        setLoading(false);
         navigate(-1);
         return; 
       }
@@ -44,6 +46,25 @@ const TakeQuiz: React.FC = () => {
         const response = await QuizService.getQuizById(id);
         if (response.success && response.data) {
           setQuiz(response.data);
+          
+          // Auto-Recovery Check
+          const savedSessionStr = localStorage.getItem(`quiz_session_${id}`);
+          if (savedSessionStr) {
+            const savedSession = JSON.parse(savedSessionStr);
+            const now = new Date().getTime();
+            if (now < savedSession.endTime) {
+               setSubmissionId(savedSession.submissionId);
+               setAnswers(savedSession.answers);
+               setTimeLeft(Math.floor((savedSession.endTime - now) / 1000));
+               setIsStarted(true);
+               toast.success("Exam session recovered.");
+               setLoading(false);
+               return; 
+            } else {
+               localStorage.removeItem(`quiz_session_${id}`);
+            }
+          }
+
           // Initialize empty answers array
           const initialAnswers = response.data.questions.map((q: any) => ({
             questionId: q._id!,
@@ -56,50 +77,94 @@ const TakeQuiz: React.FC = () => {
         toast.error(error.response?.data?.message || "Failed to load exam details");
         navigate(-1);
       } finally {
-        setLoading(false); // This will now always run!
+        setLoading(false);
       }
     };
     fetchQuiz();
   }, [id, navigate]);
 
-  // 2. Timer Logic & Anti-Cheat Prevent Close
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
+  // 2. Submit Exam Handler (Memoized & Protected against Race Conditions)
+  const handleFinalSubmit = useCallback(async (isTimeOut = false) => {
+    if (!submissionId) return;
     
-    if (isStarted && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
+    // --- SECURITY: Prevent double-firing ---
+    if (isSubmittingRef.current) return; 
 
-      // Prevent accidental tab closing during exam
-      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-        e.preventDefault();
-        e.returnValue = '';
-      };
-      window.addEventListener('beforeunload', handleBeforeUnload);
-
-      return () => {
-        clearInterval(timer);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-      };
-    } else if (isStarted && timeLeft === 0) {
-      // Auto-submit when time is up
-      handleFinalSubmit(true);
+    if (!isTimeOut) {
+      const confirmSubmit = window.confirm("Are you sure you want to submit your exam? You cannot change your answers after this.");
+      if (!confirmSubmit) return;
     }
-    
-    return () => clearInterval(timer);
-  }, [isStarted, timeLeft]);
 
-  // 3. Start Exam Handler
+    try {
+      // Lock the submission ref immediately
+      isSubmittingRef.current = true;
+      setSubmitting(true);
+      
+      // Use answersRef.current instead of answers state
+      const response = await QuizService.submitQuiz(submissionId, answersRef.current, isTimeOut);
+      
+      if (response.success) {
+        if (quiz) localStorage.removeItem(`quiz_session_${quiz._id}`);
+        toast.success(isTimeOut ? "Time's up! Exam submitted automatically." : "Exam submitted successfully!");
+        navigate(`/student/quizzes/result/${submissionId}`, { replace: true });
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to submit exam.");
+      // Unlock if it failed so they can try again
+      isSubmittingRef.current = false; 
+      setSubmitting(false);
+    }
+  }, [submissionId, navigate, quiz]);
+
+  // 3. Timer Logic & Anti-Cheat
+  useEffect(() => {
+    if (!isStarted) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "You have an active exam. Are you sure you want to leave?";
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // Only trigger auto-submit if we aren't already submitting
+          if (!isSubmittingRef.current) {
+             handleFinalSubmit(true);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isStarted, handleFinalSubmit]);
+
+  // 4. Start Exam Handler
   const handleStartExam = async () => {
     if (!quiz) return;
     try {
       setLoading(true);
       const response = await QuizService.startQuiz(quiz._id);
       if (response.success) {
+        const durationSeconds = quiz.duration * 60;
+        const endTime = new Date().getTime() + (durationSeconds * 1000);
+
         setSubmissionId(response.submissionId);
-        setTimeLeft(quiz.duration * 60); // Convert minutes to seconds
+        setTimeLeft(durationSeconds);
         setIsStarted(true);
+
+        localStorage.setItem(`quiz_session_${quiz._id}`, JSON.stringify({
+            submissionId: response.submissionId,
+            endTime: endTime,
+            answers: answers
+        }));
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Could not start exam. You may have already attempted it.");
@@ -108,54 +173,48 @@ const TakeQuiz: React.FC = () => {
     }
   };
 
-  // 4. Answer Input Handlers
-  const handleOptionSelect = (qId: string, optIndex: number, type: string) => {
-    setAnswers(prev => prev.map(ans => {
-      if (ans.questionId === qId) {
-        if (type === "mcq" || type === "true-false") {
-          return { ...ans, selectedOptions: [optIndex] };
-        } else if (type === "multi-select") {
-          const exists = ans.selectedOptions?.includes(optIndex);
-          const newOpts = exists 
-            ? ans.selectedOptions?.filter(i => i !== optIndex) 
-            : [...(ans.selectedOptions || []), optIndex];
-          return { ...ans, selectedOptions: newOpts };
-        }
+  // 5. Answer Input Handlers
+  const syncStorage = (newAnswers: StudentAnswer[]) => {
+      if (!quiz || !submissionId) return;
+      const savedSessionStr = localStorage.getItem(`quiz_session_${quiz._id}`);
+      if (savedSessionStr) {
+          const session = JSON.parse(savedSessionStr);
+          session.answers = newAnswers;
+          localStorage.setItem(`quiz_session_${quiz._id}`, JSON.stringify(session));
       }
-      return ans;
-    }));
+  };
+
+  const handleOptionSelect = (qId: string, optIndex: number, type: string) => {
+    setAnswers(prev => {
+      const newAns = prev.map(ans => {
+        if (ans.questionId === qId) {
+          if (type === "mcq" || type === "true-false") {
+            return { ...ans, selectedOptions: [optIndex] };
+          } else if (type === "multi-select") {
+            const exists = ans.selectedOptions?.includes(optIndex);
+            const newOpts = exists 
+              ? ans.selectedOptions?.filter(i => i !== optIndex) 
+              : [...(ans.selectedOptions || []), optIndex];
+            return { ...ans, selectedOptions: newOpts };
+          }
+        }
+        return ans;
+      });
+      syncStorage(newAns);
+      return newAns;
+    });
   };
 
   const handleShortAnswer = (qId: string, text: string) => {
-    setAnswers(prev => prev.map(ans => 
-      ans.questionId === qId ? { ...ans, shortAnswer: text } : ans
-    ));
+    setAnswers(prev => {
+        const newAns = prev.map(ans => 
+            ans.questionId === qId ? { ...ans, shortAnswer: text } : ans
+        );
+        syncStorage(newAns);
+        return newAns;
+    });
   };
 
-  // 5. Submit Exam Handler
-  const handleFinalSubmit = useCallback(async (isTimeOut = false) => {
-    if (!submissionId) return;
-    
-    if (!isTimeOut) {
-      const confirmSubmit = window.confirm("Are you sure you want to submit your exam? You cannot change your answers after this.");
-      if (!confirmSubmit) return;
-    }
-
-    try {
-      setSubmitting(true);
-      const response = await QuizService.submitQuiz(submissionId, answers, isTimeOut);
-      if (response.success) {
-        toast.success(isTimeOut ? "Time's up! Exam submitted automatically." : "Exam submitted successfully!");
-        // Navigate to the Detailed Review/Result page
-        navigate(`/student/quizzes/result/${submissionId}`, { replace: true });
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to submit exam.");
-      setSubmitting(false);
-    }
-  }, [submissionId, answers, navigate]);
-
-  // Utility: Format Time
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -175,9 +234,7 @@ const TakeQuiz: React.FC = () => {
 
   if (!quiz) return <div className="p-6 text-center">Quiz not found.</div>;
 
-  // ==========================================
   // VIEW 1: PRE-EXAM LANDING PAGE
-  // ==========================================
   if (!isStarted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -235,17 +292,17 @@ const TakeQuiz: React.FC = () => {
     );
   }
 
-  // ==========================================
   // VIEW 2: ACTIVE EXAM INTERFACE
-  // ==========================================
   const currentQ = quiz.questions[currentQIndex];
   const currentAns = answers.find(a => a.questionId === currentQ._id);
-  const isTimeRunningOut = timeLeft < 300; // Less than 5 mins
+  const isTimeRunningOut = timeLeft < 300; 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      
-      {/* Sticky Header with Timer */}
+    <div 
+      className="min-h-screen bg-gray-50 flex flex-col select-none"
+      onContextMenu={(e) => e.preventDefault()}
+      onCopy={(e) => e.preventDefault()}
+    >
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40 px-6 py-4 flex items-center justify-between shadow-sm">
         <h1 className="text-xl font-bold text-brand-prussian hidden md:block">{quiz.title}</h1>
         
@@ -269,7 +326,6 @@ const TakeQuiz: React.FC = () => {
         
         {/* Left Area: Question Display */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8 flex flex-col">
-          
           <div className="flex justify-between items-center mb-6">
             <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">
               Question {currentQIndex + 1} of {quiz.questions.length}
@@ -279,7 +335,6 @@ const TakeQuiz: React.FC = () => {
             </span>
           </div>
 
-          {/* Question Text & Image */}
           <h2 className="text-xl md:text-2xl font-medium text-gray-800 mb-6 leading-relaxed">
             {currentQ.questionText}
           </h2>
@@ -331,7 +386,7 @@ const TakeQuiz: React.FC = () => {
           <div className="flex items-center justify-between border-t border-gray-100 pt-6 mt-auto">
             <button 
               onClick={() => setCurrentQIndex(prev => Math.max(0, prev - 1))}
-              disabled={currentQIndex === 0}
+              disabled={currentQIndex === 0 || !quiz.settings.allowBacktrack}
               className="flex items-center gap-2 px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition disabled:opacity-30"
             >
               <ChevronLeft size={20} /> Previous
@@ -347,7 +402,8 @@ const TakeQuiz: React.FC = () => {
             ) : (
               <button 
                 onClick={() => handleFinalSubmit(false)}
-                className="flex items-center gap-2 px-6 py-2 bg-green-500 text-white font-bold hover:bg-green-600 rounded-lg transition shadow-md"
+                disabled={submitting}
+                className="flex items-center gap-2 px-6 py-2 bg-green-500 text-white font-bold hover:bg-green-600 rounded-lg transition shadow-md disabled:opacity-50"
               >
                 <CheckCircle2 size={20} /> Submit Exam
               </button>
@@ -375,7 +431,8 @@ const TakeQuiz: React.FC = () => {
                 <button
                   key={idx}
                   onClick={() => setCurrentQIndex(idx)}
-                  className={`w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold transition-all ${
+                  disabled={!quiz.settings.allowBacktrack && idx < currentQIndex}
+                  className={`w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                     isCurrent 
                       ? 'ring-2 ring-brand-cerulean ring-offset-2 bg-brand-cerulean text-white' 
                       : isAnswered 

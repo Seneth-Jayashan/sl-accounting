@@ -28,6 +28,9 @@ export default defineConfig({
             if (id.includes('moment') || id.includes('date-fns')) {
               return 'utils-vendor';
             }
+            if (id.includes('jspdf') || id.includes('jspdf-autotable')) {
+              return 'pdf-vendor';
+            }
             // Everything else
             return 'vendor'; 
           }

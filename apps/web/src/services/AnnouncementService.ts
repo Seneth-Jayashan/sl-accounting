@@ -84,9 +84,8 @@ const AnnouncementService = {
    * Note: This uses POST as requested because classId is sent in req.body
    */
   getStudentAnnouncements: async (classId: string) => {
-    const response = await api.post<AnnouncementResponse>(`${BASE_URL}/view-class`, { 
-      classId 
-    });
+    // Assuming backend is setup to accept a query param or param: `/announcements/view-class/${classId}`
+    const response = await api.get<AnnouncementResponse>(`${BASE_URL}/view-class/${classId}`);
     return response.data;
   },
 };

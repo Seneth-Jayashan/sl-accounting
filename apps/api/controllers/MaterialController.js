@@ -58,7 +58,7 @@ class MaterialController {
     // Student: Get materials for their class
     async getStudentMaterials(req, res) {
         try {
-            const { classId } = req.body; // Sent from frontend student view
+            const { classId } = req.params; // Sent from frontend student view
 
             const materials = await Material.find({ 
                 class: classId, 
@@ -77,10 +77,13 @@ class MaterialController {
             const material = await Material.findById(req.params.id);
             if (!material) return res.status(404).json({ message: "Material not found" });
 
-            // OPTIONAL: Delete the physical file from the server
-            const filePath = path.join(process.cwd(), material.fileUrl);
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
+            try {
+                const filePath = path.join(process.cwd(), material.fileUrl);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            } catch (fileErr) {
+                console.warn("Could not delete physical file, continuing with DB deletion:", fileErr.message);
             }
 
             await material.deleteOne();

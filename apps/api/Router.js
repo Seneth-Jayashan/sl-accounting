@@ -21,6 +21,7 @@ import chatRoutes from './routes/ChatRoutes.js';
 import ticketRoutes from './routes/TicketRoutes.js';
 import contactRoutes from './routes/ContactRoutes.js';
 import tuteDeliveryRoutes from './routes/TuteDeliveryRoutes.js';
+import lessonPackRoutes from './routes/LessonPackRoutes.js';
 
 const router = express.Router();
 
@@ -50,6 +51,7 @@ router.use('/class-chats', classChatRoutes);
 router.use('/quizzes', QuizRoutes);
 router.use('/submissions', QuizSubmissionRoutes);
 router.use('/results', QuizResultRoutes);
+router.use('/lesson-packs', lessonPackRoutes);
 
 
 // 3. Finance

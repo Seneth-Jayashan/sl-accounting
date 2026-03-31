@@ -10,7 +10,9 @@ import {
   LogOut,
   ChevronLeft,
   GraduationCap,
-  Menu
+  Menu,
+  ClipboardList,
+  ListVideo
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -23,7 +25,9 @@ type Props = {
 const STUDENT_MENU = [
   { key: "overview", label: "Overview", href: "/student/dashboard", icon: LayoutDashboard },
   { key: "classes", label: "My Classes", href: "/student/classes", icon: CalendarDays },
+  { key: "quizzes", label: "Quizzes", href: "/student/quizzes/history", icon: ClipboardList },
   { key: "tutes", label: "My Tutes", href: "/student/my-tutes", icon: BookOpen },
+  { key: "lesson-packs", label: "Lesson Packs", href: "/student/lesson-packs", icon: ListVideo },
   { key: "materials", label: "Study Materials", href: "/student/knowledge-base", icon: BookOpen },
   { key: "payments", label: "Payments", href: "/student/payments", icon: CreditCard },
   { key: "profile", label: "Profile", href: "/student/Profile", icon: Users },

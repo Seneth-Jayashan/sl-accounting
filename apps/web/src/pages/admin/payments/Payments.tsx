@@ -18,6 +18,7 @@ import {
   CalendarDaysIcon,
   ChatBubbleBottomCenterTextIcon // <--- Imported
 } from "@heroicons/react/24/outline";
+import { ListVideoIcon } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -61,6 +62,7 @@ export default function PaymentsPage() {
 
     try {
       await PaymentService.verifyPayment(id, action);
+      fetchPayments();
     } catch (error) {
       setPayments(original);
       alert("Verification failed. Please check server logs.");
@@ -214,7 +216,7 @@ function PaymentRow({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
           {payment.enrollment?.student?.firstName} {payment.enrollment?.student?.lastName}
         </div>
         <div className="text-[10px] font-bold text-brand-cerulean uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
-          <CheckCircleIcon className="w-3 h-3 opacity-50" /> {payment.enrollment?.class?.name}
+          <CheckCircleIcon className="w-3 h-3 opacity-50" /> {payment.enrollment?.class?.name || payment.enrollment?.lessonPack?.title || "N/A"} 
         </div>
         <div className="text-[11px] text-gray-400 font-mono mt-1">LKR {payment.amount.toLocaleString()}</div>
         
@@ -229,8 +231,16 @@ function PaymentRow({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
 
       <td className="px-6 py-5">
          <div className="flex items-center gap-2 bg-brand-aliceBlue/50 px-3 py-1.5 rounded-lg w-fit border border-brand-aliceBlue">
-             <CalendarDaysIcon className="w-4 h-4 text-brand-cerulean/70" />
-             <span className="text-xs font-bold text-brand-prussian">{formatBillingMonth(payment.targetMonth)}</span>
+             {payment.enrollment?.lessonPack ? (
+                 <>
+                     <ListVideoIcon className="w-4 h-4 text-indigo-400/70" />
+                     <span className="text-xs font-bold text-brand-prussian">Lesson Pack</span>
+                 </>
+             ) : <>
+                     <CalendarDaysIcon className="w-4 h-4 text-brand-cerulean/70" />
+                     <span className="text-xs font-bold text-brand-prussian">{formatBillingMonth(payment.targetMonth)}</span>
+                 </>}
+             
          </div>
       </td>
 

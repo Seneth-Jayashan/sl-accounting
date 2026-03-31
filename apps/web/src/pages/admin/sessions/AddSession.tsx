@@ -81,7 +81,7 @@ export default function AddSessionPage() {
         title: formData.title.trim() || undefined,
         notes: formData.notes.trim() || undefined,
         skipZoom: !formData.createZoom,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timezone: "Asia/Colombo"
       };
 
       await SessionService.createSession(formData.classId, payload);

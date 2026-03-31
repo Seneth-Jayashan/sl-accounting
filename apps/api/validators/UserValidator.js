@@ -23,14 +23,12 @@ export const updateProfileSchema = z.object({
       )
       .optional(),
     
-    // --- FIX: Use preprocess to parse JSON string from FormData ---
     address: z.preprocess((val) => {
-      // If it comes as a string (common in FormData), try to parse it
       if (typeof val === "string") {
         try {
           return JSON.parse(val);
         } catch (e) {
-          return val; // If parse fails, return as string (Zod will catch type mismatch)
+          return val;
         }
       }
       return val;
