@@ -11,7 +11,9 @@ import {
   Menu,
   X,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  ClipboardList,
+  ListVideo
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -22,10 +24,11 @@ export default function BottomNavStudent() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // --- 1. MAIN TABS (Always Visible) ---
+  // Kept to 4 items max so the bottom bar isn't overcrowded
   const mainTabs = [
     { 
-      key: "dashboard", 
-      label: "Home", 
+      key: "overview", 
+      label: "Overview", 
       href: "/student/dashboard", 
       icon: LayoutDashboard 
     },
@@ -36,15 +39,15 @@ export default function BottomNavStudent() {
       icon: CalendarDays 
     },
     { 
-      key: "materials", 
-      label: "Materials", 
-      href: "/student/knowledge-base", 
-      icon: BookOpen 
+      key: "quizzes", 
+      label: "Quizzes", 
+      href: "/student/quizzes/history", 
+      icon: ClipboardList 
     },
     { 
       key: "profile", 
       label: "Profile", 
-      href: "/student/profile", 
+      href: "/student/Profile", 
       icon: Users 
     },
   ];
@@ -52,15 +55,36 @@ export default function BottomNavStudent() {
   // --- 2. MORE MENU ITEMS (Hidden in Drawer) ---
   const moreItems = [
     {
+      key: "tutes",
+      label: "My Tutes",
+      href: "/student/my-tutes",
+      icon: BookOpen,
+      desc: "Access your class tutes"
+    },
+    {
+      key: "lesson-packs",
+      label: "Lesson Packs",
+      href: "/student/lesson-packs",
+      icon: ListVideo,
+      desc: "Browse video lessons"
+    },
+    {
+      key: "materials",
+      label: "Study Materials",
+      href: "/student/knowledge-base",
+      icon: BookOpen,
+      desc: "Additional reading & resources"
+    },
+    {
       key: "payments",
-      label: "Payment History",
+      label: "Payments",
       href: "/student/payments",
       icon: CreditCard,
       desc: "View transactions & slips"
     },
     {
       key: "support",
-      label: "Help & Support",
+      label: "Support",
       href: "/student/tickets",
       icon: HelpCircle,
       desc: "Contact admin support"
@@ -101,8 +125,8 @@ export default function BottomNavStudent() {
                 </button>
               </div>
 
-              {/* Drawer Links */}
-              <div className="p-4 space-y-3 pb-24">
+              {/* Drawer Links - Added overflow-y-auto to handle the larger menu on smaller screens */}
+              <div className="p-4 space-y-3 pb-24 overflow-y-auto max-h-[75vh]">
                 {moreItems.map((item) => (
                   <Link
                     key={item.key}

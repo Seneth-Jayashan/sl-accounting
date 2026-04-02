@@ -384,6 +384,19 @@ export const updatePaymentStatus = async (req, res) => {
         ).catch(err => console.error("Failed to send payment verified SMS:", err));
     }
     }
+    if (status === "completed" && payment.enrollment && payment.enrollment.lessonPack) {
+        if (payment.enrollment && payment.enrollment.student) {
+            const itemName = payment.enrollment.lessonPack ? payment.enrollment.lessonPack.title : "your lesson pack";
+
+            await Enrollment.findByIdAndUpdate(payment.enrollment._id, { paymentStatus: "paid", isActive: true });
+
+            sendPaymentVerifiedSms(
+                payment.enrollment.student.phoneNumber,
+                payment.amount,
+                itemName
+            ).catch(err => console.error("Failed to send payment verified SMS:", err));
+        }
+    }
 
     res.json({ success: true, payment });
 

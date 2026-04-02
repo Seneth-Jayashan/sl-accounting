@@ -28,38 +28,51 @@ export default function BottomNavAdmin() {
 
   // --- 1. MAIN TABS (Always Visible) ---
   const mainTabs = [
-    { key: "overview", label: "Home", href: "/admin/dashboard", icon: HomeIcon },
+    { key: "overview", label: "Overview", href: "/admin/dashboard", icon: HomeIcon },
     { key: "classes", label: "Classes", href: "/admin/classes", icon: AcademicCapIcon },
     { key: "students", label: "Students", href: "/admin/students", icon: UsersIcon },
     { key: "payments", label: "Payments", href: "/admin/payments", icon: CurrencyDollarIcon },
   ];
 
-  // --- 2. DRAWER ITEMS (Grouped) ---
+  // --- 2. DRAWER ITEMS (Grouped to match SidebarAdmin) ---
   const drawerSections = [
-    {
-      title: "Academic Management",
-      items: [
-        { key: "batches", label: "Batches", href: "/admin/batches", icon: ClipboardDocumentCheckIcon },
-        { key: "sessions", label: "Sessions", href: "/admin/sessions", icon: BookOpenIcon },
-        { key: "materials", label: "Materials", href: "/admin/materials", icon: BookOpenIcon },
-        { key: "announcements", label: "Announcements", href: "/admin/announcements", icon: MegaphoneIcon },
-      ]
-    },
     {
       title: "System & Community",
       items: [
         { key: "reports", label: "Reports", href: "/admin/reports", icon: ChartBarIcon },
         { key: "community", label: "Community", href: "/admin/community", icon: ChatBubbleLeftRightIcon },
-        { key: "settings", label: "Settings", href: "/admin/settings", icon: Cog6ToothIcon },
       ]
     },
     {
-      title: "Knowledge & Support",
+      title: "Academic Management",
       items: [
-        { key: "knowledge", label: "Knowledge Base", href: "/admin/knowledge-base", icon: BookOpenIcon },
+        { key: "announcements", label: "Announcements", href: "/admin/announcements", icon: MegaphoneIcon },
+        { key: "batches", label: "Batches", href: "/admin/batches", icon: ClipboardDocumentCheckIcon },
+        { key: "materials", label: "Materials", href: "/admin/materials", icon: BookOpenIcon },
+        { key: "sessions", label: "Sessions", href: "/admin/sessions", icon: BookOpenIcon },
+        { key: "quizzes", label: "Quizzes", href: "/admin/quizzes", icon: ClipboardDocumentCheckIcon },
+        { key: "lesson-packs", label: "Lesson Packs", href: "/admin/lesson-packs", icon: BookOpenIcon },
+      ]
+    },
+    {
+      title: "Operations & Delivery",
+      items: [
+        { key: "tute-delivery", label: "Tute Delivery", href: "/admin/tute-delivery", icon: ClipboardDocumentCheckIcon },
+      ]
+    },
+    {
+      title: "Knowledge Base",
+      items: [
+        { key: "knowledge", label: "Library", href: "/admin/knowledge-base", icon: BookOpenIcon },
         { key: "knowledge-list", label: "Content List", href: "/admin/knowledge-list", icon: ClipboardDocumentCheckIcon },
-        { key: "tickets", label: "Support Tickets", href: "/admin/chat", icon: ChatBubbleLeftRightIcon },
-        { key: "contact", label: "Contact Requests", href: "/admin/support", icon: PhoneIcon },
+      ]
+    },
+    {
+      title: "Support & Settings",
+      items: [
+        { key: "support", label: "Contact Us", href: "/admin/support", icon: PhoneIcon },
+        { key: "chat", label: "Support Ticket", href: "/admin/chat", icon: ChatBubbleLeftRightIcon },
+        { key: "settings", label: "Settings", href: "/admin/settings", icon: Cog6ToothIcon },
       ]
     }
   ];
