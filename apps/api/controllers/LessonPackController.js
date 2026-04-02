@@ -5,9 +5,13 @@ import path from "path";
 
 const extractYoutubeId = (url) => {
     if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    
+    // Matches http/https, www/m, and the various paths: watch, v, embed, shorts, live, youtu.be
+    const regExp = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?.*v=|v\/|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/;
     const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
+    
+    // match[1] contains the exact 11-character YouTube ID
+    return match ? match[1] : null;
 };
 
 const deleteFile = (fileUrl) => {
