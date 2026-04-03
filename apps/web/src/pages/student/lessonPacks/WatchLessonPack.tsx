@@ -51,54 +51,73 @@ export default function WatchLessonPack() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // 3. Initialize Plyr (Only if they have access and an active video exists)
+  // 3. Initialize/Update Plyr (Bulletproof Version)
   useEffect(() => {
-    if (pack?.hasAccess && activeVideo?.youtubeId && playerRef.current) {
-        
-        // Strict Cleanup for React 19
+    let player: any = null;
+
+    const initPlayer = () => {
+      if (pack?.hasAccess && activeVideo?.youtubeId && playerRef.current) {
+        // Force destroy any ghost instances
         if (playerInstance.current) {
-            playerInstance.current.destroy();
-            playerInstance.current = null;
+          playerInstance.current.destroy();
         }
 
-        const player = new Plyr(playerRef.current, {
-            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'fullscreen'],
-            settings: ['speed'], 
-            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
-            youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1, controls: 1, disablekb: 0, fs: 1 },
+        // Initialize fresh
+        player = new Plyr(playerRef.current, {
+          controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'fullscreen'],
+          settings: ['speed'],
+          speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+          youtube: { 
+            noCookie: true, 
+            rel: 0, 
+            showinfo: 0, 
+            iv_load_policy: 3, 
+            modestbranding: 1,
+            controls: 1,
+            disablekb: 0,
+            fs: 1
+          },
         } as any);
 
         playerInstance.current = player;
 
-        // Secure Shield Overlay
+        // Re-attach the Shield
         player.on('ready', () => {
-            const container = player.elements.container;
-            if (!container || container.querySelector('.secure-shield-layer')) return;
+          const container = player.elements.container;
+          if (!container || container.querySelector('.secure-shield-layer')) return;
 
-            const shield = document.createElement('div');
-            shield.className = 'secure-shield-layer';
-            Object.assign(shield.style, {
-                position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
-                zIndex: '50', background: 'transparent', cursor: 'pointer',
-                userSelect: 'none', WebkitUserSelect: 'none'
-            });
+          const shield = document.createElement('div');
+          shield.className = 'secure-shield-layer';
+          Object.assign(shield.style, {
+            position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
+            zIndex: '50', background: 'transparent', cursor: 'pointer',
+            userSelect: 'none', WebkitUserSelect: 'none'
+          });
 
-            shield.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); player.togglePlay(); });
-            shield.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); });
-            shield.addEventListener('dragstart', (e) => e.preventDefault());
-
-            container.appendChild(shield);
+          shield.addEventListener('click', (e) => { 
+            e.preventDefault(); 
+            e.stopPropagation();
+            player.togglePlay(); 
+          });
+          shield.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); });
+          shield.addEventListener('dragstart', (e) => e.preventDefault());
+          
+          container.appendChild(shield);
         });
-    }
+      }
+    };
+
+    // Small timeout ensures React has finished updating the DOM/Iframe before Plyr grabs it
+    const timeoutId = setTimeout(initPlayer, 50);
 
     return () => {
-        if (playerInstance.current) {
-            playerInstance.current.destroy();
-            playerInstance.current = null;
-        }
+      clearTimeout(timeoutId);
+      if (player) {
+        player.destroy();
+        playerInstance.current = null;
+      }
     };
-  }, [activeVideo, pack?.hasAccess]);
-
+  }, [activeVideo?._id, activeVideo?.youtubeId, pack?.hasAccess]); 
 
   if (loading) return <div className="h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="w-10 h-10 text-brand-cerulean animate-spin"/></div>;
   if (error || !pack) return <div className="h-screen flex items-center justify-center">Error loading playlist.</div>;
@@ -143,7 +162,8 @@ export default function WatchLessonPack() {
              /* UNLOCKED STATE (PLAYER) */
              <div className="w-full aspect-video bg-black rounded-2xl shadow-xl overflow-hidden relative border border-gray-200">
                 {activeVideo?.youtubeId ? (
-                   <>
+                   /* THE FIX: The key here must change every time the video changes. */
+                   <div key={`player-shell-${activeVideo._id || activeVideo.youtubeId}`} className="w-full h-full">
                       <div ref={playerRef} className="plyr__video-embed w-full h-full">
                         <iframe
                             src={`https://www.youtube-nocookie.com/embed/${activeVideo.youtubeId}?origin=${window.location.origin}&iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&controls=0&fs=0`}
@@ -151,7 +171,7 @@ export default function WatchLessonPack() {
                         ></iframe>
                       </div>
                       
-                      {/* Watermark overlay using CSS animation instead of marquee */}
+                      {/* Watermark overlay */}
                       <div className="absolute inset-0 z-40 pointer-events-none flex flex-col justify-between py-10 opacity-20 overflow-hidden">
                           <div className="whitespace-nowrap animate-marquee-fast">
                              <span className="text-xl font-black text-white uppercase tracking-[1rem]">
@@ -159,7 +179,7 @@ export default function WatchLessonPack() {
                              </span>
                           </div>
                       </div>
-                   </>
+                   </div>
                 ) : (
                    <div className="w-full h-full flex items-center justify-center text-gray-500"><Loader2 className="animate-spin"/></div>
                 )}
