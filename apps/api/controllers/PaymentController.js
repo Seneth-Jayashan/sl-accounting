@@ -365,6 +365,14 @@ export const updatePaymentStatus = async (req, res) => {
     
     await payment.save();
 
+    if (status === "failed" && payment.enrollment) {
+        const enrollment = await Enrollment.findByIdAndUpdate(payment.enrollment._id);
+        if (enrollment) {
+          enrollment.paidMonths = enrollment.paidMonths.filter(m => m !== payment.targetMonth);
+          await enrollment.save();
+        }
+    }
+
     if (status === "completed" && payment.enrollment && !payment.enrollment?.lessonPack) {
         
         await approveBundleEnrollments(
