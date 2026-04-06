@@ -33,6 +33,7 @@ export interface PaymentReportResponse {
 export interface PaymentData {
   _id: string;
   enrollment: {
+    lessonPack: any;
     _id: string;
     student: {
       _id: string;

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom"; 
 import moment from "moment";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +16,8 @@ import {
   ArrowPathIcon,
   PlusIcon,
   CalendarDaysIcon,
-  ChatBubbleBottomCenterTextIcon // <--- Imported
+  ChatBubbleBottomCenterTextIcon,
+  MagnifyingGlassIcon // <--- Imported Search Icon
 } from "@heroicons/react/24/outline";
 import { ListVideoIcon } from "lucide-react";
 
@@ -35,6 +36,7 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>(""); // <--- Search State
   const [selectedSlip, setSelectedSlip] = useState<string | null>(null);
 
   const fetchPayments = useCallback(async () => {
@@ -75,22 +77,58 @@ export default function PaymentsPage() {
     return path.startsWith("http") ? path : `${API_BASE}/${cleanPath}`;
   };
 
+  // <--- Frontend Search Filter Logic
+  const filteredPayments = useMemo(() => {
+    if (!searchQuery.trim()) return payments;
+    
+    const query = searchQuery.toLowerCase();
+    return payments.filter(payment => {
+      const firstName = payment.enrollment?.student?.firstName?.toLowerCase() || "";
+      const lastName = payment.enrollment?.student?.lastName?.toLowerCase() || "";
+      const className = payment.enrollment?.class?.name?.toLowerCase() || "";
+      const packName = payment.enrollment?.lessonPack?.title?.toLowerCase() || "";
+      const notes = payment.notes?.toLowerCase() || "";
+      const amount = payment.amount?.toString() || "";
+
+      return (
+        firstName.includes(query) ||
+        lastName.includes(query) ||
+        className.includes(query) ||
+        packName.includes(query) ||
+        notes.includes(query) ||
+        amount.includes(query)
+      );
+    });
+  }, [payments, searchQuery]);
+
   return (
       <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 pb-24 animate-in fade-in duration-500">
         
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">Revenue Operations</h1>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-col lg:flex-row gap-3 w-full xl:w-auto">
+             {/* --- Search Input --- */}
+             <div className="relative w-full lg:w-64">
+               <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+               <input
+                 type="text"
+                 placeholder="Search payments..."
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 className="w-full pl-9 pr-4 py-3 sm:py-2 bg-white sm:bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl text-xs focus:outline-none focus:border-brand-cerulean focus:ring-1 focus:ring-brand-cerulean transition-all text-brand-prussian placeholder-gray-400"
+               />
+             </div>
+
              <button
                onClick={() => navigate("/admin/payments/create")}
-               className="flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-brand-cerulean/20 active:scale-95 flex-1 sm:flex-none"
+               className="flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-3 lg:py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-brand-cerulean/20 active:scale-95 flex-1 lg:flex-none"
              >
                <PlusIcon className="w-4 h-4 stroke-[3px]" />
-               Record Payment
+               Record
              </button>
 
              <div className="flex bg-brand-aliceBlue p-1 rounded-xl border border-brand-aliceBlue overflow-x-auto no-scrollbar">
@@ -133,7 +171,7 @@ export default function PaymentsPage() {
                   </thead>
                   <tbody className="divide-y divide-brand-aliceBlue/30">
                     <AnimatePresence mode="popLayout">
-                      {payments.map((payment) => (
+                      {filteredPayments.map((payment) => (
                         <PaymentRow 
                           key={payment._id} 
                           payment={payment} 
@@ -150,7 +188,7 @@ export default function PaymentsPage() {
               {/* Mobile Cards */}
               <div className="sm:hidden space-y-4">
                   <AnimatePresence mode="popLayout">
-                      {payments.map((payment) => (
+                      {filteredPayments.map((payment) => (
                           <MobilePaymentCard 
                               key={payment._id}
                               payment={payment}
@@ -162,9 +200,9 @@ export default function PaymentsPage() {
                   </AnimatePresence>
               </div>
 
-              {payments.length === 0 && (
+              {filteredPayments.length === 0 && (
                 <div className="py-20 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">
-                  No transaction records found
+                  {searchQuery ? "No matching transaction found" : "No transaction records found"}
                 </div>
               )}
             </>
@@ -206,7 +244,7 @@ export default function PaymentsPage() {
   );
 }
 
-// --- Sub-components ---
+// --- Sub-components (unchanged) ---
 
 function PaymentRow({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
   return (
