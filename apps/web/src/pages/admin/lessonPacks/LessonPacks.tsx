@@ -7,6 +7,7 @@ import {
   Loader2, ListVideo, DollarSign
 } from "lucide-react";
 import LessonPackService, { type LessonPackData, type PlaylistItem } from "../../../services/LessonPackService";
+import BatchService from "../../../services/BatchService";
 
 const extractYoutubeId = (url: string) => {
   if (!url) return null;
@@ -53,6 +54,7 @@ export default function LessonPacks() {
     description: "",
     price: "",
     isPublished: true,
+    batch: "" // For admin view to associate with batch
   });
   const [videos, setVideos] = useState<PlaylistItem[]>([{ title: "", youtubeUrl: "", durationMinutes: 0 }]);
   const [customImage, setCustomImage] = useState<File | null>(null);
@@ -70,7 +72,18 @@ export default function LessonPacks() {
     }
   };
 
+  const [batches, setBatches] = useState<{ _id: string; name: string }[]>([]);
+  const fetchBatches = async () => {
+    try {
+      const data = await BatchService.getAllPublicBatches();
+      setBatches(data.batches || []);
+    } catch (error) {
+      toast.error("Failed to load batches.");
+    }
+  };
+
   useEffect(() => { fetchPacks(); }, []);
+  useEffect(() => { fetchBatches(); }, []);
 
   // --- Handlers ---
   const openModal = async (packId?: string) => {
@@ -88,6 +101,7 @@ export default function LessonPacks() {
           description: fullPack.description || "",
           price: fullPack.price.toString(),
           isPublished: fullPack.isPublished,
+          batch: fullPack.batch || ""
         });
         setVideos(fullPack.videos.length > 0 ? fullPack.videos : [{ title: "", youtubeUrl: "", durationMinutes: 0 }]);
         setExistingCover(fullPack.coverImage || null);
@@ -99,7 +113,7 @@ export default function LessonPacks() {
       }
     } else {
       setEditingId(null);
-      setFormData({ title: "", description: "", price: "", isPublished: true });
+      setFormData({ title: "", description: "", price: "", isPublished: true, batch: "" });
       setVideos([{ title: "", youtubeUrl: "", durationMinutes: 0 }]);
     }
   };
@@ -127,6 +141,7 @@ export default function LessonPacks() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) return toast.error("Title is required.");
+    if (!formData.batch) return toast.error("Batch is required.");
     if (videos.length === 0 || !videos[0].youtubeUrl.trim()) return toast.error("At least one video is required.");
 
     setIsSubmitting(true);
@@ -137,7 +152,8 @@ export default function LessonPacks() {
           price: Number(formData.price) || 0,
           isPublished: formData.isPublished,
           videos: videos,
-          coverImageFile: customImage 
+          coverImageFile: customImage,
+          batch: formData.batch 
       };
 
       if (editingId) {
@@ -311,6 +327,20 @@ export default function LessonPacks() {
                          <div>
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-1"><DollarSign size={12}/> Price (LKR) *</label>
                             <input required type="number" min="0" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-brand-prussian focus:ring-2 focus:ring-brand-cerulean/20 outline-none" />
+                         </div>
+                         <div>
+                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Batch *</label>
+                           <select
+                            required
+                            value={formData.batch}
+                            onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-cerulean/20 outline-none"
+                           >
+                            <option value="" disabled>Select a batch</option>
+                            {batches.map((batch) => (
+                              <option key={batch._id} value={batch._id}>{batch.name}</option>
+                            ))}
+                           </select>
                          </div>
                       </div>
                     </div>

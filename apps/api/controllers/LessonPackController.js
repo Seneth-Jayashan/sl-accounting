@@ -28,7 +28,7 @@ const deleteFile = (fileUrl) => {
 
 export const createLessonPack = async (req, res) => {
     try {
-        const { title, description, price, isPublished } = req.body;
+        const { title, description, price, isPublished, batch } = req.body;
         
         // Parse the videos array sent as a JSON string from FormData
         let parsedVideos = [];
@@ -54,7 +54,9 @@ export const createLessonPack = async (req, res) => {
             price: Number(price) || 0,
             coverImage,
             videos: parsedVideos,
-            isPublished: isPublished === 'true' || isPublished === true
+            isPublished: isPublished === 'true' || isPublished === true,
+            batch: req.body.batch
+
         });
 
         res.status(201).json({ success: true, data: newPack });
@@ -66,7 +68,7 @@ export const createLessonPack = async (req, res) => {
 export const updateLessonPack = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, price, isPublished } = req.body;
+        const { title, description, price, isPublished, batch } = req.body;
 
         const pack = await LessonPack.findById(id);
         if (!pack) return res.status(404).json({ success: false, message: "Lesson pack not found." });
@@ -75,6 +77,7 @@ export const updateLessonPack = async (req, res) => {
         if (description !== undefined) pack.description = description;
         if (price !== undefined) pack.price = Number(price);
         if (isPublished !== undefined) pack.isPublished = isPublished === 'true' || isPublished === true;
+        if (batch !== undefined) pack.batch = batch;
 
         if (req.body.videos) {
             try {
@@ -84,7 +87,7 @@ export const updateLessonPack = async (req, res) => {
                     youtubeUrl: v.youtubeUrl,
                     youtubeId: extractYoutubeId(v.youtubeUrl) || v.youtubeId,
                     durationMinutes: v.durationMinutes,
-                    order: i
+                    order: i,
                 })).filter(v => v.youtubeId);
             } catch (e) {
                 return res.status(400).json({ success: false, message: "Invalid video data format." });

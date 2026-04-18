@@ -9,6 +9,7 @@ export interface PlaylistItem {
   youtubeId?: string;
   durationMinutes: number;
   order?: number;
+  batch?: string; // For admin view to associate with batch 
 }
 
 export interface LessonPackData {
@@ -21,6 +22,7 @@ export interface LessonPackData {
   isPublished: boolean;
   hasAccess?: boolean; // For student view
   createdAt: string;
+  batch?: string; // For admin view to associate with batch
 }
 
 export interface LessonPackPayload {
@@ -30,6 +32,7 @@ export interface LessonPackPayload {
   videos: PlaylistItem[];
   isPublished: boolean;
   coverImageFile?: File | null;
+  batch: string; // For admin view to associate with batch
 }
 
 const LessonPackService = {
@@ -50,7 +53,7 @@ const LessonPackService = {
     formData.append("price", String(data.price));
     formData.append("isPublished", String(data.isPublished));
     formData.append("videos", JSON.stringify(data.videos));
-    
+    formData.append("batch", data.batch);
     if (data.coverImageFile) {
       formData.append("coverImage", data.coverImageFile);
     }
@@ -70,7 +73,8 @@ const LessonPackService = {
     formData.append("price", String(data.price));
     formData.append("isPublished", String(data.isPublished));
     formData.append("videos", JSON.stringify(data.videos));
-    
+    formData.append("batch", data.batch);
+
     if (data.coverImageFile) {
       formData.append("coverImage", data.coverImageFile);
     }

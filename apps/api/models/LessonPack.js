@@ -14,6 +14,11 @@ const lessonPackSchema = new mongoose.Schema({
         required: [true, "Please provide a title"], 
         trim: true 
     },
+    batch: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: "Batch", 
+        required: [true, "Please specify the batch"]
+    },
     description: { 
         type: String, 
         trim: true 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, PlayCircle, Lock, ListVideo, Loader2, CheckCircle2 } from "lucide-react";
 import LessonPackService, { type LessonPackData } from "../../../services/LessonPackService";
+import { useAuth } from "../../../contexts/AuthContext";
 
 const getSmartCoverUrl = (pack: any) => {
   if (pack.coverImage) return `${import.meta.env.VITE_API_BASE_URL}${pack.coverImage}`;
@@ -13,6 +14,7 @@ const getSmartCoverUrl = (pack: any) => {
 };
 
 export default function StudentLessonPacks() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [packs, setPacks] = useState<LessonPackData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +24,13 @@ export default function StudentLessonPacks() {
     const fetchPacks = async () => {
       try {
         const data = await LessonPackService.getAll();
-        setPacks(data);
+        const userBatchId = (user?.role === "student" && user.batch) ? user.batch : null;
+        const batchPacks = userBatchId ? data.filter(pack => pack.batch === userBatchId) : [];
+        const enrichedPacks = batchPacks.map(pack => ({
+          ...pack,
+          hasAccess: pack.price === 0 || pack.batch === userBatchId
+        }));
+        setPacks(enrichedPacks);
       } catch (error) {
         console.error("Failed to load lesson packs", error);
       } finally {
@@ -30,7 +38,9 @@ export default function StudentLessonPacks() {
       }
     };
     fetchPacks();
-  }, []);
+  }, [user]);
+
+
 
   const filteredPacks = useMemo(() => {
     return packs.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()));
