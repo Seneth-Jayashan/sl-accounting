@@ -57,9 +57,14 @@ export default function ResourcesTab({ classId }: { classId: string }) {
             }
 
             // B. Handle Enrollment Data (Find specific enrollment for this class)
-            const match = enrollRes.find((e: any) => 
-                (typeof e.class === 'string' ? e.class : e.class._id) === classId
-            );
+            const match = enrollRes.find((e: any) => {
+              // (typeof e.class === 'string' ? e.class : e.class?._id) === classId 
+                // Safely grab the ObjectId (whether populated or not)
+                const currentId = e.class?._id || e.class;
+
+                // Convert both to strings, compare safely, and return the result
+                return currentId?.toString() === classId?.toString();
+            });
             setEnrollment(match || null);
         }
       } catch (err) {
