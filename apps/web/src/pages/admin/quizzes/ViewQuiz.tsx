@@ -59,10 +59,15 @@ const ViewQuiz: React.FC = () => {
     );
   }
 
-  // Handle populated class object safely
-  const classNameDisplay = typeof quiz.class === 'object' && quiz.class !== null 
-    ? (quiz.class as any).name || (quiz.class as any).className || "Unknown Class"
-    : "Class ID: " + quiz.class;
+  // Handle populated class object or array safely
+  let classNameDisplay = "";
+  if (Array.isArray(quiz.class)) {
+    classNameDisplay = quiz.class.map((c: any) => (typeof c === 'object' && c !== null ? (c.name || c.className || c._id) : c)).join(", ");
+  } else {
+    classNameDisplay = typeof quiz.class === 'object' && quiz.class !== null
+      ? (quiz.class as any).name || (quiz.class as any).className || "Unknown Class"
+      : "Class ID: " + quiz.class;
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -165,16 +170,31 @@ const ViewQuiz: React.FC = () => {
         <div className="space-y-6">
           {quiz.questions.map((q, index) => (
             <div key={q._id || index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex gap-3">
-                  <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold">
-                    {index + 1}
+              <div className="mb-4">
+
+                {/* Top Row */}
+                <div className="flex justify-between items-start gap-4">
+
+                  <div className="flex gap-3 items-start flex-1 min-w-0">
+
+                    <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold mt-1">
+                      {index + 1}
+                    </span>
+
+                    <div
+                      className="tiptap flex-1 min-w-0 text-gray-800"
+                      dangerouslySetInnerHTML={{ __html: q.questionText }}
+                    />
+
+                  </div>
+
+                  {/* Points */}
+                  <span className="flex-shrink-0 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded">
+                    {q.points} {q.points === 1 ? "Point" : "Points"}
                   </span>
-                  <p className="text-gray-800 font-medium text-lg pt-1">{q.questionText}</p>
+
                 </div>
-                <span className="flex-shrink-0 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded">
-                  {q.points} {q.points === 1 ? 'Point' : 'Points'}
-                </span>
+
               </div>
 
               {/* Options */}
@@ -204,7 +224,7 @@ const ViewQuiz: React.FC = () => {
                   <HelpCircle size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-sm font-bold text-blue-900 mb-1">Explanation / Working</h4>
-                    <p className="text-sm text-blue-800 whitespace-pre-wrap">{q.explanation}</p>
+                    <p className="text-sm text-blue-800 whitespace-normal">{q.explanation}</p>
                   </div>
                 </div>
               )}

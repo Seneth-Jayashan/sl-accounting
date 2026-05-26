@@ -5,6 +5,9 @@ const QUIZ_BASE = "/quizzes";
 const SUBMISSION_BASE = "/submissions";
 
 // --- TYPES ---
+// A class reference can be a plain id or a populated object; allow single or array
+export type ClassRefSingle = string | { _id: string; className: string };
+export type ClassRef = ClassRefSingle | ClassRefSingle[];
 
 export interface QuizOption {
   _id?: string;
@@ -35,7 +38,7 @@ export interface Quiz {
   _id: string;
   title: string;
   description?: string;
-  class: string | { _id: string; className: string };
+  class: ClassRef; // Can be populated with class details or just an ID (single or array)
   questions: QuizQuestion[];
   quizType: "live" | "schedule" | "practice";
   scheduledAt?: string;

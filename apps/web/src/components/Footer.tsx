@@ -166,7 +166,7 @@ const FooterComponent: React.FC = () => {
                 <div className="p-3 rounded-lg bg-[#05668A]/10 group-hover:bg-[#05668A]/20 transition-colors text-[#05668A]">
                   <MapPin size={18} />
                 </div>
-                <span className="group-hover:text-white transition-colors">Colombo, Sri Lanka</span>
+                <span className="group-hover:text-white transition-colors">Galle, Sri Lanka</span>
               </li>
             </ul>
           </div>

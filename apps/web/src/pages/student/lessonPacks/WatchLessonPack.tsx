@@ -142,21 +142,21 @@ export default function WatchLessonPack() {
         {/* LEFT: Video Player Area */}
         <div className="flex-1 p-4 lg:p-6 flex flex-col">
           
-          {!pack.hasAccess ? (
+           {!pack.hasAccess ? (
              /* LOCKED STATE */
-             <div className="w-full aspect-video bg-brand-prussian rounded-2xl shadow-2xl flex flex-col items-center justify-center text-center p-8 border border-gray-800 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-brand-cerulean via-brand-prussian to-black"></div>
-                <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-6 relative z-10 backdrop-blur-sm border border-white/20">
-                   <Lock size={32} className="text-white" />
-                </div>
-                <h2 className="text-3xl font-black text-white mb-2 relative z-10">Premium Playlist</h2>
-                <p className="text-brand-aliceBlue/70 max-w-md mb-8 relative z-10">You need to purchase this lesson pack to unlock the videos and materials inside.</p>
-                <button 
-                  onClick={() => navigate(`/student/payment/lesson-pack/${pack._id}`)}
-                  className="bg-brand-cerulean hover:bg-blue-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg active:scale-95 relative z-10"
-                >
-                  Unlock for LKR {pack.price}
-                </button>
+             <div className="w-full min-h-[320px] sm:aspect-video bg-brand-prussian rounded-2xl shadow-2xl flex flex-col items-center justify-center text-center px-5 py-8 sm:p-8 border border-gray-800 relative overflow-hidden">
+               <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-brand-cerulean via-brand-prussian to-black"></div>
+               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full flex items-center justify-center mb-4 sm:mb-6 relative z-10 backdrop-blur-sm border border-white/20">
+                 <Lock size={28} className="sm:size-8 text-white" />
+               </div>
+               <h2 className="text-2xl sm:text-3xl font-black text-white mb-2 relative z-10">Premium Playlist</h2>
+               <p className="text-sm sm:text-base text-brand-aliceBlue/70 max-w-xs sm:max-w-md mb-6 sm:mb-8 relative z-10 px-1 sm:px-0">You need to purchase this lesson pack to unlock the videos and materials inside.</p>
+               <button 
+                onClick={() => navigate(`/student/payment/lesson-pack/${pack._id}`)}
+                className="w-full sm:w-auto bg-brand-cerulean hover:bg-blue-500 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all shadow-lg active:scale-95 relative z-10"
+               >
+                Unlock for LKR {pack.price}
+               </button>
              </div>
           ) : (
              /* UNLOCKED STATE (PLAYER) */

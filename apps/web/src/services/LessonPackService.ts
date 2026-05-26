@@ -41,6 +41,16 @@ const LessonPackService = {
     return response.data.data;
   },
 
+  getAllPublic: async () => {
+    const response = await api.get<{ success: boolean; data: LessonPackData[] }>(`${BASE_URL}/public`);
+    return response.data.data;
+  },
+
+  getPublicById: async (id: string) => {
+    const response = await api.get<{ success: boolean; data: LessonPackData }>(`${BASE_URL}/public/${id}`);
+    return response.data.data;
+  },
+
   getById: async (id: string) => {
     const response = await api.get<{ success: boolean; data: LessonPackData }>(`${BASE_URL}/${id}`);
     return response.data.data;

@@ -20,8 +20,8 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     { name: 'මුල් පිටුව', href: '/' },
     { name: 'අපි ගැන', href: '/about' },
-    { name: 'පාඨමාලා', href: '/classes' },
-    { name: 'විශේෂාංග', href: '/features' },
+    { name: 'පංති', href: '/classes' },
+    { name: 'පාඨමාලා', href: '/lesson-packs' },
     { name: 'සම්බන්ධ වන්න', href: '/contacts' },
   ];
 

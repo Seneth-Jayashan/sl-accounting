@@ -1,7 +1,7 @@
 import React, { useState, memo } from "react";
 import { motion } from "framer-motion";
 import { User, Lock, ArrowRight, Eye, EyeOff, ShieldCheck, AlertCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { z } from "zod";
@@ -83,6 +83,8 @@ const InputField = ({
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { from?: string } | null)?.from;
 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -126,6 +128,11 @@ export default function Login() {
 
     try {
       await login({ email, password });
+
+      if (returnTo) {
+        navigate(returnTo, { replace: true });
+        return;
+      }
       
       // Fetch role for redirect
       try {

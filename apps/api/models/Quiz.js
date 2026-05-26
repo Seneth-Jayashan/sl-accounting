@@ -4,7 +4,11 @@ const quizSchema = new mongoose.Schema(
     {
         title: { type: String, required: true, trim: true },
         description: { type: String, trim: true },
-        class: { type: mongoose.Schema.Types.ObjectId, ref: "Class", required: true },
+        class: [{ 
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Class",
+            required: true
+        }],
         
         // 1. ADVANCED QUESTION STRUCTURE
         questions: [

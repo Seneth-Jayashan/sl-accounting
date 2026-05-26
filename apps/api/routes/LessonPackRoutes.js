@@ -5,7 +5,9 @@ import {
     getLessonPackById,
     updateLessonPack,
     deleteLessonPack,
-    togglePublishStatus
+    togglePublishStatus,
+    getAllPublicLessonPacks,
+    getPublicById
 } from "../controllers/LessonPackController.js";
 
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
@@ -15,7 +17,14 @@ const router = express.Router();
 const coverUploader = createUploader('images/lesson-packs', 'coverImage');
 
 // ==========================================
-// PUBLIC/STUDENT ROUTES
+// PUBLIC ROUTES
+// ==========================================
+router.get("/public", getAllPublicLessonPacks);  // <-- NEW
+router.get("/public/:id", getPublicById);  // <-- NEW
+
+
+// ==========================================
+// STUDENT ROUTES
 // ==========================================
 router.get("/", protect, getAllLessonPacks);
 router.get("/:id", protect, getLessonPackById); // <-- NEW

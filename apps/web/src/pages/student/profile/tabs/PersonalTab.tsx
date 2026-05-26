@@ -192,7 +192,7 @@ export default function PersonalTab() {
                         disabled={!isEditing}
                         value={formData.address.city}
                         onChange={(e) => handleAddressChange("city", e.target.value)}
-                        placeholder="Colombo"
+                        placeholder="Galle"
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                     />
                 </div>
@@ -231,7 +231,7 @@ export default function PersonalTab() {
                         disabled={!isEditing}
                         value={formData.address.nearestPostOffice}
                         onChange={(e) => handleAddressChange("nearestPostOffice", e.target.value)}
-                        placeholder="Example: Colombo 05 Post Office"
+                        placeholder="Example: Galle 05 Post Office"
                         className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                       />
                     </div>

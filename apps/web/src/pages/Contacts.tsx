@@ -49,7 +49,7 @@ const translations = {
     pageSubtitle: "Have questions or feedback? We’d love to hear from you!",
     infoTitle: "Get in touch",
     locationTitle: "Head Office",
-    locationAddress: "Colombo, Sri Lanka",
+    locationAddress: "Galle, Sri Lanka",
     emailTitle: "Email us",
     phoneTitle: "Call us",
     phoneHours: "Mon–Fri, 9am – 5pm",

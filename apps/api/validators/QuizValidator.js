@@ -21,7 +21,7 @@ export const createQuizSchema = z.object({
   body: z.object({
     title: z.string().trim().min(3, "Title must be at least 3 characters"),
     description: z.string().trim().optional(),
-    class: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Class ID"),
+    class: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Class ID")).min(1, "At least one class is required"),
     questions: z.array(questionSchema).min(1, "Quiz must have at least one question"),
     quizType: z.enum(["live", "schedule", "practice"]).default("live"),
     scheduledAt: z.preprocess((arg) => (typeof arg === "string" ? new Date(arg) : arg), z.date().optional()),

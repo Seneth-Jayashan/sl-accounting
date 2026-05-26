@@ -12,6 +12,7 @@ import {
 import { toast } from "react-hot-toast";
 import QuizService, { type QuizPayload, type QuizQuestion } from "../../../services/QuizService";
 import ClassService, { type ClassData } from "../../../services/ClassService"; // <-- IMPORT ADDED
+import RichTextEditor from "../../../components/editor/RichTextEditor";
 
 const CreateQuiz: React.FC = () => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const CreateQuiz: React.FC = () => {
   const [quizData, setQuizData] = useState<QuizPayload>({
     title: "",
     description: "",
-    class: "", // Will be filled from dropdown
+    class: [], // Will be filled from dropdown (support multiple classes)
     duration: 60,
     quizType: "live",
     passingPercentage: 40,
@@ -78,12 +79,29 @@ const CreateQuiz: React.FC = () => {
 
   // --- Handlers for Basic Info ---
   const handleBasicInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    
-    // Convert to number if the input type is 'number'
-    const parsedValue = type === "number" ? Number(value) : value;
-    
-    setQuizData(prev => ({ ...prev, [name]: parsedValue }));
+    const target = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    const { name, type } = target as HTMLInputElement;
+
+    // Handle multi-select for classes
+    if (name === "class" && target instanceof HTMLSelectElement && target.multiple) {
+      const selected = Array.from(target.selectedOptions).map(o => o.value);
+      setQuizData(prev => ({ ...prev, class: selected }));
+      return;
+    }
+
+    const value = (type === "number") ? Number((target as HTMLInputElement).value) : (target as any).value;
+    setQuizData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Toggle class selection (checkbox list)
+  const handleToggleClass = (clsId: string) => {
+    setQuizData(prev => {
+      const prevClasses = Array.isArray(prev.class) ? [...(prev.class as string[])] : (prev.class ? [prev.class as string] : []);
+      const idx = prevClasses.indexOf(clsId);
+      if (idx === -1) prevClasses.push(clsId);
+      else prevClasses.splice(idx, 1);
+      return { ...prev, class: prevClasses };
+    });
   };
 
   const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,8 +213,9 @@ const CreateQuiz: React.FC = () => {
   // --- Submit ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quizData.class) {
-      toast.error("Please select a class/batch for this quiz.");
+    const classesSelected = Array.isArray(quizData.class) ? quizData.class.length > 0 : !!quizData.class;
+    if (!classesSelected) {
+      toast.error("Please select at least one class/batch for this quiz.");
       return;
     }
     
@@ -270,23 +289,33 @@ const CreateQuiz: React.FC = () => {
                 {/* DYNAMIC CLASS SELECTION */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Target Class/Batch *</label>
-                  <select 
-                    required 
-                    name="class"
-                    value={quizData.class as string}
-                    onChange={handleBasicInfoChange}
-                    disabled={loadingClasses}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
-                  >
-                    <option value="" disabled>
-                      {loadingClasses ? "Loading classes..." : "Select a class"}
-                    </option>
-                    {availableClasses.map((cls) => (
-                      <option key={cls._id} value={cls._id}>
-                        {cls.name} {cls.batch ? `(${typeof cls.batch === 'string' ? cls.batch : cls.batch.name})` : ''} - {cls.type}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    {loadingClasses ? (
+                      <p className="text-sm text-gray-500">Loading classes...</p>
+                    ) : availableClasses.length === 0 ? (
+                      <p className="text-sm text-gray-500">No classes available</p>
+                    ) : (
+                      availableClasses.map((cls) => {
+                        const checked = Array.isArray(quizData.class) ? (quizData.class as string[]).includes(cls._id) : quizData.class === cls._id;
+                        return (
+                          <label key={cls._id} className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              name="class"
+                              value={cls._id}
+                              checked={checked}
+                              onChange={() => handleToggleClass(cls._id)}
+                              disabled={loadingClasses}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <span className="text-sm text-gray-700">
+                              {cls.name} {cls.batch ? `(${typeof cls.batch === 'string' ? cls.batch : cls.batch.name})` : ''} - {cls.type}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -380,15 +409,13 @@ const CreateQuiz: React.FC = () => {
                 {/* Question Text & Points */}
                 {/* Question Text & Points & Type */}
                 <div className="grid grid-cols-12 gap-4 mb-4">
-                  <div className="col-span-12 md:col-span-6">
+                  <div className="col-span-12 md:col-span-12">
                     <label className="block text-xs text-gray-500 mb-1">Question Text</label>
-                    <textarea 
-                      required
-                      rows={2}
-                      value={q.questionText}
-                      onChange={(e) => handleQuestionChange(qIndex, "questionText", e.target.value)}
-                      placeholder="Type your accounting question here..."
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                    <RichTextEditor
+                      content={q.questionText}
+                      onChange={(value) =>
+                        handleQuestionChange(qIndex, "questionText", value)
+                      }
                     />
                   </div>
                   

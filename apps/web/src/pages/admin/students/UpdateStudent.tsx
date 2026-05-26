@@ -325,7 +325,7 @@ export default function UpdateStudentPage() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputField label="Street Address" name="street" value={profileData.address.street} onChange={handleAddressChange} placeholder="No. 123, Main Street" className="md:col-span-2" />
-                    <InputField label="City" name="city" value={profileData.address.city} onChange={handleAddressChange} placeholder="Colombo" />
+                    <InputField label="City" name="city" value={profileData.address.city} onChange={handleAddressChange} placeholder="Galle" />
                     <div className="grid grid-cols-2 gap-4">
                         <InputField label="State" name="state" value={profileData.address.state} onChange={handleAddressChange} placeholder="Western" />
                         <InputField label="Zip Code" name="zipCode" value={profileData.address.zipCode} onChange={handleAddressChange} placeholder="10200" />

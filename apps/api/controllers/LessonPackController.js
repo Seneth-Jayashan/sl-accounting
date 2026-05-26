@@ -133,6 +133,21 @@ export const togglePublishStatus = async (req, res) => {
     }
 };
 
+export const getAllPublicLessonPacks = async (req, res) => {
+    try {
+        const query = { isPublished: true };
+        
+        // Exclude the videos array from the initial list fetch to save bandwidth
+        const packs = await LessonPack.find(query)
+            .select("-videos")
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({ success: true, count: packs.length, data: packs });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // --- STUDENT FETCH LOGIC ---
 
 export const getAllLessonPacks = async (req, res) => {
@@ -158,6 +173,20 @@ export const getAllLessonPacks = async (req, res) => {
         }
 
         res.status(200).json({ success: true, count: packs.length, data: packs });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getPublicById = async (req, res) => {
+    try {
+        const pack = await LessonPack.findById(req.params.id);
+        if (!pack) return res.status(404).json({ success: false, message: "Not found." });
+        if (!pack.isPublished) return res.status(403).json({ success: false, message: "This lesson pack is not available." });
+
+        res.status(200).json({ success: true, data: pack });
+
+
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

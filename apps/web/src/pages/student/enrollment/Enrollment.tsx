@@ -215,7 +215,7 @@ export default function EnrollmentPage() {
               email: user.email,
               phone: user.phoneNumber || "0770000000",
               address: "Sri Lanka",
-              city: "Colombo",
+              city: "Galle",
               country: "Sri Lanka",
               custom_1: enrollmentId,
               custom_2: targetMonth 

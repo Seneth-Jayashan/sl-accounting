@@ -22,6 +22,8 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Contacts from "./pages/Contacts";
 import Classes from "./pages/Classes";
+import LessonPacks from "./pages/LessonPacks";
+import LessonPackDetailsPage from "./pages/LessonPackDetails";
 import ViewClassPage from "./pages/ViewClass";
 import ForgotPassword from "./pages/ForgotPassword";
 import Verification from "./pages/Verification";
@@ -94,6 +96,8 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/classes" element={<Classes />} />
+            <Route path="/lesson-packs" element={<LessonPacks />} />
+            <Route path="/lesson-packs/:id" element={<LessonPackDetailsPage />} />
             <Route path="/classes/:id" element={<ViewClassPage />} />
             <Route path="/verification" element={<Verification />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

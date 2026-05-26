@@ -11,7 +11,7 @@ const BRAND = {
   color: "#0B5FFF", // Primary brand color
   logo: `${ASSET_URL}/logo.png`,
   supportEmail: "info@kalumwaduge.com",
-  address: "SL Accounting, Colombo, Sri Lanka"
+  address: "SL Accounting, Galle, Sri Lanka"
 };
 
 /* ---------- Helpers ---------- */

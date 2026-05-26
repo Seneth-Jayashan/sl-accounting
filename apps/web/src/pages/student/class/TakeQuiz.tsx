@@ -335,9 +335,18 @@ const TakeQuiz: React.FC = () => {
             </span>
           </div>
 
-          <h2 className="text-xl md:text-2xl font-medium text-gray-800 mb-6 leading-relaxed">
-            {currentQ.questionText}
-          </h2>
+          <div
+            className="
+              tiptap
+              text-xl
+              md:text-2xl
+              font-medium
+              text-gray-800
+              mb-6
+              leading-relaxed
+            "
+            dangerouslySetInnerHTML={{ __html: currentQ.questionText }}
+          />
           {currentQ.questionImage && (
             <div className="mb-6 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 p-2">
               <img src={currentQ.questionImage} alt="Reference material" className="max-w-full h-auto mx-auto object-contain max-h-96" />

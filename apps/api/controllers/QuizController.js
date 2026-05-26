@@ -3,12 +3,17 @@ import Quiz from "../models/Quiz.js";
 
 export const createQuiz = async (req, res) => {
     try {
-        const { title, class: classId, duration, questions } = req.body;
+        const { title, class: classField, duration, questions } = req.body;
 
-        if (!title || !classId || !duration) {
+        // Normalize class field to an array (support single id or array)
+        const classes = Array.isArray(classField) ? classField : (classField ? [classField] : []);
+
+        if (!title || classes.length === 0 || !duration) {
             return res.status(400).json({ success: false, message: "Missing required fields" });
         }
 
+        // Ensure we save an array of class ids
+        req.body.class = classes;
         const quiz = new Quiz(req.body);
         const savedQuiz = await quiz.save();
 
@@ -33,7 +38,8 @@ export const getAllQuizzes = async (req, res) => {
 
 export const getQuizById = async (req, res) => {
     try {
-        const quiz = await Quiz.findOne({ _id: req.params.id, isDeleted: false });
+        const quiz = await Quiz.findOne({ _id: req.params.id, isDeleted: false })
+            .populate("class", "name price coverImage description");
 
         if (!quiz) {
             return res.status(404).json({ success: false, message: "Quiz not found" });
