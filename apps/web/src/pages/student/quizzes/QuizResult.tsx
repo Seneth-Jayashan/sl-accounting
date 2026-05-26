@@ -204,9 +204,18 @@ export default function QuizResult() {
                         </div>
 
                         <div className="p-6 md:p-8">
-                          <p className="text-lg md:text-xl font-medium text-gray-800 mb-6 leading-relaxed">
-                            {q.questionText}
-                          </p>
+                          <div
+                            className="
+                              tiptap
+                              text-lg
+                              md:text-xl
+                              font-medium
+                              text-gray-800
+                              mb-6
+                              leading-relaxed
+                            "
+                            dangerouslySetInnerHTML={{ __html: q.questionText }}
+                          />
                           
                           {hasImage && (
                             <div className="mb-6 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 p-2 max-w-lg">
