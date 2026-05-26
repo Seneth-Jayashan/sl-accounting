@@ -61,7 +61,9 @@ const StudentKnowledgeBase: React.FC = () => {
     (async () => {
       try {
         const res = await api.get(`/knowledge/${id}/download`, { responseType: "blob" });
-        const blob = new Blob([res.data], { type: res.headers["content-type"] || "application/octet-stream" });
+        const contentTypeHeader = res.headers["content-type"];
+        const contentType = typeof contentTypeHeader === "string" ? contentTypeHeader : "application/octet-stream";
+        const blob = new Blob([res.data], { type: contentType });
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = downloadUrl;
@@ -96,7 +98,8 @@ const StudentKnowledgeBase: React.FC = () => {
     setPreviewOpen(true);
     try {
       const res = await api.get(`/knowledge/${it._id}/download`, { responseType: "blob" });
-      const mime = res.headers["content-type"] || it.fileMime || "";
+      const contentType = res.headers["content-type"];
+      const mime = (typeof contentType === "string" ? contentType : it.fileMime) || "";
       const blob = new Blob([res.data], { type: mime });
       const url = window.URL.createObjectURL(blob);
       setPreviewUrl(url);
