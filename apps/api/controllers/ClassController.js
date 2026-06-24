@@ -1,8 +1,11 @@
 import mongoose from "mongoose";
 import moment from "moment-timezone";
+import fs from "fs";
+import path from "path";
 import Class from "../models/Class.js";
 import Session from "../models/Session.js";
 import Batch from "../models/Batch.js";
+import Material from "../models/Material.js";
 import Quiz from "../models/Quiz.js";
 import QuizSubmission from "../models/QuizSubmission.js";
 import { createMeeting, deleteMeeting } from "../services/Zoom.js";
@@ -711,7 +714,21 @@ export const deleteClass = async (req, res) => {
       }
     }
 
-    // 4. Remove related quizzes when this class is the last linked class.
+    // 4. Delete related materials and their files.
+    const materials = await Material.find({ class: classDoc._id }).session(session);
+    for (const material of materials) {
+      try {
+        const filePath = path.join(process.cwd(), material.fileUrl);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (fileErr) {
+        console.warn(`Could not delete material file for ${material._id}: ${fileErr.message}`);
+      }
+    }
+    await Material.deleteMany({ class: classDoc._id }).session(session);
+
+    // 5. Remove related quizzes when this class is the last linked class.
     // If a quiz is shared with other classes, keep it and only detach the deleted class.
     const relatedQuizzes = await Quiz.find({
       class: classDoc._id,
@@ -736,7 +753,7 @@ export const deleteClass = async (req, res) => {
       }
     }
 
-    // 5. Delete Database Records
+    // 6. Delete Database Records
     await Session.deleteMany({ class: classDoc._id }).session(session);
     await Class.findByIdAndDelete(classDoc._id).session(session);
     
