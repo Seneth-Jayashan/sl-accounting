@@ -3,6 +3,8 @@ import moment from "moment-timezone";
 import Class from "../models/Class.js";
 import Session from "../models/Session.js";
 import Batch from "../models/Batch.js";
+import Quiz from "../models/Quiz.js";
+import QuizSubmission from "../models/QuizSubmission.js";
 import { createMeeting, deleteMeeting } from "../services/Zoom.js";
 
 // ==========================================
@@ -709,7 +711,32 @@ export const deleteClass = async (req, res) => {
       }
     }
 
-    // 4. Delete Database Records
+    // 4. Remove related quizzes when this class is the last linked class.
+    // If a quiz is shared with other classes, keep it and only detach the deleted class.
+    const relatedQuizzes = await Quiz.find({
+      class: classDoc._id,
+      isDeleted: false,
+    }).session(session);
+
+    for (const quiz of relatedQuizzes) {
+      const remainingClassIds = (quiz.class || [])
+        .map((classRef) => String(classRef))
+        .filter((classRefId) => classRefId !== String(classDoc._id));
+
+      if (remainingClassIds.length === 0) {
+        await QuizSubmission.deleteMany({ quiz: quiz._id }).session(session);
+        await Quiz.findByIdAndUpdate(
+          quiz._id,
+          { isDeleted: true, isActive: false, deletedDate: new Date() },
+          { session }
+        );
+      } else {
+        quiz.class = remainingClassIds;
+        await quiz.save({ session });
+      }
+    }
+
+    // 5. Delete Database Records
     await Session.deleteMany({ class: classDoc._id }).session(session);
     await Class.findByIdAndDelete(classDoc._id).session(session);
     
