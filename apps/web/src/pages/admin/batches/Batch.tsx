@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { motion, AnimatePresence } from "framer-motion";
+import Swal from "sweetalert2";
 import BatchService, { type BatchData, type BatchPayload } from "../../../services/BatchService";
 
 import {
@@ -100,20 +101,33 @@ export default function BatchPage() {
 
       setIsModalOpen(false);
       fetchBatches();
+      Swal.fire("Success", isEditing ? "Batch updated successfully!" : "Batch created successfully!", "success");
     } catch (error: any) {
-      alert(error.response?.data?.message || "Operation failed.");
+      Swal.fire("Error", error.response?.data?.message || "Operation failed.", "error");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure? This will affect linked classes and students.")) return;
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "This will affect linked classes and students. This action cannot be undone.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await BatchService.deleteBatch(id);
       setBatches((prev) => prev.filter((b) => b._id !== id));
+      Swal.fire("Deleted!", "Batch has been deleted.", "success");
     } catch (error) {
-      alert("Failed to delete batch.");
+      Swal.fire("Error", "Failed to delete batch.", "error");
     }
   };
 
@@ -125,7 +139,7 @@ export default function BatchPage() {
     try {
       await BatchService.toggleStatus(id);
     } catch (error) {
-      alert("Failed to update status. Reverting changes.");
+      Swal.fire("Error", "Failed to update status. Reverting changes.", "error");
       setBatches(originalBatches);
     }
   };
