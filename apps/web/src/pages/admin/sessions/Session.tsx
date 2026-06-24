@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
+import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import ClassService from "../../../services/ClassService";
 import SessionService, { type SessionData } from "../../../services/SessionService";
@@ -75,23 +76,47 @@ export default function SessionsPage() {
 
   // --- Handlers ---
   const handleCancel = async (sessionId: string) => {
-    const reason = window.prompt("Reason for cancellation:");
-    if (reason === null) return;
+    const { value: reason } = await Swal.fire({
+      title: 'Cancel Session',
+      input: 'text',
+      inputLabel: 'Reason for cancellation',
+      inputPlaceholder: 'Enter the reason...',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Cancel Session'
+    });
+
+    if (reason === undefined) return;
+
     try {
       await SessionService.cancelSession(sessionId, reason);
       setSessions(prev => prev.map(s => s._id === sessionId ? { ...s, isCancelled: true } : s));
+      Swal.fire('Cancelled!', 'The session has been cancelled.', 'success');
     } catch (error) {
-      alert("Failed to cancel.");
+      Swal.fire('Error', 'Failed to cancel.', 'error');
     }
   };
 
   const handleDelete = async (sessionId: string) => {
-    if (!window.confirm("Permanently delete this session record?")) return;
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "Permanently delete this session record? This cannot be undone.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await SessionService.deleteSession(sessionId);
       setSessions(prev => prev.filter(s => s._id !== sessionId));
+      Swal.fire('Deleted!', 'Session record has been deleted.', 'success');
     } catch (error) {
-      alert("Delete failed.");
+      Swal.fire('Error', 'Delete failed.', 'error');
     }
   };
 

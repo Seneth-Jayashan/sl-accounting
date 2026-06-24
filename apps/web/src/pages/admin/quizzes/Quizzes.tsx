@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import QuizService, { type Quiz } from "../../../services/QuizService";
 import { toast } from "react-hot-toast";
+import Swal from 'sweetalert2';
 
 const Quizzes: React.FC = () => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -54,7 +55,17 @@ const Quizzes: React.FC = () => {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (window.confirm(`Are you sure you want to delete the quiz "${title}"? This action can be reversed by an administrator later.`)) {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to delete the quiz "${title}"? This action can be reversed by an administrator later.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
       try {
         const response = await QuizService.deleteQuiz(id);
         if (response.success) {
