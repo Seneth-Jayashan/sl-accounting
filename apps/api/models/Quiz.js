@@ -52,6 +52,7 @@ const quizSchema = new mongoose.Schema(
         passingPercentage: { type: Number, default: 40 },
         isActive: { type: Boolean, default: true },
         isPublished: { type: Boolean, default: false },
+        publishedAt: { type: Date },
         isDeleted: { type: Boolean, default: false },
         deletedDate: { type: Date },
     },
