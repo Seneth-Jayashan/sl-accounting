@@ -13,6 +13,38 @@ const getSafeSessionProjection = (user) => {
   return isAdmin ? "" : "-zoomStartUrl -zoomMeetingId"; 
 };
 
+const recalculateSessionIndexesForClass = async (classId, dbSession) => {
+  const sessions = await Session.find({ class: classId })
+    .sort({ startAt: 1, _id: 1 })
+    .select("_id index")
+    .session(dbSession);
+
+  if (sessions.length === 0) return;
+
+  const maxIndex = sessions.reduce((currentMax, sessionDoc) => Math.max(currentMax, sessionDoc.index), 0);
+  const temporaryBase = maxIndex + sessions.length + 1;
+
+  await Session.bulkWrite(
+    sessions.map((sessionDoc, position) => ({
+      updateOne: {
+        filter: { _id: sessionDoc._id },
+        update: { $set: { index: temporaryBase + position } }
+      }
+    })),
+    { session: dbSession }
+  );
+
+  await Session.bulkWrite(
+    sessions.map((sessionDoc, position) => ({
+      updateOne: {
+        filter: { _id: sessionDoc._id },
+        update: { $set: { index: position + 1 } }
+      }
+    })),
+    { session: dbSession }
+  );
+};
+
 export const createSessionForClass = async (req, res) => {
   const { classId } = req.params;
   const {
@@ -79,6 +111,8 @@ export const createSessionForClass = async (req, res) => {
     
     classDoc.sessions.push(savedSession._id);
     await classDoc.save({ session });
+
+    await recalculateSessionIndexesForClass(classId, session);
 
     await session.commitTransaction();
     session.endSession();
@@ -206,6 +240,8 @@ export const deleteSession = async (req, res) => {
     }
 
     await Session.deleteOne({ _id: sessionDoc._id }).session(session);
+
+    await recalculateSessionIndexesForClass(sessionDoc.class, session);
 
     await session.commitTransaction();
     session.endSession();

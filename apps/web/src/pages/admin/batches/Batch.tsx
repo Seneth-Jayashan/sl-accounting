@@ -110,24 +110,12 @@ export default function BatchPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: "This will affect linked classes and students. This action cannot be undone.",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!'
-    });
-
-    if (!result.isConfirmed) return;
-
+    if (!window.confirm("Are you sure? This will affect linked classes and students.")) return;
     try {
       await BatchService.deleteBatch(id);
       setBatches((prev) => prev.filter((b) => b._id !== id));
-      Swal.fire("Deleted!", "Batch has been deleted.", "success");
     } catch (error) {
-      Swal.fire("Error", "Failed to delete batch.", "error");
+      alert("Failed to delete batch.");
     }
   };
 
@@ -145,90 +133,90 @@ export default function BatchPage() {
   };
 
   return (
-      <div className="max-w-7xl mx-auto space-y-6 pb-24 md:p-6 px-4 pt-6">
-        
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-brand-prussian">Batch Management</h1>
-            <p className="text-gray-500 text-xs md:text-sm mt-1">Manage academic schedules and enrollment periods.</p>
-          </div>
-          <button
-            onClick={() => openModal()}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-brand-cerulean/20 active:scale-95"
-          >
-            <PlusIcon className="w-5 h-5 stroke-[3px]" />
-            New Batch
-          </button>
+    <div className="max-w-7xl mx-auto space-y-6 pb-24 md:p-6 px-4 pt-6">
+
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-brand-prussian">Batch Management</h1>
+          <p className="text-gray-500 text-xs md:text-sm mt-1">Manage academic schedules and enrollment periods.</p>
         </div>
-
-        {/* --- Content --- */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 space-y-4">
-             <ArrowPathIcon className="w-10 h-10 text-brand-cerulean animate-spin" />
-             <p className="text-brand-prussian font-medium animate-pulse">Syncing batches...</p>
-          </div>
-        ) : batches.length === 0 ? (
-          <EmptyState onAdd={() => openModal()} />
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {/* Desktop Table */}
-            <div className="bg-white border border-brand-aliceBlue rounded-[2rem] overflow-hidden shadow-sm hidden md:block">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-brand-aliceBlue/30 text-[11px] uppercase tracking-[0.15em] text-brand-prussian/60 font-bold">
-                  <tr>
-                    <th className="px-8 py-5">Batch Identity</th>
-                    <th className="px-8 py-5">Academic Period</th>
-                    <th className="px-8 py-5">Visibility</th>
-                    <th className="px-8 py-5 text-right">Control Panel</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-brand-aliceBlue/50">
-                  {batches.map((batch) => (
-                    <BatchRow 
-                      key={batch._id} 
-                      batch={batch} 
-                      onEdit={() => openModal(batch)}
-                      onDelete={() => handleDelete(batch._id)}
-                      onToggle={() => handleToggleStatus(batch._id, batch.isActive)}
-                      onView={() => navigate(`/admin/batches/view/${batch._id}`)}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile View */}
-            <div className="md:hidden space-y-4">
-               {batches.map(batch => (
-                 <MobileBatchCard 
-                   key={batch._id} 
-                   batch={batch} 
-                   onView={() => navigate(`/admin/batches/view/${batch._id}`)}
-                   onEdit={() => openModal(batch)}
-                   onDelete={() => handleDelete(batch._id)}
-                   onToggle={() => handleToggleStatus(batch._id, batch.isActive)}
-                 />
-               ))}
-            </div>
-          </div>
-        )}
-
-        {/* --- Modal --- */}
-        <AnimatePresence>
-          {isModalOpen && (
-            <BatchModal 
-              isOpen={isModalOpen}
-              isEditing={isEditing}
-              formData={formData}
-              submitting={submitting}
-              onClose={() => setIsModalOpen(false)}
-              onChange={handleInputChange}
-              onSubmit={handleSubmit}
-            />
-          )}
-        </AnimatePresence>
+        <button
+          onClick={() => openModal()}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-brand-cerulean/20 active:scale-95"
+        >
+          <PlusIcon className="w-5 h-5 stroke-[3px]" />
+          New Batch
+        </button>
       </div>
+
+      {/* --- Content --- */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-32 space-y-4">
+          <ArrowPathIcon className="w-10 h-10 text-brand-cerulean animate-spin" />
+          <p className="text-brand-prussian font-medium animate-pulse">Syncing batches...</p>
+        </div>
+      ) : batches.length === 0 ? (
+        <EmptyState onAdd={() => openModal()} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {/* Desktop Table */}
+          <div className="bg-white border border-brand-aliceBlue rounded-[2rem] overflow-hidden shadow-sm hidden md:block">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-brand-aliceBlue/30 text-[11px] uppercase tracking-[0.15em] text-brand-prussian/60 font-bold">
+                <tr>
+                  <th className="px-8 py-5">Batch Identity</th>
+                  <th className="px-8 py-5">Academic Period</th>
+                  <th className="px-8 py-5">Visibility</th>
+                  <th className="px-8 py-5 text-right">Control Panel</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-aliceBlue/50">
+                {batches.map((batch) => (
+                  <BatchRow
+                    key={batch._id}
+                    batch={batch}
+                    onEdit={() => openModal(batch)}
+                    onDelete={() => handleDelete(batch._id)}
+                    onToggle={() => handleToggleStatus(batch._id, batch.isActive)}
+                    onView={() => navigate(`/admin/batches/view/${batch._id}`)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile View */}
+          <div className="md:hidden space-y-4">
+            {batches.map(batch => (
+              <MobileBatchCard
+                key={batch._id}
+                batch={batch}
+                onView={() => navigate(`/admin/batches/view/${batch._id}`)}
+                onEdit={() => openModal(batch)}
+                onDelete={() => handleDelete(batch._id)}
+                onToggle={() => handleToggleStatus(batch._id, batch.isActive)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* --- Modal --- */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <BatchModal
+            isOpen={isModalOpen}
+            isEditing={isEditing}
+            formData={formData}
+            submitting={submitting}
+            onClose={() => setIsModalOpen(false)}
+            onChange={handleInputChange}
+            onSubmit={handleSubmit}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -245,13 +233,13 @@ const BatchRow = ({ batch, onEdit, onDelete, onToggle, onView }: any) => (
     <td className="px-8 py-5">
       <div className="flex items-center gap-2">
         <div className="flex flex-col">
-           <span className="text-xs font-bold text-brand-prussian">{moment(batch.startDate).format("DD MMM YYYY")}</span>
-           <span className="text-[10px] text-gray-400 uppercase tracking-tighter">Start Date</span>
+          <span className="text-xs font-bold text-brand-prussian">{moment(batch.startDate).format("DD MMM YYYY")}</span>
+          <span className="text-[10px] text-gray-400 uppercase tracking-tighter">Start Date</span>
         </div>
         <div className="h-4 w-px bg-gray-200 mx-1"></div>
         <div className="flex flex-col">
-           <span className="text-xs font-bold text-brand-prussian">{moment(batch.endDate).format("DD MMM YYYY")}</span>
-           <span className="text-[10px] text-gray-400 uppercase tracking-tighter">End Date</span>
+          <span className="text-xs font-bold text-brand-prussian">{moment(batch.endDate).format("DD MMM YYYY")}</span>
+          <span className="text-[10px] text-gray-400 uppercase tracking-tighter">End Date</span>
         </div>
       </div>
     </td>
@@ -277,16 +265,16 @@ const MobileBatchCard = ({ batch, onView, onEdit, onDelete, onToggle }: any) => 
       </div>
       <StatusBadge active={batch.isActive} onClick={onToggle} />
     </div>
-    
+
     <div className="grid grid-cols-3 gap-2 border-t border-brand-aliceBlue pt-4">
       <button onClick={onView} className="py-2.5 bg-brand-aliceBlue text-brand-prussian font-bold rounded-xl text-xs flex items-center justify-center gap-1">
-          <EyeIcon className="w-4 h-4" /> View
+        <EyeIcon className="w-4 h-4" /> View
       </button>
       <button onClick={onEdit} className="py-2.5 bg-brand-aliceBlue text-brand-prussian font-bold rounded-xl text-xs flex items-center justify-center gap-1">
-          <PencilSquareIcon className="w-4 h-4" /> Edit
+        <PencilSquareIcon className="w-4 h-4" /> Edit
       </button>
       <button onClick={onDelete} className="py-2.5 bg-red-50 text-red-500 font-bold rounded-xl text-xs flex items-center justify-center gap-1">
-          <TrashIcon className="w-4 h-4" /> Delete
+        <TrashIcon className="w-4 h-4" /> Delete
       </button>
     </div>
   </div>
@@ -294,11 +282,11 @@ const MobileBatchCard = ({ batch, onView, onEdit, onDelete, onToggle }: any) => 
 
 const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubmit }: any) => (
   <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      onClick={onClose} className="absolute inset-0 bg-brand-prussian/40 backdrop-blur-md" 
+      onClick={onClose} className="absolute inset-0 bg-brand-prussian/40 backdrop-blur-md"
     />
-    <motion.div 
+    <motion.div
       initial={{ scale: 0.9, opacity: 0, y: 20 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -306,12 +294,12 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
     >
       <div className="px-6 py-5 md:px-8 md:py-6 border-b border-brand-aliceBlue flex justify-between items-center bg-brand-aliceBlue/10 sticky top-0 backdrop-blur-sm z-20">
         <h2 className="text-lg md:text-xl font-black text-brand-prussian">{isEditing ? "Modify Batch" : "Create New Batch"}</h2>
-        <button onClick={onClose} className="p-2 hover:bg-brand-aliceBlue rounded-full text-brand-prussian transition-colors"><XMarkIcon className="w-6 h-6"/></button>
+        <button onClick={onClose} className="p-2 hover:bg-brand-aliceBlue rounded-full text-brand-prussian transition-colors"><XMarkIcon className="w-6 h-6" /></button>
       </div>
-      
+
       <form onSubmit={onSubmit} className="p-6 md:p-8 space-y-5">
         <InputGroup label="Batch Name" name="name" value={formData.name} onChange={onChange} placeholder="e.g. 2025 AL Advanced" required />
-        
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <InputGroup label="Commencement" name="startDate" type="date" value={formData.startDate} onChange={onChange} required />
           <InputGroup label="Conclusion" name="endDate" type="date" value={formData.endDate} onChange={onChange} required />
@@ -319,14 +307,14 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
 
         <div>
           <label className="block text-[10px] uppercase tracking-widest font-black text-brand-cerulean mb-2">Internal Description</label>
-          <textarea 
+          <textarea
             name="description" value={formData.description} onChange={onChange}
             className="w-full bg-brand-aliceBlue/30 border-2 border-transparent focus:border-brand-cerulean rounded-2xl p-4 text-sm font-medium outline-none transition-all"
             rows={3} placeholder="Add notes about this batch..."
           />
         </div>
 
-        <button 
+        <button
           type="submit" disabled={submitting}
           className="w-full bg-brand-cerulean hover:bg-brand-prussian disabled:bg-gray-300 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-brand-cerulean/30"
         >
@@ -338,11 +326,10 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
 );
 
 const StatusBadge = ({ active, onClick }: { active: boolean; onClick: () => void }) => (
-  <button 
+  <button
     onClick={onClick}
-    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${
-      active ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-brand-aliceBlue text-brand-prussian/40 hover:bg-brand-aliceBlue/80"
-    }`}
+    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${active ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-brand-aliceBlue text-brand-prussian/40 hover:bg-brand-aliceBlue/80"
+      }`}
   >
     <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
     {active ? "Active" : "Hidden"}
@@ -350,11 +337,10 @@ const StatusBadge = ({ active, onClick }: { active: boolean; onClick: () => void
 );
 
 const IconButton = ({ Icon, onClick, variant }: any) => (
-  <button 
-    onClick={onClick} 
-    className={`p-2 rounded-xl transition-all active:scale-90 ${
-      variant === "danger" ? "bg-red-50 text-red-500 hover:bg-red-500 hover:text-white" : "bg-brand-aliceBlue text-brand-prussian hover:bg-brand-cerulean hover:text-white"
-    }`}
+  <button
+    onClick={onClick}
+    className={`p-2 rounded-xl transition-all active:scale-90 ${variant === "danger" ? "bg-red-50 text-red-500 hover:bg-red-500 hover:text-white" : "bg-brand-aliceBlue text-brand-prussian hover:bg-brand-cerulean hover:text-white"
+      }`}
   >
     <Icon className="w-5 h-5 stroke-2" />
   </button>
@@ -363,7 +349,7 @@ const IconButton = ({ Icon, onClick, variant }: any) => (
 const InputGroup = ({ label, ...props }: any) => (
   <div>
     <label className="block text-[10px] uppercase tracking-widest font-black text-brand-cerulean mb-2">{label}</label>
-    <input 
+    <input
       {...props}
       className="w-full bg-brand-aliceBlue/30 border-2 border-transparent focus:border-brand-cerulean rounded-2xl p-4 text-sm font-bold outline-none transition-all placeholder:text-gray-300"
     />

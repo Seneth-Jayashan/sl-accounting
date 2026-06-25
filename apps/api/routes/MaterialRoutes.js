@@ -47,6 +47,15 @@ router.delete(
     MaterialController.deleteMaterial
 );
 
+// update material
+router.put(
+    '/:id',
+    protect,
+    restrictTo("admin"),
+    uploadMiddleware,
+    MaterialController.updateMaterial
+);
+
 // ==========================================
 // STUDENT ROUTES
 // ==========================================

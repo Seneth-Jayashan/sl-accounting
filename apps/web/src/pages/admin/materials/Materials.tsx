@@ -115,7 +115,11 @@ export default function MaterialsAdmin() {
 
     setIsUploading(true);
     try {
-      await MaterialService.uploadMaterial(data); 
+      if (editingId) {
+        await MaterialService.updateMaterial(editingId, data);
+      } else {
+        await MaterialService.uploadMaterial(data); 
+      }
       closeModal();
       loadData();
       Swal.fire("Success", editingId ? "Resource updated successfully!" : "Resource uploaded successfully!", "success");

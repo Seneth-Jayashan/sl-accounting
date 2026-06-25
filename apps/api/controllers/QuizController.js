@@ -1,4 +1,5 @@
 import Quiz from "../models/Quiz.js";
+import QuizSubmission from "../models/QuizSubmission.js";
 
 
 export const createQuiz = async (req, res) => {
@@ -14,6 +15,9 @@ export const createQuiz = async (req, res) => {
 
         // Ensure we save an array of class ids
         req.body.class = classes;
+        if (req.body.isPublished) {
+            req.body.publishedAt = new Date();
+        }
         const quiz = new Quiz(req.body);
         const savedQuiz = await quiz.save();
 
@@ -81,6 +85,8 @@ export const deleteQuiz = async (req, res) => {
             return res.status(404).json({ success: false, message: "Quiz not found" });
         }
 
+        await QuizSubmission.deleteMany({ quiz: req.params.id });
+
         res.status(200).json({ success: true, message: "Quiz deleted successfully" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -97,6 +103,9 @@ export const togglePublish = async (req, res) => {
         if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
         quiz.isPublished = !quiz.isPublished;
+        if (quiz.isPublished) {
+            quiz.publishedAt = new Date();
+        }
         await quiz.save();
 
         res.status(200).json({ 
@@ -140,7 +149,9 @@ export const getQuizzesByClass = async (req, res) => {
             class: req.params.classId, 
             isDeleted: false, 
             isPublished: true 
-        }).select("title description duration quizType scheduledAt expiresAt");
+        })
+        .select("title description duration quizType scheduledAt expiresAt publishedAt")
+        .sort({ publishedAt: -1, createdAt: -1 });
 
         res.status(200).json({ success: true, data: quizzes });
     } catch (error) {
