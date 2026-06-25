@@ -53,31 +53,38 @@ export default function QuizAnalytics() {
     fetchData();
   }, [id]);
 
+  // --- Filter Active Submissions (Hide Deleted) ---
+  const activeSubmissions = useMemo(() => {
+    // Filter out submissions where the student is null (hard deleted) 
+    // or explicitly marked as deleted (soft deleted, if the API starts returning it)
+    return submissions.filter((sub: any) => sub.student && sub.student.isDeleted !== true);
+  }, [submissions]);
+
   // --- Calculate Overall Stats ---
   const stats = useMemo(() => {
-    if (submissions.length === 0) return { avgScore: 0, passRate: 0, avgTime: 0 };
+    if (activeSubmissions.length === 0) return { avgScore: 0, passRate: 0, avgTime: 0 };
     
-    const totalScore = submissions.reduce((acc, curr) => acc + (curr.percentageScore || 0), 0);
-    const passed = submissions.filter(s => s.passed).length;
-    const totalTime = submissions.reduce((acc, curr) => acc + (curr.timeTaken || 0), 0);
+    const totalScore = activeSubmissions.reduce((acc, curr) => acc + (curr.percentageScore || 0), 0);
+    const passed = activeSubmissions.filter(s => s.passed).length;
+    const totalTime = activeSubmissions.reduce((acc, curr) => acc + (curr.timeTaken || 0), 0);
 
     return {
-      avgScore: Math.round(totalScore / submissions.length),
-      passRate: Math.round((passed / submissions.length) * 100),
-      avgTime: Math.round(totalTime / submissions.length) // in seconds
+      avgScore: Math.round(totalScore / activeSubmissions.length),
+      passRate: Math.round((passed / activeSubmissions.length) * 100),
+      avgTime: Math.round(totalTime / activeSubmissions.length) // in seconds
     };
-  }, [submissions]);
+  }, [activeSubmissions]);
 
   // --- Filter Submissions ---
   const filteredSubmissions = useMemo(() => {
-    if (!searchTerm.trim()) return submissions;
+    if (!searchTerm.trim()) return activeSubmissions;
     const term = searchTerm.toLowerCase();
-    return submissions.filter((sub: any) => {
+    return activeSubmissions.filter((sub: any) => {
       const name = `${sub.student?.name || sub.student?.firstName || ''} ${sub.student?.lastName || ''}`.toLowerCase();
       const email = (sub.student?.email || '').toLowerCase();
       return name.includes(term) || email.includes(term);
     });
-  }, [submissions, searchTerm]);
+  }, [activeSubmissions, searchTerm]);
 
   if (loading) {
     return (
@@ -114,7 +121,7 @@ export default function QuizAnalytics() {
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><Users size={24} /></div>
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Total Attempts</p>
-            <p className="text-2xl font-black text-brand-prussian">{submissions.length}</p>
+            <p className="text-2xl font-black text-brand-prussian">{activeSubmissions.length}</p>
           </div>
         </div>
         
@@ -162,7 +169,7 @@ export default function QuizAnalytics() {
           </div>
         </div>
 
-        {submissions.length === 0 ? (
+        {activeSubmissions.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center">
              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                 <FileText size={32} className="text-gray-300" />
