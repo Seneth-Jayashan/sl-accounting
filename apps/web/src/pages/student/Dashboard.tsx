@@ -82,12 +82,27 @@ export default function StudentDashboardPage() {
   }, []);
 
   const formatDate = (isoString: string) => {
-    return new Date(isoString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
+  const date = new Date(isoString);
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
 
-  const formatTime = (isoString: string) => {
-    return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const isToday = date.toDateString() === today.toDateString();
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+
+  if (isToday) return "Today";
+  if (isTomorrow) return "Tomorrow";
+
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const formatTime = (isoString: string) => {
+  return new Date(isoString).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
   return (
       <div className="space-y-6 pb-20 sm:pb-0"> 
