@@ -216,90 +216,98 @@ export const getStudentDashboard = async (req, res) => {
       .populate('class', 'name subject timeSchedules coverImage')
       .lean();
 
+    const enrolledClassIds = enrollments.map(e => {
+      if (e.class && e.class._id) return e.class._id.toString();
+      if (e.class) return e.class.toString();
+      return null;
+    }).filter(Boolean); 
+
+    console.log("=== DEBUG DASHBOARD ===");
+    console.log("1. Student ID:", studentId.toString());
+    console.log("2. Enrolled Class IDs:", enrolledClassIds);
+
     const enrollmentIds = enrollments.map(e => e._id);
-    const enrolledClassIds = enrollments.map(e => e.class?._id);
 
     // 2. Calculate Next Session (Across all classes)
     let nextSession = null;
     const allUpcomingSessions = [];
 
     enrollments.forEach(enroll => {
-        const cls = enroll.class;
-        if (cls && cls.timeSchedules && cls.timeSchedules.length > 0) {
-            cls.timeSchedules.forEach(sched => {
-                const sessionDate = getNextSessionDate(sched.day, sched.startTime);
-                allUpcomingSessions.push({
-                    classId: cls._id,
-                    className: cls.name,
-                    subject: cls.subject,
-                    startTime: sessionDate,
-                    day: sched.day
-                });
-            });
-        }
+      const cls = enroll.class;
+      if (cls && cls.timeSchedules && cls.timeSchedules.length > 0) {
+        cls.timeSchedules.forEach(sched => {
+          const sessionDate = getNextSessionDate(sched.day, sched.startTime);
+          allUpcomingSessions.push({
+            classId: cls._id,
+            className: cls.name,
+            subject: cls.subject,
+            startTime: sessionDate,
+            day: sched.day
+          });
+        });
+      }
     });
 
     // Sort by date (earliest first)
     allUpcomingSessions.sort((a, b) => a.startTime - b.startTime);
     if (allUpcomingSessions.length > 0) {
-        nextSession = allUpcomingSessions[0];
+      nextSession = allUpcomingSessions[0];
     }
 
     // 3. Pending Payments & Next Payment Date
-    // FIX: Find payments where 'enrollment' is in the list of the student's enrollment IDs
-    const pendingPayments = await Payment.find({ 
-        enrollment: { $in: enrollmentIds }, 
-        status: { $in: ['pending', 'failed'] } // Removed 'unpaid' as it's not in your Schema enum
+    const pendingPayments = await Payment.find({
+      enrollment: { $in: enrollmentIds },
+      status: { $in: ['pending', 'failed'] }
     })
-    .populate({
+      .populate({
         path: 'enrollment',
         select: 'class',
-        populate: { path: 'class', select: 'name' } // Deep populate to get class name
-    })
-    .sort({ paymentDate: -1 }) // Sort by most recent
-    .lean();
+        populate: { path: 'class', select: 'name' }
+      })
+      .sort({ paymentDate: -1 })
+      .lean();
 
     const nextPayment = pendingPayments.length > 0 ? pendingPayments[0] : null;
 
     // 4. Fetch Recent Materials
-    const recentMaterials = await Material.find({ 
-        classId: { $in: enrolledClassIds },
-        isPublished: true 
+    const recentMaterials = await Material.find({
+      class: { $in: enrolledClassIds },
+      isPublished: true
     })
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .select('title fileType fileUrl createdAt')
-    .lean();
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('title fileType fileUrl createdAt')
+      .lean();
+
+    console.log("3. Found Materials Count:", recentMaterials.length);
+    console.log("=======================");
 
     // 5. Construct Response
     const data = {
-        stats: {
-            activeClasses: enrollments.length,
-            pendingPaymentsCount: pendingPayments.length,
-            attendancePercentage: 92, // Placeholder
-        },
-        nextSession: nextSession ? {
-            title: nextSession.className,
-            subject: nextSession.subject,
-            startTime: nextSession.startTime.toISOString(),
-        } : null,
-        nextPayment: nextPayment ? {
-            amount: nextPayment.amount,
-            // Schema doesn't have dueDate, using createdAt or paymentDate as reference
-            date: nextPayment.paymentDate || nextPayment.createdAt,
-            // Construct title dynamically since Schema doesn't have title
-            title: nextPayment.notes || `Fee for ${nextPayment.enrollment?.class?.name || 'Class'}`,
-            status: nextPayment.status
-        } : null,
-        recentMaterials,
-        // Return top 3 upcoming sessions for the list view
-        upcomingSessions: allUpcomingSessions.slice(0, 3).map(s => ({
-            _id: s.classId,
-            title: s.className,
-            startTime: s.startTime.toISOString(),
-            subject: s.subject,
-            isOnline: true 
-        }))
+      stats: {
+        activeClasses: enrollments.length,
+        pendingPaymentsCount: pendingPayments.length,
+        attendancePercentage: 92, // Placeholder
+      },
+      nextSession: nextSession ? {
+        title: nextSession.className,
+        subject: nextSession.subject,
+        startTime: nextSession.startTime.toISOString(),
+      } : null,
+      nextPayment: nextPayment ? {
+        amount: nextPayment.amount,
+        date: nextPayment.paymentDate || nextPayment.createdAt,
+        title: nextPayment.notes || `Fee for ${nextPayment.enrollment?.class?.name || 'Class'}`,
+        status: nextPayment.status
+      } : null,
+      recentMaterials,
+      upcomingSessions: allUpcomingSessions.slice(0, 3).map(s => ({
+        _id: s.classId,
+        title: s.className,
+        startTime: s.startTime.toISOString(),
+        subject: s.subject,
+        isOnline: true
+      }))
     };
 
     return res.status(200).json({ success: true, data });
@@ -308,4 +316,4 @@ export const getStudentDashboard = async (req, res) => {
     console.error("Dashboard Error:", error);
     return res.status(500).json({ success: false, message: "Failed to load dashboard" });
   }
-};
+}
