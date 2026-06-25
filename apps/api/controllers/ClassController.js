@@ -1,8 +1,13 @@
 import mongoose from "mongoose";
 import moment from "moment-timezone";
+import fs from "fs";
+import path from "path";
 import Class from "../models/Class.js";
 import Session from "../models/Session.js";
 import Batch from "../models/Batch.js";
+import Material from "../models/Material.js";
+import Quiz from "../models/Quiz.js";
+import QuizSubmission from "../models/QuizSubmission.js";
 import { createMeeting, deleteMeeting } from "../services/Zoom.js";
 
 // ==========================================
@@ -709,7 +714,46 @@ export const deleteClass = async (req, res) => {
       }
     }
 
-    // 4. Delete Database Records
+    // 4. Delete related materials and their files.
+    const materials = await Material.find({ class: classDoc._id }).session(session);
+    for (const material of materials) {
+      try {
+        const filePath = path.join(process.cwd(), material.fileUrl);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (fileErr) {
+        console.warn(`Could not delete material file for ${material._id}: ${fileErr.message}`);
+      }
+    }
+    await Material.deleteMany({ class: classDoc._id }).session(session);
+
+    // 5. Remove related quizzes when this class is the last linked class.
+    // If a quiz is shared with other classes, keep it and only detach the deleted class.
+    const relatedQuizzes = await Quiz.find({
+      class: classDoc._id,
+      isDeleted: false,
+    }).session(session);
+
+    for (const quiz of relatedQuizzes) {
+      const remainingClassIds = (quiz.class || [])
+        .map((classRef) => String(classRef))
+        .filter((classRefId) => classRefId !== String(classDoc._id));
+
+      if (remainingClassIds.length === 0) {
+        await QuizSubmission.deleteMany({ quiz: quiz._id }).session(session);
+        await Quiz.findByIdAndUpdate(
+          quiz._id,
+          { isDeleted: true, isActive: false, deletedDate: new Date() },
+          { session }
+        );
+      } else {
+        quiz.class = remainingClassIds;
+        await quiz.save({ session });
+      }
+    }
+
+    // 6. Delete Database Records
     await Session.deleteMany({ class: classDoc._id }).session(session);
     await Class.findByIdAndDelete(classDoc._id).session(session);
     

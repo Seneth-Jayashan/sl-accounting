@@ -29,3 +29,6 @@ dist-ssr
 .env.production
 .env.local
 .env.*.local
+
+#tempory add for avoiding accidentally commit large files
+uploads 

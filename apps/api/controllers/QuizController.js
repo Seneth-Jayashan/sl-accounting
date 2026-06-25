@@ -1,4 +1,5 @@
 import Quiz from "../models/Quiz.js";
+import QuizSubmission from "../models/QuizSubmission.js";
 
 
 export const createQuiz = async (req, res) => {
@@ -80,6 +81,8 @@ export const deleteQuiz = async (req, res) => {
         if (!quiz) {
             return res.status(404).json({ success: false, message: "Quiz not found" });
         }
+
+        await QuizSubmission.deleteMany({ quiz: req.params.id });
 
         res.status(200).json({ success: true, message: "Quiz deleted successfully" });
     } catch (error) {
