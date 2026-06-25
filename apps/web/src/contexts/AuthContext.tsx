@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState, useRef,
 import axios from "axios";
 import { api, setAccessToken } from "../services/api";
 import ReactHotToast from "react-hot-toast";
+import Swal from "sweetalert2";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
@@ -45,7 +46,7 @@ interface AuthContextType {
   loading: boolean;
   login: (payload: LoginPayload) => Promise<User | undefined>;
   register: (payload: RegisterPayload) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (force?: boolean) => Promise<void>;
   fetchMe: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
 }
@@ -76,7 +77,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // --- NEW: LOGOUT FUNCTION (Memoized) ---
   // We memoize this so it can be used in the event listener effect below
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (force?: boolean) => {
+    if (!force) {
+      const result = await Swal.fire({
+        title: "Log out?",
+        text: "Are you sure you want to log out of your account?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, log out",
+        cancelButtonText: "Cancel"
+      });
+
+      if (!result.isConfirmed) {
+        return;
+      }
+    }
+
     try {
       await api.post("/auth/logout");
     } catch (err) {
@@ -93,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // This connects the AuthContext to the Axios Interceptor
   useEffect(() => {
     const handleSessionExpired = () => {
-      logout();
+      logout(true);
     };
 
     window.addEventListener("auth:session-expired", handleSessionExpired);
