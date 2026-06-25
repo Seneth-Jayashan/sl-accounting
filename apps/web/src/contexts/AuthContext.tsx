@@ -43,7 +43,7 @@ interface AuthContextType {
   user: User | null;
   accessToken: string | null;
   loading: boolean;
-  login: (payload: LoginPayload) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<User | undefined>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   fetchMe: () => Promise<void>;
@@ -187,6 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Always hydrate full user profile (address, batch, etc.) after login.
         await fetchMe();
+        return res.data.user;
       }
     } catch (error) {
       throw error;

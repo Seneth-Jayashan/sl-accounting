@@ -127,22 +127,15 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      await login({ email, password });
+      const user = await login({ email, password });
 
       if (returnTo) {
         navigate(returnTo, { replace: true });
         return;
       }
       
-      // Fetch role for redirect
-      try {
-          const res = await api.get("/auth/me");
-          const role = res.data?.user?.role;
-          navigate(role === "admin" ? "/admin/dashboard" : "/student/dashboard");
-      } catch (meError) {
-          // Fallback if /me fails but login succeeded
-          navigate("/student/dashboard"); 
-      }
+      const role = user?.role;
+      navigate(role === "admin" ? "/admin/dashboard" : "/student/dashboard", { replace: true });
 
     } catch (err: any) {
       console.error("Login Error:", err);

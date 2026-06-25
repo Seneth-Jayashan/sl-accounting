@@ -7,6 +7,7 @@ import { Toaster } from "react-hot-toast"; // <--- 1. Import Toaster
 // --- Context & Protected Route Wrapper ---
 import AuthProvider from "./contexts/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import GuestRoute from "./routes/GuestRoute";
 
 // --- Custom Hooks ---
 import { useRightClickProtection } from "./hooks/useRightClickProtection"; // <--- 2. Import the Hook
@@ -92,15 +93,15 @@ function App() {
           <Route element={<MainLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+            <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/classes" element={<Classes />} />
             <Route path="/lesson-packs" element={<LessonPacks />} />
             <Route path="/lesson-packs/:id" element={<LessonPackDetailsPage />} />
             <Route path="/classes/:id" element={<ViewClassPage />} />
-            <Route path="/verification" element={<Verification />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/verification" element={<GuestRoute><Verification /></GuestRoute>} />
+            <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/chat/:ticketId" element={<Chat />} />

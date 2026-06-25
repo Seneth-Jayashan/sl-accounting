@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import LoadingPage from "../components/LoadingPage"; // Ensure you have this component
 import AccessDeniedModal from "../components/modals/AccessDenied"; // Check your file path
@@ -18,9 +18,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     return <LoadingPage />;
   }
 
+  const location = useLocation();
+
   // 2. AUTH CHECK: If not logged in, go to Login
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
   }
 
 
