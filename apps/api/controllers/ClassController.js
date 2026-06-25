@@ -6,6 +6,9 @@ import Class from "../models/Class.js";
 import Session from "../models/Session.js";
 import Batch from "../models/Batch.js";
 import Material from "../models/Material.js";
+import Enrollment from "../models/Enrollment.js";
+import Payment from "../models/Payment.js";
+import TuteDelivery from "../models/TuteDelivery.js";
 import Quiz from "../models/Quiz.js";
 import QuizSubmission from "../models/QuizSubmission.js";
 import { createMeeting, deleteMeeting } from "../services/Zoom.js";
@@ -728,7 +731,24 @@ export const deleteClass = async (req, res) => {
     }
     await Material.deleteMany({ class: classDoc._id }).session(session);
 
-    // 5. Remove related quizzes when this class is the last linked class.
+    // 5. Remove enrollments and their dependent payment/delivery records.
+    const enrollments = await Enrollment.find({ class: classDoc._id }).session(session);
+    const enrollmentIds = enrollments.map((enrollment) => enrollment._id);
+
+    if (enrollmentIds.length > 0) {
+      const payments = await Payment.find({ enrollment: { $in: enrollmentIds } }).session(session);
+      const paymentIds = payments.map((payment) => payment._id);
+
+      if (paymentIds.length > 0) {
+        await TuteDelivery.deleteMany({ payment: { $in: paymentIds } }).session(session);
+      }
+
+      await TuteDelivery.deleteMany({ enrollment: { $in: enrollmentIds } }).session(session);
+      await Payment.deleteMany({ enrollment: { $in: enrollmentIds } }).session(session);
+      await Enrollment.deleteMany({ class: classDoc._id }).session(session);
+    }
+
+    // 6. Remove related quizzes when this class is the last linked class.
     // If a quiz is shared with other classes, keep it and only detach the deleted class.
     const relatedQuizzes = await Quiz.find({
       class: classDoc._id,
@@ -753,7 +773,7 @@ export const deleteClass = async (req, res) => {
       }
     }
 
-    // 6. Delete Database Records
+    // 7. Delete Database Records
     await Session.deleteMany({ class: classDoc._id }).session(session);
     await Class.findByIdAndDelete(classDoc._id).session(session);
     
@@ -770,7 +790,7 @@ export const deleteClass = async (req, res) => {
     return res.status(500).json({ message: "Failed to delete", error: err.message });
   } finally {
     session.endSession();
-  }
+  } 
 };
 
 // ==========================================
