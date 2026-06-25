@@ -58,6 +58,18 @@ const MaterialService = {
   },
 
   /**
+   * Admin: Update existing material
+   */
+  updateMaterial: async (id: string, formData: FormData) => {
+    const response = await api.put<MaterialResponse>(`${BASE_URL}/${id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data"
+      }
+    });
+    return response.data;
+  },
+
+  /**
    * Admin: Delete material and physical file
    */
   deleteMaterial: async (id: string) => {

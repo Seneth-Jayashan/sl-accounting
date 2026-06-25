@@ -156,32 +156,28 @@ export const refresh = async (req, res) => {
 
   try {
     const decoded = jwt.verify(incomingRefreshToken, process.env.JWT_REFRESH_SECRET);
-    
+
     const user = await User.findById(decoded.id).select('+refreshTokens');
     if (!user) return res.status(401).json({ message: "User not found" });
 
     const tokenExists = user.refreshTokens.find(t => t.token === incomingRefreshToken);
 
     if (!tokenExists) {
-      console.log("Security: Token reuse detected for user:", user._id);
+      console.log("Security: Invalid or old token used for user:", user._id);
       await User.updateOne({ _id: user._id }, { $set: { refreshTokens: [] } });
       return res.status(403).json({ message: "Session expired. Please login again." });
     }
 
-    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
-
-    const updateResult = await User.findOneAndUpdate(
-      { _id: user._id, "refreshTokens.token": incomingRefreshToken },
-      { $set: { "refreshTokens.$": { token: newRefreshToken } } },
-      { new: true } 
+    const newAccessToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_ACCESS_SECRET,
+      { expiresIn: "15m" }
     );
-    
-    res.cookie("refreshToken", newRefreshToken, cookieOptions);
-    
-    return res.status(200).json({ success: true, accessToken });
+
+    return res.status(200).json({ success: true, accessToken: newAccessToken });
 
   } catch (err) {
-    return res.status(403).json({ message: "Invalid token" });
+    return res.status(403).json({ message: "Invalid or Expired token" });
   }
 };
 

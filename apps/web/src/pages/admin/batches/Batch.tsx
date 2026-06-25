@@ -109,11 +109,16 @@ export default function BatchPage() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure? This will affect linked classes and students.")) return;
+    
     try {
-      await BatchService.deleteBatch(id);
-      setBatches((prev) => prev.filter((b) => b._id !== id));
-    } catch (error) {
-      alert("Failed to delete batch.");
+        await BatchService.deleteBatch(id);
+        setBatches((prev) => prev.filter((b) => b._id !== id));
+    } catch (error: any) {
+        if (error.response?.status === 400 || error.response?.status === 409) {
+            alert("This batch cannot be deleted because it is currently linked to one or more classes.");
+        } else {
+            alert("Failed to delete batch. Please try again later.");
+        }
     }
   };
 

@@ -58,16 +58,61 @@ class MaterialController {
     // Student: Get materials for their class
     async getStudentMaterials(req, res) {
         try {
-            const { classId } = req.params; // Sent from frontend student view
+            const studentId = req.user._id;
 
-            const materials = await Material.find({ 
-                class: classId, 
-                isPublished: true 
-            }).sort("-createdAt");
+            const enrolledClasses = await Class.find({ students: studentId }).select('_id');
 
-            res.status(200).json({ success: true, data: materials });
+            if (!enrolledClasses || enrolledClasses.length === 0) {
+                return res.status(200).json({ success: true, count: 0, data: [] });
+            }
+
+            const classIds = enrolledClasses.map(c => c._id);
+
+            const materials = await Material.find({
+                class: { $in: classIds },
+                isPublished: true
+            })
+                .populate('class', 'name level type')
+                .sort("-createdAt");
+
+            res.status(200).json({ success: true, count: materials.length, data: materials });
         } catch (error) {
             res.status(500).json({ success: false, message: error.message });
+        }
+    }                                                                                                                                                                                                    // Admin: Update Material
+    async updateMaterial(req, res) {
+        try {
+            const { title, description, classId } = req.body;
+
+            let updateData = {
+                title,
+                description,
+                class: classId
+            };
+
+            if (req.file) {
+                updateData.fileUrl = `/uploads/materials/${req.file.filename}`;
+                updateData.fileSize = (req.file.size / (1024 * 1024)).toFixed(2) + " MB";
+
+                const ext = path.extname(req.file.originalname).toLowerCase();
+                let fileType = "other";
+                if (ext === ".pdf") fileType = "pdf";
+                else if (ext === ".pptx" || ext === ".ppt") fileType = "pptx";
+                else if (ext === ".docx" || ext === ".doc") fileType = "docx";
+                else if ([".png", ".jpg", ".jpeg"].includes(ext)) fileType = "image";
+
+                updateData.fileType = fileType;
+            }
+
+            const material = await Material.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+            if (!material) {
+                return res.status(404).json({ message: "Material not found" });
+            }
+
+            res.status(200).json({ success: true, data: material });
+        } catch (error) {
+            res.status(400).json({ success: false, message: error.message });
         }
     }
 
