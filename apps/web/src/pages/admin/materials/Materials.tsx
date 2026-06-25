@@ -14,6 +14,7 @@ import {
   X
 } from "lucide-react";
 import moment from "moment";
+import toast from "react-hot-toast";
 
 // Services
 import MaterialService, { type MaterialData } from "../../../services/MaterialService";
@@ -95,28 +96,40 @@ export default function MaterialsAdmin() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!editingId && !selectedFile) return alert("Please select a file");
-    if (!formData.classId) return alert("Please select a target class");
+  e.preventDefault();
 
-    const data = new FormData();
-    if (selectedFile) data.append("file", selectedFile);
-    data.append("title", formData.title);
-    data.append("description", formData.description);
-    data.append("classId", formData.classId);
+  if (!editingId && !selectedFile) {
+    toast.error("Please select a file");
+    return;
+  }
+  if (!formData.classId) {
+    toast.error("Please select a target class");
+    return;
+  }
 
-    setIsUploading(true);
-    try {
-      await MaterialService.uploadMaterial(data); 
-      closeModal();
-      loadData();
-    } catch (err) {
-      alert("Action failed. Check server constraints.");
-    } finally {
-      setIsUploading(false);
+  const data = new FormData();
+  if (selectedFile) data.append("file", selectedFile);
+  data.append("title", formData.title);
+  data.append("description", formData.description);
+  data.append("classId", formData.classId);
+
+  setIsUploading(true);
+  try {
+    if (editingId) {
+      await MaterialService.updateMaterial(editingId, data);
+      toast.success("Study material updated successfully.");
+    } else {
+      await MaterialService.uploadMaterial(data);
+      toast.success("Study material uploaded successfully.");
     }
-  };
+    closeModal();
+    loadData();
+  } catch (err) {
+    toast.error("Action failed. Please check your input and try again.");
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   const getFileIcon = (type: string) => {
     switch (type) {
