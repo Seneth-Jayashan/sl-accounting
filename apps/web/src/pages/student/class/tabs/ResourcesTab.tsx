@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import MaterialService, { type MaterialData } from "../../../../services/MaterialService";
 import EnrollmentService, { type EnrollmentResponse } from "../../../../services/EnrollmentService"; // Added
+import toast from "react-hot-toast";
 
 // --- Helpers ---
 const getMonthString = (dateStr: string) => {
@@ -111,6 +112,41 @@ export default function ResourcesTab({ classId }: { classId: string }) {
       return [...materials].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [materials]);
 
+  const handleDownload = (id: string, fileName?: string) => {
+    (async () => {
+      try {
+        const res = await MaterialService.downloadMaterial(id);
+        const contentTypeHeader = res.headers ? res.headers["content-type"] : undefined;
+        const contentType = typeof contentTypeHeader === "string" ? contentTypeHeader : "application/octet-stream";
+        const blob = new Blob([res.data], { type: contentType });
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.target = "_self";
+
+        const disposition = res.headers ? res.headers["content-disposition"] : undefined;
+        let filename = fileName || "download";
+        if (disposition && typeof disposition === "string") {
+          const match = /filename\*=UTF-8''([^;\n\r]+)/.exec(disposition) || /filename="?([^";]+)"?/.exec(disposition);
+          if (match && match[1]) filename = decodeURIComponent(match[1]);
+        }
+
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 1500);
+      } catch (err: any) {
+        console.error("Download error", err);
+        if (err.response?.status === 404) {
+          toast.error("File not found. Please contact the instructor.");
+        } else {
+          toast.error(err.response?.data?.message || "Failed to download file.");
+        }
+      }
+    })();
+  };
+
   if (loading) {
     return (
       <div className="py-20 text-center flex flex-col items-center gap-3">
@@ -175,7 +211,10 @@ export default function ResourcesTab({ classId }: { classId: string }) {
                             )}
                           </p>
                           {file.description && !locked && (
-                              <p className="text-[10px] text-gray-400 truncate w-24 sm:w-32 opacity-70">{file.description}</p>
+                              <div 
+                                className="text-[10px] text-gray-400 truncate w-24 sm:w-32 opacity-70"
+                                dangerouslySetInnerHTML={{ __html: file.description }}
+                              />
                           )}
                       </div>
                     </div>
@@ -189,15 +228,13 @@ export default function ResourcesTab({ classId }: { classId: string }) {
                           Unlock
                       </button>
                   ) : (
-                      <a 
-                        href={`${import.meta.env.VITE_API_BASE_URL}${file.fileUrl}`} 
-                        target="_blank" 
-                        rel="noreferrer noopener"
+                      <button 
+                        onClick={() => handleDownload(file._id, file.title)}
                         className="p-2.5 bg-brand-aliceBlue text-gray-500 rounded-xl hover:bg-brand-prussian hover:text-white transition-all transform active:scale-90"
                         title="Download File"
                       >
                         <Download size={18} />
-                      </a>
+                      </button>
                   )}
                 </div>
             );

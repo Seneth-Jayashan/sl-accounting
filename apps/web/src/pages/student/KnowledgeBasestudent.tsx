@@ -251,7 +251,12 @@ const StudentKnowledgeBase: React.FC = () => {
 
                 <div className="space-y-2">
                   <div className="text-base font-semibold text-[#0b2540] leading-snug line-clamp-2">{it.title}</div>
-                  {it.description && <div className="text-sm text-gray-600 line-clamp-2">{it.description}</div>}
+                  {it.description && (
+                    <div 
+                      className="text-sm text-gray-600 line-clamp-2" 
+                      dangerouslySetInnerHTML={{ __html: it.description }} 
+                    />
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-gray-500">

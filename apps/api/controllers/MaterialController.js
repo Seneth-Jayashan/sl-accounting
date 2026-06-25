@@ -137,6 +137,28 @@ class MaterialController {
             res.status(500).json({ success: false, message: error.message });
         }
     }
+    // Student/Admin: Download Material
+    async downloadMaterial(req, res) {
+        try {
+            const material = await Material.findById(req.params.id);
+            if (!material) return res.status(404).json({ message: "Material not found" });
+
+            if (!material.fileUrl) return res.status(404).json({ message: 'File not available' });
+
+            const fileAbsolute = path.isAbsolute(material.fileUrl) ? material.fileUrl : path.join(process.cwd(), material.fileUrl);
+            if (!fs.existsSync(fileAbsolute)) return res.status(404).json({ message: 'File not found on server' });
+
+            // Extract original filename or default to a generic name based on title and extension
+            let fileName = material.title.replace(/\s+/g, '-').toLowerCase();
+            const ext = path.extname(material.fileUrl);
+            if (!fileName.endsWith(ext)) fileName += ext;
+            
+            return res.download(fileAbsolute, fileName);
+        } catch (error) {
+            console.error('Download Material Error:', error);
+            return res.status(500).json({ success: false, message: 'Internal Server Error' });
+        }
+    }
 }
 
 export default new MaterialController();

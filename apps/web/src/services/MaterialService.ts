@@ -58,6 +58,13 @@ const MaterialService = {
   },
 
   /**
+   * Download Material
+   */
+  downloadMaterial: async (id: string) => {
+    return await api.get(`${BASE_URL}/${id}/download`, { responseType: "blob" });
+  },
+
+  /**
    * Admin: Update existing material
    */
   updateMaterial: async (id: string, formData: FormData) => {

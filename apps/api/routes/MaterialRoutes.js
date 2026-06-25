@@ -66,4 +66,14 @@ router.get(
     MaterialController.getStudentMaterials
 );
 
+/**
+ * @route   GET /api/materials/:id/download
+ * @desc    Download a material file
+ */
+router.get(
+    "/:id/download",
+    protect,
+    MaterialController.downloadMaterial
+);
+
 export default router;

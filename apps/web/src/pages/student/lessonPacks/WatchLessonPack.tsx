@@ -189,7 +189,10 @@ export default function WatchLessonPack() {
           {/* Video Info (Below Player) */}
           <div className="mt-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
              <h2 className="text-2xl font-bold text-brand-prussian mb-2">{activeVideo?.title || pack.title}</h2>
-             <p className="text-sm text-gray-500 leading-relaxed">{pack.description}</p>
+             <p 
+               className="text-sm text-gray-500 leading-relaxed" 
+               dangerouslySetInnerHTML={{ __html: pack.description }}
+             />
           </div>
 
         </div>
