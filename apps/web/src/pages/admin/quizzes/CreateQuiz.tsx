@@ -149,7 +149,15 @@ const CreateQuiz: React.FC = () => {
       
       // Auto-format the options array if the question type changes
       if (field === "questionType") {
-        if (value === "true-false") {
+        if (value === "mcq") {
+          const firstCorrectIndex = updatedQs[qIndex].options.findIndex(opt => opt.isCorrect);
+          if (firstCorrectIndex !== -1) {
+            updatedQs[qIndex].options = updatedQs[qIndex].options.map((opt, i) => ({
+              ...opt,
+              isCorrect: i === firstCorrectIndex
+            }));
+          }
+        } else if (value === "true-false") {
           updatedQs[qIndex].options = [
             { optionText: "True", isCorrect: true },
             { optionText: "False", isCorrect: false }
@@ -191,7 +199,7 @@ const CreateQuiz: React.FC = () => {
     });
   };
 
-  const handleSetCorrectOption = (qIndex: number, optIndex: number) => {
+  const handleSetCorrectOption = (qIndex: number, optIndex: number, checked: boolean) => {
     setQuizData(prev => {
       const updatedQs = [...prev.questions!];
       const qType = updatedQs[qIndex].questionType;
@@ -203,8 +211,8 @@ const CreateQuiz: React.FC = () => {
           isCorrect: i === optIndex
         }));
       } else {
-        // Multi-select allows toggling multiple
-        updatedQs[qIndex].options[optIndex].isCorrect = !updatedQs[qIndex].options[optIndex].isCorrect;
+        // Multi-select allows independent checkbox state per option
+        updatedQs[qIndex].options[optIndex].isCorrect = checked;
       }
       return { ...prev, questions: updatedQs };
     });
@@ -473,8 +481,8 @@ const CreateQuiz: React.FC = () => {
                             type={q.questionType === "multi-select" ? "checkbox" : "radio"}
                             name={`correct-option-${qIndex}`}
                             checked={opt.isCorrect}
-                            onChange={() => handleSetCorrectOption(qIndex, optIndex)}
-                            className="w-5 h-5 text-blue-600 cursor-pointer"
+                            onChange={(e) => handleSetCorrectOption(qIndex, optIndex, e.target.checked)}
+                            className="w-5 h-5 accent-blue-600 cursor-pointer"
                             title="Mark as correct answer"
                           />
                           <input 

@@ -14,6 +14,7 @@ import {
   X
 } from "lucide-react";
 import moment from "moment";
+import Swal from "sweetalert2";
 
 // Services
 import MaterialService, { type MaterialData } from "../../../services/MaterialService";
@@ -97,8 +98,14 @@ export default function MaterialsAdmin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!editingId && !selectedFile) return alert("Please select a file");
-    if (!formData.classId) return alert("Please select a target class");
+    if (!editingId && !selectedFile) {
+      Swal.fire("Warning", "Please select a file", "warning");
+      return;
+    }
+    if (!formData.classId) {
+      Swal.fire("Warning", "Please select a target class", "warning");
+      return;
+    }
 
     const data = new FormData();
     if (selectedFile) data.append("file", selectedFile);
@@ -108,11 +115,16 @@ export default function MaterialsAdmin() {
 
     setIsUploading(true);
     try {
-      await MaterialService.uploadMaterial(data); 
+      if (editingId) {
+        await MaterialService.updateMaterial(editingId, data);
+      } else {
+        await MaterialService.uploadMaterial(data); 
+      }
       closeModal();
       loadData();
+      Swal.fire("Success", editingId ? "Resource updated successfully!" : "Resource uploaded successfully!", "success");
     } catch (err) {
-      alert("Action failed. Check server constraints.");
+      Swal.fire("Error", "Action failed. Check server constraints.", "error");
     } finally {
       setIsUploading(false);
     }
@@ -180,7 +192,23 @@ export default function MaterialsAdmin() {
                 </div>
                 <div className="flex gap-1">
                   <button onClick={() => handleEditClick(mat)} className="p-2 text-gray-300 hover:text-brand-cerulean transition-colors"><Pencil size={18} /></button>
-                  <button onClick={() => MaterialService.deleteMaterial(mat._id).then(loadData)} className="p-2 text-gray-300 hover:text-brand-coral transition-colors"><Trash2 size={18} /></button>
+                  <button onClick={async () => {
+                    const result = await Swal.fire({
+                      title: 'Are you sure?',
+                      text: "You are about to delete this material. This action cannot be undone.",
+                      icon: 'warning',
+                      showCancelButton: true,
+                      confirmButtonColor: '#d33',
+                      cancelButtonColor: '#3085d6',
+                      confirmButtonText: 'Yes, delete it!'
+                    });
+                    if (result.isConfirmed) {
+                      MaterialService.deleteMaterial(mat._id).then(() => {
+                        Swal.fire("Deleted!", "The material has been deleted.", "success");
+                        loadData();
+                      });
+                    }
+                  }} className="p-2 text-gray-300 hover:text-brand-coral transition-colors"><Trash2 size={18} /></button>
                 </div>
               </div>
 

@@ -4,6 +4,23 @@ const jsonString = (schema) => z.preprocess((val) => typeof val === "string" ? J
 const numeric = () => z.number().or(z.string().transform((val) => Number(val)));
 const boolean = () => z.boolean().or(z.string().transform((val) => val === "true"));
 const objectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format");
+const tagsArray = z.preprocess((val) => {
+  if (Array.isArray(val)) return val;
+  if (typeof val !== "string") return val;
+
+  const trimmed = val.trim();
+  if (!trimmed) return undefined;
+
+  if (trimmed.startsWith("[")) {
+    try {
+      return JSON.parse(trimmed);
+    } catch (error) {
+      return [trimmed];
+    }
+  }
+
+  return [trimmed];
+}, z.array(z.string().trim()).optional());
 
 const timeScheduleSchema = z.object({
   day: numeric().pipe(z.number().int().min(0).max(6)),
@@ -25,7 +42,7 @@ export const createClassSchema = z.object({
     level: z.enum(["general", "ordinary", "advanced"]).optional(),
     type: z.enum(["theory", "revision", "paper"]).optional(),
     batch: objectIdSchema.optional().nullable(),
-    tags: jsonString(z.array(z.string().trim()).optional()),
+    tags: tagsArray,
     isPublished: boolean().optional(),
     
     // Linking

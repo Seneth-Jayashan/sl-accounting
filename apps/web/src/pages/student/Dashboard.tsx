@@ -7,6 +7,8 @@ import {
 
 import { useAuth } from "../../contexts/AuthContext";
 import UserService, { type StudentDashboardData } from "../../services/UserService";
+import MaterialService from "../../services/MaterialService";
+import toast from "react-hot-toast";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -81,13 +83,63 @@ export default function StudentDashboardPage() {
     return () => { isMounted = false; };
   }, []);
 
-  const formatDate = (isoString: string) => {
-    return new Date(isoString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const handleDownload = (id: string, fileName?: string) => {
+    (async () => {
+      try {
+        const res = await MaterialService.downloadMaterial(id);
+        const contentTypeHeader = res.headers ? res.headers["content-type"] : undefined;
+        const contentType = typeof contentTypeHeader === "string" ? contentTypeHeader : "application/octet-stream";
+        const blob = new Blob([res.data], { type: contentType });
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.target = "_self";
+
+        const disposition = res.headers ? res.headers["content-disposition"] : undefined;
+        let filename = fileName || "download";
+        if (disposition && typeof disposition === "string") {
+          const match = /filename\*=UTF-8''([^;\n\r]+)/.exec(disposition) || /filename="?([^";]+)"?/.exec(disposition);
+          if (match && match[1]) filename = decodeURIComponent(match[1]);
+        }
+
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 1500);
+      } catch (err: any) {
+        console.error("Download error", err);
+        if (err.response?.status === 404) {
+          toast.error("File not found. Please contact the instructor.");
+        } else {
+          toast.error(err.response?.data?.message || "Failed to download file.");
+        }
+      }
+    })();
   };
 
-  const formatTime = (isoString: string) => {
-    return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatDate = (isoString: string) => {
+  const date = new Date(isoString);
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  const isToday = date.toDateString() === today.toDateString();
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+
+  if (isToday) return "Today";
+  if (isTomorrow) return "Tomorrow";
+
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const formatTime = (isoString: string) => {
+  return new Date(isoString).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
   return (
       <div className="space-y-6 pb-20 sm:pb-0"> 
@@ -237,12 +289,10 @@ export default function StudentDashboardPage() {
 
                     <div className="space-y-3">
                         {!loading && data?.recentMaterials.map((material) => (
-                            <a 
+                            <button 
                                 key={material._id} 
-                                href={BASE_URL + material.fileUrl} // Using url from interface
-                                target="_blank"
-                                rel="noreferrer" 
-                                className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group border border-transparent hover:border-gray-100"
+                                onClick={() => handleDownload(material._id, material.title)}
+                                className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group border border-transparent hover:border-gray-100 text-left"
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     <div className={`p-2.5 rounded-lg shrink-0 ${material.fileType === 'pdf' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'}`}>
@@ -256,7 +306,7 @@ export default function StudentDashboardPage() {
                                 <div className="hidden sm:block opacity-0 group-hover:opacity-100 transition-opacity text-brand-cerulean text-xs font-bold px-3 py-1 bg-brand-aliceBlue rounded-full">
                                     Open
                                 </div>
-                            </a>
+                            </button>
                         ))}
                         {!loading && (!data?.recentMaterials || data.recentMaterials.length === 0) && (
                              <div className="text-center py-6 text-gray-400 text-sm">No new materials.</div>

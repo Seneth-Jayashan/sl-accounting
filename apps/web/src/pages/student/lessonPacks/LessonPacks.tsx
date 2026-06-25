@@ -101,7 +101,12 @@ export default function StudentLessonPacks() {
 
                 <div className="p-6 flex-1 flex flex-col">
                   <h3 className="font-bold text-lg text-brand-prussian line-clamp-2 mb-2 group-hover:text-brand-cerulean transition-colors">{pack.title}</h3>
-                  <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">{pack.description || "Comprehensive video lesson bundle."}</p>
+                  <div className="mt-3">
+                    <div 
+                      className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1"
+                      dangerouslySetInnerHTML={{ __html: pack.description || "Comprehensive video lesson bundle." }}
+                    />
+                  </div>
                   
                   <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
                     <span className="font-black text-brand-prussian text-lg">

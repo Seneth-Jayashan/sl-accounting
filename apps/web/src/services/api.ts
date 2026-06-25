@@ -13,7 +13,7 @@ export const api = axios.create({
 });
 
 // 3. Memory Token Management
-// Security: Keeping this in a closure prevents XSS attacks from reading it 
+// Security: Keeping this in a closure prevents XSS attacks from reading it
 // (unlike localStorage).
 let inMemoryAccessToken: string | null = null;
 
@@ -27,7 +27,7 @@ export const getAccessToken = () => inMemoryAccessToken;
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     if (inMemoryAccessToken) {
-      config.headers.set('Authorization', `Bearer ${inMemoryAccessToken}`);
+      config.headers.set("Authorization", `Bearer ${inMemoryAccessToken}`);
     }
     return config;
   },
@@ -57,15 +57,21 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
     // If no response (network error) or not 401, reject immediately
-    if (!error.response || error.response.status !== 401 || originalRequest._retry) {
+    if (
+      !error.response ||
+      error.response.status !== 401 ||
+      originalRequest._retry
+    ) {
       return Promise.reject(error);
     }
 
     // SCENARIO: Token Expired. Handle Refresh.
-    
+
     // 1. If already refreshing, queue this request
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
@@ -73,7 +79,7 @@ api.interceptors.response.use(
       })
         .then((token) => {
           // When resolved, update header and retry
-          originalRequest.headers.set('Authorization', `Bearer ${token}`);
+          originalRequest.headers.set("Authorization", `Bearer ${token}`);
           return api(originalRequest);
         })
         .catch((err) => Promise.reject(err));
@@ -100,11 +106,10 @@ api.interceptors.response.use(
 
       // Process the queue with the new token
       processQueue(null, newAccessToken);
-      
-      // Retry the original failing request
-      originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
-      return api(originalRequest);
 
+      // Retry the original failing request
+      originalRequest.headers.set("Authorization", `Bearer ${newAccessToken}`);
+      return api(originalRequest);
     } catch (refreshError) {
       // 3. Refresh Failed (Session completely dead)
       processQueue(refreshError as Error, null);
@@ -120,5 +125,41 @@ api.interceptors.response.use(
     }
   }
 );
+
+// 6. Error Display Interceptor (Optional - Auto-show errors as toasts)
+// Uncomment to enable automatic error toast display
+// This will show all errors to the user automatically
+// Set 'skipErrorDisplay: true' in request config to skip for specific requests
+/*
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const config = error.config as InternalAxiosRequestConfig & { skipErrorDisplay?: boolean };
+    
+    // Skip error display if requested
+    if (config?.skipErrorDisplay) {
+      return Promise.reject(error);
+    }
+
+    // Dynamic import toast to avoid circular dependencies
+    import("react-hot-toast").then(({ default: toast }) => {
+      const response = error.response;
+      
+      if (response?.data?.message) {
+        toast.error(response.data.message, {
+          duration: 4000,
+          position: "top-right",
+        });
+      } else if (!response) {
+        toast.error("Unable to connect to server. Please check your internet connection.", {
+          duration: 4000,
+        });
+      }
+    });
+
+    return Promise.reject(error);
+  }
+);
+*/
 
 export default api;

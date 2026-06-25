@@ -47,6 +47,15 @@ router.delete(
     MaterialController.deleteMaterial
 );
 
+// update material
+router.put(
+    '/:id',
+    protect,
+    restrictTo("admin"),
+    uploadMiddleware,
+    MaterialController.updateMaterial
+);
+
 // ==========================================
 // STUDENT ROUTES
 // ==========================================
@@ -55,6 +64,16 @@ router.get(
     "/view-class/:classId", 
     protect, 
     MaterialController.getStudentMaterials
+);
+
+/**
+ * @route   GET /api/materials/:id/download
+ * @desc    Download a material file
+ */
+router.get(
+    "/:id/download",
+    protect,
+    MaterialController.downloadMaterial
 );
 
 export default router;

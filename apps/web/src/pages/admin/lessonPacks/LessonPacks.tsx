@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
+import Swal from "sweetalert2";
 import { 
   Plus, Search, Edit2, Trash2, X, 
   CheckCircle2, XCircle, Image as ImageIcon,
@@ -173,7 +174,18 @@ export default function LessonPacks() {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to delete the lesson pack "${title}"? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await LessonPackService.delete(id);
       setPacks((prev) => prev.filter(p => p._id !== id));
