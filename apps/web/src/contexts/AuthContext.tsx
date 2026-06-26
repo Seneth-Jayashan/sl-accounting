@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import axios from "axios";
 import { api, setAccessToken } from "../services/api";
 import ReactHotToast from "react-hot-toast";
@@ -14,7 +22,7 @@ export interface User {
   role: "student" | "admin";
   phoneNumber?: string;
   profileImage?: string;
-  batch?: string; // --- UPDATE: Added batch here likely needed for UI
+  batch?: string;
   address?: {
     street?: string;
     city?: string;
@@ -61,93 +69,110 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
 };
 
 // ------------ Provider ------------
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Ref to prevent double-firing in React Strict Mode
+  // Prevents double-firing in React Strict Mode
   const isInitialized = useRef(false);
 
-  // Sync the Token Helper whenever state changes
+  // Keep the token helper in sync whenever state changes
   useEffect(() => {
     setAccessToken(accessToken);
   }, [accessToken]);
 
-  // --- NEW: LOGOUT FUNCTION (Memoized) ---
-  // We memoize this so it can be used in the event listener effect below
+  // ----------- Logout (Memoized) -----------
   const logout = useCallback(async () => {
     try {
       await api.post("/auth/logout");
-    } catch (err) {
-      // Ignore errors
+    } catch {
+      // Ignore — we always clear local state regardless
     } finally {
       setAccessTokenState(null);
       setAccessToken(null);
       setUser(null);
-      window.location.href = "/login"; 
+      window.location.href = "/login";
     }
   }, []);
 
-  // --- NEW: SESSION EXPIRY LISTENER ---
-  // This connects the AuthContext to the Axios Interceptor
+  // ----------- Session Expiry Listener -----------
+  // Connects AuthContext to the Axios interceptor's "auth:session-expired" event
   useEffect(() => {
-    const handleSessionExpired = () => {
-      logout();
-    };
-
+    const handleSessionExpired = () => logout();
     window.addEventListener("auth:session-expired", handleSessionExpired);
-    return () => window.removeEventListener("auth:session-expired", handleSessionExpired);
+    return () =>
+      window.removeEventListener("auth:session-expired", handleSessionExpired);
   }, [logout]);
 
+  // ----------- Token Refresh Listener -----------
+  // Keeps in-memory token state in sync when interceptor silently refreshes
   useEffect(() => {
     const handleTokenRefresh = (event: Event) => {
       const customEvent = event as CustomEvent<string>;
       setAccessTokenState(customEvent.detail);
     };
-
     window.addEventListener("auth:token-refreshed", handleTokenRefresh);
-    return () => window.removeEventListener("auth:token-refreshed", handleTokenRefresh);
+    return () =>
+      window.removeEventListener("auth:token-refreshed", handleTokenRefresh);
   }, []);
 
-  // INITIALIZATION: Restore Session
+  // ----------- Initialization: Restore Session -----------
   useEffect(() => {
     const initializeAuth = async () => {
       if (isInitialized.current) return;
       isInitialized.current = true;
 
       try {
-        const res = await axios.post(
+        // Step 1: Attempt to get a new access token using the HTTP-only refresh cookie
+        const refreshRes = await axios.post(
           `${API_BASE}/auth/refresh`,
           {},
-          { withCredentials: true } 
+          { withCredentials: true }
         );
 
-        const newAccessToken = res.data?.accessToken;
+        const newAccessToken = refreshRes.data?.accessToken;
 
-        if (newAccessToken) {
-          setAccessTokenState(newAccessToken);
-          setAccessToken(newAccessToken); 
-          
-          // Fetch user details
-          const userRes = await api.get("/auth/me");
-          if (userRes.data?.success) {
-            setUser(userRes.data.user);
-          } else {
-             // If we have a token but can't get user, something is wrong. Logout.
-             throw new Error("Failed to fetch user");
-          }
+        if (!newAccessToken) {
+          // No token returned — user is simply not logged in. Not an error.
+          return;
+        }
+
+        // Step 2: Synchronously set the token in the closure BEFORE any further calls.
+        // This prevents the /me request from having a missing Authorization header,
+        // which would cause a 401 → interceptor → second /refresh → token reuse → 403 loop.
+        setAccessTokenState(newAccessToken);
+        setAccessToken(newAccessToken);
+
+        // Step 3: Fetch the user profile using raw axios with the token set manually.
+        // We deliberately bypass the `api` instance here to avoid the response interceptor,
+        // which could otherwise trigger another refresh cycle if /me returns 401.
+        const userRes = await axios.get(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${newAccessToken}` },
+          withCredentials: true,
+        });
+
+        if (userRes.data?.success) {
+          setUser(userRes.data.user);
+        } else {
+          throw new Error("Failed to fetch user profile after token refresh");
         }
       } catch (err: any) {
-        // Only destroy the session if the backend explicitly rejected the token
-        if (err.response?.status === 401 || err.response?.status === 403) {
-            setAccessTokenState(null);
-            setUser(null);
-            setAccessToken(null);
-        } else {
-            console.error("Network or Server error during hydration:", err);
-            // Optionally: Trigger a toast notification here
-            ReactHotToast.error(getErrorMessage(err, "Failed to restore session. Please try again."));
+        const status = err.response?.status;
+
+        if (status === 401 || status === 403) {
+          // Token was explicitly rejected by the server — clear the session silently
+          setAccessTokenState(null);
+          setUser(null);
+          setAccessToken(null);
+        } else if (err.message !== "Failed to fetch user profile after token refresh") {
+          // Only show a toast for genuine network / server errors, not auth failures
+          console.error("Session restoration error:", err);
+          ReactHotToast.error(
+            getErrorMessage(err, "Failed to restore session. Please try again.")
+          );
         }
       } finally {
         setLoading(false);
@@ -157,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-  // --------- Actions ----------
+  // ----------- Actions -----------
 
   const fetchMe = async () => {
     try {
@@ -178,6 +203,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.data?.success) {
         const token = res.data.accessToken;
+
+        // Set token synchronously before calling fetchMe
         setAccessTokenState(token);
         setAccessToken(token);
 
@@ -185,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(res.data.user);
         }
 
-        // Always hydrate full user profile (address, batch, etc.) after login.
+        // Hydrate full user profile (address, batch, etc.) after login
         await fetchMe();
       }
     } catch (error) {
@@ -196,7 +223,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (payload: RegisterPayload) => {
     try {
       const form = new FormData();
-      
       form.append("firstName", payload.firstName);
       form.append("lastName", payload.lastName);
       form.append("email", payload.email);
@@ -210,9 +236,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await axios.post(`${API_BASE}/auth/register`, form, {
         headers: { "Content-Type": "multipart/form-data" },
-        withCredentials: true 
+        withCredentials: true,
       });
-      
     } catch (error) {
       throw new Error(getErrorMessage(error, "Registration failed"));
     }
@@ -236,7 +261,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [user, accessToken, loading, logout]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  );
 };
 
 // ------------ Hook ------------
