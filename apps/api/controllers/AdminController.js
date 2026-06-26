@@ -288,52 +288,106 @@ export const createUser = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
+
     const user = await findActiveUser(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
 
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    const { firstName, lastName, phoneNumber, address, batch } = req.body;
 
-    const { firstName, lastName, phoneNumber, address ,batch } = req.body;
+    // Save old batch BEFORE changing anything
+    const oldBatchId = user.batch;
+
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
     if (phoneNumber) user.phoneNumber = phoneNumber;
 
-    if (batch){
-      if(!user.batch){
-        user.batch = batch;
-      }else{
-        const OldBatch = await Batch.findById(user.batch);
-        if(OldBatch){
-          OldBatch.students.pull(user._id);
-          await OldBatch.save();
-        }
-        user.batch = batch;
-        const NewBatch = await Batch.findById(batch);
-        if(NewBatch){
-          NewBatch.students.push(user._id);
-          await NewBatch.save();
+    // ==========================================
+    // 1. HANDLE BATCH CHANGE (FIXED SECTION)
+    // ==========================================
+    if (batch && String(batch) !== String(oldBatchId)) {
+
+      // Get old class IDs BEFORE deleting anything
+      let oldClassIds = [];
+
+      if (oldBatchId) {
+        const oldClasses = await Class.find({ batch: oldBatchId }).select("_id");
+        oldClassIds = oldClasses.map((c) => c._id);
+
+        // Remove user from old batch
+        const oldBatch = await Batch.findById(oldBatchId);
+        if (oldBatch) {
+          oldBatch.students.pull(user._id);
+          await oldBatch.save();
         }
       }
+
+      // ==========================================
+      // 2. DELETE OLD ENROLLMENTS (FIXED QUERY)
+      // ==========================================
+      await Enrollment.deleteMany({
+        student: user._id,
+        $or: [
+          { class: { $in: oldClassIds } },
+          { lessonPack: { $type: "objectId" } }
+        ]
+      });
+
+      // ==========================================
+      // 3. ADD USER TO NEW BATCH
+      // ==========================================
+      const newBatch = await Batch.findById(batch);
+
+      if (newBatch) {
+        newBatch.students.addToSet(user._id);
+        await newBatch.save();
+      }
+
+      user.batch = batch;
     }
 
+    // ==========================================
+    // 4. ADDRESS UPDATE (SAFE PARSE)
+    // ==========================================
     if (address) {
       try {
-        user.address = typeof address === 'string' ? JSON.parse(address) : address;
+        user.address =
+          typeof address === "string" ? JSON.parse(address) : address;
       } catch (e) {
-        return res.status(400).json({ success: false, message: "Invalid address format" });
+        return res.status(400).json({
+          success: false,
+          message: "Invalid address format",
+        });
       }
     }
 
+    // ==========================================
+    // 5. PROFILE IMAGE
+    // ==========================================
     if (req.file) {
       user.profileImage = req.file.path.replace(/\\/g, "/");
     }
 
     await user.save();
-    return res.status(200).json({ success: true, user });
+
+    return res.status(200).json({
+      success: true,
+      user,
+      message: "User profile updated successfully",
+    });
+
   } catch (error) {
-    if (error.name === 'ValidationError') {
+    console.error("updateUserProfile error:", error);
+
+    if (error.name === "ValidationError") {
       return res.status(400).json({ success: false, message: error.message });
     }
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
   }
 };
 
