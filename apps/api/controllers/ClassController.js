@@ -410,7 +410,42 @@ export const createClass = async (req, res) => {
   } catch (error) {
     if (session.inTransaction()) await session.abortTransaction();
     console.error("createClass error:", error);
-    return res.status(500).json({ message: error.message || "Error creating class" });
+
+    if (error?.code === 11000 || String(error?.message || "").includes("E11000")) {
+      return res.status(409).json({
+        success: false,
+        message: "A module with the same unique value already exists.",
+      });
+    }
+
+    if (error?.name === "ValidationError") {
+      const firstMessage = error?.errors ? Object.values(error.errors)[0]?.message : null;
+      return res.status(400).json({
+        success: false,
+        message: firstMessage || error.message || "Validation Error",
+      });
+    }
+
+    const knownClientErrors = [
+      "Selected parent class not found.",
+      "Parent class must be of type 'Theory'.",
+      "This Theory class already has a Revision class linked. Cannot add another.",
+      "This Theory class already has a Paper class linked. Cannot add another.",
+      "Invalid class type selected.",
+      "Class not found",
+    ];
+
+    if (knownClientErrors.some((message) => String(error?.message || "") === message || String(error?.message || "").includes(message))) {
+      return res.status(400).json({
+        success: false,
+        message: error.message || "Invalid class data",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Error creating class",
+    });
   } finally {
     session.endSession();
   }

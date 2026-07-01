@@ -191,7 +191,27 @@ export default function CreateClassPage() {
       await ClassService.createClass(payload);
       navigate("/admin/classes");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Internal server error occurred.");
+      const responseData = err?.response?.data;
+      const responseMessage = responseData?.message;
+      const responseError = responseData?.error;
+      const validationErrors = responseData?.errors;
+
+      const firstValidationMessage = Array.isArray(validationErrors) && validationErrors.length > 0
+        ? validationErrors[0]?.message || validationErrors[0]?.error
+        : null;
+
+      const fallbackMessage = typeof responseData === "string"
+        ? responseData
+        : null;
+
+      setError(
+        firstValidationMessage ||
+        (responseMessage && responseMessage !== "Validation Error" ? responseMessage : null) ||
+        responseError ||
+        fallbackMessage ||
+        err?.message ||
+        "Could not create module. Please try again."
+      );
       setShowPreview(false);
     } finally {
       setIsSaving(false);

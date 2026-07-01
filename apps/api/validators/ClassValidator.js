@@ -91,7 +91,16 @@ export const validate = (schema) => (req, res, next) => {
     return next();
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: "Validation Error", errors: error.errors });
+      const errors = error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      }));
+
+      return res.status(400).json({
+        success: false,
+        message: errors.length > 0 ? errors[0].message : "Validation Error",
+        errors,
+      });
     }
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
