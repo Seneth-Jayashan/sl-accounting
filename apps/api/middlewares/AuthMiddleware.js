@@ -39,7 +39,10 @@ export const protect = async (req, res, next) => {
             }
 
             if (user.isLocked) {
-                return res.status(403).json({ success: false, message: 'Account is locked due to security reasons.' });
+                return res.status(403).json({
+                    success: false,
+                    message: 'This account is locked by admin. Please contact admin.'
+                });
             }
 
             req.user = user;

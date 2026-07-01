@@ -107,7 +107,10 @@ export const login = async (req, res) => {
     if (user.isLocked) {
       return res
         .status(403)
-        .json({ success: false, message: "Account is locked. Contact support." });
+        .json({
+          success: false,
+          message: "This account is locked by admin. Please contact admin.",
+        });
     }
 
     if (!user.isVerified) {
@@ -160,6 +163,7 @@ export const login = async (req, res) => {
         email: user.email,
         role: user.role,
         profileImage: user.profileImage,
+        isLocked: user.isLocked,
       },
     });
   } catch (error) {

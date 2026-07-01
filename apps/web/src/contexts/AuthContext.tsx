@@ -20,6 +20,7 @@ export interface User {
   lastName: string;
   email: string;
   role: "student" | "admin";
+  isLocked?: boolean;
   phoneNumber?: string;
   profileImage?: string;
   batch?: string;

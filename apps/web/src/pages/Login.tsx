@@ -148,16 +148,17 @@ export default function Login() {
       console.error("Login Error:", err);
       
       const status =  err.response?.status;
-      const responseMsg = (err.response?.data?.message || "").toLowerCase();
-      const msg = err.message || "Failed to login.";
-
-      
+      const responseMsg = (err.response?.data?.message || "").trim();
+      const responseMsgLower = responseMsg.toLowerCase();
+      const msg = responseMsg || err.message || "Failed to login.";
 
       // --- FIXED: Robust check for unverified account ---
       // Many backends return 403 or 401 with a specific message for unverified accounts
-      if (status === 403 && (responseMsg.includes("verify") || responseMsg.includes("active") || responseMsg.includes("verified"))) {
+      if (status === 403 && (responseMsgLower.includes("verify") || responseMsgLower.includes("active") || responseMsgLower.includes("verified"))) {
         setIsVerifyModalOpen(true); // Open the modal
         setGeneralError("Your account is not verified yet. Please check your email.");
+      } else if (status === 403 && responseMsgLower.includes("locked")) {
+        setGeneralError(responseMsg || "This account is locked by admin. Please contact admin.");
       } else if (status === 401) {
         setGeneralError("Invalid email or password.");
       } else {
