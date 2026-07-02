@@ -8,7 +8,6 @@ import { toast } from "react-hot-toast";
 import QuizService, { type Quiz, type QuizQuestion, type StudentAnswer } from "../../../services/QuizService";
 
 // --- Fisher-Yates Shuffle (Generic) ---
-// Array ekak in-place shuffle kara return karanawa
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -19,8 +18,6 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 // --- Shuffle Questions & Options based on settings ---
-// Quiz settings anuwawa questions saha options shuffle karanawa
-// Original questionId saha optionIndex mapping save karanawa grading exact wenna
 function applyShuffleToQuiz(
   quiz: Quiz,
   shuffleQ: boolean,
@@ -31,7 +28,6 @@ function applyShuffleToQuiz(
 
   let questions = quiz.questions.map((q) => {
     if (shuffleOpts && q.options && q.options.length > 0 && q.questionType !== "short-answer") {
-      // Original indices track karanawa
       const originalIndices = q.options.map((_, i) => i);
       const shuffledIndices = shuffleArray(originalIndices);
       optionIndexMap[q._id!] = shuffledIndices; // position i => original index shuffledIndices[i]
@@ -40,7 +36,6 @@ function applyShuffleToQuiz(
         options: shuffledIndices.map((origIdx) => q.options[origIdx]),
       };
     } else {
-      // Shuffle naha — identity map
       optionIndexMap[q._id!] = q.options.map((_, i) => i);
     }
     return q;
@@ -105,7 +100,7 @@ const TakeQuiz: React.FC = () => {
               setAnswers(savedSession.answers);
               setTimeLeft(Math.floor((savedSession.endTime - now) / 1000));
 
-              // Shuffled order recover karanawa (same order maintain wenna)
+              // Shuffled order recover
               if (savedSession.displayQuestionIds && savedSession.optionIndexMap) {
                 const qMap = new Map(fetchedQuiz.questions.map((q) => [q._id!, q]));
                 const recovered = savedSession.displayQuestionIds
@@ -119,7 +114,6 @@ const TakeQuiz: React.FC = () => {
                 setDisplayQuestions(recovered);
                 setOptionIndexMap(savedSession.optionIndexMap);
               } else {
-                // Legacy session — shuffle nehe (as-is)
                 setDisplayQuestions(fetchedQuiz.questions);
                 setOptionIndexMap(
                   Object.fromEntries(fetchedQuiz.questions.map((q) => [q._id!, q.options.map((_, i) => i)]))
@@ -135,14 +129,13 @@ const TakeQuiz: React.FC = () => {
             }
           }
 
-          // Initialize empty answers array (original question order use karanawa)
+          // Initialize empty answers array
           const initialAnswers = fetchedQuiz.questions.map((q: any) => ({
             questionId: q._id!,
             selectedOptions: [],
             shortAnswer: "",
           }));
           setAnswers(initialAnswers);
-          // displayQuestions start kara set karanawa (shuffle handleStartExam eke wedi)
           setDisplayQuestions(fetchedQuiz.questions);
         }
       } catch (error: any) {
@@ -156,7 +149,6 @@ const TakeQuiz: React.FC = () => {
   }, [id, navigate]);
 
   // 2. Submit Exam Handler
-  // Submit wena wita answers eka original option indices walin map karanawa
   const handleFinalSubmit = useCallback(
     async (isTimeOut = false) => {
       if (!submissionId) return;
@@ -173,8 +165,7 @@ const TakeQuiz: React.FC = () => {
         isSubmittingRef.current = true;
         setSubmitting(true);
 
-        // Shuffled option indices => original indices convert karanawa
-        // (Backend correct answer original index anuwawa check karanawa)
+        // Shuffled option indices => original indices convert 
         const mappedAnswers: StudentAnswer[] = answersRef.current.map((ans) => {
           const idxMap = optionIndexMap[ans.questionId];
           if (!idxMap || ans.selectedOptions === undefined || ans.selectedOptions.length === 0) {
@@ -240,7 +231,6 @@ const TakeQuiz: React.FC = () => {
         const durationSeconds = quiz.duration * 60;
         const endTime = new Date().getTime() + durationSeconds * 1000;
 
-        // Exam start wena wita shuffle apply karanawa
         const { shuffledQuestions, optionIndexMap: newOptMap } = applyShuffleToQuiz(
           quiz,
           quiz.settings.shuffleQuestions,
@@ -253,7 +243,6 @@ const TakeQuiz: React.FC = () => {
         setTimeLeft(durationSeconds);
         setIsStarted(true);
 
-        // Session save — shuffled order include karanawa recovery wenna
         localStorage.setItem(
           `quiz_session_${quiz._id}`,
           JSON.stringify({
@@ -285,8 +274,6 @@ const TakeQuiz: React.FC = () => {
     }
   };
 
-  // selectedOptions meka displayed position anuwawa store karanawa
-  // (Submit wena wita original index ekata convert karanawa)
   const handleOptionSelect = (qId: string, displayedOptIdx: number, type: string) => {
     setAnswers((prev) => {
       const newAns = prev.map((ans) => {
@@ -464,7 +451,7 @@ const TakeQuiz: React.FC = () => {
                 className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-cerulean outline-none resize-y min-h-[120px]"
               />
             ) : (
-              // Displayed options iterate karanawa (already shuffled)
+              // Displayed options iterate 
               currentQ.options.map((opt, displayedIdx) => {
                 const isSelected = currentAns?.selectedOptions?.includes(displayedIdx);
                 return (
