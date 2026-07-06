@@ -7,11 +7,8 @@ import {
   Calendar,
   Clock,
   ArrowRight,
-  GraduationCap,
-  Layers,
   BookOpen,
-  Frown,
-  FileText
+  Frown
 } from "lucide-react";
 
 import ClassService from "../services/ClassService";
@@ -40,7 +37,7 @@ interface ClassData {
   price: number;
   level: string;
   type: "theory" | "revision" | "paper";
-  batch?: Batch | string; 
+  batch?: Batch | string;
   coverImage?: string;
   firstSessionDate: string;
   recurrence: string;
@@ -74,12 +71,12 @@ const getDayName = (dayIndex: number): string => {
 };
 
 const getTypeColor = (type: string) => {
-    switch(type?.toLowerCase()) {
-        case 'theory': return 'bg-purple-100 text-purple-700 border-purple-200';
-        case 'revision': return 'bg-orange-100 text-orange-700 border-orange-200';
-        case 'paper': return 'bg-blue-100 text-blue-700 border-blue-200';
-        default: return 'bg-gray-100 text-gray-600 border-gray-200';
-    }
+  switch (type?.toLowerCase()) {
+    case 'theory': return 'bg-[#f3e8ff] text-[#9333ea] border-[#e9d5ff]';
+    case 'revision': return 'bg-orange-50 text-orange-600 border-orange-200';
+    case 'paper': return 'bg-blue-50 text-blue-600 border-blue-200';
+    default: return 'bg-gray-50 text-gray-600 border-gray-200';
+  }
 };
 
 export default function PublicClassesPage() {
@@ -148,11 +145,11 @@ export default function PublicClassesPage() {
 
       // Rule: Student Restriction
       if (userBatchId) {
-          if (classBatchId && classBatchId !== userBatchId) return false;
+        if (classBatchId && classBatchId !== userBatchId) return false;
       }
       // Rule: Dropdown
       if (selectedBatch !== "All") {
-          matchesBatch = classBatchId === selectedBatch;
+        matchesBatch = classBatchId === selectedBatch;
       }
 
       // Level
@@ -166,137 +163,141 @@ export default function PublicClassesPage() {
   }, [classes, search, selectedBatch, selectedLevel, selectedType, user]);
 
   return (
-    <div className="min-h-screen bg-brand-aliceBlue/30 font-sans text-gray-900 pb-20">
-      
-      {/* HERO */}
-      <div className="relative bg-brand-prussian text-white overflow-hidden rounded-b-[3rem] shadow-2xl z-10 pt-24 pb-20">
-        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-        <div className="absolute top-[-50%] left-[-10%] w-[600px] h-[600px] bg-brand-cerulean rounded-full blur-[120px] opacity-30 pointer-events-none"></div>
-        <div className="absolute bottom-[-50%] right-[-10%] w-[600px] h-[600px] bg-brand-coral rounded-full blur-[120px] opacity-20 pointer-events-none"></div>
+    <div className="min-h-screen bg-white font-sans text-gray-900 pb-20">
 
+      {/* HERO SECTION - Padding adjusted here */}
+      <div className="relative bg-[#f9fbff] pt-32 pb-8 sm:pt-40 sm:pb-10">
         <div className="relative max-w-7xl mx-auto px-6 text-center">
-          <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-6xl font-black mb-6 tracking-tight font-sinhala leading-tight">
-            Find Your Perfect <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-jasmine to-brand-coral">Class</span>
+          <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-[3.5rem] font-black mb-6 font-sans leading-tight">
+            <span className="text-[#0d4b5b]">Find Your Perfect</span> <span className="text-[#f88f89]">Class</span>
           </motion.h1>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="text-lg md:text-xl text-brand-aliceBlue/80 max-w-2xl mx-auto mb-10 leading-relaxed font-sans">
-             Access premium accounting education with expert guidance, comprehensive materials, and proven results.
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="text-sm sm:text-base text-gray-700 max-w-2xl mx-auto mb-10 leading-relaxed font-sans font-medium">
+            Access premium accounting education with expert guidance, comprehensive materials, and proven results.
           </motion.p>
-          
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="max-w-2xl mx-auto relative group z-20">
-            <div className="absolute -inset-1 bg-gradient-to-r from-brand-cerulean to-brand-coral rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
-            <div className="relative flex items-center bg-white rounded-xl overflow-hidden shadow-2xl p-1">
-              <div className="pl-4 pr-2 text-gray-400"><Search size={20} /></div>
-              <input type="text" placeholder="Search for classes..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full p-3 text-gray-800 outline-none placeholder-gray-400 font-medium bg-transparent" />
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="max-w-4xl mx-auto relative group z-20">
+            <div className="relative flex items-center bg-white rounded-lg overflow-hidden border border-gray-100 shadow-sm p-1">
+              <div className="pl-4 pr-2 text-gray-300"><Search size={18} /></div>
+              <input type="text" placeholder="Search playlists ..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full p-3 text-gray-600 outline-none placeholder-gray-400 text-sm bg-transparent font-sans" />
             </div>
           </motion.div>
         </div>
       </div>
 
-      {/* CONTENT */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        
+      {/* CONTENT SECTION - Top padding adjusted here */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-16 sm:pt-12">
+
         {/* Filters */}
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-12">
-            <h2 className="text-2xl font-bold text-brand-prussian flex items-center gap-2 font-sinhala shrink-0">
-                <BookOpen className="text-brand-cerulean" /> Available Classes
-            </h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full xl:w-auto">
-                <div className="relative group">
-                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><Layers size={16} className="text-brand-cerulean" /></div>
-                    <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2.5 pl-10 pr-10 rounded-xl focus:ring-2 focus:ring-brand-cerulean focus:border-transparent outline-none cursor-pointer shadow-sm text-sm font-bold transition-all hover:border-brand-cerulean">
-                        <option value="All">All Batches</option>
-                        {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
-                    </select>
-                    <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-12 border-b border-gray-100 pb-6">
+          <h2 className="text-2xl font-bold text-[#0d4b5b] flex items-center gap-3 font-sans shrink-0">
+            <BookOpen className="text-[#0d4b5b]" size={28} /> Available Classes
+          </h2>
 
-                <div className="relative group">
-                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><FileText size={16} className="text-purple-500" /></div>
-                    <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2.5 pl-10 pr-10 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none cursor-pointer shadow-sm text-sm font-bold transition-all hover:border-purple-500 capitalize">
-                        <option value="All">All Types</option>
-                        <option value="theory">Theory</option>
-                        <option value="revision">Revision</option>
-                        <option value="paper">Paper</option>
-                    </select>
-                    <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-
-                <div className="relative group">
-                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none"><GraduationCap size={16} className="text-brand-coral" /></div>
-                    <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2.5 pl-10 pr-10 rounded-xl focus:ring-2 focus:ring-brand-coral focus:border-transparent outline-none cursor-pointer shadow-sm text-sm font-bold transition-all hover:border-brand-coral">
-                        <option value="All">All Levels</option>
-                        <option value="Advanced">Advanced Level</option>
-                        <option value="Ordinary">Ordinary Level</option>
-                        <option value="General">General</option>
-                    </select>
-                    <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
+          <div className="flex flex-wrap gap-4 w-full xl:w-auto">
+            <div className="relative group w-full sm:w-auto min-w-[160px]">
+              <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} className="w-full appearance-none bg-white border border-gray-200 text-gray-600 py-2.5 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-[#0d4b5b] focus:border-transparent outline-none cursor-pointer shadow-sm text-sm transition-all hover:border-[#0d4b5b]">
+                <option value="All">All Batches</option>
+                {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+              </select>
+              <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+
+            <div className="relative group w-full sm:w-auto min-w-[160px]">
+              <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className="w-full appearance-none bg-white border border-gray-200 text-gray-600 py-2.5 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-[#0d4b5b] focus:border-transparent outline-none cursor-pointer shadow-sm text-sm transition-all hover:border-[#0d4b5b] capitalize">
+                <option value="All">All Types</option>
+                <option value="theory">Theory</option>
+                <option value="revision">Revision</option>
+                <option value="paper">Paper</option>
+              </select>
+              <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            <div className="relative group w-full sm:w-auto min-w-[160px]">
+              <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className="w-full appearance-none bg-white border border-gray-200 text-gray-600 py-2.5 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-[#0d4b5b] focus:border-transparent outline-none cursor-pointer shadow-sm text-sm transition-all hover:border-[#0d4b5b]">
+                <option value="All">All Levels</option>
+                <option value="Advanced">Advance Level</option>
+                <option value="Ordinary">Ordinary Level</option>
+                <option value="General">General</option>
+              </select>
+              <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
         {/* Grid */}
         {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[1,2,3].map(i => (
-                    <div key={i} className="bg-white rounded-[2rem] h-[450px] animate-pulse border border-gray-100 shadow-sm"></div>
-                ))}
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-xl h-[450px] animate-pulse border border-gray-100 shadow-sm"></div>
+            ))}
+          </div>
         ) : filteredClasses.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 max-w-2xl mx-auto">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6"><Frown className="w-10 h-10 text-gray-400" /></div>
-                <h3 className="text-xl font-bold text-brand-prussian mb-2">No classes found</h3>
-                <p className="text-gray-500 mb-6 text-sm">We couldn't find any classes matching your current filters.</p>
-                <button onClick={() => { setSearch(""); setSelectedBatch("All"); setSelectedLevel("All"); setSelectedType("All"); }} className="text-brand-cerulean font-bold hover:text-brand-prussian underline transition-colors text-sm">Clear All Filters</button>
-            </div>
+          <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-100 max-w-2xl mx-auto">
+            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6"><Frown className="w-10 h-10 text-gray-400" /></div>
+            <h3 className="text-xl font-bold text-[#0d4b5b] mb-2">No classes found</h3>
+            <p className="text-gray-500 mb-6 text-sm">We couldn't find any classes matching your current filters.</p>
+            <button onClick={() => { setSearch(""); setSelectedBatch("All"); setSelectedLevel("All"); setSelectedType("All"); }} className="text-[#0d4b5b] font-bold hover:text-[#f88f89] transition-colors text-sm underline">Clear All Filters</button>
+          </div>
         ) : (
-            <motion.div 
-                // --- FIX: Add KEY based on filters to force re-render ---
-                key={`${selectedType}-${selectedBatch}-${selectedLevel}-${search}`} 
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            >
-                <AnimatePresence mode="popLayout">
-                    {filteredClasses.map((cls) => {
-                        const schedule = cls.timeSchedules && cls.timeSchedules[0];
-                        return (
-                            <motion.div 
-                                key={cls._id} 
-                                variants={cardVariants}
-                                // Removed layout prop here to avoid grid calculation bugs
-                                className="group bg-white rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:border-brand-cerulean/20 transition-all duration-300 overflow-hidden flex flex-col h-full relative"
-                            >
-                                <div onClick={() => navigate(`/classes/${cls._id}`)} className="cursor-pointer flex flex-col h-full">
-                                    <div className="relative h-56 overflow-hidden bg-brand-aliceBlue">
-                                        <img src={getImageUrl(cls.coverImage)} alt={cls.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-brand-prussian/90 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity"></div>
-                                        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-                                            {cls.type && <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-sm border ${getTypeColor(cls.type)} backdrop-blur-md bg-opacity-90`}>{cls.type}</span>}
-                                            {cls.batch && typeof cls.batch === 'object' && <span className="bg-brand-cerulean/90 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-sm border border-white/20">{cls.batch.name}</span>}
-                                        </div>
-                                        <div className="absolute bottom-4 right-4"><div className="bg-green-700 text-white px-4 py-1.5 rounded-xl font-bold shadow-lg text-sm flex items-center gap-1">LKR {cls.price.toLocaleString()}</div></div>
-                                    </div>
-                                    <div className="p-6 flex-1 flex flex-col">
-                                        <h3 className="text-xl font-bold text-brand-prussian mb-2 group-hover:text-brand-cerulean transition-colors line-clamp-1 font-sinhala leading-tight">{cls.name}</h3>
-                                        <p className="text-gray-500 text-sm line-clamp-2 mb-6 font-sans leading-relaxed flex-1">{cls.description}</p>
-                                        <div className="grid grid-cols-1 gap-3 mb-6 mt-auto">
-                                            {schedule && (
-                                                <>
-                                                    <div className="flex items-center text-sm text-gray-600 bg-brand-aliceBlue/50 p-2 rounded-lg"><Calendar className="w-4 h-4 mr-3 text-brand-cerulean" /><span className="font-bold text-brand-prussian">{getDayName(schedule.day)}s</span></div>
-                                                    <div className="flex items-center text-sm text-gray-600 bg-brand-aliceBlue/50 p-2 rounded-lg"><Clock className="w-4 h-4 mr-3 text-brand-cerulean" /><span className="font-medium">{schedule.startTime} - {schedule.endTime}</span></div>
-                                                </>
-                                            )}
-                                        </div>
-                                        <button className="w-full bg-brand-prussian text-white font-bold py-3.5 rounded-xl group-hover:bg-brand-cerulean transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-prussian/10">View Class Details <ArrowRight size={16} /></button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
-                </AnimatePresence>
-            </motion.div>
+          <motion.div
+            key={`${selectedType}-${selectedBatch}-${selectedLevel}-${search}`}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            <AnimatePresence mode="popLayout">
+              {filteredClasses.map((cls) => {
+                const schedule = cls.timeSchedules && cls.timeSchedules[0];
+                return (
+                  <motion.div
+                    key={cls._id}
+                    variants={cardVariants}
+                    className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col h-full relative"
+                  >
+                    <div onClick={() => navigate(`/classes/${cls._id}`)} className="cursor-pointer flex flex-col h-full">
+                      <div className="relative h-48 overflow-hidden bg-[#e6ecef]">
+                        <img src={getImageUrl(cls.coverImage)} alt={cls.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+
+                        {/* Top Badges */}
+                        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                          {cls.type && <span className={`text-[10px] font-bold px-3 py-1 rounded-full capitalize tracking-wide border shadow-sm ${getTypeColor(cls.type)}`}>{cls.type}</span>}
+                          {cls.batch && typeof cls.batch === 'object' && <span className="bg-[#0d4b5b] text-white text-[10px] font-bold px-3 py-1 rounded-full capitalize tracking-wide shadow-sm">{cls.batch.name}</span>}
+                        </div>
+
+                        {/* Price Badge */}
+                        <div className="absolute bottom-4 right-4">
+                          <div className="bg-[#16a34a] text-white px-3 py-1 rounded-full font-bold shadow-sm text-xs flex items-center gap-1">LKR. {cls.price.toLocaleString()}</div>
+                        </div>
+                      </div>
+
+                      <div className="p-6 flex-1 flex flex-col">
+                        <h3 className="text-lg font-bold text-[#0d4b5b] mb-2 group-hover:text-[#f88f89] transition-colors line-clamp-1 font-sans">{cls.name}</h3>
+                        <p className="text-gray-500 text-xs line-clamp-2 mb-6 font-sans leading-relaxed flex-1">{cls.description}</p>
+
+                        <div className="grid grid-cols-1 gap-2 mb-6 mt-auto">
+                          {schedule && (
+                            <>
+                              <div className="flex items-center text-xs text-gray-600 bg-gray-50 p-2.5 rounded-md">
+                                <Calendar className="w-4 h-4 mr-3 text-gray-400" />
+                                <span className="font-medium text-gray-600">{getDayName(schedule.day)}</span>
+                              </div>
+                              <div className="flex items-center text-xs text-gray-600 bg-gray-50 p-2.5 rounded-md">
+                                <Clock className="w-4 h-4 mr-3 text-gray-400" />
+                                <span className="font-medium text-gray-600">{schedule.startTime} - {schedule.endTime}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <button className="w-full bg-[#0d4b5b] text-white font-bold py-3 rounded-md hover:bg-[#093946] transition-colors flex items-center justify-center gap-2 text-sm shadow-sm">View Class Details <ArrowRight size={16} /></button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
     </div>
