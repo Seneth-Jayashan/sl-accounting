@@ -1,20 +1,22 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  ArrowLeft, 
-  Users, 
-  Target, 
-  TrendingUp, 
+import {
+  ArrowLeft,
+  Users,
+  Target,
+  TrendingUp,
   Clock,
   Search,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  FileText
+  FileText,
+  Medal,
+  ChevronLeft,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
-import QuizService, { type Quiz, type QuizSubmission } from "../../../services/QuizService";
+import QuizService, {
+  type Quiz,
+  type QuizSubmission,
+} from "../../../services/QuizService";
 
 export default function QuizAnalytics() {
   const { id } = useParams<{ id: string }>(); // This is the quizId
@@ -33,7 +35,7 @@ export default function QuizAnalytics() {
         // Fetch both the Quiz details and the Analytics data concurrently
         const [quizRes, analyticsRes] = await Promise.all([
           QuizService.getQuizById(id),
-          QuizService.getQuizAnalytics(id)
+          QuizService.getQuizAnalytics(id),
         ]);
 
         if (quizRes.success && quizRes.data) {
@@ -53,44 +55,47 @@ export default function QuizAnalytics() {
     fetchData();
   }, [id]);
 
-  // --- Filter Active Submissions (Hide Deleted) ---
-  const activeSubmissions = useMemo(() => {
-    // Filter out submissions where the student is null (hard deleted) 
-    // or explicitly marked as deleted (soft deleted, if the API starts returning it)
-    return submissions.filter((sub: any) => sub.student && sub.student.isDeleted !== true);
-  }, [submissions]);
-
   // --- Calculate Overall Stats ---
   const stats = useMemo(() => {
-    if (activeSubmissions.length === 0) return { avgScore: 0, passRate: 0, avgTime: 0 };
-    
-    const totalScore = activeSubmissions.reduce((acc, curr) => acc + (curr.percentageScore || 0), 0);
-    const passed = activeSubmissions.filter(s => s.passed).length;
-    const totalTime = activeSubmissions.reduce((acc, curr) => acc + (curr.timeTaken || 0), 0);
+    if (submissions.length === 0)
+      return { avgScore: 0, passRate: 0, avgTime: 0 };
+
+    const totalScore = submissions.reduce(
+      (acc, curr) => acc + (curr.percentageScore || 0),
+      0,
+    );
+    const passed = submissions.filter((s) => s.passed).length;
+    const totalTime = submissions.reduce(
+      (acc, curr) => acc + (curr.timeTaken || 0),
+      0,
+    );
 
     return {
-      avgScore: Math.round(totalScore / activeSubmissions.length),
-      passRate: Math.round((passed / activeSubmissions.length) * 100),
-      avgTime: Math.round(totalTime / activeSubmissions.length) // in seconds
+      avgScore: Math.round(totalScore / submissions.length),
+      passRate: Math.round((passed / submissions.length) * 100),
+      avgTime: Math.round(totalTime / submissions.length), // in seconds
     };
-  }, [activeSubmissions]);
+  }, [submissions]);
 
   // --- Filter Submissions ---
   const filteredSubmissions = useMemo(() => {
-    if (!searchTerm.trim()) return activeSubmissions;
+    if (!searchTerm.trim()) return submissions;
     const term = searchTerm.toLowerCase();
-    return activeSubmissions.filter((sub: any) => {
-      const name = `${sub.student?.name || sub.student?.firstName || ''} ${sub.student?.lastName || ''}`.toLowerCase();
-      const email = (sub.student?.email || '').toLowerCase();
+    return submissions.filter((sub: any) => {
+      const name =
+        `${sub.student?.name || sub.student?.firstName || ""} ${sub.student?.lastName || ""}`.toLowerCase();
+      const email = (sub.student?.email || "").toLowerCase();
       return name.includes(term) || email.includes(term);
     });
-  }, [activeSubmissions, searchTerm]);
+  }, [submissions, searchTerm]);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] bg-gray-50">
         <div className="w-10 h-10 border-4 border-gray-200 border-t-brand-cerulean rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Compiling Analytics...</p>
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">
+          Compiling Analytics...
+        </p>
       </div>
     );
   }
@@ -101,67 +106,93 @@ export default function QuizAnalytics() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto pb-24 font-sans">
-      
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <button onClick={() => navigate("/admin/quizzes")} className="flex items-center text-[10px] font-bold text-gray-400 hover:text-brand-cerulean transition-colors uppercase tracking-widest mb-2 group">
-            <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" /> Back to Quizzes
-          </button>
-          <h1 className="text-2xl sm:text-3xl font-black text-brand-prussian tracking-tight">Quiz Analytics</h1>
-          <p className="text-sm text-gray-500 font-medium mt-1">
-            Analyzing results for <span className="text-brand-cerulean font-bold">{quiz.title}</span>
-          </p>
-        </div>
-      </header>
+      <div className="flex items-center gap-3">
+  <button
+    type="button"
+    onClick={() => navigate("/admin/quizzes")}
+    className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 hover:bg-gray-50 transition flex-shrink-0"
+    title="Back"
+  >
+    <ChevronLeft size={23} style={{ color: "#0A5B70" }} />
+  </button>
+  <div>
+    <h1 className="text-2xl sm:text-3xl font-black text-brand-prussian tracking-tight">
+      Quiz Analytics
+    </h1>
+    <p className="font-semibold text-gray-700 text-sm">
+      Analyzing results for{" "}
+      <span className="text-brand-cerulean font-bold">{quiz.title}</span>
+    </p>
+  </div>
+</div>
 
       {/* Top Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><Users size={24} /></div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Total Attempts</p>
-            <p className="text-2xl font-black text-brand-prussian">{activeSubmissions.length}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 mt-10">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center gap-2">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+            <Users size={24} style={{ color: "#0A5B70" }} />
           </div>
-        </div>
-        
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center shrink-0"><Target size={24} /></div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Average Score</p>
-            <p className="text-2xl font-black text-brand-prussian">{stats.avgScore}%</p>
-          </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Total Attempts
+          </p>
+          <p className="text-2xl font-black text-brand-prussian">
+            {submissions.length}
+          </p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center shrink-0"><TrendingUp size={24} /></div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Pass Rate</p>
-            <p className="text-2xl font-black text-brand-prussian">{stats.passRate}%</p>
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center gap-2">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+            <Target size={24} style={{ color: "#0A5B70" }} />
           </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Average Score
+          </p>
+          <p className="text-2xl font-black text-brand-prussian">
+            {stats.avgScore}%
+          </p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center shrink-0"><Clock size={24} /></div>
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Avg. Time</p>
-            <p className="text-2xl font-black text-brand-prussian">
-              {Math.floor(stats.avgTime / 60)}m {stats.avgTime % 60}s
-            </p>
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center gap-2">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+            <TrendingUp size={24} style={{ color: "#0A5B70" }} />
           </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Pass Rate
+          </p>
+          <p className="text-2xl font-black text-brand-prussian">
+            {stats.passRate}%
+          </p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center gap-2">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+            <Clock size={24} style={{ color: "#0A5B70" }} />
+          </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Avg. Time
+          </p>
+          <p className="text-2xl font-black text-brand-prussian">
+            {Math.floor(stats.avgTime / 60)}m {stats.avgTime % 60}s
+          </p>
         </div>
       </div>
 
       {/* Table Section */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
         {/* Table Header & Search */}
-        <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
-          <h2 className="text-lg font-bold text-brand-prussian">Student Leaderboard</h2>
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search student..." 
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-col gap-4 bg-gray-50/50">
+          <h2 className="text-lg font-bold" style={{ color: "#0A5B70" }}>
+            Student Leaderboard
+          </h2>
+          <div className="relative w-full">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={16}
+            />
+            <input
+              type="text"
+              placeholder="Search student..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean transition-all"
@@ -169,18 +200,21 @@ export default function QuizAnalytics() {
           </div>
         </div>
 
-        {activeSubmissions.length === 0 ? (
+        {submissions.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center">
-             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                <FileText size={32} className="text-gray-300" />
-             </div>
-             <h3 className="text-gray-900 font-bold mb-1">No Submissions Yet</h3>
-             <p className="text-gray-500 text-sm">Students haven't taken this quiz yet.</p>
+            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+              <FileText size={32} className="text-gray-300" />
+            </div>
+            <h3 className="text-gray-900 font-bold mb-1">No Submissions Yet</h3>
+            <p className="text-gray-500 text-sm">
+              Students haven't taken this quiz yet.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-brand-aliceBlue/30 text-[10px] uppercase text-gray-500 font-bold tracking-widest border-b border-brand-aliceBlue">
+              <thead className="bg-brand-aliceBlue/30 text-[10px] uppercase text-gray-500 font-bold tracking-widest border-b border-brand-aliceBlue"
+              style={{ color: "#0A5B70" }}>
                 <tr>
                   <th className="px-6 py-4">Rank</th>
                   <th className="px-6 py-4">Student Details</th>
@@ -192,58 +226,102 @@ export default function QuizAnalytics() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredSubmissions.map((sub: any, index) => {
-                  const studentName = `${sub.student?.firstName || ''} ${sub.student?.lastName || ''}`.trim() || 'Unknown Student';
+                  const studentName =
+                    `${sub.student?.firstName || ""} ${sub.student?.lastName || ""}`.trim() ||
+                    "Unknown Student";
                   const isPassed = sub.passed;
                   const isTimeOut = sub.status === "time-out";
 
                   return (
-                    <motion.tr 
+                    <motion.tr
                       key={sub._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="hover:bg-gray-50 transition-colors group"
                     >
                       <td className="px-6 py-4">
-                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700' : 
-                          index === 1 ? 'bg-gray-200 text-gray-700' : 
-                          index === 2 ? 'bg-orange-100 text-orange-800' : 'bg-gray-50 text-gray-500'
-                        }`}>
-                          #{index + 1}
-                        </span>
+                        {index < 3 ? (
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              index === 0
+                                ? "bg-yellow-100"
+                                : index === 1
+                                  ? "bg-gray-200"
+                                  : "bg-orange-100"
+                            }`}
+                          >
+                            <Medal
+                              size={18}
+                              style={{
+                                color:
+                                  index === 0
+                                    ? "#D4AF37"
+                                    : index === 1
+                                      ? "#9CA3AF"
+                                      : "#CD7F32",
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <span className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold bg-gray-50 text-gray-500">
+                            #{index + 1}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm font-bold text-brand-prussian">{studentName}</p>
-                        <p className="text-xs text-gray-500">{sub.student?.email || "No Email"}</p>
+                        <p className="text-sm font-bold text-brand-prussian">
+                          {studentName}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {sub.student?.email || "No Email"}
+                        </p>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-baseline gap-1">
-                          <span className={`text-lg font-black ${isPassed ? 'text-green-600' : 'text-red-500'}`}>
+                          <span
+                            className={`text-lg font-black ${isPassed ? "text-green-600" : "text-red-500"}`}
+                          >
                             {Math.round(sub.percentageScore)}%
                           </span>
-                          <span className="text-[10px] text-gray-400 font-bold">({sub.totalPointsEarned}/{quiz.totalPoints})</span>
+                          <span className="text-[10px] text-gray-400 font-bold">
+                            ({sub.totalPointsEarned}/{quiz.totalPoints})
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border ${
-                          isPassed ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                          {isPassed ? <CheckCircle2 size={12}/> : <XCircle size={12}/>}
-                          {isPassed ? 'Passed' : 'Failed'}
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                            isPassed
+                              ? "bg-blue-50 text-blue-600"
+                              : "bg-red-50 text-red-600"
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              isPassed ? "bg-blue-500" : "bg-red-500"
+                            }`}
+                          />
+                          {isPassed ? "Passed" : "Failed"}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-sm font-medium text-gray-700">
-                          {Math.floor(sub.timeTaken / 60)}m {sub.timeTaken % 60}s
+                          {Math.floor(sub.timeTaken / 60)}m {sub.timeTaken % 60}
+                          s
                         </p>
-                        {isTimeOut && <p className="text-[10px] text-red-500 font-bold mt-0.5">Timed Out</p>}
+                        {isTimeOut && (
+                          <p className="text-[10px] text-red-500 font-bold mt-0.5">
+                            Timed Out
+                          </p>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Link 
+                        <Link
                           to={`/admin/quizzes/submission/${sub._id}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-brand-cerulean text-xs font-bold rounded-lg hover:bg-brand-aliceBlue hover:border-brand-cerulean/30 transition-all"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-bold rounded-lg transition-all hover:opacity-90"
+                          style={{ backgroundColor: "#0A5B70" }}
                         >
-                          <Eye size={14} /> View Paper
+                          View Paper
                         </Link>
                       </td>
                     </motion.tr>
@@ -254,7 +332,6 @@ export default function QuizAnalytics() {
           </div>
         )}
       </div>
-
     </div>
   );
 }

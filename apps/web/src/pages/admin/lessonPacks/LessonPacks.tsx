@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
-import Swal from "sweetalert2";
 import { 
   Plus, Search, Edit2, Trash2, X, 
   CheckCircle2, XCircle, Image as ImageIcon,
@@ -174,18 +173,7 @@ export default function LessonPacks() {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: `Do you want to delete the lesson pack "${title}"? This action cannot be undone.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!'
-    });
-
-    if (!result.isConfirmed) return;
-
+    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
     try {
       await LessonPackService.delete(id);
       setPacks((prev) => prev.filter(p => p._id !== id));
@@ -211,18 +199,19 @@ export default function LessonPacks() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-brand-prussian tracking-tight">Lesson Packs</h1>
-          <p className="text-sm text-gray-500 mt-1">Create premium video playlists for student purchase.</p>
+          <p className="font-semibold text-gray-700 text-sm">Create premium video playlists for student purchase.</p>
         </div>
         <button 
           onClick={() => openModal()}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-md shadow-brand-cerulean/20 active:scale-95"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 hover:opacity-90 text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95"
+          style={{ backgroundColor: "#0A5B70" }}
         >
           <Plus size={18} strokeWidth={2.5} /> Add Playlist
         </button>
       </header>
 
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-brand-aliceBlue mb-6 flex items-center">
-        <div className="relative w-full max-w-md">
+        <div className="relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input 
             type="text" placeholder="Search playlists..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
@@ -262,8 +251,8 @@ export default function LessonPacks() {
                   
                   <div className="absolute top-3 left-3 flex gap-2">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border ${
-                      pack.isPublished ? 'bg-green-500/80 text-white border-green-500/50' : 'bg-gray-900/60 text-white border-gray-700/50'
-                    }`}>
+  pack.isPublished ? 'text-white border-transparent' : 'bg-gray-900/60 text-white border-gray-700/50'
+}`} style={pack.isPublished ? { backgroundColor: "#0A5B70" } : undefined}>
                       {pack.isPublished ? <CheckCircle2 size={12}/> : <XCircle size={12}/>}
                       {pack.isPublished ? 'Visible' : 'Hidden'}
                     </span>
@@ -285,12 +274,12 @@ export default function LessonPacks() {
                     </button>
                     
                     <div className="flex items-center gap-1">
-                      <button onClick={() => openModal(pack._id)} className="p-2 text-gray-400 hover:text-brand-cerulean hover:bg-brand-aliceBlue rounded-lg transition-colors">
-                        <Edit2 size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(pack._id, pack.title)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                        <Trash2 size={16} />
-                      </button>
+                      <button onClick={() => openModal(pack._id)} className="p-2 hover:bg-brand-aliceBlue rounded-lg transition-colors" style={{ color: "#0A5B70" }}>
+  <Edit2 size={16} />
+</button>
+                      <button onClick={() => handleDelete(pack._id, pack.title)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+  <Trash2 size={16} />
+</button>
                     </div>
                   </div>
                 </div>
