@@ -51,9 +51,9 @@ export default function LessonPackDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-aliceBlue/30 pt-32 pb-20 px-6 flex justify-center">
+      <div className="min-h-screen bg-[#f9fbff] pt-32 pb-20 px-6 flex justify-center">
         <div className="animate-pulse flex flex-col gap-8 w-full max-w-6xl">
-          <div className="h-10 bg-gray-200 rounded w-48"></div>
+          <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
           <div className="h-[400px] bg-gray-200 rounded-[2rem]"></div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 h-64 bg-gray-200 rounded-3xl"></div>
@@ -66,12 +66,12 @@ export default function LessonPackDetailsPage() {
 
   if (!pack) {
     return (
-      <div className="min-h-screen bg-brand-aliceBlue/30 flex flex-col items-center justify-center text-center px-4">
-        <h2 className="text-3xl font-bold text-brand-prussian mb-4">Lesson Pack Not Found</h2>
+      <div className="min-h-screen bg-[#f9fbff] flex flex-col items-center justify-center text-center px-4">
+        <h2 className="text-3xl font-bold text-[#0d4b5b] mb-4">Lesson Pack Not Found</h2>
         <p className="text-gray-500 mb-8">The lesson pack you are looking for does not exist or has been removed.</p>
-        <button 
+        <button
           onClick={() => navigate("/lesson-packs")}
-          className="bg-brand-cerulean text-white px-6 py-3 rounded-xl font-bold hover:bg-brand-prussian transition-colors"
+          className="bg-[#0d4b5b] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#093946] transition-colors"
         >
           Browse All Packs
         </button>
@@ -85,65 +85,65 @@ export default function LessonPackDetailsPage() {
   const minutes = totalMinutes % 60;
 
   return (
-    <div className="min-h-screen bg-brand-aliceBlue/30 font-sans text-gray-900 pb-20 pt-24">
+    <div className="min-h-screen bg-[#f9fbff] font-sans text-gray-900 pb-20 pt-28 sm:pt-36">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        
+
         {/* Back Button */}
-        <button 
+        <button
           onClick={() => navigate("/lesson-packs")}
-          className="flex items-center gap-2 text-brand-prussian/70 hover:text-brand-cerulean font-bold mb-8 transition-colors"
+          className="w-10 h-10 flex items-center justify-center rounded-full bg-[#e6ecef] text-[#0d4b5b] hover:bg-[#d0dbe1] transition-colors mb-8"
+          aria-label="Go Back"
         >
-          <ArrowLeft size={20} /> Back to Lesson Packs
+          <ArrowLeft size={18} />
         </button>
 
         {/* HERO CARD */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col lg:flex-row mb-12"
+          className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 sm:p-8 flex flex-col lg:flex-row gap-8 lg:gap-12 mb-10"
         >
           {/* Image Section */}
-          <div className="lg:w-1/2 relative h-64 lg:h-auto">
-            <img 
-              src={getImageUrl(pack.coverImage)} 
-              alt={pack.title} 
+          <div className="lg:w-1/2 relative rounded-[1.5rem] overflow-hidden h-64 lg:h-auto min-h-[300px] border border-gray-100">
+            <img
+              src={getImageUrl(pack.coverImage)}
+              alt={pack.title}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-brand-prussian/80 to-transparent lg:bg-gradient-to-t lg:from-brand-prussian/80 lg:via-brand-prussian/20"></div>
           </div>
 
           {/* Info Section */}
-          <div className="lg:w-1/2 p-8 md:p-12 flex flex-col justify-center bg-brand-prussian text-white">
-            <h1 className="text-3xl md:text-4xl font-black font-sinhala leading-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-white to-brand-aliceBlue/80">
+          <div className="lg:w-1/2 flex flex-col justify-center py-4">
+            <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] font-black text-[#0d4b5b] leading-tight mb-6 uppercase">
               {pack.title}
             </h1>
-            
-            <div className="flex flex-wrap items-center gap-6 mb-8 text-brand-aliceBlue/80 text-sm font-medium">
+
+            <div className="flex flex-wrap items-center gap-6 mb-8 text-gray-500 text-sm font-medium">
               <div className="flex items-center gap-2">
-                <Film size={18} className="text-brand-cerulean" />
+                <Film size={18} className="text-[#0d4b5b]" />
                 {pack.videos.length} Lessons
               </div>
               <div className="flex items-center gap-2">
-                <Clock size={18} className="text-brand-jasmine" />
+                <Clock size={18} className="text-[#0d4b5b]" />
                 {hours > 0 ? `${hours}h ` : ''}{minutes}m total
               </div>
             </div>
 
-            <div className="text-4xl font-black text-brand-coral mb-8">
+            <div className="text-3xl sm:text-4xl font-black text-[#f88f89] mb-8">
               LKR {pack.price.toLocaleString()}
             </div>
 
             {/* CTA Button */}
             {pack.hasAccess ? (
-              <button className="w-full sm:w-auto bg-green-500 text-white px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:bg-green-600 transition-colors">
-                <PlayCircle size={24} /> Continue Learning
+              <button className="w-full sm:w-max bg-[#0d4b5b] text-white px-8 py-3.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-sm hover:bg-[#093946] transition-colors">
+                <PlayCircle size={20} /> Continue Learning
               </button>
             ) : (
               <button
-                className="w-full sm:w-auto bg-gradient-to-r from-brand-cerulean to-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-brand-cerulean/30 hover:shadow-brand-cerulean/50 transition-all hover:-translate-y-1"
+                className="w-full sm:w-max bg-[#0d4b5b] text-white px-8 py-3.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-sm hover:bg-[#093946] transition-colors"
                 onClick={() => navigate(`/student/lesson-pack/${pack._id}`)}
               >
-                <ShoppingCart size={24} /> Purchase Lesson Pack
+                <ShoppingCart size={20} /> Purchase Lesson Pack
               </button>
             )}
           </div>
@@ -151,71 +151,75 @@ export default function LessonPackDetailsPage() {
 
         {/* CONTENT GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Left Column: Description */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="lg:col-span-2 space-y-8"
+            className="lg:col-span-2"
           >
-            <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-bold text-brand-prussian flex items-center gap-2 mb-6">
-                <BookOpen className="text-brand-cerulean" /> About this Pack
+            <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-gray-100 h-full">
+              <h2 className="text-2xl font-bold text-[#0d4b5b] flex items-center gap-3 mb-8">
+                <BookOpen className="text-[#0d4b5b]" size={28} /> About this Pack
               </h2>
-              <div className="text-gray-600 leading-relaxed font-sans whitespace-pre-wrap">
+              <div className="text-gray-700 text-sm leading-relaxed font-sans whitespace-pre-wrap">
                 {pack.description || "No detailed description provided for this lesson pack."}
               </div>
             </div>
           </motion.div>
 
           {/* Right Column: Curriculum / Videos */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
             className="lg:col-span-1"
           >
-            <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden sticky top-32">
-              <div className="p-6 bg-gray-50 border-b border-gray-100">
-                <h3 className="text-xl font-bold text-brand-prussian">Course Curriculum</h3>
-                <p className="text-sm text-gray-500 mt-1">{pack.videos.length} videos included</p>
+            <div className="bg-[#eef2f6] rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col h-full max-h-[600px]">
+
+              {/* Header */}
+              <div className="p-6 pb-4">
+                <h3 className="text-xl font-bold text-[#0d4b5b]">Course Curriculum</h3>
+                <p className="text-xs text-gray-500 font-medium mt-1">{pack.videos.length} videos included</p>
               </div>
-              
-              <div className="max-h-[500px] overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {pack.videos.map((video, index) => (
-                  <div 
-                    key={video._id || index} 
-                    className={`flex items-start gap-4 p-4 rounded-xl transition-colors ${
-                      pack.hasAccess 
-                        ? "hover:bg-brand-aliceBlue/50 cursor-pointer group" 
-                        : "bg-gray-50 opacity-80 cursor-not-allowed"
-                    }`}
-                  >
-                    <div className="mt-1">
-                      {pack.hasAccess ? (
-                        <PlayCircle size={20} className="text-brand-cerulean group-hover:text-brand-prussian transition-colors" />
-                      ) : (
-                        <Lock size={18} className="text-gray-400" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className={`font-bold text-sm ${pack.hasAccess ? "text-gray-800" : "text-gray-500"}`}>
-                        {index + 1}. {video.title}
-                      </h4>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1.5">
-                        <Clock size={12} />
-                        {video.durationMinutes} mins
+
+              {/* List Container */}
+              <div className="bg-white mx-3 mb-3 rounded-2xl flex-1 overflow-hidden flex flex-col">
+                <div className="overflow-y-auto p-4 space-y-3 custom-scrollbar h-full">
+                  {pack.videos.map((video, index) => (
+                    <div
+                      key={video._id || index}
+                      className={`flex items-start gap-4 p-4 rounded-xl border border-gray-50 transition-colors ${pack.hasAccess
+                        ? "bg-[#f5f8fa] hover:bg-[#eef2f6] cursor-pointer group"
+                        : "bg-[#f9fbff] cursor-not-allowed"
+                        }`}
+                    >
+                      <div className="mt-0.5 text-gray-400 shrink-0">
+                        {pack.hasAccess ? (
+                          <PlayCircle size={18} className="text-[#0d4b5b] group-hover:scale-110 transition-transform" />
+                        ) : (
+                          <Lock size={16} />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className={`font-bold text-xs sm:text-sm leading-tight ${pack.hasAccess ? "text-gray-800" : "text-gray-500"}`}>
+                          {index + 1}. {video.title}
+                        </h4>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-2">
+                          <Clock size={12} />
+                          {video.durationMinutes} min
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                
-                {pack.videos.length === 0 && (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    No videos have been added to this pack yet.
-                  </div>
-                )}
+                  ))}
+
+                  {pack.videos.length === 0 && (
+                    <div className="text-center py-8 text-gray-400 text-sm">
+                      No videos have been added to this pack yet.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
