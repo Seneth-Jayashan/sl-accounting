@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
 import Dropdown from "../../../components/Dropdown";
 import Swal from "sweetalert2";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, FunnelIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 
 const CATEGORIES = [
   "Lecture Notes",
@@ -453,47 +453,42 @@ const AdminKnowledgeList: React.FC = () => {
 
   return (
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-        <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded-xl bg-[#0b2540] text-white flex items-center justify-center text-lg font-semibold">KB</div>
-                <div>
-                  <h1 className="text-2xl font-bold">Knowledge Base — Manage</h1>
-                  <p className="text-sm text-gray-500">Review, filter, and update learning materials.</p>
-                </div>
-              </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Knowledge Base — Manage</h1>
+          <p className="font-semibold text-gray-700 text-sm">Review, filter, and update learning materials.</p>
+        </div>
 
-              <div className="w-full">
-                <div className="relative">
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search title or description"
-                    className="w-full px-3 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:border-[#0b2540] focus:ring-2 focus:ring-[#0b2540]/10 transition"
-                    aria-label="Search materials"
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex-1">
+              <div className="relative">
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search title or description"
+                  className="w-full px-3 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:border-[#0b2540] focus:ring-2 focus:ring-[#0b2540]/10 transition"
+                  aria-label="Search materials"
+                />
+                {search ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-lg hover:bg-gray-200"
+                  >
+                    Clear
+                  </button>
+                ) : (
+                  <MagnifyingGlassIcon
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+                    aria-hidden={true}
                   />
-                  {search ? (
-                    <button
-                      type="button"
-                      onClick={() => setSearch("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-lg hover:bg-gray-200"
-                    >
-                      Clear
-                    </button>
-                  ) : (
-                    <MagnifyingGlassIcon
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                      aria-hidden={true}
-                    />
-                  )}
-                </div>
+                )}
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-sm bg-white border border-gray-200 rounded-xl px-3 py-1.5 shadow-sm">
-                <span className="text-gray-500">Filter</span>
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5 shadow-sm">
+                <FunnelIcon className="w-4 h-4 text-gray-500" aria-hidden="true" />
                 <Dropdown
                   value={filter}
                   onChange={(v) => setFilter(v)}
@@ -504,9 +499,11 @@ const AdminKnowledgeList: React.FC = () => {
               </div>
               <button
                 onClick={fetchItems}
-                className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm bg-white shadow-sm hover:border-[#0b2540]"
+                title="Refresh"
+                aria-label="Refresh"
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm hover:border-[#0b2540]"
               >
-                Refresh
+                <ArrowPathIcon className="w-4 h-4 text-gray-600" aria-hidden="true" />
               </button>
               {selectedIds.length > 0 && (
                 <button
