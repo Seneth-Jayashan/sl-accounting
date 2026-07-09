@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import QuizService, { type Quiz } from "../../../../services/QuizService";
-import { format } from "date-fns"; // For formatting scheduled dates
+import { format } from "date-fns";
 
 interface QuizzesTabProps {
   classId: string;
@@ -18,15 +18,29 @@ interface QuizzesTabProps {
 const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
   const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [attemptedQuizIds, setAttemptedQuizIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const fetchClassQuizzes = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await QuizService.getQuizzesByClass(classId);
-        if (response.success) {
-          setQuizzes(response.data);
+
+        // Fetch quizzes + attempted quiz ids in parallel
+        const [quizRes, attemptsRes] = await Promise.all([
+          QuizService.getQuizzesByClass(classId),
+          QuizService.getMyAttempts()
+        ]);
+
+        if (quizRes.success) setQuizzes(quizRes.data);
+
+        if (attemptsRes.success) {
+          const ids = new Set(
+            attemptsRes.data
+              .filter(s => s.status === "completed")
+              .map(s => typeof s.quiz === "string" ? s.quiz : s.quiz._id!)
+          );
+          setAttemptedQuizIds(ids);
         }
       } catch (error) {
         toast.error("Failed to load quizzes");
@@ -36,9 +50,7 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
       }
     };
 
-    if (classId) {
-      fetchClassQuizzes();
-    }
+    if (classId) fetchData();
   }, [classId]);
 
   if (loading) {
@@ -70,7 +82,8 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
         const isScheduled = quiz.quizType === "schedule";
         const isFuture = isScheduled && quiz.scheduledAt ? new Date(quiz.scheduledAt) > new Date() : false;
         const isLive = quiz.quizType === "live";
-        
+        const isCompleted = attemptedQuizIds.has(quiz._id);
+
         return (
           <div 
             key={quiz._id} 
@@ -87,9 +100,20 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
                 </div>
                 <h3 className="font-bold text-gray-800 line-clamp-2">{quiz.title}</h3>
               </div>
+
+              {/* Status Badge */}
+              {isCompleted ? (
+                <span className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
+                  Completed Quiz
+                </span>
+              ) : (
+                <span className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+                  New Quiz
+                </span>
+              )}
             </div>
 
-            {/* Card Body (Info) */}
+            {/* Card Body */}
             <div className="p-5 flex-1 space-y-3">
               {quiz.description && (
                 <p className="text-sm text-gray-500 line-clamp-2 mb-2">
@@ -102,7 +126,6 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
                 <span>{quiz.duration} Minutes</span>
               </div>
 
-              {/* Show start time only if it's a scheduled quiz */}
               {isScheduled && quiz.scheduledAt && (
                 <div className="flex items-center gap-2 text-sm text-blue-600 font-medium bg-blue-50 px-3 py-2 rounded-lg mt-2">
                   <Calendar size={16} />
@@ -110,7 +133,6 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
                 </div>
               )}
               
-              {/* Type Badge */}
               <div className="pt-2">
                 <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-full ${
                   isLive ? 'bg-red-100 text-red-700' : 
@@ -121,15 +143,15 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
               </div>
             </div>
 
-            {/* Card Footer (Action) */}
+            {/* Card Footer */}
             <div className="p-4 bg-gray-50 mt-auto border-t border-gray-100">
               <button
                 onClick={() => navigate(`/student/class/quizzes/start/${quiz._id}`)}
                 disabled={isFuture}
                 className={`w-full py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
-                    isFuture 
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                    : 'bg-brand-prussian text-white hover:bg-brand-cerulean'
+                  isFuture 
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                  : 'bg-brand-prussian text-white hover:bg-brand-cerulean'
                 }`}
               >
                 {isFuture ? <Clock size={18} /> : <PlayCircle size={18} />}

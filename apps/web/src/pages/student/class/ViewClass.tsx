@@ -134,10 +134,9 @@ export default function ViewClass() {
   }
 
   return (
-      <div className="min-h-screen bg-brand-aliceBlue/30 pb-24">
-        
+      <div className="min-h-screen bg-brand-aliceBlue/30 pb-24 rounded-2xl overflow-hidden isolate">
         {/* --- Sticky Navigation Header --- */}
-        <div className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30 transition-all">
+        <div className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30 transition-all rounded-b-2xl">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             
             {/* Top Row: Back, Title & Actions */}

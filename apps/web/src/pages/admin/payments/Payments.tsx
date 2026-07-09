@@ -377,7 +377,7 @@ function PaymentRow({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
 
       <td className="px-3 py-4">
   <div className="flex flex-col items-center gap-1">
-    <span className="text-[8px] font-black text-gray-800 uppercase">
+    <span className="text-[8px] font-black text-gray-600 uppercase">
       {payment.method}
     </span>
   </div>
