@@ -144,52 +144,59 @@ export default function PaymentsPage() {
   }, [payments, searchQuery]);
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 pb-24 animate-in fade-in duration-500">
+    <div className="p-4 sm:p-6 max-w-[90rem] mx-auto space-y-6 pb-24 animate-in fade-in duration-500">
       {/* Header Section */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">
-            Revenue Operations
-          </h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">
+          Revenue Operations
+        </h1>
+
+        <button
+          onClick={() => navigate("/admin/payments/create")}
+          className="flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-7 py-3 sm:py-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-brand-cerulean/20 active:scale-95 w-full sm:w-auto"
+        >
+          <PlusIcon className="w-4 h-4 stroke-[3px]" />
+          Record
+        </button>
+      </div>
+
+      {/* Search / Filter / Refresh Container */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white border border-brand-aliceBlue rounded-2xl p-3 shadow-sm">
+        {/* --- Search Input --- */}
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search payments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-3 sm:py-2 bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl text-xs focus:outline-none focus:border-brand-cerulean focus:ring-1 focus:ring-brand-cerulean transition-all text-brand-prussian placeholder-gray-400"
+          />
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-3 w-full xl:w-auto">
-          {/* --- Search Input --- */}
-          <div className="relative w-full lg:w-64">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search payments..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-3 sm:py-2 bg-white sm:bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl text-xs focus:outline-none focus:border-brand-cerulean focus:ring-1 focus:ring-brand-cerulean transition-all text-brand-prussian placeholder-gray-400"
-            />
-          </div>
-
-          <button
-            onClick={() => navigate("/admin/payments/create")}
-            className="flex items-center justify-center gap-2 bg-brand-cerulean hover:bg-brand-prussian text-white px-5 py-3 lg:py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-brand-cerulean/20 active:scale-95 flex-1 lg:flex-none"
+        {/* --- Status Filter Dropdown --- */}
+        <div className="relative w-full sm:w-40">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="w-full appearance-none bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl text-xs font-bold text-brand-prussian capitalize pl-4 pr-8 py-3 sm:py-2 focus:outline-none focus:border-brand-cerulean focus:ring-1 focus:ring-brand-cerulean transition-all cursor-pointer"
           >
-            <PlusIcon className="w-4 h-4 stroke-[3px]" />
-            Record
-          </button>
-
-          <div className="flex bg-brand-aliceBlue p-1 rounded-xl border border-brand-aliceBlue overflow-x-auto no-scrollbar">
             {["all", "pending", "completed", "failed"].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                className={`flex-1 sm:flex-none px-4 py-2 text-[10px] font-bold rounded-lg capitalize tracking-widest transition-all whitespace-nowrap ${
-                  filterStatus === status
-                    ? "bg-white text-brand-cerulean shadow-sm"
-                    : "text-gray-400 hover:text-brand-prussian"
-                }`}
-              >
+              <option key={status} value={status} className="capitalize">
                 {status}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
+
+        {/* --- Refresh Button --- */}
+        <button
+          onClick={() => fetchPayments()}
+          className="flex items-center justify-center gap-2 bg-brand-aliceBlue/30 hover:bg-brand-aliceBlue border border-brand-aliceBlue text-brand-prussian px-4 py-3 sm:py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
+          title="Refresh"
+        >
+          <ArrowPathIcon className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Content Area */}
@@ -204,16 +211,16 @@ export default function PaymentsPage() {
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-brand-aliceBlue/30 text-[10px] uppercase text-brand-prussian/40 font-bold tracking-widest border-b border-brand-aliceBlue">
+            <div className="hidden sm:block">
+              <table className="w-full text-left border-collapse table-fixed">
+                <thead className="bg-brand-aliceBlue/30 text-[10px] uppercase text-black font-bold tracking-widest border-b border-brand-aliceBlue">
                   <tr>
-                    <th className="px-6 py-4">Beneficiary & Module</th>
-                    <th className="px-6 py-4">Billing Month</th>
-                    <th className="px-6 py-4 text-center">Protocol</th>
-                    <th className="px-6 py-4">Timeline</th>
-                    <th className="px-8 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Verification</th>
+                    <th className="w-[24%] px-4 py-4">Beneficiary & Module</th>
+                    <th className="w-[17%] px-3 py-4">Billing Month</th>
+                    <th className="w-[17%] px-3 py-4 text-center">Protocol</th>
+                    <th className="w-[17%] pl-6 pr-3 py-4">Timeline</th>
+                    <th className="w-[14%] px-4 py-4">Status</th>
+                    <th className="w-[18%] px-3 py-4 text-right">Verification</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-aliceBlue/30">
@@ -320,13 +327,13 @@ function PaymentRow({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
       layout
       className="group hover:bg-brand-aliceBlue/10 transition-colors"
     >
-      <td className="px-6 py-5">
+      <td className="px-4 py-4">
         <div className="text-sm font-semibold text-brand-prussian leading-none">
           {payment.enrollment?.student?.firstName}{" "}
           {payment.enrollment?.student?.lastName}
         </div>
         <div className="text-[10px] font-bold text-brand-cerulean uppercase tracking-wider mt-1.5 flex items-center gap-1.5">
-          <CheckCircleIcon className="w-3 h-3 opacity-50" />{" "}
+          {" "}
           {payment.enrollment?.class?.name ||
             payment.enrollment?.lessonPack?.title ||
             "N/A"}
@@ -349,62 +356,56 @@ function PaymentRow({ payment, onViewSlip, onVerify, getSlipUrl }: any) {
         )}
       </td>
 
-      <td className="px-6 py-5">
-        <div className="flex items-center gap-2 bg-brand-aliceBlue/50 px-3 py-1.5 rounded-lg w-fit border border-brand-aliceBlue">
-          {payment.enrollment?.lessonPack ? (
-            <>
-              <ListVideoIcon className="w-4 h-4 text-indigo-400/70" />
-              <span className="text-xs font-bold text-brand-prussian">
-                Lesson Pack
-              </span>
-            </>
-          ) : (
-            <>
-              <CalendarDaysIcon className="w-4 h-4 text-brand-cerulean/70" />
-              <span className="text-xs font-bold text-brand-prussian">
-                {formatBillingMonth(payment.targetMonth)}
-              </span>
-            </>
-          )}
-        </div>
-      </td>
+      <td className="pl-1 pr-1 py-4">
+  <div className="flex items-center gap-2 px-1 py-1.5 w-fit">
+    {payment.enrollment?.lessonPack ? (
+      <>
+        <ListVideoIcon className="w-4 h-4 text-indigo-400/70" />
+        <span className="text-xs font-bold text-brand-prussian">
+          Lesson Pack
+        </span>
+      </>
+    ) : (
+      <>
+        <span className="text-xs font-bold text-brand-prussian">
+          {formatBillingMonth(payment.targetMonth)}
+        </span>
+      </>
+    )}
+  </div>
+</td>
 
-      <td className="px-6 py-5">
-        <div className="flex flex-col items-center gap-1">
-          {payment.method === "payhere" ? (
-            <CreditCardIcon className="w-5 h-5 text-brand-cerulean" />
-          ) : (
-            <BanknotesIcon className="w-5 h-5 text-indigo-400" />
-          )}
-          <span className="text-[9px] font-black text-gray-400 uppercase">
-            {payment.method}
-          </span>
-        </div>
-      </td>
+      <td className="px-3 py-4">
+  <div className="flex flex-col items-center gap-1">
+    <span className="text-[8px] font-black text-gray-800 uppercase">
+      {payment.method}
+    </span>
+  </div>
+</td>
 
-      <td className="px-6 py-5 whitespace-nowrap">
-        <div className="text-xs font-semibold text-brand-prussian">
-          {moment(payment.paymentDate).format("DD MMM, YYYY")}
-        </div>
-        <div className="text-[10px] text-gray-400 font-medium">
-          {moment(payment.paymentDate).format("hh:mm A")}
-        </div>
-      </td>
+      <td className="pl-4 pr-3 py-4 whitespace-nowrap text-right">
+  <div className="text-xs font-semibold text-brand-prussian">
+    {moment(payment.paymentDate).format("DD MMM, YYYY")}
+  </div>
+  <div className="text-[10px] text-gray-400 font-medium">
+    {moment(payment.paymentDate).format("hh:mm A")}
+  </div>
+</td>
 
-      <td className="px-8 py-5">
-        <StatusBadge status={payment.status} />
-        {payment.method === "bank_transfer" && payment.rawPayload?.slipUrl && (
-          <button
-            onClick={() => onViewSlip(getSlipUrl(payment.rawPayload?.slipUrl))}
-            className="mt-2 flex items-center gap-1.5 text-[9px] font-bold text-brand-cerulean uppercase tracking-widest hover:text-brand-prussian transition-colors group/btn"
-          >
-            <DocumentMagnifyingGlassIcon className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" />{" "}
-            Review Proof
-          </button>
-        )}
-      </td>
+<td className="pl-2 pr-4 py-4">
+  <StatusBadge status={payment.status} />
+  {payment.method === "bank_transfer" && payment.rawPayload?.slipUrl && (
+    <button
+      onClick={() => onViewSlip(getSlipUrl(payment.rawPayload?.slipUrl))}
+      className="mt-2 flex items-center gap-1.5 text-[9px] font-bold text-brand-cerulean uppercase tracking-widest hover:text-brand-prussian transition-colors group/btn"
+    >
+      <DocumentMagnifyingGlassIcon className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" />{" "}
+      Review Proof
+    </button>
+  )}
+</td>
 
-      <td className="px-6 py-5 text-right">
+      <td className="px-4 py-4 text-right">
         {payment.status === "pending" ? (
           <div className="flex justify-end gap-2">
             <button

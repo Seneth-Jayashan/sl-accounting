@@ -5,7 +5,7 @@ import PaymentService from "../../../services/PaymentService";
 import EnrollmentService, { type EnrollmentResponse } from "../../../services/EnrollmentService";
 
 import {
-  ArrowLeftIcon,
+  ChevronLeftIcon,
   BanknotesIcon,
   UserIcon,
   HashtagIcon,
@@ -136,12 +136,21 @@ export default function CreatePaymentPage() {
   return (
       <div className="max-w-3xl mx-auto space-y-6 pb-28 md:pb-24 p-4 lg:p-0">
         
-        <header className="space-y-2 pt-2">
-          <button onClick={() => navigate(-1)} className="flex items-center text-[10px] md:text-xs font-bold text-gray-400 hover:text-brand-cerulean transition-all uppercase tracking-widest group">
-            <ArrowLeftIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 stroke-[3px] group-hover:-translate-x-1 transition-transform" /> Back to Ledger
+        <div className="flex items-center gap-3 mb-2 py-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 hover:bg-gray-50 transition flex-shrink-0"
+            title="Back"
+          >
+            <ChevronLeftIcon className="w-5 h-5" style={{ color: "#0A5B70" }} />
           </button>
-          <h1 className="text-2xl md:text-3xl font-semibold text-brand-prussian tracking-tight">Record Cash Payment</h1>
-        </header>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-semibold text-brand-prussian tracking-tight">
+              Record Cash Payment
+            </h1>
+          </div>
+        </div>
 
         {error && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-xs font-medium flex items-center gap-2">
@@ -280,20 +289,20 @@ export default function CreatePaymentPage() {
           </div>
 
           {/* Sticky Mobile Actions */}
-          <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-100 lg:static lg:bg-transparent lg:border-none lg:p-0 z-50 flex flex-col gap-3">
-            <button
-              type="submit"
-              disabled={isSaving || !selectedEnrollment}
-              className="w-full bg-brand-prussian hover:bg-brand-cerulean text-white py-4 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isSaving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <><CheckCircleIcon className="w-5 h-5" /> Confirm & Activate</>}
-            </button>
+          <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-100 lg:static lg:bg-transparent lg:border-none lg:p-0 z-50 flex flex-row gap-3">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="w-full bg-white border border-brand-aliceBlue text-gray-400 py-4 rounded-2xl text-sm font-bold uppercase tracking-widest hover:bg-gray-50 transition-all hidden md:block"
+              className="w-full border border-[#0A5B70] text-[#0A5B70] bg-white py-4 rounded-2xl text-sm font-bold uppercase tracking-widest hover:bg-gray-50 transition-all"
             >
               Cancel Entry
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving || !selectedEnrollment}
+              className="w-full bg-[#0A5B70] hover:bg-brand-cerulean text-white py-4 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isSaving ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <> Confirm & Activate</>}
             </button>
           </div>
         </form>

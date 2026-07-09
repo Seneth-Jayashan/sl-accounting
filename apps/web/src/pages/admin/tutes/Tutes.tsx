@@ -14,7 +14,6 @@ import {
   BuildingLibraryIcon,
   QrCodeIcon,
   FunnelIcon,
-  ClipboardDocumentCheckIcon,
   CheckBadgeIcon,
   DocumentArrowDownIcon
 } from "@heroicons/react/24/outline";
@@ -104,6 +103,11 @@ const formatAddressForDisplay = (rawAddress: any) => {
 
   return { address: cleanAddress, nearestPostOffice, addressWithNearest };
 };
+
+// Shared style for the header action buttons (Sender Details / Export Labels PDF)
+const HEADER_BUTTON_CLASS =
+  "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-widest transition-colors hover:opacity-90";
+const HEADER_BUTTON_BG = { backgroundColor: "#0A5B70" };
 
 export default function TuteDeliveryPage() {
   const { user } = useAuth();
@@ -315,19 +319,21 @@ export default function TuteDeliveryPage() {
       {/* --- HEADER --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">Tute Dispatch</h1>
-          <p className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Manage physical material shipments</p>
+          <h1 className="text-2xl font-bold text-gray-800">Tute Dispatch</h1>
+          <p className="font-semibold text-gray-700 text-sm">Manage physical material shipments</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSenderConfig((prev) => !prev)}
-            className="px-4 py-2 rounded-xl border border-brand-aliceBlue text-brand-prussian text-xs font-bold uppercase tracking-widest hover:bg-brand-aliceBlue/30 transition-colors"
+            className={HEADER_BUTTON_CLASS}
+            style={HEADER_BUTTON_BG}
           >
             Sender Details
           </button>
           <button
             onClick={handleGeneratePdf}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-prussian text-white text-xs font-bold uppercase tracking-widest hover:bg-brand-cerulean transition-colors"
+            className={HEADER_BUTTON_CLASS}
+            style={HEADER_BUTTON_BG}
           >
             <DocumentArrowDownIcon className="w-4 h-4" /> Export Labels PDF
           </button>
@@ -357,83 +363,68 @@ export default function TuteDeliveryPage() {
         </div>
       )}
 
-      {/* --- CONTROLS BAR --- */}
-      <div className="flex flex-col xl:flex-row gap-4">
-          <div className="bg-brand-aliceBlue p-1 rounded-xl flex shrink-0 overflow-x-auto">
-              <button 
-                  onClick={() => setActiveTab("pending")}
-                  className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
-                      activeTab === "pending" ? "bg-white text-brand-cerulean shadow-sm" : "text-gray-400 hover:text-brand-prussian"
-                  }`}
-              >
-                  Pending
-              </button>
-              <button 
-                  onClick={() => setActiveTab("shipped")}
-                  className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
-                      activeTab === "shipped" ? "bg-white text-brand-cerulean shadow-sm" : "text-gray-400 hover:text-brand-prussian"
-                  }`}
-              >
-                  Sent History
-              </button>
-              <button 
-                  onClick={() => setActiveTab("delivered")}
-                  className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
-                      activeTab === "delivered" ? "bg-white text-brand-cerulean shadow-sm" : "text-gray-400 hover:text-brand-prussian"
-                  }`}
-              >
-                  Delivered
-              </button>
+      {/* --- CONTROLS BAR (Status tabs + Date filter unified in one container) --- */}
+      <div className="flex flex-col md:flex-row gap-3 bg-white p-2 rounded-2xl shadow-sm border border-brand-aliceBlue">
+          {/* DATE FILTER */}
+          <div className="relative flex-1">
+            <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            <select
+              className="w-full pl-10 pr-8 py-2 bg-brand-aliceBlue/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 appearance-none cursor-pointer text-xs font-bold text-gray-600 border-none uppercase tracking-wide"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as FilterType)}
+            >
+              <option value="all_time">All Time</option>
+              <option value="today">Today</option>
+              <option value="this_week">This Week</option>
+              <option value="last_week">Last Week</option>
+              <option value="this_month">This Month</option>
+              <option value="last_month">Last Month</option>
+              <option value="custom">Custom Range</option>
+            </select>
           </div>
 
-          {/* DATE FILTERS */}
-          <div className="flex flex-col md:flex-row gap-3 bg-white p-2 rounded-2xl shadow-sm border border-brand-aliceBlue flex-1">
-             <div className="relative flex-1 md:max-w-xs">
-                <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <select
-                  className="w-full pl-10 pr-8 py-2 bg-brand-aliceBlue/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 appearance-none cursor-pointer text-xs font-bold text-gray-600 border-none uppercase tracking-wide"
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value as FilterType)}
-                >
-                  <option value="all_time">All Time</option>
-                  <option value="today">Today</option>
-                  <option value="this_week">This Week</option>
-                  <option value="last_week">Last Week</option>
-                  <option value="this_month">This Month</option>
-                  <option value="last_month">Last Month</option>
-                  <option value="custom">Custom Range</option>
-                </select>
+          {/* STATUS FILTER (was: Pending / Sent History / Delivered tab buttons) */}
+          <div className="relative flex-1">
+            <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            <select
+              className="w-full pl-10 pr-8 py-2 bg-brand-aliceBlue/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 appearance-none cursor-pointer text-xs font-bold text-gray-600 border-none uppercase tracking-wide"
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as TabType)}
+            >
+              <option value="pending">Pending</option>
+              <option value="shipped">Sent History</option>
+              <option value="delivered">Delivered</option>
+            </select>
+          </div>
+
+          {filterType === "custom" && (
+            <div className="flex gap-2 flex-1 animate-in fade-in slide-in-from-left-4 duration-300">
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  className="w-full pl-3 pr-3 py-2 bg-brand-aliceBlue/30 rounded-xl focus:outline-none text-xs font-medium text-gray-600"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                />
               </div>
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  className="w-full pl-3 pr-3 py-2 bg-brand-aliceBlue/30 rounded-xl focus:outline-none text-xs font-medium text-gray-600"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
-              {filterType === "custom" && (
-                <div className="flex gap-2 flex-1 animate-in fade-in slide-in-from-left-4 duration-300">
-                  <div className="relative flex-1">
-                    <input
-                      type="date"
-                      className="w-full pl-3 pr-3 py-2 bg-brand-aliceBlue/30 rounded-xl focus:outline-none text-xs font-medium text-gray-600"
-                      value={customStart}
-                      onChange={(e) => setCustomStart(e.target.value)}
-                    />
-                  </div>
-                  <div className="relative flex-1">
-                    <input
-                      type="date"
-                      className="w-full pl-3 pr-3 py-2 bg-brand-aliceBlue/30 rounded-xl focus:outline-none text-xs font-medium text-gray-600"
-                      value={customEnd}
-                      onChange={(e) => setCustomEnd(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={fetchDeliveries}
-                className="p-2 bg-brand-aliceBlue/50 hover:bg-brand-aliceBlue rounded-xl text-brand-cerulean transition-colors"
-                title="Refresh List"
-              >
-                <ArrowPathIcon className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
-              </button>
-          </div>
+          <button
+            onClick={fetchDeliveries}
+            className="p-2 bg-brand-aliceBlue/50 hover:bg-brand-aliceBlue rounded-xl text-brand-cerulean transition-colors shrink-0"
+            title="Refresh List"
+          >
+            <ArrowPathIcon className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
+          </button>
       </div>
 
       {/* --- CONTENT AREA --- */}
@@ -694,7 +685,7 @@ function DispatchModal({ isOpen, onClose, onConfirm, delivery }: DispatchModalPr
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block ml-1">Courier Service</label>
+                                <label className="text-[11px] font-semibold text-black uppercase tracking-wider block ml-1">Courier Service</label>
                                 <div className="relative">
                                     <TruckIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                     <select 
@@ -712,7 +703,7 @@ function DispatchModal({ isOpen, onClose, onConfirm, delivery }: DispatchModalPr
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block ml-1">Tracking Number <span className="text-gray-300 font-normal normal-case">(Optional)</span></label>
+                                <label className="text-[11px] font-semibold text-black uppercase tracking-wider block ml-1">Tracking Number <span className="text-gray-600 font-normal normal-case">(Optional)</span></label>
                                 <div className="relative">
                                     <QrCodeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                     <input 
@@ -726,12 +717,11 @@ function DispatchModal({ isOpen, onClose, onConfirm, delivery }: DispatchModalPr
                             </div>
 
                             <div className="pt-4 flex gap-3">
-                                <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-brand-aliceBlue text-gray-500 font-bold text-xs uppercase tracking-widest hover:bg-gray-50 transition-colors">
+                                <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-brand-aliceBlue font-bold text-xs uppercase tracking-widest hover:bg-gray-50 transition-colors" style={{ color: "#0A5B70" }}>
                                     Cancel
                                 </button>
                                 <button type="submit" disabled={isSubmitting} className="flex-1 py-3 rounded-xl bg-brand-cerulean text-white font-bold text-xs uppercase tracking-widest hover:bg-brand-prussian transition-colors shadow-lg shadow-brand-cerulean/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                                    {isSubmitting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ClipboardDocumentCheckIcon className="w-4 h-4" />}
-                                    Confirm
+                                    {isSubmitting ? "Please wait..." : "Confirm"}
                                 </button>
                             </div>
                         </form>
