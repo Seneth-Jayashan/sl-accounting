@@ -153,7 +153,7 @@ export default function BatchPage() {
   };
 
   return (
-    <div className="w-full space-y-5 pb-12">
+    <div className="w-full space-y-5 pb-12 overflow-x-hidden">
 
       {/* --- Header --- */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-1">
@@ -361,7 +361,7 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
     >
       <div className="px-8 py-6 relative flex justify-center items-center bg-white z-20">
         <h2 className="text-[15px] font-black text-[#0d4b5b] uppercase tracking-widest">
-          {isEditing ? "Modify Batch" : "Create Batch"}
+          {isEditing ? "MODIFY BATCH" : "CREATE NEW BATCH"}
         </h2>
         <button onClick={onClose} className="absolute right-6 top-6 p-1 text-gray-900 hover:text-red-500 transition-colors">
           <XMarkIcon className="w-5 h-5 stroke-[3]" />
@@ -374,7 +374,7 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
           name="name"
           value={formData.name}
           onChange={onChange}
-          placeholder="E.g. 2027 PHYSICS"
+          placeholder="E.g. 2026 AL Advance"
           required
         />
 
@@ -386,6 +386,7 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
             value={formData.startDate}
             onChange={onChange}
             required
+            isDate={true}
           />
           <InputGroup
             label="Conclusion"
@@ -394,6 +395,7 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
             value={formData.endDate}
             onChange={onChange}
             required
+            isDate={true}
           />
         </div>
 
@@ -403,7 +405,7 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
             name="description"
             value={formData.description}
             onChange={onChange}
-            className="w-full bg-[#f4f7f9] border-none focus:ring-2 focus:ring-[#0d4b5b]/20 rounded-lg px-4 py-3 text-[13px] font-medium text-gray-900 outline-none transition-all placeholder:text-gray-400"
+            className="w-full bg-white border border-gray-200 focus:ring-2 focus:ring-[#0d4b5b]/20 rounded-lg px-4 py-3 text-[13px] font-medium text-gray-900 outline-none transition-all placeholder:text-gray-400"
             rows={4}
             placeholder="Add notes about this batch ..."
           />
@@ -414,7 +416,7 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
             type="submit" disabled={submitting}
             className="bg-[#0d4b5b] hover:bg-[#093946] disabled:bg-gray-300 disabled:text-gray-500 text-white font-bold py-2.5 px-12 rounded-lg transition-all shadow-sm shadow-[#0d4b5b]/20 text-[13px]"
           >
-            {submitting ? "Processing..." : isEditing ? "Update Schedule" : "Create Batch"}
+            {submitting ? "Processing..." : isEditing ? "Update Schedule" : "Initialize Batch"}
           </button>
         </div>
       </form>
@@ -423,12 +425,13 @@ const BatchModal = ({ isEditing, formData, submitting, onClose, onChange, onSubm
 );
 
 // --- Updated InputGroup Component ---
-const InputGroup = ({ label, ...props }: any) => (
+const InputGroup = ({ label, isDate, ...props }: any) => (
   <div>
     <label className="block text-[13px] font-bold text-gray-800 mb-2">{label}</label>
     <input
       {...props}
-      className="w-full bg-[#f4f7f9] border-none focus:ring-2 focus:ring-[#0d4b5b]/20 rounded-lg px-4 py-3 text-[13px] font-medium text-gray-900 outline-none transition-all placeholder:text-gray-400"
+      className={`w-full border focus:ring-2 focus:ring-[#0d4b5b]/20 rounded-lg px-4 py-2.5 text-[13px] font-medium text-gray-900 outline-none transition-all placeholder:text-gray-400 ${isDate ? "bg-[#f4f7f9] border-transparent focus:border-[#0d4b5b]" : "bg-white border-gray-200 focus:border-[#0d4b5b]"
+        }`}
     />
   </div>
 );
