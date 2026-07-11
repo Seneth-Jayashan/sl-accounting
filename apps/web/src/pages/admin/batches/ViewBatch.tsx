@@ -5,14 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import BatchService, { type BatchData } from "../../../services/BatchService";
 
 import {
-  ArrowLeftIcon,
-  CalendarDaysIcon,
-  UserGroupIcon,
-  AcademicCapIcon,
+  ChevronLeftIcon,
   MagnifyingGlassIcon,
   EnvelopeIcon,
   PhoneIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  AcademicCapIcon,
+  ArrowRightIcon
 } from "@heroicons/react/24/outline";
 
 // --- Updated Student Type ---
@@ -33,7 +32,7 @@ export default function ViewBatchPage() {
   const [batch, setBatch] = useState<BatchData | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "students">("students");
+  const [activeTab, setActiveTab] = useState<"students" | "classes">("students");
   const [searchTerm, setSearchTerm] = useState("");
 
   const loadData = useCallback(async () => {
@@ -66,7 +65,7 @@ export default function ViewBatchPage() {
   const filteredStudents = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return students;
-    return students.filter(s => 
+    return students.filter(s =>
       `${s.firstName} ${s.lastName}`.toLowerCase().includes(term) ||
       s.email.toLowerCase().includes(term)
     );
@@ -75,263 +74,266 @@ export default function ViewBatchPage() {
   if (loading) return <LoadingState />;
   if (!batch) return <NotFoundState onBack={() => navigate("/admin/batches")} />;
 
+  // Helper for 2-digit format
+  const formatCount = (num: number) => String(num).padStart(2, '0');
+
   return (
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 p-4 md:p-6 pb-24 animate-in fade-in duration-500">
-        
-        {/* --- Navigation & Header --- */}
-        <header className="space-y-4 md:space-y-6">
-          <button 
-            onClick={() => navigate("/admin/batches")}
-            className="flex items-center text-[10px] md:text-xs font-black uppercase tracking-widest text-brand-cerulean hover:text-brand-prussian transition-colors"
-          >
-            <ArrowLeftIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 stroke-[3px]" /> Back to Batches
-          </button>
+    <div className="w-full space-y-6 pb-20 overflow-x-hidden">
 
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-white p-6 md:p-8 rounded-[2rem] border border-brand-aliceBlue shadow-sm">
-            <div className="space-y-4 w-full lg:w-auto">
-              <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-cerulean rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-cerulean/20 shrink-0">
-                    <UserGroupIcon className="w-6 h-6 md:w-7 md:h-7" />
-                 </div>
-                 <h1 className="text-2xl md:text-4xl font-black text-brand-prussian tracking-tight leading-tight">{batch.name}</h1>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-3 md:gap-4">
-                <StatusBadge isActive={batch.isActive} />
-                <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-gray-400 bg-brand-aliceBlue/50 px-3 py-2 md:px-4 md:py-2 rounded-xl">
-                  <CalendarDaysIcon className="w-4 h-4 md:w-5 md:h-5 text-brand-cerulean" />
-                  {moment(batch.startDate).format("MMM YYYY")} — {moment(batch.endDate).format("MMM YYYY")}
-                </div>
-              </div>
-            </div>
+      {/* --- Back Button --- */}
+      <div className="flex items-center gap-4 pt-2">
+        <button
+          onClick={() => navigate("/admin/batches")}
+          className="w-8 h-8 rounded-full bg-[#eef2f6] text-[#0d4b5b] flex items-center justify-center hover:bg-[#e2e8f0] transition-colors shrink-0"
+        >
+          <ChevronLeftIcon className="w-4 h-4 stroke-[3]" />
+        </button>
+      </div>
 
-            <div className="grid grid-cols-2 gap-3 md:gap-4 w-full lg:w-auto">
-              <StatDisplay label="Students" value={students.length} />
-              <StatDisplay label="Classes" value={batch.classes?.length || 0} />
+      {/* --- Header Card --- */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+        <div className="flex items-center gap-5 md:gap-8">
+          {/* Sigma Icon replacement to match design */}
+          <div className="text-[50px] md:text-[60px] font-serif font-black text-[#0d4b5b] leading-none shrink-0 select-none">
+            Σ
+          </div>
+          <div>
+            <h1 className="text-xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">
+              {batch.name}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 md:gap-4 mt-2.5 md:mt-3">
+              <StatusBadge isActive={batch.isActive} />
+              <div className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-[11px] font-bold text-gray-500 tracking-wide">
+                {moment(batch.startDate).format("MMM YYYY")} - {moment(batch.endDate).format("MMM YYYY")}
+              </div>
             </div>
           </div>
-        </header>
-
-        {/* --- Custom Tabs --- */}
-        <div className="flex p-1.5 bg-brand-aliceBlue/40 rounded-2xl w-full md:w-fit overflow-x-auto">
-          <TabTrigger 
-            active={activeTab === "students"} 
-            onClick={() => setActiveTab("students")} 
-            label="Students" 
-            count={students.length}
-          />
-          <TabTrigger 
-            active={activeTab === "overview"} 
-            onClick={() => setActiveTab("overview")} 
-            label="Classes" 
-          />
         </div>
 
-        {/* --- Tab Content --- */}
-        <main>
-          <AnimatePresence mode="wait">
-            {activeTab === "students" ? (
-              <motion.div 
-                key="students"
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="space-y-4 md:space-y-6"
-              >
-                {/* Search Bar */}
-                <div className="relative w-full md:max-w-md group">
-                  <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-cerulean transition-transform group-focus-within:scale-110" />
-                  <input 
-                    type="text" 
-                    placeholder="Search name or email..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 md:py-4 bg-white border-2 border-brand-aliceBlue rounded-2xl md:rounded-[1.25rem] focus:border-brand-cerulean outline-none transition-all font-bold text-brand-prussian text-sm md:text-base"
-                  />
-                </div>
-
-                {/* Table / List */}
-                <div className="bg-white border border-brand-aliceBlue rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-sm">
-                  {/* Desktop Table */}
-                  <div className="hidden md:block">
-                      <table className="w-full text-left border-collapse">
-                        <thead className="bg-brand-aliceBlue/20">
-                          <tr>
-                            <th className="px-8 py-5 text-[10px] font-black text-brand-prussian/40 uppercase tracking-widest">Student Information</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-brand-prussian/40 uppercase tracking-widest">Contact Access</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-brand-prussian/40 uppercase tracking-widest text-right">Profile</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-brand-aliceBlue/40">
-                          {filteredStudents.length > 0 ? (
-                            filteredStudents.map((student) => (
-                              <StudentRowItem 
-                                key={student._id} 
-                                student={student} 
-                                onView={() => navigate(`/admin/students/${student._id}`)}
-                              />
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={3} className="py-24 text-center">
-                                 <p className="text-brand-prussian font-bold opacity-30">No matching students found.</p>
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                  </div>
-
-                  {/* Mobile List View */}
-                  <div className="md:hidden divide-y divide-brand-aliceBlue/40">
-                      {filteredStudents.length > 0 ? (
-                          filteredStudents.map((student) => (
-                              <MobileStudentItem 
-                                  key={student._id}
-                                  student={student}
-                                  onView={() => navigate(`/admin/students/${student._id}`)}
-                              />
-                          ))
-                      ) : (
-                          <div className="py-16 text-center">
-                              <p className="text-brand-prussian font-bold opacity-30 text-sm">No matching students found.</p>
-                          </div>
-                      )}
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="classes"
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
-              >
-                {batch.classes?.map((cls: any) => (
-                  <ClassCard key={cls._id} cls={cls} onClick={() => navigate(`/admin/classes/view/${cls._id}`)} />
-                )) || <EmptyClasses />}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
+        {/* Stat Boxes */}
+        <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="bg-[#0d4b5b] rounded-2xl p-4 min-w-[100px] flex-1 lg:flex-none text-center shadow-sm">
+            <p className="text-[10px] text-white/80 font-bold mb-1 tracking-wider">Students</p>
+            <p className="text-3xl font-black text-white leading-none">{formatCount(students.length)}</p>
+          </div>
+          <div className="bg-[#0d4b5b] rounded-2xl p-4 min-w-[100px] flex-1 lg:flex-none text-center shadow-sm">
+            <p className="text-[10px] text-white/80 font-bold mb-1 tracking-wider">Classes</p>
+            <p className="text-3xl font-black text-white leading-none">{formatCount(batch.classes?.length || 0)}</p>
+          </div>
+        </div>
       </div>
+
+      {/* --- Custom Tabs --- */}
+      <div className="flex items-center gap-2 border-b border-transparent">
+        <button
+          onClick={() => setActiveTab("students")}
+          className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-colors ${activeTab === "students" ? "bg-[#0d4b5b] text-white shadow-sm" : "bg-transparent text-[#0d4b5b] hover:bg-gray-50"
+            }`}
+        >
+          Students ({formatCount(students.length)})
+        </button>
+        <button
+          onClick={() => setActiveTab("classes")}
+          className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-colors ${activeTab === "classes" ? "bg-[#0d4b5b] text-white shadow-sm" : "bg-transparent text-[#0d4b5b] hover:bg-gray-50"
+            }`}
+        >
+          Classes ({formatCount(batch.classes?.length || 0)})
+        </button>
+      </div>
+
+      {/* --- Tab Content --- */}
+      <main>
+        <AnimatePresence mode="wait">
+          {activeTab === "students" ? (
+            <motion.div
+              key="students"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              {/* Search Bar */}
+              <div className="relative w-full">
+                <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email ..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-white border border-gray-100 rounded-xl focus:ring-2 focus:ring-[#0d4b5b]/20 focus:border-[#0d4b5b] outline-none transition-all text-sm font-medium text-gray-700 placeholder:text-gray-300 shadow-sm"
+                />
+              </div>
+
+              {/* Table Area */}
+              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                {/* Desktop Table */}
+                <div className="hidden md:block w-full overflow-x-auto scrollbar-hide">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead className="border-b border-gray-100">
+                      <tr>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[40%]">Student Information</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[40%]">Contact Access</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center w-[20%]">Profile</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {filteredStudents.length > 0 ? (
+                        filteredStudents.map((student) => (
+                          <StudentRowItem
+                            key={student._id}
+                            student={student}
+                            onView={() => navigate(`/admin/students/${student._id}`)}
+                          />
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="py-24 text-center">
+                            <p className="text-gray-400 font-medium text-sm">No matching students found.</p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile List View */}
+                <div className="md:hidden divide-y divide-gray-50">
+                  {filteredStudents.length > 0 ? (
+                    filteredStudents.map((student) => (
+                      <MobileStudentItem
+                        key={student._id}
+                        student={student}
+                        onView={() => navigate(`/admin/students/${student._id}`)}
+                      />
+                    ))
+                  ) : (
+                    <div className="py-20 text-center">
+                      <p className="text-gray-400 font-medium text-sm">No matching students found.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="classes"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            >
+              {batch.classes?.map((cls: any) => (
+                <ClassCard key={cls._id} cls={cls} onClick={() => navigate(`/admin/classes/view/${cls._id}`)} />
+              )) || <EmptyClasses />}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
   );
 }
 
-// --- High-Performance Sub-components ---
-
-const StatDisplay = ({ label, value }: { label: string, value: number }) => (
-  <div className="flex-1 min-w-[100px] lg:min-w-[140px] bg-brand-prussian p-4 md:p-5 rounded-2xl md:rounded-3xl text-center">
-    <div className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-brand-jasmine mb-1">{label}</div>
-    <div className="text-xl md:text-2xl font-black text-white">{value}</div>
-  </div>
-);
-
-const TabTrigger = ({ active, onClick, label, count }: any) => (
-  <button
-    onClick={onClick}
-    className={`flex-1 md:flex-none justify-center px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-black transition-all flex items-center gap-2 ${
-      active ? "bg-white text-brand-cerulean shadow-sm" : "text-brand-prussian/40 hover:text-brand-prussian"
-    }`}
-  >
-    {label} {count !== undefined && <span className="bg-brand-aliceBlue px-1.5 py-0.5 rounded-md text-[9px] md:text-[10px]">{count}</span>}
-  </button>
-);
+// --- Sub-components ---
 
 const StudentRowItem = ({ student, onView }: any) => {
-  const avatarUrl = student.profilePic 
+  const avatarUrl = student.profilePic
     ? (student.profilePic.startsWith('http') ? student.profilePic : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/${student.profilePic.replace(/^\/+/, "")}`)
-    : `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=E8EFF7&color=05668A&bold=true`;
+    : `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=eef2f6&color=0d4b5b&bold=true`;
 
   return (
-    <tr className="group hover:bg-brand-aliceBlue/10 transition-colors">
-      <td className="px-8 py-5">
-        <div className="flex items-center gap-4">
-          <img src={avatarUrl} alt="" className="w-12 h-12 rounded-2xl object-cover border-2 border-brand-aliceBlue group-hover:border-brand-cerulean transition-colors" />
+    <tr className="group hover:bg-gray-50/50 transition-colors">
+      <td className="px-6 py-4 align-middle">
+        <div className="flex flex-col items-center text-center gap-2">
+          <img src={avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-100" />
           <div>
-            <div className="font-black text-brand-prussian">{student.firstName} {student.lastName}</div>
-            <div className="text-[10px] font-bold text-brand-cerulean/60 uppercase">UID: {student._id.slice(-6)}</div>
+            <div className="font-bold text-[13px] text-gray-900">{student.firstName} {student.lastName}</div>
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">ID: {student._id.slice(-6)}</div>
           </div>
         </div>
       </td>
-      <td className="px-8 py-5">
-        <div className="space-y-1">
-          <div className="text-sm font-bold text-brand-prussian flex items-center gap-2">
-            <EnvelopeIcon className="w-4 h-4 text-brand-cerulean" /> {student.email}
+      <td className="px-6 py-4 align-middle">
+        <div className="flex flex-col items-center justify-center space-y-1.5">
+          <div className="text-[12px] font-bold text-gray-700 flex items-center gap-1.5">
+            <EnvelopeIcon className="w-3.5 h-3.5 text-[#0d4b5b]" /> {student.email}
           </div>
           {student.mobileNumber && (
-            <div className="text-xs font-medium text-gray-400 flex items-center gap-2">
-              <PhoneIcon className="w-3.5 h-3.5" /> {student.mobileNumber}
+            <div className="text-[11px] font-medium text-gray-500 flex items-center gap-1.5">
+              <PhoneIcon className="w-3 h-3" /> {student.mobileNumber}
             </div>
           )}
         </div>
       </td>
-      <td className="px-8 py-5 text-right">
-        <button onClick={onView} className="bg-brand-aliceBlue p-3 rounded-xl text-brand-cerulean hover:bg-brand-cerulean hover:text-white transition-all active:scale-90">
-          <ArrowLeftIcon className="w-5 h-5 rotate-180 stroke-[3px]" />
+      <td className="px-6 py-4 align-middle text-center">
+        <button
+          onClick={onView}
+          className="w-8 h-8 rounded-full bg-[#eef2f6] text-[#0d4b5b] inline-flex items-center justify-center hover:bg-[#0d4b5b] hover:text-white transition-all active:scale-95"
+        >
+          <ArrowRightIcon className="w-4 h-4 stroke-[3px]" />
         </button>
       </td>
     </tr>
   );
 };
 
-// New Mobile List Item
 const MobileStudentItem = ({ student, onView }: any) => {
-    const avatarUrl = student.profilePic 
-      ? (student.profilePic.startsWith('http') ? student.profilePic : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/${student.profilePic.replace(/^\/+/, "")}`)
-      : `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=E8EFF7&color=05668A&bold=true`;
-  
-    return (
-        <div onClick={onView} className="p-4 flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer">
-            <img src={avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-100" />
-            <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-sm text-gray-900 truncate">{student.firstName} {student.lastName}</h4>
-                <p className="text-xs text-gray-500 truncate">{student.email}</p>
-            </div>
-            <ArrowLeftIcon className="w-4 h-4 text-gray-300 rotate-180" />
+  const avatarUrl = student.profilePic
+    ? (student.profilePic.startsWith('http') ? student.profilePic : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/${student.profilePic.replace(/^\/+/, "")}`)
+    : `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=eef2f6&color=0d4b5b&bold=true`;
+
+  return (
+    <div onClick={onView} className="p-4 flex items-center justify-between gap-4 active:bg-gray-50 transition-colors cursor-pointer">
+      <div className="flex items-center gap-3 min-w-0">
+        <img src={avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-100 shrink-0" />
+        <div className="min-w-0">
+          <h4 className="font-bold text-[13px] text-gray-900 truncate">{student.firstName} {student.lastName}</h4>
+          <p className="text-[11px] text-gray-500 truncate mt-0.5">{student.email}</p>
         </div>
-    );
+      </div>
+      <ArrowRightIcon className="w-4 h-4 text-gray-400 shrink-0" />
+    </div>
+  );
 }
 
 const ClassCard = ({ cls, onClick }: any) => (
-  <div 
+  <div
     onClick={onClick}
-    className="bg-white p-6 rounded-[2rem] border-2 border-brand-aliceBlue hover:border-brand-cerulean transition-all cursor-pointer group shadow-sm"
+    className="bg-white p-5 rounded-2xl border border-gray-100 hover:border-[#0d4b5b] transition-all cursor-pointer shadow-sm group flex items-start gap-4"
   >
-    <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-aliceBlue rounded-2xl flex items-center justify-center text-brand-cerulean mb-4 md:mb-5 group-hover:scale-110 transition-transform">
-      <AcademicCapIcon className="w-6 h-6 md:w-7 md:h-7" />
+    <div className="w-12 h-12 bg-[#eef2f6] rounded-xl flex items-center justify-center text-[#0d4b5b] shrink-0 group-hover:scale-105 transition-transform">
+      <AcademicCapIcon className="w-6 h-6 stroke-[1.5]" />
     </div>
-    <h4 className="text-base md:text-lg font-black text-brand-prussian mb-1 md:mb-2">{cls.className || cls.name}</h4>
-    <p className="text-xs md:text-sm font-medium text-gray-400 leading-relaxed">{cls.subject || "No specific subject defined"}</p>
+    <div>
+      <h4 className="text-[14px] font-bold text-gray-900 leading-tight mb-1">{cls.className || cls.name}</h4>
+      <p className="text-[11px] font-medium text-gray-500 line-clamp-2">{cls.subject || "No specific subject defined"}</p>
+    </div>
   </div>
 );
 
 const StatusBadge = ({ isActive }: { isActive: boolean }) => (
-  <div className={`px-3 py-1.5 md:px-4 md:py-1.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${
-    isActive ? "bg-green-100 text-green-700" : "bg-brand-aliceBlue text-brand-prussian/40"
-  }`}>
-    <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isActive ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
+  <div className={`px-2 py-1 rounded border text-[10px] font-bold flex items-center gap-1.5 ${isActive ? "bg-emerald-50 border-emerald-100 text-emerald-600" : "bg-gray-50 border-gray-200 text-gray-500"
+    }`}>
+    <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-gray-400"}`} />
     {isActive ? "Active" : "Archived"}
   </div>
 );
 
 const LoadingState = () => (
-    <div className="flex flex-col h-[70vh] items-center justify-center space-y-4">
-      <ArrowPathIcon className="w-10 h-10 md:w-12 md:h-12 text-brand-cerulean animate-spin" />
-      <p className="text-brand-prussian text-xs md:text-sm font-black uppercase tracking-tighter animate-pulse">Synchronizing Data...</p>
-    </div>
+  <div className="flex flex-col h-[60vh] items-center justify-center space-y-4">
+    <ArrowPathIcon className="w-8 h-8 text-[#0d4b5b]/50 animate-spin" />
+    <p className="text-[#0d4b5b] text-xs font-bold uppercase tracking-widest animate-pulse">Loading Details...</p>
+  </div>
 );
 
 const EmptyClasses = () => (
-  <div className="col-span-full py-16 md:py-20 text-center bg-brand-aliceBlue/20 rounded-[2rem] md:rounded-[3rem] border-4 border-dashed border-brand-aliceBlue">
-    <AcademicCapIcon className="w-10 h-10 md:w-12 md:h-12 text-brand-cerulean/30 mx-auto mb-4" />
-    <p className="text-brand-prussian font-bold text-sm md:text-base">No academic classes linked to this batch yet.</p>
+  <div className="col-span-full py-16 text-center border-2 border-dashed border-gray-100 rounded-2xl">
+    <AcademicCapIcon className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+    <p className="text-gray-900 font-bold text-sm">No classes linked</p>
+    <p className="text-xs text-gray-500 mt-1">This batch doesn't have any active classes yet.</p>
   </div>
 );
 
 const NotFoundState = ({ onBack }: { onBack: () => void }) => (
-    <div className="text-center py-32 space-y-6">
-      <div className="text-5xl md:text-6xl text-brand-prussian opacity-10 font-black">404</div>
-      <h2 className="text-xl md:text-2xl font-black text-brand-prussian">Batch Not Found</h2>
-      <button onClick={onBack} className="bg-brand-prussian text-white px-6 py-2.5 md:px-8 md:py-3 rounded-2xl font-bold hover:bg-brand-cerulean transition-all text-sm md:text-base">
-        Go Back
-      </button>
-    </div>
+  <div className="text-center py-32 space-y-4">
+    <div className="text-6xl text-gray-200 font-black">404</div>
+    <h2 className="text-xl font-black text-gray-900">Batch Not Found</h2>
+    <button onClick={onBack} className="bg-[#0d4b5b] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-[#093946] transition-colors text-sm shadow-sm">
+      Go Back
+    </button>
+  </div>
 );
