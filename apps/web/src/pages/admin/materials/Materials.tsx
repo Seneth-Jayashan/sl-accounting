@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { 
   Plus, 
   Trash2, 
@@ -132,66 +133,64 @@ export default function MaterialsAdmin() {
 
   const getFileIcon = (type: string) => {
     switch (type) {
-      case "pdf": return <FileText className="text-red-500 w-6 h-6" />;
-      case "pptx": return <Presentation className="text-orange-500 w-6 h-6" />;
-      case "image": return <ImageIcon className="text-blue-500 w-6 h-6" />;
-      case "docx": return <FileEdit className="text-blue-600 w-6 h-6" />;
-      default: return <FileIcon className="text-gray-400 w-6 h-6" />;
+      case "pdf": return <FileText className="text-red-500 w-5 h-5 stroke-[2]" />;
+      case "pptx": return <Presentation className="text-orange-500 w-5 h-5 stroke-[2]" />;
+      case "image": return <ImageIcon className="text-blue-500 w-5 h-5 stroke-[2]" />;
+      case "docx": return <FileEdit className="text-blue-600 w-5 h-5 stroke-[2]" />;
+      default: return <FileText className="text-gray-500 w-5 h-5 stroke-[2]" />;
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-24 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto space-y-6 pb-24 px-4 sm:px-6 w-full overflow-x-hidden">
       
       {/* Header */}
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 mb-2">
         <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">Academic Materials</h1>
-          <p className="text-gray-500 text-xs sm:text-sm font-medium">Broadcast study resources and lecture notes.</p>
+          <h1 className="text-xl md:text-[22px] font-bold text-gray-900 tracking-tight leading-tight">Academic Materials</h1>
+          <p className="text-gray-500 text-xs mt-0.5 font-medium">Broadcast study resources and lecture notes.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-cerulean text-white px-5 py-3 rounded-xl text-sm font-medium hover:bg-brand-prussian transition-all active:scale-95 shadow-lg shadow-brand-cerulean/20"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#0d4b5b] text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-[#093946] transition-colors active:scale-95 shadow-sm"
         >
-          <Plus size={18} /> Upload Material
+          <Plus size={18} strokeWidth={2.5} /> Upload Materials
         </button>
       </header>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-[2rem] border border-brand-aliceBlue shadow-sm">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <select 
-            className="w-full pl-12 pr-4 py-3 bg-brand-aliceBlue/30 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand-cerulean/20 outline-none appearance-none"
-            value={filterClass}
-            onChange={(e) => setFilterClass(e.target.value)}
-          >
-            <option value="">Search by Class Module...</option>
-            {classes && classes.length > 0 ? (
-              classes.map(c => <option key={c._id} value={c._id}>{c.name}</option>)
-            ) : (
-              <option disabled>No classes found...</option>
-            )}
-          </select>
-        </div>
+      <div className="relative w-full">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+        <select 
+          className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-xl text-[13px] font-medium focus:ring-2 focus:ring-[#0d4b5b]/20 focus:border-[#0d4b5b] outline-none appearance-none text-gray-700 shadow-sm"
+          value={filterClass}
+          onChange={(e) => setFilterClass(e.target.value)}
+        >
+          <option value="">Search by class module...</option>
+          {classes && classes.length > 0 ? (
+            classes.map(c => <option key={c._id} value={c._id}>{c.name}</option>)
+          ) : (
+            <option disabled>No classes found...</option>
+          )}
+        </select>
       </div>
 
       {/* Content Grid */}
       {loading ? (
         <div className="py-24 text-center">
-          <RotateCw className="w-8 h-8 animate-spin mx-auto text-brand-cerulean opacity-30" />
-          <p className="text-xs font-medium text-gray-400 mt-4 uppercase tracking-widest">Syncing Materials...</p>
+          <RotateCw className="w-8 h-8 animate-spin mx-auto text-[#0d4b5b] opacity-30" />
+          <p className="text-[11px] font-bold text-gray-400 mt-4 uppercase tracking-widest">Syncing Materials...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {materials.map((mat) => (
-            <div key={mat._id} className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-brand-aliceBlue hover:border-brand-cerulean/10 transition-all group shadow-sm flex flex-col h-full">
+            <div key={mat._id} className="bg-white p-5 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all group shadow-sm flex flex-col h-full">
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-brand-aliceBlue/50 rounded-2xl flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 bg-[#f8fafc] rounded-full flex items-center justify-center shrink-0 border border-gray-100">
                   {getFileIcon(mat.fileType)}
                 </div>
-                <div className="flex gap-1">
-                  <button onClick={() => handleEditClick(mat)} className="p-2 text-gray-300 hover:text-brand-cerulean transition-colors"><Pencil size={18} /></button>
+                <div className="flex gap-2">
+                  <button onClick={() => handleEditClick(mat)} className="p-1.5 text-[#0d4b5b] hover:bg-[#eef2f6] rounded-md transition-colors"><Pencil size={16} strokeWidth={2.5} /></button>
                   <button onClick={async () => {
                     const result = await Swal.fire({
                       title: 'Are you sure?',
@@ -208,17 +207,17 @@ export default function MaterialsAdmin() {
                         loadData();
                       });
                     }
-                  }} className="p-2 text-gray-300 hover:text-brand-coral transition-colors"><Trash2 size={18} /></button>
+                  }} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={16} strokeWidth={2.5} /></button>
                 </div>
               </div>
 
-              <div className="space-y-2 mb-6 flex-1">
-                <h4 className="text-base font-semibold text-brand-prussian line-clamp-2 leading-tight">{mat.title}</h4>
-                <p className="text-xs text-gray-500 line-clamp-3 min-h-[2.5rem]">{mat.description || "No description provided."}</p>
-                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-auto pt-2">
-                  <span>{mat.fileSize}</span>
+              <div className="space-y-1 mb-6 flex-1 mt-1">
+                <h4 className="text-[14px] font-bold text-gray-800 line-clamp-2 leading-tight">{mat.title}</h4>
+                <p className="text-[12px] text-gray-500 font-medium line-clamp-2">{mat.description || (typeof mat.class === 'object' ? (mat.class as any)?.name : "No description")}</p>
+                <div className="flex items-center gap-2 text-[11px] font-bold text-gray-500 mt-4">
+                  <span>{mat.fileSize || "1.35 MB"}</span>
                   <span>•</span>
-                  <span>{moment(mat.createdAt).format("MMM DD")}</span>
+                  <span>{moment(mat.createdAt).format("MMM YY")}</span>
                 </div>
               </div>
 
@@ -226,9 +225,9 @@ export default function MaterialsAdmin() {
                  href={`${import.meta.env.VITE_API_BASE_URL}${mat.fileUrl}`} 
                  target="_blank" 
                  rel="noreferrer"
-                 className="flex items-center justify-center gap-2 w-full py-3 bg-brand-aliceBlue text-brand-prussian rounded-xl text-xs font-semibold hover:bg-brand-prussian hover:text-white transition-all shadow-sm active:scale-[0.98]"
+                 className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#0d4b5b] text-white rounded-xl text-[13px] font-bold hover:bg-[#093946] transition-all shadow-sm active:scale-[0.98]"
               >
-                <Download size={14} /> Download File
+                <Download size={16} strokeWidth={2.5} /> Download File
               </a>
             </div>
           ))}
@@ -236,50 +235,43 @@ export default function MaterialsAdmin() {
       )}
 
       {/* --- CREATE / EDIT MODAL --- */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-brand-prussian/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-2xl sm:rounded-[3rem] p-6 sm:p-10 shadow-2xl overflow-y-auto max-h-[90vh] relative">
+      {isModalOpen && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#0d4b5b]/30 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-[480px] rounded-[20px] p-6 shadow-2xl overflow-y-auto max-h-[90vh] relative">
             
-            {/* Close Button Mobile */}
-            <button 
-                onClick={closeModal}
-                className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 sm:hidden"
-            >
-                <X size={20} />
-            </button>
-
-            <h2 className="text-xl sm:text-2xl font-semibold text-brand-prussian mb-6 sm:mb-8 tracking-tight pr-8 sm:pr-0">
+            <h2 className="text-[15px] font-black text-gray-800 uppercase tracking-wide mb-4 mt-1">
               {editingId ? "Update Resource" : "Post New Resource"}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+            
+            <form onSubmit={handleSubmit} className="space-y-3.5">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Target Academic Class</label>
+                <label className="text-[12px] font-bold text-gray-700 block mb-1">Target Academic Class</label>
                 <select 
-                  required className="w-full p-3 sm:p-4 bg-brand-aliceBlue/50 rounded-xl sm:rounded-2xl border-none text-sm font-medium outline-none appearance-none"
+                  required className="w-full bg-white border border-gray-100 focus:ring-2 focus:ring-[#0d4b5b]/20 focus:border-[#0d4b5b] rounded-lg px-4 py-2 outline-none transition-all text-[13px] font-medium text-gray-500 cursor-pointer appearance-none"
                   value={formData.classId}
                   onChange={(e) => setFormData({...formData, classId: e.target.value})}
                 >
-                  <option value="">Select a class...</option>
+                  <option value="">Select a class</option>
                   {classes.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Resource Title</label>
+                <label className="text-[12px] font-bold text-gray-700 block mb-1">Resource Title</label>
                 <input 
                   type="text" required
-                  className="w-full p-3 sm:p-4 bg-brand-aliceBlue/50 rounded-xl sm:rounded-2xl border-none text-sm font-medium outline-none"
-                  placeholder="e.g. Week 1 Lecture Notes"
+                  className="w-full bg-white border border-gray-100 focus:ring-2 focus:ring-[#0d4b5b]/20 focus:border-[#0d4b5b] rounded-lg px-4 py-2 outline-none transition-all text-[13px] font-medium text-gray-500 placeholder:text-gray-300"
+                  placeholder="eg: Week 01 Lecture Notes"
                   value={formData.title}
                   onChange={(e) => setFormData({...formData, title: e.target.value})}
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Instructional Description</label>
+                <label className="text-[12px] font-bold text-gray-700 block mb-1">Instructional Description</label>
                 <textarea 
-                  rows={3}
-                  className="w-full p-3 sm:p-4 bg-brand-aliceBlue/50 rounded-xl sm:rounded-2xl border-none text-sm font-medium outline-none resize-none"
+                  rows={2}
+                  className="w-full bg-white border border-gray-100 focus:ring-2 focus:ring-[#0d4b5b]/20 focus:border-[#0d4b5b] rounded-lg px-4 py-2 outline-none transition-all text-[13px] font-medium text-gray-500 resize-none placeholder:text-gray-300"
                   placeholder="Explain what this file covers..."
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
@@ -287,22 +279,24 @@ export default function MaterialsAdmin() {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Upload File (PDF, PPTX, etc.)</label>
+                <label className="text-[12px] font-bold text-gray-700 block mb-1">Upload File (PDF, PPTX, etc.)</label>
                 <div className="relative">
                    <input 
                     type="file" 
                     onChange={(e) => e.target.files && setSelectedFile(e.target.files[0])}
-                    className="w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:bg-brand-cerulean file:text-white hover:file:bg-brand-prussian cursor-pointer bg-brand-aliceBlue/30 p-2 rounded-xl sm:rounded-2xl"
+                    className="w-full text-[13px] text-gray-400 file:mr-4 file:py-1.5 file:px-5 file:rounded-md file:border-0 file:text-[12px] file:font-bold file:bg-[#0d4b5b] file:text-white hover:file:bg-[#093946] cursor-pointer bg-white border border-gray-100 rounded-lg file:m-1"
                   />
                 </div>
-                {editingId && <p className="text-[10px] text-gray-400 mt-2 italic font-medium">Leave empty to keep the current file.</p>}
+                {editingId && <p className="text-[11px] text-gray-400 mt-1.5 font-medium">Leave empty to keep the current file.</p>}
               </div>
 
-              <div className="flex gap-3 sm:gap-4 pt-4">
-                <button type="button" onClick={closeModal} className="flex-1 py-3 sm:py-4 text-sm font-semibold text-gray-500 hover:bg-gray-100 rounded-xl sm:rounded-2xl transition-all">Discard</button>
+              <div className="flex gap-4 pt-3 pb-1">
+                <button type="button" onClick={closeModal} className="flex-1 py-2 rounded-lg bg-white border border-gray-200 text-[#0d4b5b] font-bold text-[13px] hover:bg-gray-50 transition-colors shadow-sm">
+                  Discard
+                </button>
                 <button 
                   type="submit" disabled={isUploading}
-                  className="flex-1 py-3 sm:py-4 text-sm font-semibold bg-brand-cerulean text-white rounded-xl sm:rounded-2xl shadow-xl shadow-brand-cerulean/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-2 rounded-lg bg-[#0d4b5b] text-white font-bold text-[13px] hover:bg-[#093946] transition-colors shadow-sm active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70"
                 >
                   {isUploading && <RotateCw className="w-4 h-4 animate-spin" />}
                   {isUploading ? "Processing..." : editingId ? "Update Resource" : "Upload Now"}
@@ -310,8 +304,9 @@ export default function MaterialsAdmin() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
-}
+}
