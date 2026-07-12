@@ -50,20 +50,20 @@ export default function QuizHistory() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-transparent">
-        <div className="w-10 h-10 border-4 border-gray-200 border-t-brand-cerulean rounded-full animate-spin mb-4"></div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-transparent font-sans">
+        <div className="w-10 h-10 border-4 border-gray-200 border-t-[#0A5B70] rounded-full animate-spin mb-4"></div>
         <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Loading Analytics...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto pb-24">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto pb-24 font-sans">
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-brand-prussian tracking-tight">Performance Analytics</h1>
-          <p className="text-sm text-gray-500 mt-1">Track your assessment history and improvement over time.</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">Performance Analytics</h1>
+<p className="text-sm text-gray-600 mt-1">Track your assessment history and improvement over time.</p>
         </div>
       </div>
 
@@ -79,17 +79,16 @@ export default function QuizHistory() {
         <>
           {/* Top Analytics Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <div className="bg-brand-prussian rounded-2xl p-6 text-white relative overflow-hidden shadow-lg shadow-brand-prussian/20">
-               <div className="absolute -right-4 -top-4 opacity-10"><Target size={100} /></div>
-               <p className="text-brand-aliceBlue/70 text-xs font-bold uppercase tracking-widest mb-1">Average Score</p>
+            <div className="bg-[#0A5B70] rounded-2xl p-6 text-white relative overflow-hidden shadow-lg shadow-[#0A5B70]/20 text-center">
+               <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Average Score</p>
                <h3 className="text-4xl font-black">{analytics.avgScore}%</h3>
             </div>
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-center">
-               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2"><TrendingUp size={14}/> Pass Rate</p>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
+   <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 flex items-center justify-center gap-2"><TrendingUp size={14}/> Pass Rate</p>
                <h3 className="text-3xl font-black text-gray-800">{analytics.passRate}%</h3>
             </div>
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-center">
-               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2"><Clock size={14}/> Total Time Spent</p>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
+   <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 flex items-center justify-center gap-2"><Clock size={14}/> Total Time Spent</p>
                <h3 className="text-3xl font-black text-gray-800">{analytics.totalTime} mins</h3>
             </div>
           </div>
@@ -110,20 +109,20 @@ export default function QuizHistory() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-xl hover:shadow-brand-cerulean/5 hover:-translate-y-1 transition-all duration-300 group"
+                    className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col hover:shadow-xl hover:shadow-[#0A5B70]/5 hover:-translate-y-1 transition-all duration-300 group"
                   >
                     <div className="p-6 flex-1 flex flex-col">
-                      <div className="flex justify-between items-start mb-4">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${isPassed ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                          {isPassed ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                          {isPassed ? "Passed" : "Failed"}
-                        </span>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                          <CalendarDays size={12} /> {date}
-                        </span>
-                      </div>
+                      <div className="flex justify-between items-center mb-4 gap-2">
+  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shrink-0 ${isPassed ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+    {isPassed ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+    {isPassed ? "Passed" : "Failed"}
+  </span>
+  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1 whitespace-nowrap shrink-0">
+    <CalendarDays size={12} /> {date}
+  </span>
+</div>
 
-                      <h3 className="font-bold text-lg text-brand-prussian line-clamp-2 mb-2 group-hover:text-brand-cerulean transition-colors">
+                      <h3 className="font-bold text-lg text-[#0A5B70] line-clamp-2 mb-2 group-hover:text-[#0A5B70]/80 transition-colors">
                         {quiz?.title || "Untitled Assessment"}
                       </h3>
                       
@@ -150,7 +149,7 @@ export default function QuizHistory() {
 
                       <button 
                         onClick={() => navigate(`/student/quizzes/result/${attempt._id}`)}
-                        className="w-full bg-brand-aliceBlue text-brand-prussian py-3.5 rounded-xl font-bold hover:bg-brand-prussian hover:text-white transition-colors flex items-center justify-center gap-2 text-sm"
+                        className="w-full bg-[#0A5B70] text-white py-3.5 rounded-xl font-bold hover:bg-[#0A5B70]/90 transition-colors flex items-center justify-center gap-2 text-sm shadow-md shadow-[#0A5B70]/20"
                       >
                         Detailed Analysis <ArrowRight size={16} />
                       </button>

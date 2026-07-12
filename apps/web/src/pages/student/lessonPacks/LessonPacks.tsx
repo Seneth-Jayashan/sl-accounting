@@ -47,14 +47,14 @@ export default function StudentLessonPacks() {
   }, [packs, searchTerm]);
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto pb-24 font-sans min-h-screen bg-gray-50/50">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto pb-24 font-sans min-h-screen">
       <header className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-black text-brand-prussian tracking-tight">Premium Playlists</h1>
-        <p className="text-sm text-gray-500 mt-1">Unlock exclusive lesson bundles and revision archives.</p>
+        <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">Premium Playlists</h1>
+        <p className="text-sm text-gray-600 mt-1">Unlock exclusive lesson bundles and revision archives.</p>
       </header>
 
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-brand-aliceBlue mb-8">
-        <div className="relative w-full max-w-md">
+        <div className="relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input 
             type="text" placeholder="Search playlists..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}

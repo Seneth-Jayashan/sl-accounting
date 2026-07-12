@@ -9,7 +9,8 @@ import {
   Zap,
   UploadCloud,
   Calendar,
-  Book
+  Book,
+  RefreshCw
 } from "lucide-react";
 
 import EnrollmentService, { type EnrollmentResponse, type EnrolledClass } from "../../../services/EnrollmentService";
@@ -41,24 +42,30 @@ export default function ViewEnrollments() {
   
   const [enrollments, setEnrollments] = useState<EnrollmentResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "paid" | "pending">("all");
 
+  const fetchEnrollments = async () => {
+    if (!user) return;
+    try {
+      const data = await EnrollmentService.getMyEnrollments();
+      setEnrollments(data || []);
+    } catch (error) {
+      console.error("Failed to fetch enrollments");
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    let isMounted = true;
-    const fetchEnrollments = async () => {
-      if (!user) return;
-      try {
-        const data = await EnrollmentService.getMyEnrollments();
-        if (isMounted) setEnrollments(data || []);
-      } catch (error) {
-        console.error("Failed to fetch enrollments");
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
     fetchEnrollments();
-    return () => { isMounted = false; };
   }, [user]);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    fetchEnrollments();
+  };
 
   const filteredEnrollments = useMemo(() => {
       return enrollments.filter(e => {
@@ -72,12 +79,13 @@ export default function ViewEnrollments() {
   }, [enrollments, filter]);
 
   return (
-      <div className="min-h-screen bg-[#F8FAFC] pb-32">
+      <div className="min-h-screen pb-32">
         
         {/* --- Modern Hero Header --- */}
-        <div className="relative bg-white border-b border-gray-100 pt-10 pb-16 px-6 sm:px-10 overflow-hidden">
-            <div className="max-w-7xl mx-auto relative z-10">
-                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-8">
+        <div className="relative pt-10 pb-8 px-4 sm:px-6 overflow-hidden">
+            <div className="max-w-7xl mx-auto relative z-10 flex flex-col gap-6">
+                {/* Card 1: Title + New Classes button */}
+                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 rounded-2xl  px-6 sm:px-8 py-6">
                     <div>
                         <motion.h1 
                             initial={{ opacity: 0, y: 10 }}
@@ -96,41 +104,52 @@ export default function ViewEnrollments() {
                         </motion.p>
                     </div>
 
-                    <div className="flex items-center gap-3 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
-                        {(['all', 'paid', 'pending'] as const).map((f) => (
-                            <button
-                                key={f}
-                                onClick={() => setFilter(f)}
-                                className={`px-6 py-2.5 text-sm font-bold rounded-xl capitalize transition-all duration-300 ${
-                                    filter === f 
-                                    ? "bg-white text-brand-prussian shadow-lg shadow-gray-200 ring-1 ring-black/5" 
-                                    : "text-gray-400 hover:text-gray-600"
-                                }`}
-                            >
-                                {f === 'all' ? 'All Courses' : f}
-                            </button>
-                        ))}
+                    <button
+                        onClick={() => navigate(`/classes`)}
+                        className="flex items-center gap-2 bg-[#0A5B70] text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-brand-cerulean transition-all shadow-sm active:scale-95 shrink-0"
+                    >
+                        <Book size={16} />
+                        <span className="hidden sm:inline">New Classes</span>
+                        <span className="sm:hidden">Class</span>
+                    </button>
+                </div>
 
-                        <button
-                            onClick={() => navigate(`/classes`)}
-                            className="flex items-center gap-2 bg-brand-prussian text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-brand-cerulean transition-all shadow-sm active:scale-95 shrink-0"
+                {/* Card 2: Filter dropdown + Refresh button */}
+                <div className="flex items-center gap-2 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+    <div className="relative flex-1">
+        <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as "all" | "paid" | "pending")}
+            className="w-full appearance-none bg-gray-50 text-brand-prussian font-bold text-sm rounded-xl pl-5 pr-10 py-2.5 border border-gray-200 cursor-pointer outline-none capitalize"
+        >
+                            <option value="all">All Courses</option>
+                            <option value="paid">Paid</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                        <svg 
+                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-prussian" 
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor"
                         >
-                            <Book size={16} />
-                            <span className="hidden sm:inline">New Classes</span>
-                            <span className="sm:hidden">Class</span>
-                        </button>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        </svg>
                     </div>
+
+                    <button
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        title="Refresh"
+                        className="flex items-center justify-center w-10 h-10 rounded-xl text-gray-400 hover:text-brand-prussian hover:bg-gray-50 transition-all shrink-0"
+                    >
+                        <RefreshCw size={18} className={isRefreshing ? "animate-spin" : ""} />
+                    </button>
                 </div>
             </div>
-            
-            {/* Decorative Background Blur */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-brand-cerulean/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
         </div>
 
         {/* --- Content Grid --- */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 -mt-8 relative z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-20">
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {[1, 2, 3].map(i => (
                         <div key={i} className="bg-white h-[420px] rounded-3xl animate-pulse shadow-sm"></div>
                     ))}
@@ -139,7 +158,7 @@ export default function ViewEnrollments() {
                 <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white rounded-[2.5rem] p-16 text-center flex flex-col items-center shadow-xl shadow-gray-100 border border-white"
+                    className="bg-white rounded-2xl p-16 text-center flex flex-col items-center shadow-sm border border-gray-100"
                 >
                     <div className="w-24 h-24 bg-brand-aliceBlue/50 rounded-full flex items-center justify-center mb-6">
                         <Sparkles className="w-10 h-10 text-brand-cerulean" />
@@ -159,7 +178,7 @@ export default function ViewEnrollments() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ staggerChildren: 0.1 }}
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
                 >
                     {filteredEnrollments.map((enrollment) => {
                         if(!enrollment.lessonPack) {
@@ -194,10 +213,10 @@ export default function ViewEnrollments() {
                                         {/* Glass Status Badge */}
                                         <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
                                             <div className={`backdrop-blur-md px-3 py-1.5 rounded-full border shadow-sm flex items-center gap-2 ${
-                                                isPaid 
-                                                ? "bg-white/80 border-white/50 text-green-700" 
-                                                : "bg-white/90 border-white/50 text-brand-coral"
-                                            }`}>
+    isPaid 
+    ? "bg-green-100/80 border-green-200/50 text-green-700" 
+    : "bg-white/90 border-white/50 text-brand-coral"
+}`}>
                                                 <div className={`w-2 h-2 rounded-full ${isPaid ? "bg-green-500" : "bg-brand-coral animate-pulse"}`}></div>
                                                 <span className="text-[10px] font-bold uppercase tracking-widest">
                                                     {isPaid ? "Active" : status === 'pending' ? "Verifying" : "Locked"}

@@ -11,11 +11,11 @@ import {
     isBefore,
     isAfter
 } from "date-fns";
+import { ChevronLeft } from "lucide-react";
 import { 
   CloudArrowUpIcon, 
   DocumentTextIcon, 
   XMarkIcon,
-  ArrowLeftIcon,
   ExclamationCircleIcon,
   CalendarDaysIcon,
   CheckCircleIcon,
@@ -257,204 +257,216 @@ export default function UploadPaymentSlip() {
   );
 
   return (
-      <div className="min-h-screen bg-gray-50/50 py-8 px-4 font-sans flex items-center justify-center">
-        
-        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 p-8 sm:p-12 border border-gray-100 max-w-2xl w-full">
-            
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-gray-100 pb-6">
+      <div className="min-h-screen py-8 px-4 font-sans">
+        <div className="max-w-2xl mx-auto">
+
+            {/* Header (outside the card) */}
+            <div className="flex items-center gap-3 mb-6">
+                <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 hover:bg-gray-50 transition flex-shrink-0"
+                    title="Back"
+                >
+                    <ChevronLeft className="w-5 h-5" style={{ color: "#0A5B70" }} />
+                </button>
                 <div>
-                    <button onClick={() => navigate(-1)} className="flex items-center text-gray-400 hover:text-brand-cerulean transition-colors text-sm font-bold uppercase tracking-wider mb-2 group">
-                        <ArrowLeftIcon className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" /> Back
-                    </button>
-                    <h1 className="text-3xl font-black text-brand-prussian tracking-tight">Upload Payment Slip</h1>
-                    <p className="text-gray-500 font-medium mt-1">
+                    <h1 className="text-xl font-black text-brand-prussian tracking-tight leading-tight">Upload Payment Slip</h1>
+                    <p className="text-gray-500 font-medium text-sm">
                         For: <span className="font-bold text-brand-cerulean">{classData?.name || "Loading..."}</span>
                     </p>
                 </div>
             </div>
 
-            {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center text-red-600 text-xs font-medium animate-fade-in-up">
-                    <ExclamationCircleIcon className="w-5 h-5 mr-2 shrink-0" />{error}
-                </div>
-            )}
+            <div className="bg-white rounded-[1.5rem] shadow-xl shadow-gray-200/50 p-8 sm:p-12 border border-gray-100 w-full">
 
-            <div className="space-y-8">
-                
-                {/* 1. MONTH SELECTION (Conditional) */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Billing Cycle <span className="text-red-500">*</span></label>
-                    {isPreConfigured ? (
-                        <div className="inline-flex items-center gap-2 bg-brand-aliceBlue/50 text-brand-prussian px-5 py-3 rounded-2xl text-sm font-bold border border-brand-aliceBlue w-full">
-                            <CalendarDaysIcon className="w-5 h-5 text-brand-cerulean" />
-                            
-                            {/* FIX: Avoid parsing 'Lifetime Access' as a Date */}
-                            {selectedMonth === "Lifetime Access" ? (
-                                "Lifetime Access"
-                            ) : (
-                                format(new Date(selectedMonth), "MMMM yyyy")
-                            )}
-                            
-                            <span className="ml-auto text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded font-bold uppercase tracking-wider">Locked</span>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-                            {monthOptions.map(opt => {
-                                let borderClass = "border-gray-100 hover:border-gray-200 bg-white";
-                                let badge = null;
-
-                                if (opt.status === 'overdue' && !opt.isPaid) {
-                                    borderClass = "border-red-100 bg-red-50/20";
-                                    badge = <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Overdue</span>;
-                                } else if (opt.status === 'advance') {
-                                    badge = <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Advance</span>;
-                                } else if (opt.status === 'due') {
-                                    borderClass = "border-brand-cerulean/30 bg-brand-aliceBlue/10";
-                                    badge = <span className="text-[10px] font-bold text-brand-cerulean bg-brand-aliceBlue px-2 py-0.5 rounded-full border border-brand-cerulean/20">Due</span>;
-                                }
-
-                                if (selectedMonth === opt.value) {
-                                    borderClass = "border-brand-cerulean ring-2 ring-brand-cerulean bg-brand-aliceBlue/20 shadow-md";
-                                }
-
-                                if (opt.isPaid) {
-                                    borderClass = "border-gray-100 opacity-60 cursor-not-allowed";
-                                }
-
-                                return (
-                                    <button
-                                        key={opt.value}
-                                        disabled={opt.isPaid}
-                                        onClick={() => setSelectedMonth(opt.value)}
-                                        className={`relative p-3 rounded-xl border text-left transition-all flex flex-col items-start gap-1 ${borderClass}`}
-                                    >
-                                        <div className="flex justify-between w-full items-center">
-                                            <span className="font-bold text-sm text-gray-700">{opt.label}</span>
-                                            {opt.isPaid ? <CheckCircleIcon className="w-5 h-5 text-green-500" /> : badge}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
+                {/* Card Section Title */}
+                <div className="mb-8 pb-6 border-b border-gray-100">
+                    <h2 className="text-xs font-bold text-brand-cerulean uppercase tracking-widest">Upload Payment Slip</h2>
                 </div>
 
-                {/* 2. BUNDLE OPTIONS (Only show if NOT pre-configured & Data exists) */}
-                {!isPreConfigured && (isLinkedClass(classData?.linkedRevisionClass) || isLinkedClass(classData?.linkedPaperClass)) && (
-                    <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                        <div className="flex items-center gap-2 mb-4 text-brand-prussian">
-                            <TagIcon className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-widest">Add Extras</span>
-                        </div>
-                        <div className="space-y-3">
-                            {isLinkedClass(classData?.linkedRevisionClass) && (
-                                <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all bg-white hover:shadow-sm ${includeRevision ? 'border-brand-cerulean ring-1 ring-brand-cerulean' : 'border-gray-200'}`}>
-                                    <input type="checkbox" className="w-5 h-5 text-brand-cerulean rounded border-gray-300 focus:ring-brand-cerulean" checked={includeRevision} onChange={e => setIncludeRevision(e.target.checked)} />
-                                    <div className="flex-1 text-sm font-medium text-gray-700">Revision Class</div>
-                                    <span className="text-sm font-bold text-brand-prussian">+{formatPrice(classData!.linkedRevisionClass!.price)}</span>
-                                </label>
-                            )}
-                            {isLinkedClass(classData?.linkedPaperClass) && (
-                                <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all bg-white hover:shadow-sm ${includePaper ? 'border-brand-cerulean ring-1 ring-brand-cerulean' : 'border-gray-200'}`}>
-                                    <input type="checkbox" className="w-5 h-5 text-brand-cerulean rounded border-gray-300 focus:ring-brand-cerulean" checked={includePaper} onChange={e => setIncludePaper(e.target.checked)} />
-                                    <div className="flex-1 text-sm font-medium text-gray-700">Paper Class</div>
-                                    <span className="text-sm font-bold text-brand-prussian">+{formatPrice(classData!.linkedPaperClass!.price)}</span>
-                                </label>
-                            )}
-                        </div>
+                {error && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center text-red-600 text-xs font-medium animate-fade-in-up">
+                        <ExclamationCircleIcon className="w-5 h-5 mr-2 shrink-0" />{error}
                     </div>
                 )}
 
-                {/* 3. AMOUNT INPUT */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Amount (LKR) <span className="text-red-500">*</span></label>
-                    <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <span className="text-gray-400 font-bold text-lg">Rs.</span>
-                        </div>
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            required
-                            readOnly={isPreConfigured} 
-                            className={`w-full pl-14 p-4 rounded-2xl outline-none transition-all font-mono font-bold text-gray-800 text-xl ${
-                                isPreConfigured 
-                                ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed" 
-                                : "bg-white border-2 border-brand-aliceBlue focus:border-brand-cerulean focus:ring-4 focus:ring-brand-cerulean/10"
-                            }`}
-                            placeholder="0.00"
-                            value={manualAmount}
-                            onChange={(e) => setManualAmount(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                {/* 4. DROP ZONE */}
-                {!file ? (
-                    <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-[2rem] cursor-pointer transition-all duration-300 group ${error ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50 hover:bg-brand-aliceBlue/30 hover:border-brand-cerulean'}`}>
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <div className="p-4 bg-white rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                                <CloudArrowUpIcon className={`w-8 h-8 ${error ? 'text-red-400' : 'text-brand-cerulean'}`} />
+                <div className="space-y-8">
+                    
+                    {/* 1. MONTH SELECTION (Conditional) */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Billing Cycle <span className="text-red-500">*</span></label>
+                        {isPreConfigured ? (
+                            <div className="inline-flex items-center gap-2 bg-brand-aliceBlue/50 text-brand-prussian px-5 py-3 rounded-2xl text-sm font-bold border border-brand-aliceBlue w-full">
+                                <CalendarDaysIcon className="w-5 h-5 text-brand-cerulean" />
+                                
+                                {/* FIX: Avoid parsing 'Lifetime Access' as a Date */}
+                                {selectedMonth === "Lifetime Access" ? (
+                                    "Lifetime Access"
+                                ) : (
+                                    format(new Date(selectedMonth), "MMMM yyyy")
+                                )}
+                                
+                                <span className="ml-auto text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded font-bold uppercase tracking-wider">Locked</span>
                             </div>
-                            <p className="mb-1 text-sm text-gray-600 font-medium">Click to upload slip</p>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wide">JPG, PNG OR JPEG</p>
-                        </div>
-                        <input type="file" className="hidden" accept={ALLOWED_TYPES.join(',')} onChange={handleFileChange} />
-                    </label>
-                ) : (
-                    <div className="relative w-full h-48 bg-gray-900 rounded-[2rem] overflow-hidden flex items-center justify-center border border-gray-200 group shadow-md">
-                        {previewUrl ? (
-                            <img src={previewUrl} alt="Slip Preview" className="h-full w-full object-contain opacity-90 group-hover:opacity-100 transition-opacity" />
                         ) : (
-                            <div className="flex flex-col items-center text-white">
-                                <DocumentTextIcon className="w-12 h-12 mb-2 opacity-50" />
-                                <span className="text-sm font-medium">{file.name}</span>
-                                <span className="text-xs opacity-50 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                {monthOptions.map(opt => {
+                                    let borderClass = "border-gray-100 hover:border-gray-200 bg-white";
+                                    let badge = null;
+
+                                    if (opt.status === 'overdue' && !opt.isPaid) {
+                                        borderClass = "border-red-100 bg-red-50/20";
+                                        badge = <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Overdue</span>;
+                                    } else if (opt.status === 'advance') {
+                                        badge = <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Advance</span>;
+                                    } else if (opt.status === 'due') {
+                                        borderClass = "border-brand-cerulean/30 bg-brand-aliceBlue/10";
+                                        badge = <span className="text-[10px] font-bold text-brand-cerulean bg-brand-aliceBlue px-2 py-0.5 rounded-full border border-brand-cerulean/20">Due</span>;
+                                    }
+
+                                    if (selectedMonth === opt.value) {
+                                        borderClass = "border-brand-cerulean ring-2 ring-brand-cerulean bg-brand-aliceBlue/20 shadow-md";
+                                    }
+
+                                    if (opt.isPaid) {
+                                        borderClass = "border-gray-100 opacity-60 cursor-not-allowed";
+                                    }
+
+                                    return (
+                                        <button
+                                            key={opt.value}
+                                            disabled={opt.isPaid}
+                                            onClick={() => setSelectedMonth(opt.value)}
+                                            className={`relative p-3 rounded-xl border text-left transition-all flex flex-col items-start gap-1 ${borderClass}`}
+                                        >
+                                            <div className="flex justify-between w-full items-center">
+                                                <span className="font-bold text-sm text-gray-700">{opt.label}</span>
+                                                {opt.isPaid ? <CheckCircleIcon className="w-5 h-5 text-green-500" /> : badge}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
-                        <button onClick={handleRemoveFile} className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur-md text-white rounded-full hover:bg-red-500 transition-colors shadow-lg border border-white/10">
-                            <XMarkIcon className="w-5 h-5" />
-                        </button>
                     </div>
-                )}
 
-                {/* Notes */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Whatsapp Number / ළගම Post Office එක <span className="text-red-500">*</span></label>
-                    <textarea 
-                        rows={2}
-                        className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean outline-none text-sm transition-all resize-none placeholder:text-gray-400"
-                        placeholder="070-1234567 / බද්දේගම තැපැල් කාර්යාලය"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        required={true}
-                    />
+                    {/* 2. BUNDLE OPTIONS (Only show if NOT pre-configured & Data exists) */}
+                    {!isPreConfigured && (isLinkedClass(classData?.linkedRevisionClass) || isLinkedClass(classData?.linkedPaperClass)) && (
+                        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                            <div className="flex items-center gap-2 mb-4 text-brand-prussian">
+                                <TagIcon className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-widest">Add Extras</span>
+                            </div>
+                            <div className="space-y-3">
+                                {isLinkedClass(classData?.linkedRevisionClass) && (
+                                    <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all bg-white hover:shadow-sm ${includeRevision ? 'border-brand-cerulean ring-1 ring-brand-cerulean' : 'border-gray-200'}`}>
+                                        <input type="checkbox" className="w-5 h-5 text-brand-cerulean rounded border-gray-300 focus:ring-brand-cerulean" checked={includeRevision} onChange={e => setIncludeRevision(e.target.checked)} />
+                                        <div className="flex-1 text-sm font-medium text-gray-700">Revision Class</div>
+                                        <span className="text-sm font-bold text-brand-prussian">+{formatPrice(classData!.linkedRevisionClass!.price)}</span>
+                                    </label>
+                                )}
+                                {isLinkedClass(classData?.linkedPaperClass) && (
+                                    <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all bg-white hover:shadow-sm ${includePaper ? 'border-brand-cerulean ring-1 ring-brand-cerulean' : 'border-gray-200'}`}>
+                                        <input type="checkbox" className="w-5 h-5 text-brand-cerulean rounded border-gray-300 focus:ring-brand-cerulean" checked={includePaper} onChange={e => setIncludePaper(e.target.checked)} />
+                                        <div className="flex-1 text-sm font-medium text-gray-700">Paper Class</div>
+                                        <span className="text-sm font-bold text-brand-prussian">+{formatPrice(classData!.linkedPaperClass!.price)}</span>
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 3. AMOUNT INPUT */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Amount (LKR) <span className="text-red-500">*</span></label>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <span className="text-gray-400 font-bold text-lg">Rs.</span>
+                            </div>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                required
+                                readOnly={isPreConfigured} 
+                                className={`w-full pl-14 p-4 rounded-2xl outline-none transition-all font-mono font-bold text-gray-800 text-xl ${
+                                    isPreConfigured 
+                                    ? "bg-gray-50 border border-gray-200 text-gray-500 cursor-not-allowed" 
+                                    : "bg-white border-2 border-brand-aliceBlue focus:border-brand-cerulean focus:ring-4 focus:ring-brand-cerulean/10"
+                                }`}
+                                placeholder="0.00"
+                                value={manualAmount}
+                                onChange={(e) => setManualAmount(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 4. DROP ZONE */}
+                    {!file ? (
+                        <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-[2rem] cursor-pointer transition-all duration-300 group ${error ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50 hover:bg-brand-aliceBlue/30 hover:border-brand-cerulean'}`}>
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <div className="p-4 bg-white rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                                    <CloudArrowUpIcon className={`w-8 h-8 ${error ? 'text-red-400' : 'text-brand-cerulean'}`} />
+                                </div>
+                                <p className="mb-1 text-sm text-gray-600 font-medium">Click to upload slip</p>
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wide">JPG, PNG OR JPEG</p>
+                            </div>
+                            <input type="file" className="hidden" accept={ALLOWED_TYPES.join(',')} onChange={handleFileChange} />
+                        </label>
+                    ) : (
+                        <div className="relative w-full h-48 bg-gray-900 rounded-[2rem] overflow-hidden flex items-center justify-center border border-gray-200 group shadow-md">
+                            {previewUrl ? (
+                                <img src={previewUrl} alt="Slip Preview" className="h-full w-full object-contain opacity-90 group-hover:opacity-100 transition-opacity" />
+                            ) : (
+                                <div className="flex flex-col items-center text-white">
+                                    <DocumentTextIcon className="w-12 h-12 mb-2 opacity-50" />
+                                    <span className="text-sm font-medium">{file.name}</span>
+                                    <span className="text-xs opacity-50 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                                </div>
+                            )}
+                            <button onClick={handleRemoveFile} className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur-md text-white rounded-full hover:bg-red-500 transition-colors shadow-lg border border-white/10">
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Notes */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Whatsapp Number / Nearest Post Office <span className="text-red-500">*</span></label>
+                        <textarea 
+                            rows={2}
+                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean outline-none text-sm transition-all resize-none placeholder:text-gray-400"
+                            placeholder="070-1234567 / Baddegama Post Office"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            required={true}
+                        />
+                    </div>
+
+                    {/* Submit */}
+                    <button
+                        onClick={handleUpload}
+                        disabled={!file || !manualAmount || uploading || !!success || !selectedMonth}
+                        className={`w-full py-4 rounded-2xl font-bold text-white transition-all shadow-lg shadow-brand-prussian/20 flex items-center justify-center text-sm uppercase tracking-wide transform active:scale-[0.98] ${
+                            !file || !manualAmount || uploading || !!success || !selectedMonth
+                            ? "bg-gray-300 cursor-not-allowed shadow-none text-gray-500" 
+                            : "bg-brand-prussian hover:bg-brand-cerulean hover:shadow-brand-cerulean/30"
+                        }`}
+                    >
+                        {uploading ? (
+                            <span className="flex items-center gap-2">
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                Uploading...
+                            </span>
+                        ) : success ? "Uploaded Successfully" : "Submit Payment Slip"}
+                    </button>
+
+                    <div className="flex items-center justify-center gap-2 text-[10px] text-gray-400 font-medium pt-2">
+                        <ShieldCheckIcon className="w-3 h-3" /> Secure Transmission
+                    </div>
+
                 </div>
-
-                {/* Submit */}
-                <button
-                    onClick={handleUpload}
-                    disabled={!file || !manualAmount || uploading || !!success || !selectedMonth}
-                    className={`w-full py-4 rounded-2xl font-bold text-white transition-all shadow-lg shadow-brand-prussian/20 flex items-center justify-center text-sm uppercase tracking-wide transform active:scale-[0.98] ${
-                        !file || !manualAmount || uploading || !!success || !selectedMonth
-                        ? "bg-gray-300 cursor-not-allowed shadow-none text-gray-500" 
-                        : "bg-brand-prussian hover:bg-brand-cerulean hover:shadow-brand-cerulean/30"
-                    }`}
-                >
-                    {uploading ? (
-                        <span className="flex items-center gap-2">
-                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                            Uploading...
-                        </span>
-                    ) : success ? "Uploaded Successfully" : "Submit Payment Slip"}
-                </button>
-
-                <div className="flex items-center justify-center gap-2 text-[10px] text-gray-400 font-medium pt-2">
-                    <ShieldCheckIcon className="w-3 h-3" /> Secure Transmission
-                </div>
-
             </div>
         </div>
       </div>

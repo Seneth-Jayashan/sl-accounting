@@ -11,6 +11,9 @@ import {
     isSameMonth 
 } from "date-fns";
 import {
+  ChevronLeft,
+} from "lucide-react";
+import {
   CreditCardIcon,
   BuildingLibraryIcon,
   ArrowLeftIcon,
@@ -254,18 +257,25 @@ export default function ClassPaymentPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50/50 py-8 px-4 font-sans">
+    <div className="min-h-screen  py-8 px-4 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6">
             <div>
-                <button onClick={() => navigate(-1)} className="group flex items-center text-sm font-bold text-gray-400 hover:text-brand-cerulean transition-colors mb-2 uppercase tracking-wider">
-                    <ArrowLeftIcon className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Back
-                </button>
-                <h1 className="text-3xl font-black text-brand-prussian tracking-tight">Monthly Payments</h1>
-                <p className="text-gray-500 font-medium">Securely manage your fees for <span className="text-brand-cerulean font-bold">{classData?.name}</span></p>
-            </div>
+    <div className="flex items-center gap-3 mb-2">
+        <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white border border-gray-200 hover:bg-gray-50 transition flex-shrink-0"
+            title="Back"
+        >
+            <ChevronLeft className="w-5 h-5" style={{ color: "#0A5B70" }} />
+        </button>
+        <h1 className="text-3xl font-black text-brand-prussian tracking-tight">Monthly Payments</h1>
+    </div>
+    <p className="text-gray-500 font-medium ml-12">Securely manage your fees for <span className="text-brand-cerulean font-bold">{classData?.name}</span></p>
+</div>
             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
                 <LockClosedIcon className="w-4 h-4 text-green-500" />
                 <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">SSL Secured Checkout</span>
@@ -284,7 +294,7 @@ export default function ClassPaymentPage() {
             <div className="lg:col-span-2 space-y-8">
                 
                 {/* 1. Month Selection */}
-                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className="bg-white p-6 sm:p-8 rounded-[1.2rem] shadow-sm border border-gray-100">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-brand-aliceBlue/50 rounded-xl text-brand-cerulean"><CalendarDaysIcon className="w-6 h-6" /></div>
                         <h2 className="text-lg font-bold text-brand-prussian">Select Billing Cycle</h2>
@@ -388,7 +398,7 @@ export default function ClassPaymentPage() {
                 )}
 
                 {/* 3. Payment Method */}
-                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+                <div className="bg-white p-6 sm:p-8 rounded-[1.2rem] shadow-sm border border-gray-100">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-brand-aliceBlue/50 rounded-xl text-brand-cerulean"><CreditCardIcon className="w-6 h-6" /></div>
                         <h2 className="text-lg font-bold text-brand-prussian">Payment Method</h2>
@@ -482,7 +492,7 @@ export default function ClassPaymentPage() {
 
             {/* RIGHT COLUMN: Sticky Summary */}
             <div className="lg:col-span-1">
-                <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 sticky top-6">
+                <div className="bg-white p-6 sm:p-8 rounded-[1.2rem] shadow-xl shadow-gray-200/50 border border-gray-100 sticky top-6">
                     <h3 className="font-bold text-brand-prussian mb-6 text-lg">Order Summary</h3>
                     
                     <div className="space-y-4 mb-8 pb-8 border-b border-dashed border-gray-200">

@@ -54,7 +54,7 @@ export default function MyTutesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">My Study Packs</h1>
-          <p className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Track physical tute deliveries</p>
+          <p className="text-sm text-gray-600 mt-1">Track physical tute deliveries</p>
         </div>
         <button
             onClick={fetchDeliveries}
@@ -174,9 +174,9 @@ function DeliveryRow({ delivery, onConfirm, isProcessing }: DeliveryItemProps) {
                       {delivery.courierService || "SL Post"}
                   </div>
                   {delivery.trackingId ? (
-                      <div className="text-[10px] font-mono text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded w-fit select-all">
-                          {delivery.trackingId}
-                      </div>
+                      <div className="text-[10px] font-semibold tracking-wide text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded w-fit select-all">
+    {delivery.trackingId}
+</div>
                   ) : (
                       <span className="text-[9px] text-gray-400 italic">No tracking provided</span>
                   )}
@@ -232,9 +232,9 @@ function MobileDeliveryCard({ delivery, onConfirm, isProcessing }: DeliveryItemP
                 {delivery.trackingId && (
                     <div className="flex items-center gap-2 pl-6">
                         <span className="text-[10px] text-gray-400 uppercase font-bold">Ref:</span>
-                        <span className="text-xs font-mono text-gray-600 bg-white px-1.5 rounded border border-gray-200 select-all">
-                            {delivery.trackingId}
-                        </span>
+                        <span className="text-xs font-semibold tracking-wide text-gray-600 bg-white px-1.5 rounded border border-gray-200 select-all">
+    {delivery.trackingId}
+</span>
                     </div>
                 )}
                 {delivery.sentAt && (
@@ -262,7 +262,7 @@ function MobileDeliveryCard({ delivery, onConfirm, isProcessing }: DeliveryItemP
 function StatusBadge({ status }: { status: string }) {
   const configs: any = {
     delivered: { color: "bg-emerald-50 text-emerald-600 border-emerald-100", icon: <CheckBadgeIcon className="w-3 h-3" />, label: "Received" },
-    shipped: { color: "bg-blue-50 text-blue-600 border-blue-100 animate-pulse", icon: <TruckIcon className="w-3 h-3" />, label: "On the way" },
+    shipped: { color: "bg-blue-50 text-blue-600 border-blue-100 animate-pulse", icon: <TruckIcon className="w-3 h-3" />, label: "On The Way" },
     pending: { color: "bg-amber-50 text-amber-600 border-amber-100", icon: <ClockIcon className="w-3 h-3" />, label: "Processing" },
   };
 
