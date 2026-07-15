@@ -20,6 +20,9 @@ const getServerUrl = (path?: string) => {
   return `${import.meta.env.VITE_API_BASE_URL}/${path}`;
 };
 
+const capitalize = (str?: string) =>
+  str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
+
 export default function StudentProfile() {
   const { user, fetchMe } = useAuth(); 
   const [activeTab, setActiveTab] = useState<"personal" | "academic" | "security">("personal");
@@ -84,11 +87,13 @@ export default function StudentProfile() {
 
           {/* Info */}
           <div className="text-center md:text-left z-10 flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">{user.firstName} {user.lastName}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {capitalize(user.firstName)} {capitalize(user.lastName)}
+            </h1>
             <p className="text-gray-500 flex items-center justify-center md:justify-start gap-2 mt-1">
               <Mail size={14} /> {user.email}
             </p>
-            <div className="flex items-center justify-center md:justify-start gap-3 mt-3">
+            <div className="flex items-center justify-center md:justify-start gap-3 mt-8">
               <span className="px-3 py-1 bg-brand-aliceBlue text-brand-cerulean text-xs font-bold rounded-full uppercase tracking-wider">
                 {user.role}
               </span>

@@ -225,6 +225,12 @@ export default function StudentTicketPage(): React.ReactElement {
 
   return (
       <div className={`max-w-7xl mx-auto ${inChatMode ? 'h-[calc(100vh-64px)] supports-[height:100dvh]:h-[calc(100dvh-64px)] md:h-auto md:min-h-0' : ''}`}>
+        {!inChatMode && (
+          <header className="mb-6">
+            <p className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">Submit a Ticket</p>
+            <p className="text-sm text-gray-600 mt-1">Describe the issue you are facing and we will get back to you.</p>
+          </header>
+        )}
         <div className={`bg-white rounded-2xl shadow-sm ${inChatMode ? 'h-full flex flex-col overflow-hidden md:h-auto md:block md:overflow-visible p-0 md:p-8' : 'p-4 md:p-8'}`}>
           {inChatMode ? (
             // Ticket exists and is not closed: show only chat with heading
@@ -259,15 +265,10 @@ export default function StudentTicketPage(): React.ReactElement {
             </div>
           ) : (
             <>
-              <header className="mb-6">
-                <p className="text-sm text-gray-500">Support</p>
-                <h1 className="text-2xl md:text-3xl font-semibold text-[#053A4E]">Submit a Ticket</h1>
-                <p className="text-gray-600 mt-2">Describe the issue you are facing and we will get back to you.</p>
-              </header>
-
+              <p className="text-ls font-bold text-[#0A5B70] uppercase tracking-wider mb-6">SUBMIT A TICKET</p>
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1 text-sm font-semibold text-[#053A4E]">
+              <label className="flex flex-col gap-1 text-sm text-[#053A4E]">
                 Full name
                 <div className="relative">
                   <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -285,7 +286,7 @@ export default function StudentTicketPage(): React.ReactElement {
                 </div>
               </label>
 
-              <label className="flex flex-col gap-1 text-sm font-semibold text-[#053A4E]">
+              <label className="flex flex-col gap-1 text-sm text-[#053A4E]">
                 Email
                 <div className="relative">
                   <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -301,7 +302,7 @@ export default function StudentTicketPage(): React.ReactElement {
                 </div>
               </label>
 
-              <label className="flex flex-col gap-1 text-sm font-semibold text-[#053A4E]">
+              <label className="flex flex-col gap-1 text-sm text-[#053A4E]">
                 Phone number
                 <div className="relative">
                   <FaPhoneAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -318,7 +319,7 @@ export default function StudentTicketPage(): React.ReactElement {
                 <span className="text-xs text-gray-500">Enter a 10 digit number</span>
               </label>
 
-              <label className="flex flex-col gap-1 text-sm font-semibold text-[#053A4E]">
+              <label className="flex flex-col gap-1 text-sm text-[#053A4E]">
                 Category
                 <div className="relative">
                   <FaClipboardList className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -326,7 +327,7 @@ export default function StudentTicketPage(): React.ReactElement {
                     name="category"
                     value={form.category}
                     onChange={handleChange}
-                    className="w-full bg-white border border-gray-200 pl-10 pr-3 py-3 rounded-xl focus:border-[#05668A] focus:ring-1 focus:ring-[#05668A]"
+                    className="w-full appearance-none bg-white border border-gray-200 pl-10 pr-9 py-3 rounded-xl focus:border-[#05668A] focus:ring-1 focus:ring-[#05668A]"
                   >
                     {CATEGORY_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>
@@ -334,10 +335,18 @@ export default function StudentTicketPage(): React.ReactElement {
                       </option>
                     ))}
                   </select>
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#05668A] pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
               </label>
 
-              <label className="flex flex-col gap-1 text-sm font-semibold text-[#053A4E]">
+              <label className="flex flex-col gap-1 text-sm text-[#053A4E]">
                 Priority
                 <div className="relative">
                   <FaFlag className="absolute left-3 top-1/2 -translate-y-1/2 text-[#05668A]" />
@@ -345,7 +354,7 @@ export default function StudentTicketPage(): React.ReactElement {
                     name="priority"
                     value={form.priority}
                     onChange={handleChange}
-                    className="w-full bg-white border border-gray-200 pl-10 pr-3 py-3 rounded-xl focus:border-[#05668A] focus:ring-1 focus:ring-[#05668A]"
+                    className="w-full appearance-none bg-white border border-gray-200 pl-10 pr-9 py-3 rounded-xl focus:border-[#05668A] focus:ring-1 focus:ring-[#05668A]"
                   >
                     {PRIORITY_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>
@@ -353,11 +362,19 @@ export default function StudentTicketPage(): React.ReactElement {
                       </option>
                     ))}
                   </select>
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#05668A] pointer-events-none"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
               </label>
             </div>
 
-            <label className="flex flex-col gap-1 text-sm font-semibold text-[#053A4E]">
+            <label className="flex flex-col gap-1 text-sm text-[#053A4E]">
               Describe your issue
               <div className="relative">
                 <FaComments className="absolute left-3 top-4 text-[#05668A]" />
@@ -379,7 +396,7 @@ export default function StudentTicketPage(): React.ReactElement {
             <button
               type="submit"
               disabled={isDisabled}
-              className={`w-full md:w-auto px-6 py-3 rounded-xl font-semibold text-white bg-[#053A4E] hover:bg-[#05668A] transition shadow-md flex items-center justify-center gap-2 ${
+              className={`w-full md:w-auto px-6 py-3 rounded-xl font-semibold text-white bg-[#0A5B70] hover:bg-[#05668A] transition shadow-md flex items-center justify-center gap-2 ${
                 isDisabled ? "opacity-70 cursor-not-allowed" : ""
               }`}
             >

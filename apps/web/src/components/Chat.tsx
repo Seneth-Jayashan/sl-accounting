@@ -752,7 +752,7 @@ export default function TicketChat({
               </div>
             )}
 
-            <div className="flex items-end gap-2 md:gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
             {/* Attach */}
             <motion.button
               whileHover={{ scale: 1.1 }}
@@ -768,7 +768,7 @@ export default function TicketChat({
               {pendingAttachments.some((p) => p.uploading) ? (
                 <FaSpinner className="animate-spin" />
               ) : (
-                <FaPaperclip />
+                <FaPaperclip size={25} />
               )}
             </motion.button>
             
@@ -789,7 +789,7 @@ export default function TicketChat({
               onClick={() => setShowEmojiPicker((s) => !s)}
               className="p-2 md:p-3 rounded-full hover:bg-blue-50 shrink-0"
             >
-              <FaSmile />
+              <FaSmile size={25} />
             </motion.button>
 
             {/* Send */}
@@ -800,14 +800,13 @@ export default function TicketChat({
                 (!message.trim() && pendingAttachments.every((p) => !p.attachment))
               }
               onClick={handleSend}
-              className={`flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-full text-sm font-semibold transition-colors shrink-0 ${
+              className={`flex items-center justify-center p-3 rounded-full transition-colors shrink-0 ${
                 message.trim() || pendingAttachments.some((p) => !!p.attachment)
                   ? "bg-[#053A4E] text-white"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
               }`}
             >
-              <FaPaperPlane />
-              <span className="hidden md:inline">Send</span>
+              <FaPaperPlane size={25} />
             </motion.button>
             </div>
           </div>

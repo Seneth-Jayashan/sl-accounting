@@ -72,13 +72,13 @@ export default function PaymentHistory() {
   };
 
   return (
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto min-h-screen bg-gray-50/50 pb-24 font-sans">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto min-h-screen pb-24 font-sans">
         
         {/* Page Header */}
         <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[#0b2540]">Payment History</h1>
-            <p className="text-sm sm:text-base text-gray-500 mt-1">View your past transactions and download receipts.</p>
+            <h1 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">Payment History</h1>
+            <p className="text-sm text-gray-600 mt-1">View your past transactions and download receipts.</p>
           </div>
         </div>
 
@@ -102,7 +102,7 @@ export default function PaymentHistory() {
         ) : (
            <>
               {/* --- DESKTOP VIEW (Table) --- */}
-              <div className="hidden md:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+              <div className="hidden md:block bg-white rounded-[1rem] shadow-sm border border-gray-100 overflow-hidden">
                  <div className="overflow-x-auto">
                    <table className="w-full text-left border-collapse">
                      <thead>
