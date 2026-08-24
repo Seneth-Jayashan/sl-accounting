@@ -1,6 +1,6 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 import html2pdf from "html2pdf.js";
-import { type Quiz, type QuizQuestion } from "../services/QuizService";
+import { type Quiz } from "../services/QuizService";
 
 // Helper to strip HTML tags for docx
 const stripHtml = (html: string) => {
@@ -81,11 +81,11 @@ export const QuizDocumentGenerator = {
 
     // 3. Generate PDF
     html2pdf().set({
-      margin:       10,
-      filename:     `${quiz.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_paper.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2 },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      margin: 10,
+      filename: `${quiz.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_paper.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     }).from(container).save();
   },
 

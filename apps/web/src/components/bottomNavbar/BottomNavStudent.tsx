@@ -13,7 +13,8 @@ import {
   LogOut,
   ChevronRight,
   ClipboardList,
-  ListVideo
+  ListVideo,
+  FileText
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -54,6 +55,13 @@ export default function BottomNavStudent() {
 
   // --- 2. MORE MENU ITEMS (Hidden in Drawer) ---
   const moreItems = [
+    {
+      key: "papers",
+      label: "Essay Papers",
+      href: "/student/papers",
+      icon: FileText,
+      desc: "Submit your papers"
+    },
     {
       key: "tutes",
       label: "My Tutes",

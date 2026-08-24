@@ -1,4 +1,4 @@
-import React, { useState , useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -66,6 +66,7 @@ const MENU_STRUCTURE: NavSection[] = [
       { key: "materials", label: "Materials", href: "/admin/materials", icon: BookOpenIcon },
       { key: "sessions", label: "Sessions", href: "/admin/sessions", icon: BookOpenIcon },
       { key: "quizzes", label: "Quizzes", href: "/admin/quizzes", icon: ClipboardDocumentCheckIcon },
+      { key: "papers", label: "Essay Papers", href: "/admin/papers", icon: BookOpenIcon },
       { key: "lesson-packs", label: "Lesson Packs", href: "/admin/lesson-packs", icon: BookOpenIcon },
     ],
   },
@@ -101,16 +102,16 @@ const MENU_STRUCTURE: NavSection[] = [
 export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
   const { user, logout } = useAuth();
   const location = useLocation();
-  
+
   // 1. Initialize empty or with a default
   const [openSections, setOpenSections] = useState<string[]>([]);
 
   // 2. Automatically expand the section containing the active route
   useEffect(() => {
     const currentPath = location.pathname;
-    
+
     // Find which section contains the current URL
-    const activeSection = MENU_STRUCTURE.find(section => 
+    const activeSection = MENU_STRUCTURE.find(section =>
       section.items.some(item => currentPath.startsWith(item.href))
     );
 
@@ -169,7 +170,7 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
       {/* --- NAVIGATION --- */}
       <nav className="flex-1 py-6 px-3 overflow-y-auto scrollbar-hide space-y-4">
         <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
-        
+
         {MENU_STRUCTURE.map((section) => (
           <div key={section.title} className="space-y-1">
             {/* Section Header */}
@@ -179,8 +180,8 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
                 className="w-full flex items-center justify-between px-3 py-2 text-brand-jasmine/50 hover:text-brand-jasmine transition-colors group"
               >
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{section.title}</span>
-                <ChevronDownIcon 
-                  className={`w-3 h-3 transition-transform duration-300 ${openSections.includes(section.title) ? "rotate-180" : ""}`} 
+                <ChevronDownIcon
+                  className={`w-3 h-3 transition-transform duration-300 ${openSections.includes(section.title) ? "rotate-180" : ""}`}
                 />
               </button>
             )}
@@ -202,8 +203,8 @@ export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {
                         to={item.href}
                         className={`
                           group flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative
-                          ${isActive 
-                            ? "bg-brand-cerulean text-white shadow-lg" 
+                          ${isActive
+                            ? "bg-brand-cerulean text-white shadow-lg"
                             : "text-brand-aliceBlue/70 hover:bg-white/5 hover:text-white"
                           }
                           ${collapsed ? "justify-center" : "mx-1"}

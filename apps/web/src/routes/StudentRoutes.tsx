@@ -23,6 +23,7 @@ const QuizResult = lazy(() => import("../pages/student/quizzes/QuizResult"));
 import StudentLessonPacks from "../pages/student/lessonPacks/LessonPacks";
 import WatchLessonPack from "../pages/student/lessonPacks/WatchLessonPack";
 import LessonPackPaymentPage from "../pages/student/payments/LessonPackPaymentPage";
+const StudentPapers = lazy(() => import("../pages/student/papers/StudentPapers"));
 
 export const StudentRoutes = () => {
   return (
@@ -42,6 +43,8 @@ export const StudentRoutes = () => {
           {/* Quiz History & Results */}
           <Route path="quizzes/history" element={<QuizHistory />} />
           <Route path="quizzes/result/:id" element={<QuizResult />} />
+          {/* Essay Papers */}
+          <Route path="papers" element={<StudentPapers />} />
 
           {/* Lesson Packs */}
           <Route path="lesson-packs" element={<StudentLessonPacks />} />

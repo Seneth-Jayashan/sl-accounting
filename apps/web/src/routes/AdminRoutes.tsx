@@ -35,6 +35,7 @@ const UpdateQuiz = lazy(() => import("../pages/admin/quizzes/UpdateQuiz"));
 import QuizAnalytics from "../pages/admin/quizzes/QuizAnalytics";
 import AdminSubmissionReview from "../pages/admin/quizzes/AdminSubmissionReview";
 import LessonPacks from "../pages/admin/lessonPacks/LessonPacks";
+const AdminPapers = lazy(() => import("../pages/admin/papers/AdminPapers"));
 
 export const AdminRoutes = () => {
   return (
@@ -71,6 +72,9 @@ export const AdminRoutes = () => {
           <Route path="quizzes/edit/:id" element={<UpdateQuiz />} />
           <Route path="quizzes/analytics/:id" element={<QuizAnalytics />} />
           <Route path="quizzes/submission/:id" element={<AdminSubmissionReview />} />
+
+          {/* Essay Papers */}
+          <Route path="papers" element={<AdminPapers />} />
 
           {/* Batches */}
           <Route path="batches" element={<Batches />} />

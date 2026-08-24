@@ -12,7 +12,8 @@ import {
   GraduationCap,
   Menu,
   ClipboardList,
-  ListVideo
+  ListVideo,
+  FileText
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -26,6 +27,7 @@ const STUDENT_MENU = [
   { key: "overview", label: "Overview", href: "/student/dashboard", icon: LayoutDashboard },
   { key: "classes", label: "My Classes", href: "/student/classes", icon: CalendarDays },
   { key: "quizzes", label: "Quizzes", href: "/student/quizzes/history", icon: ClipboardList },
+  { key: "papers", label: "Essay Papers", href: "/student/papers", icon: FileText },
   { key: "tutes", label: "My Tutes", href: "/student/my-tutes", icon: BookOpen },
   { key: "lesson-packs", label: "Lesson Packs", href: "/student/lesson-packs", icon: ListVideo },
   { key: "materials", label: "Study Materials", href: "/student/knowledge-base", icon: BookOpen },
@@ -118,7 +120,7 @@ export default function SidebarStudent({ collapsed = false, onToggle }: Props) {
       {/* --- FOOTER --- */}
       <div className="p-4 border-t border-white/10 bg-black/20 shrink-0">
         <div className={`flex items-center ${collapsed ? "justify-center flex-col gap-4" : "gap-3"}`}>
-          
+
           {/* Avatar */}
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-jasmine to-brand-coral flex items-center justify-center text-brand-prussian font-bold shadow-md shrink-0 border border-white/10 text-sm">
             {user?.firstName ? user.firstName.charAt(0).toUpperCase() : "S"}
