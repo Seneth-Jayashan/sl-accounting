@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, PlayCircle, Lock, ListVideo, Loader2, CheckCircle2 } from "lucide-react";
+import { Search, PlayCircle, Lock, ListVideo, Loader2, CheckCircle2, CheckCheck } from "lucide-react";
 import LessonPackService, { type LessonPackData } from "../../../services/LessonPackService";
+import VideoProgressService from "../../../services/VideoProgressService";
 import { useAuth } from "../../../contexts/AuthContext";
 
 const getSmartCoverUrl = (pack: any) => {
@@ -19,6 +20,45 @@ export default function StudentLessonPacks() {
   const [packs, setPacks] = useState<LessonPackData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [watchProgress, setWatchProgress] = useState<Record<string, { status: 'started' | 'completed' }>>({});
+
+  useEffect(() => {
+    if (!user?._id) return;
+    
+    const updateProgressState = async () => {
+      try {
+        const data = await VideoProgressService.getMyProgress();
+        setWatchProgress(data);
+      } catch (err) {
+        console.error("Failed to load watch progress", err);
+      }
+    };
+    
+    updateProgressState();
+    window.addEventListener('progressUpdate', updateProgressState);
+    window.addEventListener('focus', updateProgressState);
+    
+    return () => {
+      window.removeEventListener('progressUpdate', updateProgressState);
+      window.removeEventListener('focus', updateProgressState);
+    };
+  }, [user?._id]);
+
+  const getPackStatus = useCallback((pack: LessonPackData) => {
+    if (!pack.videos || pack.videos.length === 0) return 'none';
+    let completedCount = 0;
+    let startedCount = 0;
+    
+    pack.videos.forEach(v => {
+        const st = watchProgress[v._id || v.youtubeId || '']?.status;
+        if (st === 'completed') completedCount++;
+        if (st === 'started') startedCount++;
+    });
+
+    if (completedCount === pack.videos.length) return 'completed';
+    if (completedCount > 0 || startedCount > 0) return 'started';
+    return 'none';
+  }, [watchProgress]);
 
   useEffect(() => {
     const fetchPacks = async () => {
@@ -28,7 +68,7 @@ export default function StudentLessonPacks() {
         const batchPacks = userBatchId ? data.filter(pack => pack.batch === userBatchId) : [];
         const enrichedPacks = batchPacks.map(pack => ({
           ...pack,
-          hasAccess: pack.price === 0 || pack.batch === userBatchId
+          hasAccess: pack.hasAccess || pack.price === 0
         }));
         setPacks(enrichedPacks);
       } catch (error) {
@@ -104,9 +144,21 @@ export default function StudentLessonPacks() {
                   <p className="text-sm text-gray-500 line-clamp-2 mb-4 flex-1">{pack.description || "Comprehensive video lesson bundle."}</p>
                   
                   <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
-                    <span className="font-black text-brand-prussian text-lg">
-                      {pack.price === 0 ? "FREE" : `LKR ${pack.price}`}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className="font-black text-brand-prussian text-lg">
+                        {pack.price === 0 ? "FREE" : `LKR ${pack.price}`}
+                      </span>
+                      {pack.hasAccess && (
+                        <div className="flex items-center gap-1">
+                          {getPackStatus(pack) === 'completed' && <CheckCheck size={16} className="text-green-500" />}
+                          {getPackStatus(pack) === 'started' && <CheckCheck size={16} className="text-blue-500" />}
+                          {getPackStatus(pack) === 'none' && <CheckCheck size={16} className="text-gray-300" />}
+                          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                            {getPackStatus(pack) === 'completed' ? 'All Watched' : getPackStatus(pack) === 'started' ? 'Watching' : 'Not Started'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     
                     <button 
                       onClick={() => navigate(`/student/lesson-packs/${pack._id}`)}

@@ -22,6 +22,7 @@ import ticketRoutes from './routes/TicketRoutes.js';
 import contactRoutes from './routes/ContactRoutes.js';
 import tuteDeliveryRoutes from './routes/TuteDeliveryRoutes.js';
 import lessonPackRoutes from './routes/LessonPackRoutes.js';
+import videoProgressRoutes from './routes/VideoProgressRoutes.js';
 
 const router = express.Router();
 
@@ -52,6 +53,7 @@ router.use('/quizzes', QuizRoutes);
 router.use('/submissions', QuizSubmissionRoutes);
 router.use('/results', QuizResultRoutes);
 router.use('/lesson-packs', lessonPackRoutes);
+router.use('/video-progress', videoProgressRoutes);
 
 
 // 3. Finance

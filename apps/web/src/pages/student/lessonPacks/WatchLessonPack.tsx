@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Lock, PlayCircle, ListVideo} from "lucide-react";
+import { ArrowLeft, Loader2, Lock, PlayCircle, ListVideo, CheckCheck} from "lucide-react";
 import LessonPackService, { type LessonPackData, type PlaylistItem } from "../../../services/LessonPackService";
+import VideoProgressService from "../../../services/VideoProgressService";
+import { useAuth } from "../../../contexts/AuthContext";
 
 // @ts-ignore
 import Plyr from "plyr";
@@ -10,11 +12,15 @@ import "plyr/dist/plyr.css";
 export default function WatchLessonPack() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [pack, setPack] = useState<LessonPackData | null>(null);
   const [activeVideo, setActiveVideo] = useState<PlaylistItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [watchProgress, setWatchProgress] = useState<Record<string, { status: 'started' | 'completed' }>>({});
+  const watchProgressRef = useRef(watchProgress);
+  useEffect(() => { watchProgressRef.current = watchProgress; }, [watchProgress]);
   
   const playerRef = useRef<HTMLDivElement>(null);
   const playerInstance = useRef<any>(null);
@@ -52,6 +58,31 @@ export default function WatchLessonPack() {
   }, []);
 
   // 3. Initialize/Update Plyr (Bulletproof Version)
+  const activeVideoRef = useRef(activeVideo);
+  useEffect(() => { activeVideoRef.current = activeVideo; }, [activeVideo]);
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const updateProgressState = async () => {
+       try {
+         const p = await VideoProgressService.getMyProgress();
+         setWatchProgress(p);
+       } catch (err) {
+         console.error("Failed to fetch progress", err);
+       }
+    };
+    updateProgressState();
+    window.addEventListener('progressUpdate', updateProgressState);
+    window.addEventListener('focus', updateProgressState);
+    return () => {
+       window.removeEventListener('progressUpdate', updateProgressState);
+       window.removeEventListener('focus', updateProgressState);
+    };
+  }, [user?._id]);
+
   useEffect(() => {
     let player: any = null;
 
@@ -80,6 +111,37 @@ export default function WatchLessonPack() {
         } as any);
 
         playerInstance.current = player;
+
+        let startedFired = false;
+        let completedFired = false;
+
+        player.on('timeupdate', () => {
+            const vidId = activeVideoRef.current?._id || activeVideoRef.current?.youtubeId;
+            if (!vidId) return;
+            const currentTime = player.currentTime;
+            const duration = player.duration;
+            
+            if (duration > 0) {
+               const ratio = currentTime / duration;
+               
+               if (ratio > 0.9 && !completedFired) {
+                  const currentStatus = watchProgressRef.current[vidId]?.status;
+                  if (currentStatus !== 'completed') {
+                      VideoProgressService.updateProgress(vidId, 'completed').catch(() => {});
+                      // Optimistic UI update across tabs/pages
+                      window.dispatchEvent(new Event('progressUpdate'));
+                  }
+                  completedFired = true;
+               } else if (currentTime > 1 && !startedFired) {
+                  const currentStatus = watchProgressRef.current[vidId]?.status;
+                  if (!currentStatus) {
+                      VideoProgressService.updateProgress(vidId, 'started').catch(() => {});
+                      window.dispatchEvent(new Event('progressUpdate'));
+                  }
+                  startedFired = true;
+               }
+            }
+        });
 
         // Re-attach the Shield
         player.on('ready', () => {
@@ -222,11 +284,20 @@ export default function WatchLessonPack() {
                              <PlayCircle size={18} className="text-gray-400 group-hover:text-brand-cerulean" />
                           )}
                        </div>
-                       <div>
+                       <div className="flex-1 pr-2">
                           <p className={`text-sm font-bold line-clamp-2 ${isActive ? 'text-brand-cerulean' : 'text-gray-700 group-hover:text-brand-prussian'}`}>
                              {idx + 1}. {vid.title}
                           </p>
-                          <p className="text-[10px] text-gray-400 font-medium mt-1">{vid.durationMinutes} mins</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-[10px] text-gray-400 font-medium">{vid.durationMinutes} mins</p>
+                            {pack.hasAccess && (
+                              <div className="flex items-center">
+                                {watchProgress[vid._id || vid.youtubeId || '']?.status === 'completed' && <CheckCheck size={14} className="text-green-500" />}
+                                {watchProgress[vid._id || vid.youtubeId || '']?.status === 'started' && <CheckCheck size={14} className="text-blue-500" />}
+                                {!watchProgress[vid._id || vid.youtubeId || ''] && <CheckCheck size={14} className="text-gray-300" />}
+                              </div>
+                            )}
+                          </div>
                        </div>
                     </button>
                  );

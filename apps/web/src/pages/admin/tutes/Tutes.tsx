@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TuteDeliveryService, { type TuteDeliveryData } from "../../../services/TuteDeliveryService";
-import { jsPDF } from "jspdf";
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, BorderStyle, AlignmentType } from "docx";
+import { saveAs } from "file-saver";
 import { useAuth } from "../../../contexts/AuthContext";
 
 import {
@@ -18,46 +19,6 @@ import {
   CheckBadgeIcon,
   DocumentArrowDownIcon
 } from "@heroicons/react/24/outline";
-
-const SINHALA_FONT_URL = "https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSansSinhala/NotoSansSinhala-Regular.ttf";
-const SINHALA_FONT_VFS_NAME = "NotoSansSinhala-Regular.ttf";
-const SINHALA_FONT_FAMILY = "NotoSansSinhala";
-
-let isSinhalaFontRegistered = false;
-
-const containsSinhalaChars = (value: string) => /[\u0D80-\u0DFF]/.test(value);
-
-const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  let binary = "";
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-
-  return btoa(binary);
-};
-
-const ensureSinhalaFont = async (doc: jsPDF) => {
-  if (isSinhalaFontRegistered) {
-    return true;
-  }
-
-  const response = await fetch(SINHALA_FONT_URL);
-  if (!response.ok) {
-    return false;
-  }
-
-  const fontBuffer = await response.arrayBuffer();
-  const fontBase64 = arrayBufferToBase64(fontBuffer);
-
-  doc.addFileToVFS(SINHALA_FONT_VFS_NAME, fontBase64);
-  doc.addFont(SINHALA_FONT_VFS_NAME, SINHALA_FONT_FAMILY, "normal");
-  isSinhalaFontRegistered = true;
-  return true;
-};
 
 // --- TYPES ---
 type FilterType = "all_time" | "today" | "this_week" | "last_week" | "this_month" | "last_month" | "custom";
@@ -161,142 +122,105 @@ export default function TuteDeliveryPage() {
     return formatAddressForDisplay(studentAny.address || "");
   };
 
-  const handleGeneratePdf = async () => {
+  const handleGenerateWord = async () => {
     if (!deliveries.length) {
-      window.alert("No delivery records available for PDF export.");
+      window.alert("No delivery records available for Word export.");
       return;
     }
 
     if (!teacherName.trim() || !teacherAddress.trim() || !teacherPhone.trim()) {
-      window.alert("Please complete sender (teacher) details before generating PDF.");
+      window.alert("Please complete sender (teacher) details before generating Word document.");
       return;
     }
 
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    
-    // Layout Configuration
-    const margin = 15;
-    const midPoint = pageWidth / 2;
-    const rowHeight = 56;
-    const lineSpacing = 5.8;
-
-    let y = margin;
-
-    const requiresSinhalaFont = deliveries.some((delivery) => {
-      const studentName = `${delivery.student?.firstName || ""} ${delivery.student?.lastName || ""}`.trim();
-      const studentAddress = getAddressParts(delivery).address || "";
-      return containsSinhalaChars(studentName) || containsSinhalaChars(studentAddress);
-    });
-
-    let useSinhalaFont = false;
-    if (requiresSinhalaFont) {
-      try {
-        useSinhalaFont = await ensureSinhalaFont(doc);
-      } catch (error) {
-        console.error("Failed to load Sinhala font for PDF:", error);
-      }
-    }
-
-    doc.setFont(useSinhalaFont ? SINHALA_FONT_FAMILY : "times", "normal");
-
-    deliveries.forEach((delivery) => {
-      // Create new page if row exceeds bounds
-      if (y + rowHeight > pageHeight - margin) {
-        doc.addPage();
-        y = margin;
-      }
-
-      const leftX = margin + 5;
-      const rightX = midPoint + 5;
-      const bottomY = y + rowHeight;
-      const maxColWidth = midPoint - margin - 10;
+    const tableRows = deliveries.map(delivery => {
+      // Sender
+      const senderParagraphs = [];
+      senderParagraphs.push(new Paragraph({ children: [new TextRun({ text: teacherName, bold: true, size: 24 })] }));
       
-      doc.setFontSize(13);
-      
-      // ==========================================
-      // LEFT COLUMN: SENDER DETAILS
-      // ==========================================
-      let currentLeftY = y + 8;
-      
-      // Sender Name
-      doc.text(teacherName, leftX, currentLeftY);
-      currentLeftY += lineSpacing;
-      
-      // Sender Address
       const teacherAddrLines = teacherAddress.split(',').map(s => s.trim()).filter(Boolean);
       teacherAddrLines.forEach((line, i) => {
-         doc.text(line + (i < teacherAddrLines.length - 1 ? "," : ""), leftX, currentLeftY);
-         currentLeftY += lineSpacing;
+         senderParagraphs.push(new Paragraph({ children: [new TextRun({ text: line + (i < teacherAddrLines.length - 1 ? "," : ""), size: 24 })] }));
       });
       
-      currentLeftY += 2; // Spacer
+      senderParagraphs.push(new Paragraph({ children: [new TextRun({ text: "", size: 24 })] })); // spacer
 
-      // Sender Phones
       const teacherPhones = teacherPhone.split(',').map(s => s.trim()).filter(Boolean);
       teacherPhones.forEach(phone => {
-         doc.text(phone, leftX, currentLeftY);
-         currentLeftY += lineSpacing - 1; 
+         senderParagraphs.push(new Paragraph({ children: [new TextRun({ text: phone, size: 24 })] }));
       });
 
-      // ==========================================
-      // RIGHT COLUMN: RECIPIENT DETAILS
-      // ==========================================
-      let currentRightY = y + 8;
+      // Recipient
+      const recipientParagraphs = [];
       const studentName = `${delivery.student?.firstName || ""} ${delivery.student?.lastName || ""}`.trim();
-      
-      // 1. Recipient Name
-      doc.text(studentName || "N/A", rightX, currentRightY);
-      currentRightY += lineSpacing;
+      recipientParagraphs.push(new Paragraph({ children: [new TextRun({ text: studentName || "N/A", bold: true, size: 24 })] }));
 
-      // 2. Cleaned Address (max 3 lines on right side)
       const { address, nearestPostOffice } = getAddressParts(delivery);
-      const studentAddrLines = doc.splitTextToSize(address || "Address not provided", maxColWidth).slice(0, 3);
-      
-      if (studentAddrLines.length > 0) {
-        studentAddrLines.forEach((line: string) => {
-          doc.text(line, rightX, currentRightY);
-          currentRightY += lineSpacing;
-        });
+      if (address) {
+        recipientParagraphs.push(new Paragraph({ children: [new TextRun({ text: address, size: 24 })] }));
       } else {
-         doc.text("Address not provided", rightX, currentRightY);
-         currentRightY += lineSpacing;
+        recipientParagraphs.push(new Paragraph({ children: [new TextRun({ text: "Address not provided", size: 24 })] }));
       }
-
-      currentRightY += 1.5; // compact spacer
-
-      // 3. Nearest Post Office
+      
       if (nearestPostOffice) {
-         doc.text(`Nearest Post Office: ${nearestPostOffice}`, rightX, currentRightY);
-         currentRightY += lineSpacing;
+         recipientParagraphs.push(new Paragraph({ children: [new TextRun({ text: `Nearest Post Office: ${nearestPostOffice}`, size: 24 })] }));
       }
 
-      // 4. Phone Number (Bottom Left of Right Column)
       const studentPhone = delivery.student?.phoneNumber || "-";
-      doc.text(studentPhone, rightX, bottomY - 20);
+      recipientParagraphs.push(new Paragraph({ children: [new TextRun({ text: `\nPhone: ${studentPhone}`, size: 24 })] }));
       
-      // 5. Class Name - Month (Bottom Right of Right Column)
       const tagText = `${delivery.class?.name || ""} - ${delivery.targetMonth || ""}`.trim();
-      doc.setFontSize(10);
-      doc.setFont(useSinhalaFont ? SINHALA_FONT_FAMILY : "times", useSinhalaFont ? "normal" : "bold");
-      doc.text(tagText, pageWidth - margin, bottomY - 10, { align: "right" });
-      
-      // Reset font back to normal for next loop
-      doc.setFont(useSinhalaFont ? SINHALA_FONT_FAMILY : "times", "normal");
+      recipientParagraphs.push(new Paragraph({ children: [new TextRun({ text: tagText, bold: true, size: 20 })], alignment: AlignmentType.RIGHT }));
 
-      // ==========================================
-      // HORIZONTAL SEPARATOR LINE
-      // ==========================================
-      doc.setDrawColor(50, 50, 50); 
-      doc.setLineWidth(0.3);
-      doc.line(margin, bottomY - 8, pageWidth - margin, bottomY - 8);
-
-      y += rowHeight;
+      return new TableRow({
+        children: [
+          new TableCell({
+            children: senderParagraphs,
+            margins: { top: 200, bottom: 200, left: 100, right: 100 },
+            borders: {
+              top: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+              bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+              left: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+              right: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+            },
+          }),
+          new TableCell({
+            children: recipientParagraphs,
+            margins: { top: 200, bottom: 200, left: 100, right: 100 },
+            borders: {
+              top: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+              bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+              left: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+              right: { style: BorderStyle.NIL, size: 0, color: "FFFFFF" },
+            },
+          }),
+        ],
+      });
     });
 
-    const monthTag = new Date().toISOString().slice(0, 7);
-    doc.save(`tute-labels-${activeTab}-${monthTag}.pdf`);
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Table({
+              rows: tableRows,
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              columnWidths: [4500, 4500],
+            }),
+          ],
+        },
+      ],
+    });
+
+    try {
+      const blob = await Packer.toBlob(doc);
+      const monthTag = new Date().toISOString().slice(0, 7);
+      saveAs(blob, `tute-labels-${activeTab}-${monthTag}.docx`);
+    } catch (error) {
+      console.error("Failed to generate Word document:", error);
+      alert("Failed to generate Word Document.");
+    }
   };
 
   const handleDispatch = async (id: string, tracking: string, courier: string) => {
@@ -326,10 +250,10 @@ export default function TuteDeliveryPage() {
             Sender Details
           </button>
           <button
-            onClick={handleGeneratePdf}
+            onClick={handleGenerateWord}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-prussian text-white text-xs font-bold uppercase tracking-widest hover:bg-brand-cerulean transition-colors"
           >
-            <DocumentArrowDownIcon className="w-4 h-4" /> Export Labels PDF
+            <DocumentArrowDownIcon className="w-4 h-4" /> Export Labels Word
           </button>
         </div>
       </div>

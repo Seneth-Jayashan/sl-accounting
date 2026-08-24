@@ -5,11 +5,11 @@ import path from "path";
 
 const extractYoutubeId = (url) => {
     if (!url) return null;
-    
+
     // Matches http/https, www/m, and the various paths: watch, v, embed, shorts, live, youtu.be
     const regExp = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?.*v=|v\/|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/;
     const match = url.match(regExp);
-    
+
     // match[1] contains the exact 11-character YouTube ID
     return match ? match[1] : null;
 };
@@ -29,7 +29,7 @@ const deleteFile = (fileUrl) => {
 export const createLessonPack = async (req, res) => {
     try {
         const { title, description, price, isPublished, batch } = req.body;
-        
+
         // Parse the videos array sent as a JSON string from FormData
         let parsedVideos = [];
         if (req.body.videos) {
@@ -112,7 +112,7 @@ export const deleteLessonPack = async (req, res) => {
         if (!pack) return res.status(404).json({ success: false, message: "Not found." });
 
         if (pack.coverImage) deleteFile(pack.coverImage);
-        
+
         await pack.deleteOne();
         res.status(200).json({ success: true, message: "Deleted successfully." });
     } catch (error) {
@@ -136,7 +136,7 @@ export const togglePublishStatus = async (req, res) => {
 export const getAllPublicLessonPacks = async (req, res) => {
     try {
         const query = { isPublished: true };
-        
+
         // Exclude the videos array from the initial list fetch to save bandwidth
         const packs = await LessonPack.find(query)
             .select("-videos")
@@ -154,17 +154,16 @@ export const getAllLessonPacks = async (req, res) => {
     try {
         const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'teacher');
         const query = isAdmin ? {} : { isPublished: true };
-        
-        // Exclude the videos array from the initial list fetch to save bandwidth
+
+        // Include the videos array so the frontend can calculate watch progress ticks
         const packs = await LessonPack.find(query)
-            .select("-videos")
             .sort({ createdAt: -1 });
 
         // If it's a student, we need to check which ones they have already purchased
         if (!isAdmin && req.user) {
             const enrollments = await Enrollment.find({ student: req.user._id, lessonPack: { $exists: true } });
             const purchasedPackIds = enrollments.map(e => e.lessonPack.toString());
-            
+
             const packsWithAccessFlag = packs.map(pack => ({
                 ...pack.toObject(),
                 hasAccess: purchasedPackIds.includes(pack._id.toString())
@@ -205,11 +204,11 @@ export const getLessonPackById = async (req, res) => {
         }
 
         // If student, check if they purchased it
-        const enrollment = await Enrollment.findOne({ 
-            student: req.user._id, 
-            lessonPack: pack._id 
+        const enrollment = await Enrollment.findOne({
+            student: req.user._id,
+            lessonPack: pack._id
         });
-        
+
         // FIX: Ensure they have the enrollment AND it is paid/active!
         if (!enrollment || enrollment.paymentStatus !== 'paid') {
             const hiddenPack = pack.toObject();
@@ -222,10 +221,10 @@ export const getLessonPackById = async (req, res) => {
                 youtubeId: null   // HIDE ID
             }));
             hiddenPack.hasAccess = false;
-            return res.status(200).json({ 
-                success: true, 
-                data: hiddenPack, 
-                message: "Purchase required to view videos." 
+            return res.status(200).json({
+                success: true,
+                data: hiddenPack,
+                message: "Purchase required to view videos."
             });
         }
 
