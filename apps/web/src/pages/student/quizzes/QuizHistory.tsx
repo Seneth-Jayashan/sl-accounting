@@ -12,6 +12,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import QuizService from "../../../services/QuizService"; 
+import { getGradeDetails } from "../../../utils/gradeUtils";
 
 export default function QuizHistory() {
   const navigate = useNavigate();
@@ -103,6 +104,8 @@ export default function QuizHistory() {
                 const date = new Date(attempt.completedAt || attempt.createdAt).toLocaleDateString('en-US', {
                   month: 'short', day: 'numeric', year: 'numeric'
                 });
+                
+                const gradeDetails = getGradeDetails(attempt.percentageScore || 0);
 
                 return (
                   <motion.div 
@@ -128,10 +131,15 @@ export default function QuizHistory() {
                       </h3>
                       
                       {quiz?.class && (
-                        <p className="text-xs text-gray-500 font-medium mb-6 line-clamp-1">
+                        <p className="text-xs text-gray-500 font-medium mb-4 line-clamp-1">
                            Module: {typeof quiz.class === 'object' ? quiz.class.name : "Accounting Class"}
                         </p>
                       )}
+
+                      <div className={`mb-6 p-3 rounded-xl border ${gradeDetails.bg} ${gradeDetails.border} flex flex-col gap-1`}>
+                        <div className={`font-black text-sm ${gradeDetails.color}`}>Grade {gradeDetails.grade} ({gradeDetails.label})</div>
+                        <div className={`text-xs italic font-medium ${gradeDetails.color} opacity-90 line-clamp-2`}>"{gradeDetails.quote}"</div>
+                      </div>
 
                       <div className="grid grid-cols-2 gap-3 mb-6 mt-auto">
                         <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col items-center justify-center text-center">

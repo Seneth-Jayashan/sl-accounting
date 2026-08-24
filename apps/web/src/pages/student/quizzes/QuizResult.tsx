@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import QuizService from "../../../services/QuizService"; 
 import { toast } from "react-hot-toast";
+import { getGradeDetails } from "../../../utils/gradeUtils";
 
 export default function QuizResult() {
   const { id } = useParams<{ id: string }>();
@@ -79,6 +80,8 @@ export default function QuizResult() {
   const safePercentage = isNaN(summary.percentage) ? 0 : summary.percentage;
   const strokeDashoffset = circumference - (safePercentage / 100) * circumference;
 
+  const gradeDetails = getGradeDetails(safePercentage);
+
   return (
     <div className="min-h-screen bg-gray-50/50 pb-24 font-sans">
       
@@ -121,6 +124,10 @@ export default function QuizResult() {
                    {isPassed ? 'Passed Successfully' : 'Failed Attempt'}
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-black text-brand-prussian mb-2">Assessment Complete</h2>
+                <div className={`mt-2 mb-4 p-4 rounded-xl border ${gradeDetails.bg} ${gradeDetails.border} flex flex-col gap-1`}>
+                  <div className={`font-black text-lg ${gradeDetails.color}`}>Grade {gradeDetails.grade} ({gradeDetails.label})</div>
+                  <div className={`text-sm italic font-medium ${gradeDetails.color} opacity-90`}>"{gradeDetails.quote}"</div>
+                </div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-sm text-gray-500 mt-4">
                    <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
                      <Target size={16} className="text-brand-cerulean"/> {summary.totalPointsEarned} / {summary.totalQuizPoints} Points
