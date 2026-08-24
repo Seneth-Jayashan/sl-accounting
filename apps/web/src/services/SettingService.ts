@@ -20,6 +20,11 @@ const SettingService = {
             },
         });
         return response.data;
+    },
+
+    getSmsBalance: async (): Promise<{ success: boolean; data: any }> => {
+        const response = await api.get('/settings/sms-balance');
+        return response.data;
     }
 };
 

@@ -69,3 +69,26 @@ export const updateSettings = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Server error while updating settings' });
     }
 };
+
+import axios from 'axios';
+
+/**
+ * Get SMS Balance from text.lk
+ */
+export const getSmsBalance = async (req, res) => {
+    try {
+        const response = await axios.get(
+            `https://app.text.lk/api/http/balance?api_token=${process.env.TEXTLK_API_KEY}`,
+            {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            }
+        );
+
+        return res.status(200).json({ success: true, data: response.data });
+    } catch (error) {
+        console.error("Error fetching SMS balance:", error);
+        return res.status(500).json({ success: false, message: 'Server error' });
+    }
+};

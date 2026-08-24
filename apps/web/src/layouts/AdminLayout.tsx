@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
-import DashboardLayout from "./DashboardLayout"; 
+import DashboardLayout from "./DashboardLayout";
 import SidebarAdmin from "../components/sidebar/SidebarAdmin";
 import BottomNavAdmin from "../components/bottomNavbar/BottomNavAdmin";
-import AdminRightSidebar from "../components/rightSidebar/AdminRightSidebar"; 
+import AdminRightSidebar from "../components/rightSidebar/AdminRightSidebar";
 import { BellAlertIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import SettingService from "../services/SettingService";
 
 const ADMIN_UPDATE_BANNER_UNTIL_KEY = "admin-update-popup-until";
 const ADMIN_UPDATE_BANNER_DISMISSED_KEY = "admin-update-popup-dismissed";
@@ -12,6 +13,7 @@ const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 export default function AdminLayout() {
   const [showUpdatePopup, setShowUpdatePopup] = useState(false);
+  const [smsBalance, setSmsBalance] = useState<number | null>(null);
 
   useEffect(() => {
     const dismissed = localStorage.getItem(ADMIN_UPDATE_BANNER_DISMISSED_KEY) === "true";
@@ -29,6 +31,25 @@ export default function AdminLayout() {
     }
   }, []);
 
+  useEffect(() => {
+    const fetchSmsBalance = async () => {
+      try {
+        const response = await SettingService.getSmsBalance();
+        if (response.success && response.data?.data?.remaining_balance !== undefined) {
+          setSmsBalance(Number(response.data.data.remaining_balance));
+        }
+      } catch (error) {
+        console.error("Failed to fetch SMS balance:", error);
+      }
+    };
+
+    fetchSmsBalance();
+
+    // Poll every 5 minutes
+    const interval = setInterval(fetchSmsBalance, 60000 * 5);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleClosePopup = () => {
     localStorage.setItem(ADMIN_UPDATE_BANNER_DISMISSED_KEY, "true");
     setShowUpdatePopup(false);
@@ -36,13 +57,23 @@ export default function AdminLayout() {
 
   return (
     <>
-      <DashboardLayout 
-        Sidebar={SidebarAdmin} 
+      <DashboardLayout
+        Sidebar={SidebarAdmin}
         BottomNav={BottomNavAdmin}
         rightSidebar={<AdminRightSidebar />} // Passes the admin specific sidebar
       >
         <Outlet />
       </DashboardLayout>
+
+      {smsBalance !== null && (
+        <div className={`fixed bottom-20 lg:bottom-6 left-6 lg:left-72 z-[100] px-4 py-2 rounded-xl border shadow-lg flex items-center gap-2 transition-colors ${smsBalance < 10
+          ? "bg-red-50 border-red-200 text-red-700"
+          : "bg-white border-brand-aliceBlue text-brand-prussian"
+          }`}>
+          <div className={`w-2 h-2 rounded-full ${smsBalance < 10 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`} />
+          <span className="text-sm font-bold">SMS Balance: {smsBalance} | {smsBalance < 10 && "Please Recharge"}</span>
+        </div>
+      )}
 
       {showUpdatePopup && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-brand-prussian/60 backdrop-blur-sm p-4">
