@@ -144,7 +144,7 @@ export default function AddSessionPage() {
           {/* Section: Curriculum Details */}
           <FormSection title="Content Detail" icon={<PencilSquareIcon className="w-4 h-4" />}>
             <div className="space-y-4">
-               <Input label="Session Topic (Optional)" type="text" placeholder="e.g. Unit 05: Buffer Solutions" name="title" value={formData.title} onChange={(e: any) => setFormData({...formData, title: e.target.value})} />
+               <Input label="Session Name" type="text" placeholder="e.g. Unit 05: Buffer Solutions" name="title" value={formData.title} onChange={(e: any) => setFormData({...formData, title: e.target.value})} required />
                <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Internal Notes</label>
                   <textarea

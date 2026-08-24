@@ -140,7 +140,7 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
                   <h4 className={`text-base font-semibold line-clamp-2 leading-snug transition-colors ${
                       locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
                   }`}>
-                    {session.recordingTitle || `Session ${session.index}`}
+                    {session.recordingTitle || session.title || `Session ${session.index}`}
                   </h4>
                   <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
                     <Calendar size={12} />

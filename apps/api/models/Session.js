@@ -5,6 +5,7 @@ const sessionSchema = new mongoose.Schema({
   class: { type: mongoose.Schema.Types.ObjectId, ref: "Class", required: true, index: true },
 
   index: { type: Number, required: true },
+  title: { type: String, trim: true },
 
   startAt: { type: Date, required: true, index: true },
   endAt: { type: Date, required: true },

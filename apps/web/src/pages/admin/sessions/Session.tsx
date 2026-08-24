@@ -232,7 +232,7 @@ function SessionRow({ session, classNameLookup, onCancel, onDelete }: any) {
           {classNameLookup || "Independent Module"}
         </p>
         <span className="text-[9px] font-bold text-brand-cerulean uppercase tracking-widest bg-brand-aliceBlue px-1.5 py-0.5 rounded mt-1 inline-block">
-          Index {session.index}
+          {session.title || `Session ${session.index}`}
         </span>
       </td>
 
@@ -297,7 +297,7 @@ function MobileSessionCard({ session, classNameLookup, onCancel, onDelete }: any
                     {classNameLookup || "Independent Module"}
                 </h3>
                 <span className="text-[10px] font-bold text-brand-cerulean bg-brand-aliceBlue px-2 py-0.5 rounded uppercase tracking-wide">
-                    Session Index: {session.index}
+                    {session.title || `Session ${session.index}`}
                 </span>
             </div>
 

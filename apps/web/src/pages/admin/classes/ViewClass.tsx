@@ -410,7 +410,7 @@ export default function ViewClassPage() {
                     <option value="">Select Session</option>
                     {sessions.map((session: any) => (
                       <option key={session._id} value={session._id}>
-                        Session {session.index} - {moment(session.startAt).format("DD MMM YYYY")}
+                        {session.title || `Session ${session.index}`} - {moment(session.startAt).format("DD MMM YYYY")}
                       </option>
                     ))}
                   </select>
@@ -452,7 +452,7 @@ export default function ViewClassPage() {
                             <p className="text-sm font-semibold text-brand-prussian truncate">{recording.name}</p>
                           )}
                           {typeof recording.session === "object" && recording.session?.index && (
-                            <p className="text-[11px] text-gray-400 font-semibold mb-1">Session {recording.session.index}</p>
+                            <p className="text-[11px] text-gray-400 font-semibold mb-1">{recording.session.title || `Session ${recording.session.index}`}</p>
                           )}
                           <a
                             href={recording.url}
@@ -755,8 +755,9 @@ const SessionRow = ({ session, onCancel, onDelete }: { session: any, onCancel: (
           {session.index}
         </div>
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-brand-prussian">{moment(session.startAt).format("DD MMM YYYY")}</p>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <p className="text-sm font-semibold text-brand-prussian">{session.title || `Session ${session.index}`}</p>
+            <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded-full">{moment(session.startAt).format("DD MMM YYYY")}</span>
             {isCancelled && <span className="text-[8px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded uppercase tracking-wider">Cancelled</span>}
             {isPast && !isCancelled && <span className="text-[8px] font-black bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded uppercase tracking-wider">Completed</span>}
           </div>
