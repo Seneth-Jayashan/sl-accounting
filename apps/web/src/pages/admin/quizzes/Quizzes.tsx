@@ -10,9 +10,12 @@ import {
   XCircle,
   Clock,
   BookOpen,
-  BarChart
+  BarChart,
+  FileDown,
+  FileText
 } from "lucide-react";
 import QuizService, { type Quiz } from "../../../services/QuizService";
+import { QuizDocumentGenerator } from "../../../utils/QuizDocumentGenerator";
 import { toast } from "react-hot-toast";
 
 const Quizzes: React.FC = () => {
@@ -183,6 +186,18 @@ const Quizzes: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-1">
+                      <button 
+                        onClick={() => toast.promise(QuizDocumentGenerator.generateQuizPdf(quiz), { loading: 'Generating PDF...', success: 'PDF downloaded!', error: 'Failed to generate PDF' })}
+                        className="p-2 text-gray-400 hover:text-emerald-600 transition-colors" title="Download PDF"
+                      >
+                        <FileDown size={18} />
+                      </button>
+                      <button 
+                        onClick={() => toast.promise(QuizDocumentGenerator.generateQuizDocx(quiz), { loading: 'Generating Word...', success: 'Word Doc downloaded!', error: 'Failed to generate Word Doc' })}
+                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="Download Word Doc"
+                      >
+                        <FileText size={18} />
+                      </button>
                       <Link to={`/admin/quizzes/view/${quiz._id}`} className="p-2 text-gray-400 hover:text-blue-600 transition-colors" title="View Quiz Details">
                         <Eye size={18} />
                       </Link>

@@ -10,10 +10,13 @@ import {
   HelpCircle,
   Loader2,
   BookOpen,
-  Award
+  Award,
+  FileDown,
+  FileText
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import QuizService, { type Quiz } from "../../../services/QuizService";
+import { QuizDocumentGenerator } from "../../../utils/QuizDocumentGenerator";
 
 const ViewQuiz: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -88,9 +91,33 @@ const ViewQuiz: React.FC = () => {
             <p className="text-gray-500 text-sm ml-8">Review the assessment details and correct answers</p>
           </div>
           <div className="flex gap-3">
+            <button 
+              onClick={() => {
+                toast.promise(QuizDocumentGenerator.generateQuizPdf(quiz), {
+                  loading: 'Generating PDF...',
+                  success: 'PDF downloaded!',
+                  error: 'Failed to generate PDF'
+                });
+              }}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
+            >
+              <FileDown size={18} /> PDF
+            </button>
+            <button 
+              onClick={() => {
+                toast.promise(QuizDocumentGenerator.generateQuizDocx(quiz), {
+                  loading: 'Generating Word Doc...',
+                  success: 'Word Doc downloaded!',
+                  error: 'Failed to generate Word Doc'
+                });
+              }}
+              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
+            >
+              <FileText size={18} /> Word
+            </button>
             <Link 
               to={`/admin/quizzes/edit/${quiz._id}`}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 ml-2"
             >
               <Edit size={18} /> Edit Quiz
             </Link>
