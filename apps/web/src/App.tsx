@@ -30,6 +30,8 @@ import Verification from "./pages/Verification";
 import Chat from "./components/Chat";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import News from "./pages/News";
+import NewsDetails from "./pages/NewsDetails";
 
 import "./index.css";
 
@@ -104,6 +106,8 @@ function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/chat/:ticketId" element={<Chat />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/news/:id" element={<NewsDetails />} />
           </Route>
 
           {/* ================= STUDENT MODULE (Lazy Loaded) ================= */}

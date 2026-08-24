@@ -24,6 +24,8 @@ import tuteDeliveryRoutes from './routes/TuteDeliveryRoutes.js';
 import lessonPackRoutes from './routes/LessonPackRoutes.js';
 import videoProgressRoutes from './routes/VideoProgressRoutes.js';
 import paperSubmissionRoutes from './routes/PaperSubmissionRoutes.js';
+import settingRoutes from './routes/SettingRoutes.js';
+import newsRoutes from './routes/NewsRoutes.js';
 
 const router = express.Router();
 
@@ -69,5 +71,11 @@ router.use('/contact', contactRoutes);
 
 // Knowledge base routes
 router.use('/knowledge', knowledgeRoutes);
+
+// Settings
+router.use('/settings', settingRoutes);
+
+// News and Updates
+router.use('/news', newsRoutes);
 
 export default router;

@@ -31,7 +31,16 @@ const floatingBadge = {
   animate: { y: [5, -5, 5], transition: { repeat: Infinity, duration: 4 } }
 };
 
-const HeroSection = () => (
+const getApiOrigin = () => {
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
+  try {
+      return new URL(API_BASE).origin;
+  } catch {
+      return "http://localhost:3000";
+  }
+};
+
+const HeroSection = ({ heroImageUrl }: { heroImageUrl?: string | null }) => (
   <header id="home" className="relative w-full min-h-[100dvh] flex items-center justify-center pt-28 pb-12 overflow-hidden bg-gradient-to-br from-brand-aliceBlue via-white to-brand-aliceBlue">
     <div className="absolute top-0 left-[-10%] w-64 h-64 md:w-96 md:h-96 bg-brand-cerulean/10 rounded-full blur-3xl animate-blob opacity-70 mix-blend-multiply filter will-change-transform"></div>
     <div className="absolute top-0 right-[-10%] w-64 h-64 md:w-96 md:h-96 bg-brand-coral/10 rounded-full blur-3xl animate-blob animation-delay-2000 opacity-70 mix-blend-multiply filter will-change-transform"></div>
@@ -79,7 +88,7 @@ const HeroSection = () => (
            <div className="absolute -inset-4 bg-gradient-to-tr from-brand-cerulean to-brand-coral opacity-20 blur-2xl rounded-[3rem] -z-10"></div>
            <div className="relative w-full h-full bg-white/40 backdrop-blur-md rounded-[2.5rem] p-3 shadow-2xl border border-white/60">
               <div className="w-full h-full rounded-[2rem] overflow-hidden relative bg-gray-200">
-                  <img src="Kalum_Hero.jpeg" alt="Kalum Waduge" loading="eager" className="w-full h-full object-cover" />
+                  <img src={heroImageUrl ? `${getApiOrigin()}${heroImageUrl}` : "Kalum_Hero.jpeg"} alt="Kalum Waduge" loading="eager" className="w-full h-full object-cover" />
                   <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-brand-prussian to-transparent p-6 pt-24">
                       <p className="text-brand-jasmine text-xs font-bold tracking-widest uppercase mb-1 font-sans">Instructor</p>
                       <h3 className="text-white text-2xl font-bold font-sans">Kalum Waduge</h3>
@@ -218,7 +227,7 @@ interface NewsItem {
   url: string;
 }
 
-const FloatingEducationalWidget = () => {
+const FloatingEducationalWidget = ({ newsTitle, newsLink }: { newsTitle?: string, newsLink?: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [news, setNews] = useState<NewsItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -252,8 +261,20 @@ const FloatingEducationalWidget = () => {
       }
     };
 
-    fetchFact();
-  }, []); 
+    if (newsTitle && newsLink) {
+        setNews({
+            title: newsTitle,
+            source: "Latest Update",
+            date: new Date().toLocaleDateString(),
+            summary: newsTitle.length > 120 ? newsTitle.substring(0, 120) + "..." : newsTitle,
+            url: newsLink
+        });
+        setLoading(false);
+        setError(false);
+    } else {
+        fetchFact();
+    }
+  }, [newsTitle, newsLink]); 
 
   return (
     <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 flex flex-col items-end">
@@ -346,16 +367,28 @@ const FloatingEducationalWidget = () => {
   );
 };
 
+import SettingService, { type SettingData } from "../services/SettingService";
+
 const Home = () => {
+  const [settings, setSettings] = useState<SettingData | null>(null);
+
+  useEffect(() => {
+    SettingService.getSettings().then(res => {
+      if(res.success) {
+          setSettings(res.data);
+      }
+    }).catch(console.error);
+  }, []);
+
   return (
     <div className="min-h-screen w-full relative bg-white selection:bg-brand-cerulean selection:text-white">
-        <HeroSection />
+        <HeroSection heroImageUrl={settings?.heroImageUrl} />
         <AboutSection />
         <FeatureSection />
         <StatsBanner />
         
         {/* Render the floating widget outside the static flow */}
-        <FloatingEducationalWidget />
+        <FloatingEducationalWidget newsTitle={settings?.newsTitle} newsLink={settings?.newsLink} />
     </div>
   );
 };

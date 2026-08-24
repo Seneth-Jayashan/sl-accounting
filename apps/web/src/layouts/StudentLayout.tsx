@@ -7,6 +7,8 @@ import BottomNavStudent from "../components/bottomNavbar/BottomNavStudent";
 import StudentRightSidebar from "../components/rightSidebar/StudentRightSidebar";
 import { useAuth } from "../contexts/AuthContext";
 import UserService from "../services/UserService";
+import SettingService from "../services/SettingService";
+import ExamTimer from "../components/common/ExamTimer";
 
 interface AddressFormState {
   street: string;
@@ -27,6 +29,7 @@ export default function StudentLayout() {
     zipCode: "",
     nearestPostOffice: "",
   });
+  const [examDate, setExamDate] = useState<string | null>(null);
 
   const isAddressIncomplete = useMemo(() => {
     if (!user || user.role !== "student") return false;
@@ -53,6 +56,13 @@ export default function StudentLayout() {
     });
 
     setShowAddressModal(isAddressIncomplete);
+
+    // Fetch exam date setting
+    SettingService.getSettings().then(res => {
+      if (res.success && res.data?.examDate) {
+        setExamDate(res.data.examDate);
+      }
+    }).catch(console.error);
   }, [user, isAddressIncomplete]);
 
   const handleAddressChange = (key: keyof AddressFormState, value: string) => {
@@ -92,13 +102,19 @@ export default function StudentLayout() {
 
   return (
     <>
-      <DashboardLayout 
-        Sidebar={SidebarStudent} 
-        BottomNav={BottomNavStudent}
-        rightSidebar={<StudentRightSidebar />} // Passes the student specific sidebar
-      >
-        <Outlet />
-      </DashboardLayout>
+      <div className="flex flex-col min-h-screen">
+        <div className="flex-1">
+          <DashboardLayout
+            Sidebar={SidebarStudent}
+            BottomNav={BottomNavStudent}
+            rightSidebar={<StudentRightSidebar />} // Passes the student specific sidebar
+          >
+            <ExamTimer examDate={examDate} />
+            <Outlet />
+          </DashboardLayout>
+        </div>
+      </div>
+
 
       {showAddressModal && (
         <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">

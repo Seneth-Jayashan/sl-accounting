@@ -22,6 +22,7 @@ export const Navbar: React.FC = () => {
     { name: 'අපි ගැන', href: '/about' },
     { name: 'පංති', href: '/classes' },
     { name: 'පාඨමාලා', href: '/lesson-packs' },
+    { name: 'පුවත්', href: '/news' },
     { name: 'සම්බන්ධ වන්න', href: '/contacts' },
   ];
 

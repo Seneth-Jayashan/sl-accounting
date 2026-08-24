@@ -46,6 +46,12 @@ const MENU_STRUCTURE: NavSection[] = [
     ],
   },
   {
+    title: "News & Updates",
+    items: [
+      { key: "news", label: "News & Updates", href: "/admin/news", icon: MegaphoneIcon },
+    ],
+  },
+  {
     title: "Community",
     items: [
       { key: "community", label: "Community", href: "/admin/community", icon: ChatBubbleLeftRightIcon },
@@ -94,9 +100,14 @@ const MENU_STRUCTURE: NavSection[] = [
     items: [
       { key: "support", label: "Contact Us", href: "/admin/support", icon: PhoneIcon },
       { key: "chat", label: "Support Ticket", href: "/admin/chat", icon: ChatBubbleLeftRightIcon },
-      { key: "settings", label: "Settings", href: "/admin/settings", icon: Cog6ToothIcon },
     ],
   },
+  {
+    title: "Settings",
+    items: [
+      { key: "settings", label: "Settings", href: "/admin/settings", icon: Cog6ToothIcon },
+    ]
+  }
 ];
 
 export default function SidebarAdmin({ collapsed = false, onToggle }: Props) {

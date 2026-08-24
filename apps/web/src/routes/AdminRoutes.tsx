@@ -36,6 +36,8 @@ import QuizAnalytics from "../pages/admin/quizzes/QuizAnalytics";
 import AdminSubmissionReview from "../pages/admin/quizzes/AdminSubmissionReview";
 import LessonPacks from "../pages/admin/lessonPacks/LessonPacks";
 const AdminPapers = lazy(() => import("../pages/admin/papers/AdminPapers"));
+const AdminSettings = lazy(() => import("../pages/admin/settings/AdminSettings"));
+const AdminNews = lazy(() => import("../pages/admin/news/AdminNews"));
 
 export const AdminRoutes = () => {
   return (
@@ -48,6 +50,9 @@ export const AdminRoutes = () => {
 
           {/* Reports */}
           <Route path="reports" element={<Reports />} />
+
+          {/* News and Updates */}
+          <Route path="news" element={<AdminNews />} />
           
           {/* Student Management */}
           <Route path="students" element={<Students />} />
@@ -98,6 +103,10 @@ export const AdminRoutes = () => {
 
           {/* Knowledge Base */}
           <Route path="knowledge-base" element={<KnowledgeBase />} />
+          <Route path="knowledge-base/list" element={<KnowledgeBaseList />} />
+
+          {/* Settings */}
+          <Route path="settings" element={<AdminSettings />} />
           <Route path="knowledge-list" element={<KnowledgeBaseList />} />
 
           {/* Community */}
