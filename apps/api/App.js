@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 // --- JOBS ---
 import startSessionGenerator from "./jobs/SessionGenerator.js";
 import startEnrollmentCron from './jobs/EnrollmentCron.js';
+import startPaymentReminderCron from './jobs/PaymentReminderCron.js';
 
 dotenv.config();
 import apiRouter from './Router.js';
@@ -25,7 +26,8 @@ const __dirname = path.dirname(__filename);
 // ==========================================
 try {
     startSessionGenerator();
-    startEnrollmentCron();    
+    startEnrollmentCron();
+    startPaymentReminderCron();
 } catch (err) {
     console.error("❌ Background Job Error:", err);
 }

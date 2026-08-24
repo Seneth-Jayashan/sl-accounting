@@ -24,7 +24,7 @@ export interface ClassRecording {
   name: string;
   url: string;
   source: "session";
-  session?: string | { _id: string; index?: number; startAt?: string } | null;
+  session?: string | { _id: string; title?: string; index?: number; startAt?: string } | null;
   addedBy?: string | { _id: string; firstName?: string; lastName?: string; email?: string } | null;
   createdAt?: string;
   updatedAt?: string;
