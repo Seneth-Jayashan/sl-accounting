@@ -22,7 +22,6 @@ export const createEnrollment = async (req, res) => {
   try {
     const { 
         class: classId, 
-        subscriptionType,
         includeRevision = false, 
         includePaper = false 
     } = req.body;
@@ -57,7 +56,6 @@ export const createEnrollment = async (req, res) => {
                 enrollment = new Enrollment({
                     student: studentId,
                     class: cls._id,
-                    subscriptionType: subscriptionType || 'monthly',
                     paymentStatus: "unpaid",
                     isActive: true,
                     accessStartDate: new Date(),
@@ -325,8 +323,7 @@ export const enrollInLessonPack = async (req, res) => {
             paymentStatus: isFree ? "paid" : "pending",
             isActive: isFree,
             enrollmentDate: new Date(),
-            subscriptionType: "one-time", // Differentiates it from monthly classes
-            paidMonths: [] // Not used for lifetime lesson packs, but keeps schema happy
+            paidMonths: [] // Keeps schema happy
         });
 
         res.status(201).json({

@@ -149,8 +149,12 @@ export const updateSession = async (req, res) => {
     if (startAt) {
       const startMoment = moment(startAt); 
       if (startMoment.isValid()) {
+        const oldStart = moment(sessionDoc.startAt);
+        const oldEnd = moment(sessionDoc.endAt);
+        const originalDuration = oldEnd.diff(oldStart, 'minutes');
+
         sessionDoc.startAt = startMoment.toDate();
-        const dur = durationMinutes ? Number(durationMinutes) : moment(sessionDoc.endAt).diff(moment(sessionDoc.startAt), 'minutes');
+        const dur = durationMinutes ? Number(durationMinutes) : originalDuration;
         sessionDoc.endAt = startMoment.clone().add(dur, 'minutes').toDate();
         timeChanged = true;
       }

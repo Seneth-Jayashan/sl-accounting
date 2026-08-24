@@ -13,7 +13,6 @@ const startPaymentReminderCron = () => {
             // Find all active enrollments for monthly classes
             const enrollments = await Enrollment.find({
                 isActive: true,
-                subscriptionType: "monthly",
                 class: { $exists: true, $ne: null }
             }).populate("class", "name").populate("student", "firstName lastName email phoneNumber");
 

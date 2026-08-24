@@ -54,17 +54,8 @@ const enrollmentSchema = new mongoose.Schema(
     accessEndDate: { type: Date }, // Will remain null for lifetime lesson packs
 
     isActive: { type: Boolean, default: true },
-    isBlocked: { type: Boolean, default: false },
-
     attendance: { type: [attendanceSchema], default: [] },
     notes: { type: String },
-
-    // Differentiates the logic flows
-    subscriptionType: {
-        type: String,
-        enum: ["monthly", "one-time", "lifetime"],
-        default: "monthly"
-    }
   },
   { 
     timestamps: true,
@@ -108,12 +99,6 @@ enrollmentSchema.methods.markPaid = async function (
   this.lastPaymentDate = paymentDate;
   if (paymentId) this.lastPayment = paymentId;
 
-  // --- FIX 2: Lifetime Access Bypass ---
-  // If this is a lifetime lesson pack, we don't calculate end dates.
-  if (this.subscriptionType === "lifetime" || this.subscriptionType === "one-time" || targetMonth === "Lifetime Access") {
-      // Just save and return, no end date needed
-      return this.save();
-  }
 
   // --- Normal Monthly Class Logic ---
   if (targetMonth) {

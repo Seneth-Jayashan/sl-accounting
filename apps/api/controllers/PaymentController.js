@@ -355,7 +355,7 @@ export const updatePaymentStatus = async (req, res) => {
 
     const payment = await Payment.findById(id).populate({
       path: 'enrollment',
-      populate: { path: 'student class' } 
+      populate: { path: 'student class lessonPack' } 
     });
 
     if (!payment) return res.status(404).json({ message: "Payment not found" });
