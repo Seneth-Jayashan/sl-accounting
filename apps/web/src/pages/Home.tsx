@@ -15,7 +15,6 @@ import {
   Quote,
   Calculator,
   FileSpreadsheet,
-  Flame,
   Layers,
 } from "lucide-react";
 
@@ -40,9 +39,7 @@ const scaleIn: Variants = {
   visible: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
-const floatingBadge: Variants = {
-  animate: { y: [5, -5, 5], transition: { repeat: Infinity, duration: 4 } },
-};
+
 
 const getApiOrigin = () => {
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -89,180 +86,154 @@ const Counter = ({
   );
 };
 
-const LedgerBar = ({
-  label,
-  value,
-  color = "bg-brand-cerulean",
-  delay = 0,
-}: {
-  label: string;
-  value: number;
-  color?: string;
-  delay?: number;
-}) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-  return (
-    <div ref={ref} className="mb-4 last:mb-0">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs sm:text-sm font-semibold text-brand-prussian font-sans">{label}</span>
-        <span className="text-xs font-mono font-bold text-brand-prussian/70">{value}%</span>
-      </div>
-      <div className="h-2 sm:h-2.5 w-full bg-brand-aliceBlue rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={inView ? { width: `${value}%` } : { width: 0 }}
-          transition={{ duration: 1, delay, ease: "easeOut" }}
-          className={`h-full ${color} rounded-full`}
-        />
-      </div>
-    </div>
-  );
-};
-
 const HeroSection = ({ heroImageUrl }: { heroImageUrl?: string | null }) => (
   <header
     id="home"
-    className="relative w-full min-h-[100dvh] flex items-center justify-center pt-28 pb-12 overflow-hidden bg-gradient-to-br from-brand-aliceBlue via-white to-brand-aliceBlue"
+    className="relative w-full min-h-[100dvh] flex items-center justify-center pt-28 pb-12 overflow-hidden bg-[#FAFCFF]"
   >
-    <div className="absolute top-0 left-[-10%] w-64 h-64 md:w-96 md:h-96 bg-brand-cerulean/10 rounded-full blur-3xl animate-blob opacity-70 mix-blend-multiply filter will-change-transform"></div>
-    <div className="absolute top-0 right-[-10%] w-64 h-64 md:w-96 md:h-96 bg-brand-coral/10 rounded-full blur-3xl animate-blob animation-delay-2000 opacity-70 mix-blend-multiply filter will-change-transform"></div>
-    <div className="absolute bottom-[-20%] left-[20%] w-64 h-64 md:w-96 md:h-96 bg-brand-jasmine/20 rounded-full blur-3xl animate-blob animation-delay-4000 opacity-70 mix-blend-multiply filter will-change-transform"></div>
+    {/* Dynamic Background */}
+    <div className="absolute inset-0 w-full h-full">
+      {/* Subtle dot pattern */}
+      <div className="absolute inset-0 bg-[radial-gradient(#053A4E_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.03]"></div>
 
-    <div className="container mx-auto max-w-7xl px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center relative z-10">
+      {/* Animated Orbs */}
       <motion.div
-        variants={fadeInUp}
+        animate={{ x: [0, 50, 0], y: [0, -50, 0], scale: [1, 1.1, 1] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+        className="absolute top-[-10%] left-[-5%] w-[40vw] h-[40vw] bg-brand-cerulean/20 rounded-full blur-[100px] mix-blend-multiply opacity-60"
+      />
+      <motion.div
+        animate={{ x: [0, -40, 0], y: [0, 60, 0], scale: [1, 1.2, 1] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+        className="absolute bottom-[-15%] right-[-10%] w-[50vw] h-[50vw] bg-brand-coral/15 rounded-full blur-[120px] mix-blend-multiply opacity-60"
+      />
+      <motion.div
+        animate={{ x: [0, 30, 0], y: [0, 30, 0] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+        className="absolute top-[20%] right-[15%] w-[25vw] h-[25vw] bg-brand-jasmine/20 rounded-full blur-[80px] mix-blend-multiply opacity-50"
+      />
+    </div>
+
+    <div className="container mx-auto max-w-7xl px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-6 items-center relative z-10">
+
+      {/* Left Typography Column (7 columns wide on lg) */}
+      <motion.div
+        variants={staggerContainer}
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
-        className="text-center lg:text-left flex flex-col items-center lg:items-start"
+        className="lg:col-span-7 text-center lg:text-left flex flex-col items-center lg:items-start pt-10"
       >
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/80 border border-brand-cerulean/20 shadow-sm mb-6 sm:mb-8 backdrop-blur-md">
-          <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-full w-full bg-green-600"></span>
-          </span>
-          <span className="text-[10px] sm:text-xs font-bold text-brand-cerulean tracking-wider uppercase font-sans">
-            2026 · 2027 · 2028 Enrollments Open
-          </span>
-        </div>
+        <motion.div variants={fadeInUp} className="group relative inline-flex items-center justify-center mb-6 sm:mb-8">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-brand-cerulean via-brand-coral to-brand-cerulean opacity-50 blur-md group-hover:opacity-100 transition-opacity duration-700"></div>
+          <div className="relative inline-flex items-center gap-2.5 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full bg-white/90 backdrop-blur-md border border-white/60 shadow-sm">
+            <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-full w-full bg-green-600"></span>
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-brand-prussian tracking-widest uppercase font-sans">
+              2026 · 2027 · 2028 Enrollments Open
+            </span>
+          </div>
+        </motion.div>
 
-        <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-brand-prussian leading-[1.15] mb-4 sm:mb-6 font-sinhala drop-shadow-sm">
+        <motion.h1 variants={fadeInUp} className="text-5xl sm:text-6xl md:text-7xl lg:text-[5rem] font-black text-brand-prussian leading-[1.1] mb-6 font-sinhala tracking-tight drop-shadow-sm">
           A ලෙවල් 1ට <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-cerulean to-brand-coral">
-            Online Accounting
+          <span className="relative inline-block mt-2">
+            <span className="absolute -inset-1 bg-gradient-to-r from-brand-cerulean/20 to-brand-coral/20 blur-xl opacity-60 rounded-full"></span>
+            <span className="relative text-transparent bg-clip-text bg-gradient-to-r from-brand-cerulean via-brand-prussian to-brand-coral">
+              Online Accounting
+            </span>
           </span>
-        </h1>
+        </motion.h1>
 
-        <p className="text-base sm:text-lg md:text-xl text-gray-500 font-sinhala mb-4 max-w-2xl leading-relaxed px-2 sm:px-0">
+        <motion.p variants={fadeInUp} className="text-base sm:text-lg md:text-xl text-brand-prussian/70 font-sinhala mb-8 max-w-2xl leading-relaxed px-4 sm:px-0 border-l-4 border-brand-coral/60 pl-4 py-1 italic shadow-sm bg-white/40 backdrop-blur-sm rounded-r-xl">
           "වැඩ වැඩ වැඩ එක්ක හදවතට Accounting"
-        </p>
-        <p className="text-sm sm:text-base text-gray-400 mb-8 sm:mb-10 max-w-xl font-sans px-2 sm:px-0">
-          A full learning dashboard for A/L Accounting — video lessons, live progress tracking, and past-paper
-          practice, all in one place.
-        </p>
+        </motion.p>
 
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto px-4 sm:px-0 mb-10">
+        <motion.p variants={fadeInUp} className="text-sm sm:text-base text-gray-500 mb-8 sm:mb-10 max-w-xl font-sans px-2 sm:px-0 leading-relaxed">
+          A full learning dashboard for A/L Accounting — video lessons, live progress tracking, and past-paper practice, all in one place.
+        </motion.p>
+
+        <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto px-4 sm:px-0 mb-12">
           <Link
             to="/register"
-            className="group relative px-8 py-4 bg-brand-prussian text-white rounded-2xl font-bold text-lg overflow-hidden shadow-xl shadow-brand-prussian/20 transition-transform active:scale-95 hover:scale-105"
+            className="group relative px-8 py-4 sm:px-10 sm:py-4 bg-brand-prussian text-white rounded-2xl font-bold text-lg overflow-hidden shadow-2xl shadow-brand-prussian/30 transition-transform active:scale-95 hover:-translate-y-1 w-full sm:w-auto text-center"
           >
             <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-brand-cerulean to-brand-prussian opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative flex items-center justify-center gap-3 font-sans">
-              <Play fill="currentColor" size={18} /> Start Learning
+              <Play fill="currentColor" size={18} className="group-hover:scale-110 transition-transform" /> Start Learning
             </div>
           </Link>
           <Link
             to="/classes"
-            className="px-8 py-4 bg-white/60 backdrop-blur-md text-brand-prussian border border-white rounded-2xl font-bold text-lg shadow-lg hover:bg-white transition-transform active:scale-95 flex items-center justify-center gap-2 font-sans group"
+            className="group px-8 py-4 sm:px-10 sm:py-4 bg-white/70 backdrop-blur-md text-brand-prussian border-2 border-white rounded-2xl font-bold text-lg shadow-lg hover:bg-white transition-all active:scale-95 hover:-translate-y-1 flex items-center justify-center gap-2 font-sans w-full sm:w-auto"
           >
-            View Classes <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            View Classes <ArrowRight size={18} className="group-hover:translate-x-1.5 transition-transform" />
           </Link>
-        </div>
+        </motion.div>
 
-        <div className="flex items-center gap-6 sm:gap-10 px-2">
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-brand-prussian font-mono">
+        <motion.div variants={fadeInUp} className="flex items-center justify-center lg:justify-start gap-8 sm:gap-12 px-2 pb-6">
+          <div className="flex flex-col items-center lg:items-start">
+            <span className="text-3xl sm:text-4xl font-black text-brand-prussian font-mono tracking-tighter">
               <Counter value={1000} suffix="+" />
-            </p>
-            <p className="text-[10px] sm:text-xs text-gray-400 font-sans uppercase tracking-wider">Students</p>
+            </span>
+            <span className="text-[10px] sm:text-[11px] text-gray-500 font-sans uppercase tracking-widest mt-1 font-bold">Students</span>
           </div>
-          <div className="w-px h-8 bg-brand-prussian/10"></div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-brand-prussian font-mono">
+          <div className="w-px h-10 bg-brand-prussian/15 rounded-full"></div>
+          <div className="flex flex-col items-center lg:items-start">
+            <span className="text-3xl sm:text-4xl font-black text-brand-prussian font-mono tracking-tighter">
               <Counter value={98} suffix="%" />
-            </p>
-            <p className="text-[10px] sm:text-xs text-gray-400 font-sans uppercase tracking-wider">Pass Rate</p>
+            </span>
+            <span className="text-[10px] sm:text-[11px] text-gray-500 font-sans uppercase tracking-widest mt-1 font-bold">Pass Rate</span>
           </div>
-          <div className="w-px h-8 bg-brand-prussian/10"></div>
-          <div>
-            <p className="text-2xl sm:text-3xl font-black text-brand-prussian font-mono">4.9</p>
-            <p className="text-[10px] sm:text-xs text-gray-400 font-sans uppercase tracking-wider">Rating</p>
+          <div className="w-px h-10 bg-brand-prussian/15 rounded-full"></div>
+          <div className="flex flex-col items-center lg:items-start">
+            <div className="flex items-center gap-1.5 text-3xl sm:text-4xl font-black text-brand-prussian font-mono tracking-tighter">
+              4.9 <Star className="text-brand-jasmine mb-1" fill="currentColor" size={20} />
+            </div>
+            <span className="text-[10px] sm:text-[11px] text-gray-500 font-sans uppercase tracking-widest mt-1 font-bold">Rating</span>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
 
+      {/* Right Interactive Image Column (5 columns wide on lg) */}
       <motion.div
-        initial={{ opacity: 0, x: 30 }}
-        whileInView={{ opacity: 1, x: 0 }}
+        initial={{ opacity: 0, scale: 0.9, rotateY: 15 }}
+        whileInView={{ opacity: 1, scale: 1, rotateY: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        className="relative flex justify-center lg:justify-end mt-8 lg:mt-0"
+        transition={{ duration: 1, type: "spring", bounce: 0.3 }}
+        className="lg:col-span-5 relative flex justify-center mt-12 lg:mt-0"
+        style={{ perspective: "1000px" }}
       >
-        <div className="relative w-full max-w-[320px] sm:max-w-[420px]">
-          <div className="absolute -inset-4 bg-gradient-to-tr from-brand-cerulean to-brand-coral opacity-20 blur-2xl rounded-[3rem] -z-10"></div>
+        <div className="relative w-full max-w-[340px] sm:max-w-[420px]">
+          {/* Glow Behind Image */}
+          <div className="absolute -inset-6 bg-gradient-to-tr from-brand-cerulean to-brand-coral opacity-30 blur-3xl rounded-[3rem] -z-10 animate-blob"></div>
 
-          <div className="relative w-full h-[340px] sm:h-[400px] bg-white/40 backdrop-blur-md rounded-[2rem] p-2.5 shadow-2xl border border-white/60">
-            <div className="w-full h-full rounded-[1.6rem] overflow-hidden relative bg-gray-200">
+          <motion.div
+            whileHover={{ rotateY: -5, rotateX: 5, scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="relative w-full aspect-[4/5] bg-white/40 backdrop-blur-xl rounded-[2.5rem] p-3 shadow-2xl border border-white/80"
+          >
+            <div className="w-full h-full rounded-[2rem] overflow-hidden relative bg-gray-200 group">
               <img
                 src={heroImageUrl ? `${getApiOrigin()}${heroImageUrl}` : "Kalum_Hero.jpeg"}
                 alt="Kalum Waduge"
                 loading="eager"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
-              <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-brand-prussian to-transparent p-5 pt-16">
-                <p className="text-brand-jasmine text-[10px] font-bold tracking-widest uppercase mb-1 font-sans">
-                  Your Instructor
-                </p>
-                <h3 className="text-white text-xl font-bold font-sans">Kalum Waduge</h3>
-              </div>
-            </div>
-          </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-brand-prussian/90 via-brand-prussian/20 to-transparent opacity-90"></div>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="absolute -left-6 sm:-left-10 -bottom-8 sm:-bottom-10 w-[220px] sm:w-[260px]"
-          >
-            <motion.div
-              variants={floatingBadge}
-              animate="animate"
-              className="bg-white rounded-2xl shadow-2xl border border-brand-aliceBlue p-4 sm:p-5"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold text-brand-prussian/50 uppercase tracking-widest font-sans">
-                  Your Progress
-                </span>
-                <Flame size={14} className="text-brand-coral" />
+              <div className="absolute bottom-0 left-0 w-full p-6 sm:p-8">
+                <div className="inline-flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-brand-jasmine animate-ping"></span>
+                  <span className="text-brand-jasmine text-[10px] font-bold tracking-widest uppercase font-sans">
+                    Your Instructor
+                  </span>
+                </div>
+                <h3 className="text-white text-2xl sm:text-3xl font-black font-sans tracking-tight">Kalum Waduge</h3>
+                <p className="text-white/80 text-sm font-sans mt-1">BSc. Accounting (Sp) USJP</p>
               </div>
-              <LedgerBar label="Journal Entries" value={92} color="bg-brand-cerulean" delay={0.1} />
-              <LedgerBar label="Depreciation" value={76} color="bg-brand-coral" delay={0.25} />
-            </motion.div>
-          </motion.div>
-
-          <motion.div
-            animate={{ y: [-5, 5, -5] }}
-            transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 1 }}
-            className="absolute -right-3 sm:-right-5 top-6 sm:top-8 bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-xl border border-white flex items-center gap-2.5"
-          >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-brand-jasmine/20 rounded-full flex items-center justify-center">
-              <Star className="text-yellow-500" fill="currentColor" size={17} />
-            </div>
-            <div>
-              <p className="text-[10px] text-gray-500 font-bold font-sans">Rating</p>
-              <p className="text-brand-prussian font-bold text-base font-sans font-mono">4.9/5</p>
             </div>
           </motion.div>
         </div>
@@ -270,12 +241,13 @@ const HeroSection = ({ heroImageUrl }: { heroImageUrl?: string | null }) => (
     </div>
 
     <motion.div
-      animate={{ y: [0, 10, 0] }}
-      transition={{ repeat: Infinity, duration: 2 }}
-      className="absolute bottom-4 sm:bottom-8 text-brand-cerulean/40 hidden md:block cursor-pointer"
+      animate={{ y: [0, 8, 0] }}
+      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+      className="absolute bottom-6 text-brand-prussian/30 hidden md:flex flex-col items-center gap-2 cursor-pointer hover:text-brand-cerulean transition-colors z-20"
       onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })}
     >
-      <ChevronDown size={32} />
+      <span className="text-[10px] font-bold tracking-widest uppercase font-sans">Scroll</span>
+      <ChevronDown size={24} />
     </motion.div>
   </header>
 );
