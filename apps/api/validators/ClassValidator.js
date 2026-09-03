@@ -26,6 +26,7 @@ export const createClassSchema = z.object({
     type: z.enum(["theory", "revision", "paper"]).optional(),
     batch: objectIdSchema.optional().nullable(),
     tags: jsonString(z.array(z.string().trim()).optional()),
+    recordingCategories: jsonString(z.array(z.string().trim()).optional()),
     isPublished: boolean().optional(),
     
     // Linking

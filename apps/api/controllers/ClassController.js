@@ -67,6 +67,7 @@ const toRecordingDto = (sessionDoc) => {
     name: sessionDoc.recordingTitle || `Session ${sessionDoc.index} Recording`,
     url: `https://www.youtube.com/watch?v=${videoId}`,
     source: "session",
+    category: sessionDoc.recordingCategory || "",
     session: {
       _id: sessionDoc._id,
       index: sessionDoc.index,
@@ -412,6 +413,7 @@ export const createClass = async (req, res) => {
  * Update Class (Intelligently handles schedule comparisons and variants)
  */
 export const updateClass = async (req, res) => {
+  console.log("update class body:", req.body);
   const { classId } = req.params;
   
   // Extract schedule and variant fields separately for deep comparison
@@ -436,6 +438,7 @@ export const updateClass = async (req, res) => {
     bundlePriceRevision,
     bundlePricePaper,
     bundlePriceFull,
+    recordingCategories,
 
     ...otherUpdates 
   } = req.body;
@@ -510,6 +513,7 @@ export const updateClass = async (req, res) => {
     if (totalSessions !== undefined) classDoc.totalSessions = Number(totalSessions);
     if (sessionDurationMinutes !== undefined) classDoc.sessionDurationMinutes = Number(sessionDurationMinutes);
     if (firstSessionDate !== undefined) classDoc.firstSessionDate = firstSessionDate;
+    if (recordingCategories !== undefined) classDoc.recordingCategories = recordingCategories;
 
     // 6. Handle Variants (Revision / Paper Classes)
     const isCreateRevision = String(createRevision) === 'true';
@@ -847,7 +851,7 @@ export const getClassRecordings = async (req, res) => {
 export const addClassRecording = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { name, url, sessionId } = req.body;
+    const { name, url, sessionId, category } = req.body;
 
     if (!sessionId) {
       return res.status(400).json({ success: false, message: "Session is required" });
@@ -888,9 +892,8 @@ export const addClassRecording = async (req, res) => {
 
     targetSession.youtubeVideoId = youtubeVideoId;
     targetSession.recordingShared = true;
-    if (name && String(name).trim()) {
-      targetSession.recordingTitle = String(name).trim();
-    }
+    if (name) targetSession.recordingTitle = name;
+    if (category !== undefined) targetSession.recordingCategory = category;
     await targetSession.save();
 
     return res.status(201).json({
@@ -906,10 +909,10 @@ export const addClassRecording = async (req, res) => {
 export const updateClassRecording = async (req, res) => {
   try {
     const { classId, recordingId } = req.params;
-    const { name, url } = req.body;
+    const { name, url, category } = req.body;
 
-    if (!name && !url) {
-      return res.status(400).json({ success: false, message: "Provide name or url to update" });
+    if (!name && !url && category === undefined) {
+      return res.status(400).json({ success: false, message: "Provide details to update" });
     }
 
     const classExists = await Class.exists({ _id: classId });
@@ -921,8 +924,6 @@ export const updateClassRecording = async (req, res) => {
     if (!sessionDoc || !sessionDoc.youtubeVideoId) {
       return res.status(404).json({ success: false, message: "Recording not found" });
     }
-
-    if (name) sessionDoc.recordingTitle = String(name).trim();
 
     if (url) {
       const newVideoId = extractYouTubeVideoId(url);
@@ -944,6 +945,9 @@ export const updateClassRecording = async (req, res) => {
       sessionDoc.recordingShared = true;
     }
 
+    if (name !== undefined) sessionDoc.recordingTitle = name;
+    if (category !== undefined) sessionDoc.recordingCategory = category;
+    
     await sessionDoc.save();
     return res.status(200).json({ success: true, message: "Recording updated", recording: toRecordingDto(sessionDoc) });
   } catch (error) {

@@ -43,7 +43,7 @@ export default function ViewClassPage() {
   // State
   const [isLoading, setIsLoading] = useState(true);
   const [classData, setClassData] = useState<ClassData | null>(null);
-  const [activeTab, setActiveTab] = useState<"students" | "sessions" | "attendance">("sessions");
+  const [activeTab, setActiveTab] = useState<"students" | "sessions" | "recordings" | "attendance">("sessions");
   
   // Attendance State
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
@@ -64,6 +64,12 @@ export default function ViewClassPage() {
   const [editingRecordingId, setEditingRecordingId] = useState("");
   const [editRecordingName, setEditRecordingName] = useState("");
   const [isUpdatingRecording, setIsUpdatingRecording] = useState(false);
+
+  // Categories State
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [selectedRecordingCategory, setSelectedRecordingCategory] = useState("");
+  const [editSelectedRecordingCategory, setEditSelectedRecordingCategory] = useState("");
 
   // --- FETCH DATA ---
   const fetchData = useCallback(async () => {
@@ -138,6 +144,37 @@ export default function ViewClassPage() {
     }
   };
 
+  const handleAddCategory = async () => {
+    if (!id || !newCategoryName.trim()) return;
+    setIsAddingCategory(true);
+    try {
+      const existing = classData?.recordingCategories || [];
+      if (existing.includes(newCategoryName.trim())) {
+         window.alert("Category already exists");
+         return;
+      }
+      await ClassService.updateClass(id, { recordingCategories: [...existing, newCategoryName.trim()] });
+      setNewCategoryName("");
+      await fetchData();
+    } catch (e) {
+      window.alert("Failed to add category");
+    } finally {
+      setIsAddingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (category: string) => {
+    if (!id || !window.confirm(`Are you sure you want to delete the category "${category}"?`)) return;
+    try {
+      const existing = classData?.recordingCategories || [];
+      const updated = existing.filter(c => c !== category);
+      await ClassService.updateClass(id, { recordingCategories: updated });
+      await fetchData();
+    } catch (e) {
+      window.alert("Failed to delete category");
+    }
+  };
+
   const handleDeleteSession = async (sessionId: string) => {
     if (!window.confirm("Permanent Action: This will delete the session record and the Zoom meeting. Proceed?")) return;
     
@@ -176,6 +213,7 @@ export default function ViewClassPage() {
         name: recordingName.trim() || undefined,
         url: recordingUrl.trim(),
         sessionId: selectedSessionId,
+        category: selectedRecordingCategory || undefined,
       });
 
       if (response.message && response.message.toLowerCase().includes("already exists")) {
@@ -372,7 +410,12 @@ export default function ViewClassPage() {
           <TabTrigger 
             active={activeTab === "sessions"} 
             onClick={() => setActiveTab("sessions")} 
-            label="Session Controls" 
+            label="Sessions" 
+          />
+          <TabTrigger 
+            active={activeTab === "recordings"} 
+            onClick={() => setActiveTab("recordings")} 
+            label="Recordings" 
           />
           <TabTrigger 
             active={activeTab === "attendance"} 
@@ -395,13 +438,72 @@ export default function ViewClassPage() {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-3"
             >
+              {sessions.length > 0 ? (
+                sessions.map((session: any) => (
+                  <SessionRow 
+                    key={session._id} 
+                    session={session} 
+                    onCancel={() => handleCancelClick(session._id)}
+                    onDelete={() => handleDeleteSession(session._id)}
+                  />
+                ))
+              ) : (
+                  <div className="p-10 text-center border-2 border-dashed border-brand-aliceBlue rounded-xl">
+                    <p className="text-gray-400 text-sm font-medium">No sessions scheduled yet.</p>
+                  </div>
+              )}
+            </motion.div>
+          ) : activeTab === "recordings" ? (
+            <motion.div 
+              key="recordings"
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-3"
+            >
               <div className="bg-white border border-brand-aliceBlue rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+                {/* Category Manager */}
+                <div className="pb-4 border-b border-brand-aliceBlue">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category Manager</p>
+                  <h3 className="text-sm sm:text-base font-bold text-brand-prussian mt-1 mb-3">Manage recording categories</h3>
+                  
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    {classData?.recordingCategories?.map((cat) => (
+                      <span key={cat} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-aliceBlue/50 text-sm font-semibold text-brand-prussian border border-brand-aliceBlue">
+                        {cat}
+                        <button onClick={() => handleDeleteCategory(cat)} className="text-gray-400 hover:text-red-500 transition-colors">
+                          <XCircleIcon className="w-4 h-4" />
+                        </button>
+                      </span>
+                    ))}
+                    {(!classData?.recordingCategories || classData.recordingCategories.length === 0) && (
+                      <p className="text-xs text-gray-400 font-medium italic">No categories created</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 max-w-sm">
+                    <input
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      placeholder="New category name"
+                      className="flex-1 bg-white border border-brand-aliceBlue rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                    />
+                    <button
+                      onClick={handleAddCategory}
+                      disabled={isAddingCategory || !newCategoryName.trim()}
+                      className="px-4 py-2 rounded-xl bg-brand-prussian text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-prussian/90 transition-colors disabled:opacity-60"
+                    >
+                      {isAddingCategory ? "..." : "Add"}
+                    </button>
+                  </div>
+                </div>
+
                 <div>
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recording Manager</p>
                   <h3 className="text-sm sm:text-base font-bold text-brand-prussian mt-1">Add class recordings</h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3">
                   <select
                     value={selectedSessionId}
                     onChange={(e) => setSelectedSessionId(e.target.value)}
@@ -412,6 +514,16 @@ export default function ViewClassPage() {
                       <option key={session._id} value={session._id}>
                         {session.title || `Session ${session.index}`} - {moment(session.startAt).format("DD MMM YYYY")}
                       </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedRecordingCategory}
+                    onChange={(e) => setSelectedRecordingCategory(e.target.value)}
+                    className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                  >
+                    <option value="">Uncategorized</option>
+                    {classData?.recordingCategories?.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
                   <input
@@ -435,88 +547,104 @@ export default function ViewClassPage() {
                   </button>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-4 pt-2">
                   {recordings.length === 0 ? (
                     <p className="text-xs text-gray-400 font-medium">No recordings added for this class yet.</p>
                   ) : (
-                    recordings.map((recording) => (
-                      <div key={recording._id} className="border border-brand-aliceBlue rounded-xl px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-                        <div className="min-w-0">
-                          {editingRecordingId === recording._id ? (
-                            <input
-                              value={editRecordingName}
-                              onChange={(e) => setEditRecordingName(e.target.value)}
-                              className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-lg px-2.5 py-1.5 text-sm font-semibold text-brand-prussian outline-none focus:ring-2 focus:ring-brand-cerulean/20"
-                            />
-                          ) : (
-                            <p className="text-sm font-semibold text-brand-prussian truncate">{recording.name}</p>
-                          )}
-                          {typeof recording.session === "object" && recording.session?.index && (
-                            <p className="text-[11px] text-gray-400 font-semibold mb-1">{recording.session.title || `Session ${recording.session.index}`}</p>
-                          )}
-                          <a
-                            href={recording.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-brand-cerulean hover:underline break-all"
-                          >
-                            {recording.url}
-                          </a>
-                        </div>
-                        <div className="self-start sm:self-auto flex items-center gap-2">
-                          {editingRecordingId === recording._id ? (
-                            <>
-                              <button
-                                onClick={() => handleSaveRecordingName(recording._id)}
-                                disabled={isUpdatingRecording}
-                                className="px-3 py-2 rounded-lg border border-emerald-100 text-emerald-600 hover:bg-emerald-50 text-xs font-bold uppercase tracking-wide disabled:opacity-60"
-                              >
-                                {isUpdatingRecording ? "Saving" : "Save"}
-                              </button>
-                              <button
-                                onClick={handleCancelEditRecording}
-                                disabled={isUpdatingRecording}
-                                className="px-3 py-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 text-xs font-bold uppercase tracking-wide"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => handleStartEditRecording(recording)}
-                              className="px-3 py-2 rounded-lg border border-blue-100 text-blue-600 hover:bg-blue-50 text-xs font-bold uppercase tracking-wide"
-                            >
-                              Edit
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => handleDeleteRecording(recording._id)}
-                            className="px-3 py-2 rounded-lg border border-red-100 text-red-600 hover:bg-red-50 text-xs font-bold uppercase tracking-wide"
-                          >
-                            Remove
-                          </button>
+                    Object.entries(
+                      recordings.reduce((acc, rec) => {
+                        const cat = rec.category || "Uncategorized";
+                        if (!acc[cat]) acc[cat] = [];
+                        acc[cat].push(rec);
+                        return acc;
+                      }, {} as Record<string, ClassRecording[]>)
+                    ).map(([category, catRecordings]) => (
+                      <div key={category} className="space-y-2">
+                        <h4 className="text-sm font-bold text-brand-prussian flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-brand-cerulean"></span>
+                          {category}
+                        </h4>
+                        <div className="space-y-2 pl-3 border-l border-brand-aliceBlue ml-1">
+                          {catRecordings.map((recording) => (
+                            <div key={recording._id} className="bg-white border border-brand-aliceBlue rounded-xl px-3 py-3 flex flex-col lg:flex-row lg:items-center gap-3 justify-between hover:border-brand-cerulean/30 transition-colors shadow-sm">
+                              <div className="min-w-0 flex-1">
+                                {editingRecordingId === recording._id ? (
+                                  <div className="flex flex-col gap-2 mb-2">
+                                    <input
+                                      value={editRecordingName}
+                                      onChange={(e) => setEditRecordingName(e.target.value)}
+                                      placeholder="Recording Name"
+                                      className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-lg px-2.5 py-1.5 text-sm font-semibold text-brand-prussian outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                                    />
+                                    <select
+                                      value={editSelectedRecordingCategory}
+                                      onChange={(e) => setEditSelectedRecordingCategory(e.target.value)}
+                                      className="w-full bg-brand-aliceBlue/30 border border-brand-aliceBlue rounded-lg px-2.5 py-1.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-cerulean/20"
+                                    >
+                                      <option value="">Uncategorized</option>
+                                      {classData?.recordingCategories?.map((cat) => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm font-semibold text-brand-prussian truncate">{recording.name}</p>
+                                )}
+                                {typeof recording.session === "object" && recording.session?.index && (
+                                  <p className="text-[11px] text-gray-400 font-semibold mb-1 mt-1">{recording.session.title || `Session ${recording.session.index}`}</p>
+                                )}
+                                <a
+                                  href={recording.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[11px] font-medium text-brand-cerulean hover:underline break-all flex items-center gap-1"
+                                >
+                                  <LinkIcon className="w-3 h-3" />
+                                  {recording.url}
+                                </a>
+                              </div>
+                              <div className="self-start lg:self-center flex flex-wrap items-center gap-2">
+                                {editingRecordingId === recording._id ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleSaveRecordingName(recording._id)}
+                                      disabled={isUpdatingRecording}
+                                      className="px-3 py-1.5 rounded-lg border border-emerald-100 text-emerald-600 hover:bg-emerald-50 text-[10px] font-bold uppercase tracking-wide disabled:opacity-60"
+                                    >
+                                      {isUpdatingRecording ? "Saving" : "Save"}
+                                    </button>
+                                    <button
+                                      onClick={handleCancelEditRecording}
+                                      disabled={isUpdatingRecording}
+                                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 text-[10px] font-bold uppercase tracking-wide"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => handleStartEditRecording(recording)}
+                                    className="px-3 py-1.5 rounded-lg border border-blue-100 text-blue-600 hover:bg-blue-50 text-[10px] font-bold uppercase tracking-wide"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+      
+                                <button
+                                  onClick={() => handleDeleteRecording(recording._id)}
+                                  className="px-3 py-1.5 rounded-lg border border-red-100 text-red-600 hover:bg-red-50 text-[10px] font-bold uppercase tracking-wide"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ))
                   )}
                 </div>
               </div>
-
-              {sessions.length > 0 ? (
-                sessions.map((session: any) => (
-                  <SessionRow 
-                    key={session._id} 
-                    session={session} 
-                    onCancel={() => handleCancelClick(session._id)}
-                    onDelete={() => handleDeleteSession(session._id)}
-                  />
-                ))
-              ) : (
-                  <div className="p-10 text-center border-2 border-dashed border-brand-aliceBlue rounded-xl">
-                    <p className="text-gray-400 text-sm font-medium">No sessions scheduled yet.</p>
-                  </div>
-              )}
             </motion.div>
           ) : activeTab === "attendance" ? (
             <motion.div

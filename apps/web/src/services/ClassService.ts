@@ -24,6 +24,7 @@ export interface ClassRecording {
   name: string;
   url: string;
   source: "session";
+  category?: string;
   session?: string | { _id: string; title?: string; index?: number; startAt?: string } | null;
   addedBy?: string | { _id: string; firstName?: string; lastName?: string; email?: string } | null;
   createdAt?: string;
@@ -65,6 +66,9 @@ export interface CreateClassPayload {
   bundlePriceRevision?: number; 
   bundlePricePaper?: number;    
   bundlePriceFull?: number;
+
+  // Recording
+  recordingCategories?: string[];
 }
 
 export type UpdateClassPayload = Partial<CreateClassPayload>;
@@ -86,6 +90,7 @@ export interface ClassData {
   isPublished: boolean;
   students?: EnrolledStudent[];
   recordings?: ClassRecording[];
+  recordingCategories?: string[];
 }
 
 interface ClassResponse {
@@ -136,6 +141,10 @@ if (data.name) formData.append("name", data.name);
   if (data.bundlePriceRevision !== undefined) formData.append("bundlePriceRevision", String(data.bundlePriceRevision));
   if (data.bundlePricePaper !== undefined) formData.append("bundlePricePaper", String(data.bundlePricePaper));
   if (data.bundlePriceFull !== undefined) formData.append("bundlePriceFull", String(data.bundlePriceFull));
+  
+  if (data.recordingCategories && Array.isArray(data.recordingCategories)) {
+    data.recordingCategories.forEach((cat) => formData.append("recordingCategories", cat));
+  }
   return formData;
 };
 
@@ -178,7 +187,7 @@ const ClassService = {
     return response.data;
   },
 
-  addClassRecording: async (id: string, payload: { name?: string; url: string; sessionId: string }) => {
+  addClassRecording: async (id: string, payload: { name?: string; url: string; sessionId: string; category?: string }) => {
     const response = await api.post<{ success: boolean; message: string; recording: ClassRecording }>(
       `${BASE_URL}/${id}/recordings`,
       payload
@@ -186,7 +195,7 @@ const ClassService = {
     return response.data;
   },
 
-  updateClassRecording: async (id: string, recordingId: string, payload: { name?: string; url?: string }) => {
+  updateClassRecording: async (id: string, recordingId: string, payload: { name?: string; url?: string; category?: string }) => {
     const response = await api.patch<{ success: boolean; message: string; recording: ClassRecording }>(
       `${BASE_URL}/${id}/recordings/${recordingId}`,
       payload,

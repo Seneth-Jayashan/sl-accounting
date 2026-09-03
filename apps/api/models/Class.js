@@ -60,6 +60,9 @@ const classSchema = new mongoose.Schema({
   type: { type: String, enum: ["theory", "revision", "paper"], default: "theory" },
   tags: [{ type: String, index: true }],
 
+  // Recording Categories
+  recordingCategories: [{ type: String, trim: true }],
+
   // --- NEW LINKED CLASS FIELDS ---
   // If this is a Theory class, these point to the generated variants
   linkedRevisionClass: { type: mongoose.Schema.Types.ObjectId, ref: "Class", default: null },

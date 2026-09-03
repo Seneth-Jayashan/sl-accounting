@@ -96,83 +96,145 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
     return { locked: false, reason: "" };
   };
 
+  // Group by Month and Category
+  const groupedRecordings = useMemo(() => {
+    const grouped: { month: string, sortDate: number, categories: { category: string, sessions: any[] }[] }[] = [];
+
+    recordings.forEach(session => {
+        const monthName = new Date(session.startAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const categoryName = session.recordingCategory || "General";
+
+        let monthObj = grouped.find(g => g.month === monthName);
+        if (!monthObj) {
+            monthObj = { month: monthName, sortDate: new Date(session.startAt).getTime(), categories: [] };
+            grouped.push(monthObj);
+        }
+
+        let catObj = monthObj.categories.find(c => c.category === categoryName);
+        if (!catObj) {
+            catObj = { category: categoryName, sessions: [] };
+            monthObj.categories.push(catObj);
+        }
+
+        catObj.sessions.push(session);
+    });
+
+    grouped.sort((a, b) => b.sortDate - a.sortDate);
+    grouped.forEach(g => {
+        g.categories.sort((a, b) => a.category.localeCompare(b.category));
+    });
+
+    return grouped;
+  }, [recordings]);
+
   if (loading) {
-    return <div className="py-20 text-center text-gray-400 animate-pulse">Verifying Access Rights...</div>;
+    return <div className="py-20 text-center text-gray-400 animate-pulse font-medium">Verifying Access Rights...</div>;
   }
 
   if (recordings.length === 0) {
     return (
-      <div className="text-center py-24 bg-white rounded-[2.5rem] border border-dashed border-brand-aliceBlue">
+      <div className="text-center py-24 bg-white rounded-[2.5rem] border border-dashed border-brand-aliceBlue shadow-sm">
         <Video className="mx-auto text-brand-aliceBlue mb-4" size={48} strokeWidth={1.5} />
-        <p className="text-gray-400 font-medium">No session recordings are available yet.</p>
+        <p className="text-gray-400 font-medium text-lg">No session recordings are available yet.</p>
+        <p className="text-gray-400 text-sm mt-2">Check back later when the teacher uploads new content.</p>
       </div>
     );
   }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-    >
-      {recordings.map((session) => {
-        const { locked, reason } = getAccessStatus(session);
+    <div className="space-y-12">
+      {groupedRecordings.map((monthGroup, mIndex) => (
+        <motion.div 
+          key={monthGroup.month}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: mIndex * 0.1, duration: 0.4, ease: "easeOut" }}
+          className="space-y-8"
+        >
+          {/* Month Header */}
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl md:text-3xl font-black text-brand-prussian tracking-tight">{monthGroup.month}</h2>
+            <div className="flex-1 h-px bg-gradient-to-r from-brand-aliceBlue via-brand-aliceBlue to-transparent"></div>
+          </div>
 
-        return (
-            <div 
-              key={session._id} 
-              className={`group relative rounded-[2rem] p-6 border transition-all duration-300 ${
-                  locked 
-                  ? "bg-gray-50 border-gray-200" 
-                  : "bg-white border-brand-aliceBlue shadow-sm hover:border-brand-cerulean/20 hover:shadow-md"
-              }`}
-            >
-              <div className="flex items-start gap-4 mb-6">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 ${
-                    locked 
-                    ? "bg-gray-200 text-gray-400" 
-                    : "bg-brand-aliceBlue text-brand-cerulean group-hover:bg-brand-cerulean group-hover:text-white"
-                }`}>
-                  {locked ? <Lock size={22} /> : <PlayCircle size={22} strokeWidth={2} />}
-                </div>
-                
-                <div className="space-y-1">
-                  <h4 className={`text-base font-semibold line-clamp-2 leading-snug transition-colors ${
-                      locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
-                  }`}>
-                    {session.recordingTitle || session.title || `Session ${session.index}`}
-                  </h4>
-                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 uppercase tracking-wider">
-                    <Calendar size={12} />
-                    {formatDate(session.startAt)}
+          <div className="space-y-10 pl-2 md:pl-4 border-l-2 border-brand-aliceBlue/50">
+            {monthGroup.categories.map((catGroup) => (
+              <div key={catGroup.category} className="space-y-5">
+                {/* Category Header */}
+                <div className="flex items-center">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-cerulean/5 border border-brand-cerulean/20 text-sm font-bold text-brand-cerulean shadow-sm backdrop-blur-md">
+                    {catGroup.category}
                   </div>
                 </div>
-              </div>
-              
-              {locked ? (
-                <div className="flex flex-col gap-3">
-                    <div className="w-full bg-gray-100 py-3.5 rounded-xl font-medium text-xs text-gray-500 flex items-center justify-center gap-2 border border-gray-200 cursor-not-allowed">
-                        <AlertCircle size={14} /> {reason}
-                    </div>
-                    {/* Optional: Add Pay Button directly here */}
-                    <button 
-                        onClick={() => navigate(`/student/payment/create/${typeof session.class === 'string' ? session.class : session.class._id}`)}
-                        className="text-xs font-bold text-brand-cerulean hover:underline text-center"
-                    >
-                        Pay Now to Unlock
-                    </button>
+
+                {/* Grid of Recordings */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {catGroup.sessions.map((session, sIndex) => {
+                    const { locked, reason } = getAccessStatus(session);
+
+                    return (
+                        <motion.div 
+                          key={session._id} 
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: (mIndex * 0.1) + (sIndex * 0.05), duration: 0.3 }}
+                          className={`group relative rounded-3xl p-5 border transition-all duration-300 ${
+                              locked 
+                              ? "bg-gray-50/80 border-gray-200" 
+                              : "bg-white border-brand-aliceBlue shadow-sm hover:border-brand-cerulean/30 hover:shadow-lg hover:-translate-y-1"
+                          }`}
+                        >
+                          <div className="flex items-start gap-4 mb-5">
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 shadow-inner ${
+                                locked 
+                                ? "bg-gray-200/80 text-gray-400" 
+                                : "bg-gradient-to-br from-brand-aliceBlue to-white text-brand-cerulean group-hover:from-brand-cerulean group-hover:to-blue-600 group-hover:text-white"
+                            }`}>
+                              {locked ? <Lock size={24} /> : <PlayCircle size={26} strokeWidth={2.5} />}
+                            </div>
+                            
+                            <div className="space-y-1.5 flex-1 pt-1">
+                              <h4 className={`text-base font-bold line-clamp-2 leading-snug transition-colors ${
+                                  locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
+                              }`}>
+                                {session.recordingTitle || session.title || `Session ${session.index}`}
+                              </h4>
+                              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                <Calendar size={13} className="mb-0.5" />
+                                {formatDate(session.startAt)}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {locked ? (
+                            <div className="flex flex-col gap-3">
+                                <div className="w-full bg-gray-100/80 py-3 rounded-xl font-bold text-xs text-gray-500 flex items-center justify-center gap-2 border border-gray-200/80 cursor-not-allowed">
+                                    <AlertCircle size={15} /> {reason}
+                                </div>
+                                <button 
+                                    onClick={() => navigate(`/student/payment/create/${typeof session.class === 'string' ? session.class : session.class._id}`)}
+                                    className="text-[11px] font-black text-brand-cerulean uppercase tracking-wider hover:underline text-center"
+                                >
+                                    Pay Now to Unlock
+                                </button>
+                            </div>
+                          ) : (
+                            <button 
+                                onClick={() => navigate(`/student/class/recording/${session._id}`)}
+                                className="w-full bg-brand-aliceBlue/50 py-3 rounded-xl font-bold text-sm text-brand-prussian hover:bg-brand-prussian hover:text-white transition-all transform active:scale-95 shadow-sm"
+                            >
+                                Watch Recording
+                            </button>
+                          )}
+                        </motion.div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <button 
-                    onClick={() => navigate(`/student/class/recording/${session._id}`)}
-                    className="w-full bg-brand-aliceBlue py-3.5 rounded-xl font-medium text-sm text-brand-prussian hover:bg-brand-prussian hover:text-white transition-all transform active:scale-[0.98]"
-                >
-                    Watch Session
-                </button>
-              )}
-            </div>
-        );
-      })}
-    </motion.div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      ))}
+    </div>
   );
 }
