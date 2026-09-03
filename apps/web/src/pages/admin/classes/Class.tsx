@@ -19,7 +19,7 @@ interface ClassListItem {
   title: string;
   batchName: string;
   level: string;
-  schedule: string;
+  schedule: string[];
   studentCount: number;
   isActive: boolean;
   isPublished: boolean;
@@ -46,9 +46,9 @@ export default function ClassesPage() {
         title: item.name ?? "Untitled Class",
         batchName: item.batch?.name ?? "Independent",
         level: item.level ? item.level.toUpperCase() : "GENERAL",
-        schedule: item.timeSchedules?.[0] 
-                  ? `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][item.timeSchedules[0].day]} • ${item.timeSchedules[0].startTime}`
-                  : "TBA",
+        schedule: (item.timeSchedules && item.timeSchedules.length > 0) 
+                  ? item.timeSchedules.map((sch: any) => `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][sch.day]} • ${sch.startTime}`)
+                  : ["TBA"],
         studentCount: item.studentCount ?? 0,
         isActive: item.isActive ?? true,
         isPublished: item.isPublished ?? false,
@@ -205,10 +205,14 @@ const ClassCard = ({ cls, onToggle, onDelete, onEdit, onView }: any) => (
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-lg">
-          <ClockIcon className="w-4 h-4 text-brand-cerulean/50 shrink-0" />
-          <span className="font-medium truncate">{cls.schedule}</span>
+      <div className="flex flex-col gap-3 mb-5">
+        <div className="flex flex-col gap-2 bg-gray-50 p-2 rounded-lg">
+            {cls.schedule.map((sch: string, idx: number) => (
+                <div key={idx} className="flex items-center gap-2 text-xs text-gray-600">
+                <ClockIcon className="w-4 h-4 text-brand-cerulean/50 shrink-0" />
+                <span className="font-medium truncate">{sch}</span>
+                </div>
+            ))}
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-lg">
           <UsersIcon className="w-4 h-4 text-brand-cerulean/50 shrink-0" />

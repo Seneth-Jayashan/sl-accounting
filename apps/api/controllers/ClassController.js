@@ -128,48 +128,60 @@ const createSingleClassInternal = async (dbSession, data, filePaths) => {
   const savedSessionIds = [];
   let globalIndex = 1;
 
-  for (let i = 0; i < classConfig.totalSessions; i++) {
+  const candidateMoments = [];
+  let weekIndex = 0;
+  // Generate enough candidate weeks to satisfy totalSessions
+  while (candidateMoments.length < classConfig.totalSessions) {
     for (const sch of schedules) {
       const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "Asia/Colombo";
-      const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, sch.timezone || tz, i);
-      const endMoment = startMoment.clone().add(classConfig.sessionDurationMinutes, "minutes");
+      const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, weekIndex);
+      candidateMoments.push({ startMoment, sch, tz });
+    }
+    weekIndex++;
+  }
 
-      const sessionDoc = new Session({
-        class: savedClass._id,
-        index: globalIndex,
-        startAt: startMoment.toDate(),
-        endAt: endMoment.toDate(),
+  // Sort chronologically and take exactly totalSessions
+  candidateMoments.sort((a, b) => a.startMoment.valueOf() - b.startMoment.valueOf());
+  const selectedMoments = candidateMoments.slice(0, classConfig.totalSessions);
+
+  for (const { startMoment, tz } of selectedMoments) {
+    const endMoment = startMoment.clone().add(classConfig.sessionDurationMinutes, "minutes");
+
+    const sessionDoc = new Session({
+      class: savedClass._id,
+      index: globalIndex,
+      startAt: startMoment.toDate(),
+      endAt: endMoment.toDate(),
+      timezone: tz,
+    });
+
+    // 4. Create Zoom Meeting
+    try {
+      const zoomData = await createMeeting({
+        topic: `${savedClass.name} - Session ${globalIndex}`,
+        start_time: startMoment.format("YYYY-MM-DDTHH:mm:ss"),
+        duration: classConfig.sessionDurationMinutes,
         timezone: tz,
+        settings: {
+          join_before_host: false,
+          approval_type: 2, // No registration required
+          auto_recording: "cloud",
+        },
       });
 
-      // 4. Create Zoom Meeting
-      try {
-        const zoomData = await createMeeting({
-          topic: `${savedClass.name} - Session ${globalIndex}`,
-          start_time: startMoment.format("YYYY-MM-DDTHH:mm:ss"),
-          duration: classConfig.sessionDurationMinutes,
-          timezone: tz,
-          settings: {
-            join_before_host: false,
-            approval_type: 2, // No registration required
-            auto_recording: "cloud",
-          },
-        });
-
-        if (zoomData) {
-          sessionDoc.zoomMeetingId = String(zoomData.id);
-          sessionDoc.zoomStartUrl = zoomData.start_url;
-          sessionDoc.zoomJoinUrl = zoomData.join_url;
-        }
-      } catch (zoomErr) {
-        console.warn(`[Zoom Error] Failed to create meeting for ${savedClass.name}: ${zoomErr.message}`);
-        // We continue creation even if Zoom fails to avoid blocking the DB transaction
+      if (zoomData) {
+        sessionDoc.zoomMeetingId = String(zoomData.id);
+        sessionDoc.zoomStartUrl = zoomData.start_url;
+        sessionDoc.zoomJoinUrl = zoomData.join_url;
       }
-
-      const savedSession = await sessionDoc.save({ session: dbSession });
-      savedSessionIds.push(savedSession._id);
-      globalIndex++;
+    } catch (zoomErr) {
+      console.warn(`[Zoom Error] Failed to create meeting for ${savedClass.name}: ${zoomErr.message}`);
+      // We continue creation even if Zoom fails to avoid blocking the DB transaction
     }
+
+    const savedSession = await sessionDoc.save({ session: dbSession });
+    savedSessionIds.push(savedSession._id);
+    globalIndex++;
   }
 
   // 5. Update Class with Session IDs
@@ -201,47 +213,59 @@ const generateSessionsForClass = async (classDoc, dbSession) => {
   const savedSessionIds = [];
   let globalIndex = 1;
 
-  for (let i = 0; i < classDoc.totalSessions; i++) {
+  const candidateMoments = [];
+  let weekIndex = 0;
+  // Generate enough candidate weeks to satisfy totalSessions
+  while (candidateMoments.length < classDoc.totalSessions) {
     for (const sch of schedules) {
       const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "Asia/Colombo";
-      const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, i);
-      const endMoment = startMoment.clone().add(classDoc.sessionDurationMinutes, "minutes");
+      const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, weekIndex);
+      candidateMoments.push({ startMoment, sch, tz });
+    }
+    weekIndex++;
+  }
 
-      const sessionDoc = new Session({
-        class: classDoc._id,
-        index: globalIndex,
-        startAt: startMoment.toDate(),
-        endAt: endMoment.toDate(),
+  // Sort chronologically and take exactly totalSessions
+  candidateMoments.sort((a, b) => a.startMoment.valueOf() - b.startMoment.valueOf());
+  const selectedMoments = candidateMoments.slice(0, classDoc.totalSessions);
+
+  for (const { startMoment, tz } of selectedMoments) {
+    const endMoment = startMoment.clone().add(classDoc.sessionDurationMinutes, "minutes");
+
+    const sessionDoc = new Session({
+      class: classDoc._id,
+      index: globalIndex,
+      startAt: startMoment.toDate(),
+      endAt: endMoment.toDate(),
+      timezone: tz,
+    });
+
+    // Create Zoom Meeting
+    try {
+      const zoomData = await createMeeting({
+        topic: `${classDoc.name} - Session ${globalIndex}`,
+        start_time: startMoment.format("YYYY-MM-DDTHH:mm:ss"),
+        duration: classDoc.sessionDurationMinutes,
         timezone: tz,
+        settings: {
+          join_before_host: false,
+          approval_type: 2, 
+          auto_recording: "cloud",
+        },
       });
 
-      // Create Zoom Meeting
-      try {
-        const zoomData = await createMeeting({
-          topic: `${classDoc.name} - Session ${globalIndex}`,
-          start_time: startMoment.format("YYYY-MM-DDTHH:mm:ss"),
-          duration: classDoc.sessionDurationMinutes,
-          timezone: tz,
-          settings: {
-            join_before_host: false,
-            approval_type: 2, 
-            auto_recording: "cloud",
-          },
-        });
-
-        if (zoomData) {
-          sessionDoc.zoomMeetingId = String(zoomData.id);
-          sessionDoc.zoomStartUrl = zoomData.start_url;
-          sessionDoc.zoomJoinUrl = zoomData.join_url;
-        }
-      } catch (zoomErr) {
-        console.warn(`[Zoom Error] Failed to create meeting for ${classDoc.name}: ${zoomErr.message}`);
+      if (zoomData) {
+        sessionDoc.zoomMeetingId = String(zoomData.id);
+        sessionDoc.zoomStartUrl = zoomData.start_url;
+        sessionDoc.zoomJoinUrl = zoomData.join_url;
       }
-
-      const savedSession = await sessionDoc.save({ session: dbSession });
-      savedSessionIds.push(savedSession._id);
-      globalIndex++;
+    } catch (zoomErr) {
+      console.warn(`[Zoom Error] Failed to create meeting for ${classDoc.name}: ${zoomErr.message}`);
     }
+
+    const savedSession = await sessionDoc.save({ session: dbSession });
+    savedSessionIds.push(savedSession._id);
+    globalIndex++;
   }
 
   // Update Class with new Session IDs

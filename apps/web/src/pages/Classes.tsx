@@ -260,7 +260,6 @@ export default function PublicClassesPage() {
             >
                 <AnimatePresence mode="popLayout">
                     {filteredClasses.map((cls) => {
-                        const schedule = cls.timeSchedules && cls.timeSchedules[0];
                         return (
                             <motion.div 
                                 key={cls._id} 
@@ -281,13 +280,19 @@ export default function PublicClassesPage() {
                                     <div className="p-6 flex-1 flex flex-col">
                                         <h3 className="text-xl font-bold text-brand-prussian mb-2 group-hover:text-brand-cerulean transition-colors line-clamp-1 font-sinhala leading-tight">{cls.name}</h3>
                                         <p className="text-gray-500 text-sm line-clamp-2 mb-6 font-sans leading-relaxed flex-1">{cls.description}</p>
-                                        <div className="grid grid-cols-1 gap-3 mb-6 mt-auto">
-                                            {schedule && (
-                                                <>
-                                                    <div className="flex items-center text-sm text-gray-600 bg-brand-aliceBlue/50 p-2 rounded-lg"><Calendar className="w-4 h-4 mr-3 text-brand-cerulean" /><span className="font-bold text-brand-prussian">{getDayName(schedule.day)}s</span></div>
-                                                    <div className="flex items-center text-sm text-gray-600 bg-brand-aliceBlue/50 p-2 rounded-lg"><Clock className="w-4 h-4 mr-3 text-brand-cerulean" /><span className="font-medium">{schedule.startTime} - {schedule.endTime}</span></div>
-                                                </>
-                                            )}
+                                        <div className="flex flex-col gap-2 mb-6 mt-auto">
+                                            {cls.timeSchedules && cls.timeSchedules.length > 0 && cls.timeSchedules.map((sch, idx) => (
+                                                <div key={idx} className="flex items-center justify-between text-sm text-gray-600 bg-brand-aliceBlue/50 px-3 py-2 rounded-lg border border-brand-aliceBlue">
+                                                    <div className="flex items-center gap-2">
+                                                        <Calendar className="w-4 h-4 text-brand-cerulean" />
+                                                        <span className="font-bold text-brand-prussian">{getDayName(sch.day)}s</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className="w-4 h-4 text-brand-cerulean" />
+                                                        <span className="font-medium text-xs bg-white px-2 py-0.5 rounded shadow-sm">{sch.startTime} - {sch.endTime}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                         <button className="w-full bg-brand-prussian text-white font-bold py-3.5 rounded-xl group-hover:bg-brand-cerulean transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-prussian/10">View Class Details <ArrowRight size={16} /></button>
                                     </div>

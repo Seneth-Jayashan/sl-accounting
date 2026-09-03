@@ -279,7 +279,6 @@ export default function ViewClassPage() {
   if (!classData) return <NotFoundState onBack={() => navigate("/admin/classes")} />;
 
   const sessions = (classData as any).sessions || [];
-  const nextSession = (classData as any).timeSchedules?.[0];
 
   // Helper to determine type color
   const getTypeColor = (type: string) => {
@@ -395,7 +394,11 @@ export default function ViewClassPage() {
         <DetailCard 
           icon={<ClockIcon className="w-5 h-5"/>} 
           label="Timing" 
-          value={nextSession ? `${moment().day(nextSession.day).format("dddd")} @ ${nextSession.startTime}` : "TBA"} 
+          value={
+              (classData as any).timeSchedules && (classData as any).timeSchedules.length > 0 
+                  ? (classData as any).timeSchedules.map((sch: any) => `${moment().day(sch.day).format("ddd")} @ ${sch.startTime}`).join(" | ") 
+                  : "TBA"
+          } 
         />
         <DetailCard 
           icon={<UserGroupIcon className="w-5 h-5"/>} 

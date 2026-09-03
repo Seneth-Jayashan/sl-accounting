@@ -140,7 +140,6 @@ export default function ViewPublicClassPage() {
     );
   }
 
-  const schedule = classData.timeSchedules && classData.timeSchedules[0];
 
   return (
     <div className="min-h-screen bg-brand-aliceBlue/30 font-sans text-gray-900 pb-20">
@@ -212,25 +211,33 @@ export default function ViewPublicClassPage() {
                         <Clock className="text-brand-cerulean" /> Class Schedule
                     </h3>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
-                        <div className="bg-brand-aliceBlue/50 p-4 sm:p-5 rounded-2xl flex items-center gap-4 border border-brand-cerulean/10">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-brand-cerulean shrink-0">
-                                <Calendar size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Class Day</p>
-                                <p className="text-brand-prussian font-bold text-base sm:text-lg">{schedule ? `${getDayName(schedule.day)}s` : "TBA"}</p>
-                            </div>
-                        </div>
-                        <div className="bg-brand-aliceBlue/50 p-4 sm:p-5 rounded-2xl flex items-center gap-4 border border-brand-cerulean/10">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-brand-coral shrink-0">
-                                <Clock size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Time</p>
-                                <p className="text-brand-prussian font-bold text-base sm:text-lg">{schedule ? `${schedule.startTime} - ${schedule.endTime}` : "TBA"}</p>
-                            </div>
-                        </div>
+                    <div className="flex flex-col gap-4 relative z-10">
+                        {classData.timeSchedules && classData.timeSchedules.length > 0 ? (
+                            classData.timeSchedules.map((sch: any, idx: number) => (
+                                <div key={idx} className="flex flex-col sm:flex-row gap-4 w-full">
+                                    <div className="bg-brand-aliceBlue/50 p-4 sm:p-5 rounded-2xl flex items-center gap-4 border border-brand-cerulean/10 flex-1">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-brand-cerulean shrink-0">
+                                            <Calendar size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Class Day</p>
+                                            <p className="text-brand-prussian font-bold text-base sm:text-lg">{`${getDayName(sch.day)}s`}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-brand-aliceBlue/50 p-4 sm:p-5 rounded-2xl flex items-center gap-4 border border-brand-cerulean/10 flex-1">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-brand-coral shrink-0">
+                                            <Clock size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Time</p>
+                                            <p className="text-brand-prussian font-bold text-base sm:text-lg">{`${sch.startTime} - ${sch.endTime}`}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-brand-prussian font-bold">TBA</p>
+                        )}
                     </div>
                 </div>
 

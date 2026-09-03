@@ -35,9 +35,7 @@ const INITIAL_FORM = {
   batch: "",
   type: "theory",
   parentTheoryClass: "",
-  day: "Saturday",
-  startTime: "08:00",
-  endTime: "10:00",
+  timeSchedules: [{ day: "Saturday", startTime: "08:00", endTime: "10:00" }],
   firstSessionDate: "",
   recurrence: "weekly",
   totalSessions: "4", 
@@ -66,6 +64,7 @@ const INITIAL_FORM = {
   bundlePricePaper: "",
   bundlePriceFull: "",
 };
+
 
 export default function UpdateClassPage() {
   const { id } = useParams<{ id: string }>();
@@ -111,9 +110,13 @@ export default function UpdateClassPage() {
         parentTheoryClass: typeof cls.parentTheoryClass === 'object' ? cls.parentTheoryClass?._id : (cls.parentTheoryClass || ""),
         
         // Schedule (Main Class)
-        day: cls.timeSchedules?.[0] ? INDEX_TO_DAY[cls.timeSchedules[0].day] : "Saturday",
-        startTime: cls.timeSchedules?.[0]?.startTime || "08:00",
-        endTime: cls.timeSchedules?.[0]?.endTime || "10:00",
+        timeSchedules: (cls.timeSchedules && cls.timeSchedules.length > 0) 
+            ? cls.timeSchedules.map((sch: any) => ({
+                day: INDEX_TO_DAY[sch.day] || "Saturday",
+                startTime: sch.startTime || "08:00",
+                endTime: sch.endTime || "10:00"
+            }))
+            : [{ day: "Saturday", startTime: "08:00", endTime: "10:00" }],
         
         firstSessionDate: cls.firstSessionDate ? moment(cls.firstSessionDate).format("YYYY-MM-DD") : "",
         recurrence: cls.recurrence || "weekly",
@@ -182,6 +185,28 @@ export default function UpdateClassPage() {
     }
   };
 
+  const handleScheduleChange = (index: number, field: string, value: string) => {
+    setFormData(prev => {
+      const newSchedules = [...prev.timeSchedules];
+      newSchedules[index] = { ...newSchedules[index], [field]: value };
+      return { ...prev, timeSchedules: newSchedules };
+    });
+  };
+
+  const addSchedule = () => {
+    setFormData(prev => ({
+      ...prev,
+      timeSchedules: [...prev.timeSchedules, { day: "Saturday", startTime: "08:00", endTime: "10:00" }]
+    }));
+  };
+
+  const removeSchedule = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      timeSchedules: prev.timeSchedules.filter((_, i) => i !== index)
+    }));
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -199,8 +224,10 @@ export default function UpdateClassPage() {
     setError(null);
 
     // Basic Validation
-    if (moment(formData.startTime, "HH:mm").isSameOrAfter(moment(formData.endTime, "HH:mm"))) {
-      return setError("End time must be later than start time.");
+    for (const sch of formData.timeSchedules) {
+      if (moment(sch.startTime, "HH:mm").isSameOrAfter(moment(sch.endTime, "HH:mm"))) {
+        return setError("End time must be later than start time in all schedules.");
+      }
     }
     
     // Variant Validation
@@ -234,12 +261,12 @@ export default function UpdateClassPage() {
         sessionDurationMinutes: Number(formData.sessionDurationMinutes),
         
         // Update Schedule
-        timeSchedules: [{
-          day: DAY_INDEX[formData.day],
-          startTime: formData.startTime,
-          endTime: formData.endTime,
+        timeSchedules: formData.timeSchedules.map(sch => ({
+          day: DAY_INDEX[sch.day],
+          startTime: sch.startTime,
+          endTime: sch.endTime,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        }],
+        })),
         
         tags: formData.tags.split(",").map(t => t.trim()).filter(Boolean),
         
@@ -358,17 +385,29 @@ export default function UpdateClassPage() {
 
             <Section title="Schedule & Pricing" icon={<ClockIcon className="w-5 h-5"/>}>
                 <div className="space-y-5">
-                    <div className="bg-brand-aliceBlue/30 border border-brand-aliceBlue p-5 rounded-2xl">
-                        <div className="text-xs font-bold text-brand-prussian uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-brand-cerulean"></span> Primary Schedule
+                    <div className="bg-brand-aliceBlue/30 border border-brand-aliceBlue p-5 rounded-2xl space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="text-xs font-bold text-brand-prussian uppercase tracking-widest flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-brand-cerulean"></span> Primary Schedules
+                            </div>
+                            <button type="button" onClick={addSchedule} className="text-xs font-bold text-brand-cerulean hover:underline flex items-center gap-1">
+                                + Add Day
+                            </button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Select label="Day" name="day" value={formData.day} onChange={handleChange} className="bg-white">
-                                {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
-                            </Select>
-                            <Input label="Start Time" name="startTime" type="time" value={formData.startTime} onChange={handleChange} className="bg-white" />
-                            <Input label="End Time" name="endTime" type="time" value={formData.endTime} onChange={handleChange} className="bg-white" />
-                        </div>
+                        {formData.timeSchedules.map((sch, idx) => (
+                            <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-white p-3 rounded-xl border border-brand-aliceBlue/50 relative">
+                                <Select label="Day" value={sch.day} onChange={(e: any) => handleScheduleChange(idx, 'day', e.target.value)} className="bg-white">
+                                    {Object.keys(DAY_INDEX).map(d => <option key={d} value={d}>{d}</option>)}
+                                </Select>
+                                <Input label="Start Time" type="time" value={sch.startTime} onChange={(e: any) => handleScheduleChange(idx, 'startTime', e.target.value)} className="bg-white" />
+                                <Input label="End Time" type="time" value={sch.endTime} onChange={(e: any) => handleScheduleChange(idx, 'endTime', e.target.value)} className="bg-white" />
+                                {formData.timeSchedules.length > 1 && (
+                                    <button type="button" onClick={() => removeSchedule(idx)} className="h-10 px-4 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors text-sm font-bold flex items-center justify-center">
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                        ))}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
@@ -552,8 +591,12 @@ export default function UpdateClassPage() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="text-xs text-gray-400 font-bold uppercase block mb-1">Schedule</span>
-                                    <p className="font-medium text-gray-800">{formData.day}s</p>
-                                    <p className="text-gray-600">{formData.startTime} - {formData.endTime}</p>
+                                    {formData.timeSchedules.map((sch, i) => (
+                                        <div key={i} className="mb-1">
+                                            <p className="font-medium text-gray-800">{sch.day}s</p>
+                                            <p className="text-gray-600">{sch.startTime} - {sch.endTime}</p>
+                                        </div>
+                                    ))}
                                     <p className="font-bold text-brand-cerulean mt-1">LKR {formData.price}</p>
                                 </div>
                                 {formData.type === 'theory' && (
