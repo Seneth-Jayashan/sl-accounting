@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence, useInView, animate } from "framer-motion";
+import { motion, useInView, animate } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Play,
@@ -10,18 +10,12 @@ import {
   ChevronDown,
   CheckCircle2,
   ArrowRight,
-  Newspaper,
-  ArrowRightSquare,
-  X,
-  Bell,
-  Award,
   Sparkles,
   BarChart3,
   Quote,
   Calculator,
   FileSpreadsheet,
   Flame,
-  PlayCircle,
   Layers,
 } from "lucide-react";
 
@@ -467,6 +461,33 @@ const CurriculumSection = () => {
     { num: "16", title: "පරිගණක ගිණුම්කරණය", subtitle: "Grade 13", icon: BookOpen },
   ];
 
+  const grade12Units = units.filter(u => u.subtitle === "Grade 12");
+  const grade13Units = units.filter(u => u.subtitle === "Grade 13");
+
+  const renderUnitCard = (unit: any, idx: number) => (
+    <motion.div
+      key={idx}
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: (idx % 4) * 0.1, duration: 0.5 }}
+      className="bg-white p-6 sm:p-7 rounded-[1.75rem] border border-gray-100 shadow-lg hover:shadow-2xl transition-all group hover:-translate-y-1.5 relative overflow-hidden flex flex-col h-full"
+    >
+      <div className="flex items-start justify-between mb-5">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-brand-aliceBlue text-brand-cerulean rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-brand-cerulean group-hover:text-white transition-all duration-300">
+          <unit.icon size={24} />
+        </div>
+        <span className="text-3xl sm:text-4xl font-black text-brand-prussian/10 font-mono group-hover:text-brand-coral/20 transition-colors">
+          {unit.num}
+        </span>
+      </div>
+      <div className="flex-1">
+        <h3 className="text-lg sm:text-xl font-bold text-brand-prussian mb-1.5 font-sinhala leading-tight">{unit.title}</h3>
+      </div>
+      <p className="text-brand-coral text-xs sm:text-sm font-bold font-sans mt-2">{unit.subtitle}</p>
+    </motion.div>
+  );
+
   return (
     <section
       id="features"
@@ -485,30 +506,19 @@ const CurriculumSection = () => {
             questions.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
-          {units.map((unit, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: (idx % 4) * 0.1, duration: 0.5 }}
-              className="bg-white p-6 sm:p-7 rounded-[1.75rem] border border-gray-100 shadow-lg hover:shadow-2xl transition-all group hover:-translate-y-1.5 relative overflow-hidden flex flex-col h-full"
-            >
-              <div className="flex items-start justify-between mb-5">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-brand-aliceBlue text-brand-cerulean rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-brand-cerulean group-hover:text-white transition-all duration-300">
-                  <unit.icon size={24} />
-                </div>
-                <span className="text-3xl sm:text-4xl font-black text-brand-prussian/10 font-mono group-hover:text-brand-coral/20 transition-colors">
-                  {unit.num}
-                </span>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg sm:text-xl font-bold text-brand-prussian mb-1.5 font-sinhala leading-tight">{unit.title}</h3>
-              </div>
-              <p className="text-brand-coral text-xs sm:text-sm font-bold font-sans mt-2">{unit.subtitle}</p>
-            </motion.div>
-          ))}
+
+        <div className="mb-12">
+          <h3 className="text-2xl font-bold text-brand-prussian font-sans mb-6 border-b-2 border-brand-aliceBlue pb-3 inline-block">Grade 12</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+            {grade12Units.map((unit, idx) => renderUnitCard(unit, idx))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-2xl font-bold text-brand-prussian font-sans mb-6 border-b-2 border-brand-aliceBlue pb-3 inline-block">Grade 13</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+            {grade13Units.map((unit, idx) => renderUnitCard(unit, idx))}
+          </div>
         </div>
       </div>
     </section>
@@ -674,12 +684,11 @@ const FinalCtaSection = () => (
         to="/register"
         className="inline-flex items-center gap-3 px-8 py-4 bg-brand-prussian text-white rounded-2xl font-bold text-lg shadow-xl shadow-brand-prussian/20 hover:scale-105 active:scale-95 transition-transform font-sans"
       >
-        <Play fill="currentColor" size={18} /> Start Learning Free
+        <Play fill="currentColor" size={18} /> Start Learning
       </Link>
     </motion.div>
   </section>
 );
-
 
 
 const Home = () => {
