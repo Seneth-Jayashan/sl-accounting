@@ -41,6 +41,156 @@ const scaleIn: Variants = {
 
 
 
+type AnimationState = "hidden" | "walkingIn" | "speaking" | "walkingOut";
+
+const mockTestimonials = [
+  {
+    id: 1,
+    name: "Sanduni P.",
+    role: "A/L 2024",
+    avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Sanduni",
+    text: "The progress dashboard changed everything for me! ❤️"
+  },
+  {
+    id: 2,
+    name: "Kasun D.",
+    role: "A/L 2025",
+    avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Kasun",
+    text: "Rewatching lessons at 11pm before a paper saved me."
+  },
+  {
+    id: 3,
+    name: "Nethmi F.",
+    role: "A/L 2024",
+    avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Nethmi",
+    text: "It genuinely feels like having a tutor on call 24/7. ✨"
+  }
+];
+
+const WalkingTestimonials = () => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [animState, setAnimState] = useState<AnimationState>("hidden");
+
+  useEffect(() => {
+    if (animState === "hidden") {
+      const t = setTimeout(() => setAnimState("walkingIn"), 1000);
+      return () => clearTimeout(t);
+    } else if (animState === "walkingIn") {
+      const t = setTimeout(() => setAnimState("speaking"), 2500);
+      return () => clearTimeout(t);
+    } else if (animState === "speaking") {
+      const t = setTimeout(() => setAnimState("walkingOut"), 4500);
+      return () => clearTimeout(t);
+    } else if (animState === "walkingOut") {
+      const t = setTimeout(() => {
+        setAnimState("hidden");
+        setCurrentIndex((prev) => (prev + 1) % mockTestimonials.length);
+      }, 2500);
+      return () => clearTimeout(t);
+    }
+  }, [animState]);
+
+  const current = mockTestimonials[currentIndex];
+
+  const containerVariants: Variants = {
+    hidden: { x: "100vw", y: 0, opacity: 0 },
+    walkingIn: {
+      x: 0,
+      y: [0, -15, 0],
+      rotate: [0, -2, 0, 2, 0],
+      opacity: 1,
+      transition: {
+        x: { duration: 2.5, ease: "linear" },
+        y: { repeat: Infinity, duration: 0.4, ease: "easeInOut" },
+        rotate: { repeat: Infinity, duration: 0.8, ease: "easeInOut" },
+        opacity: { duration: 0.3 }
+      }
+    },
+    speaking: {
+      x: 0,
+      y: [0, -3, 0],
+      rotate: 0,
+      opacity: 1,
+      transition: {
+        y: { repeat: Infinity, duration: 1.5, ease: "easeInOut" }
+      }
+    },
+    walkingOut: {
+      x: "100vw",
+      y: [0, -15, 0],
+      rotate: [0, -2, 0, 2, 0],
+      opacity: 1,
+      transition: {
+        x: { duration: 2.5, ease: "linear" },
+        y: { repeat: Infinity, duration: 0.4, ease: "easeInOut" },
+        rotate: { repeat: Infinity, duration: 0.8, ease: "easeInOut" }
+      }
+    }
+  };
+
+  const imageVariants: Variants = {
+    hidden: { scaleX: -1 },
+    walkingIn: { scaleX: -1 },
+    speaking: { scaleX: -1 },
+    walkingOut: { scaleX: 1 }
+  };
+
+  const bubbleVariants: Variants = {
+    hidden: { opacity: 0, scale: 0, transformOrigin: "bottom right" },
+    walkingIn: { opacity: 0, scale: 0 },
+    speaking: {
+      opacity: 1,
+      scale: 1,
+      transition: { type: "spring", bounce: 0.5, duration: 0.6 }
+    },
+    walkingOut: {
+      opacity: 0,
+      scale: 0,
+      transition: { duration: 0.3 }
+    }
+  };
+
+  return (
+    <div className="absolute bottom-0 right-0 w-full h-[600px] pointer-events-none overflow-hidden z-30">
+      <motion.div
+        className="absolute bottom-10 right-[-10%] sm:right-[5%] flex flex-col items-end"
+        variants={containerVariants}
+        initial="hidden"
+        animate={animState}
+      >
+        {/* Speech Bubble */}
+        <motion.div
+          variants={bubbleVariants}
+          className="bg-white/95 backdrop-blur-md rounded-3xl rounded-br-none shadow-2xl border border-brand-aliceBlue p-5 sm:p-6 mb-2 w-[260px] sm:w-[300px] pointer-events-auto mr-16"
+        >
+          <Quote size={20} className="text-brand-coral/40 absolute top-4 right-4" />
+          <p className="text-brand-prussian/90 text-sm sm:text-base italic font-medium font-sans mb-4 leading-relaxed pr-6">
+            "{current.text}"
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-cerulean to-brand-prussian flex items-center justify-center text-white font-bold text-sm shadow-md">
+              {current.name.charAt(0)}
+            </div>
+            <div>
+              <h4 className="text-brand-prussian font-bold text-xs sm:text-sm">{current.name}</h4>
+              <p className="text-brand-coral font-bold text-[10px] sm:text-xs tracking-wider uppercase">{current.role}</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Character Image */}
+        <motion.div variants={imageVariants} className="w-40 h-48 sm:w-56 sm:h-64 relative mr-8 drop-shadow-2xl">
+          <img
+            src={current.avatar}
+            alt="Student walking"
+            className="w-full h-full object-contain"
+          />
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+};
+
 const getApiOrigin = () => {
   const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
   try {
@@ -132,7 +282,7 @@ const HeroSection = ({ heroImageUrl }: { heroImageUrl?: string | null }) => (
               <span className="relative inline-flex rounded-full h-full w-full bg-green-600"></span>
             </span>
             <span className="text-[10px] sm:text-xs font-bold text-brand-prussian tracking-widest uppercase font-sans">
-              2026 · 2027 · 2028 Enrollments Open
+              2027 · 2028 Enrollments Open
             </span>
           </div>
         </motion.div>
@@ -249,6 +399,7 @@ const HeroSection = ({ heroImageUrl }: { heroImageUrl?: string | null }) => (
       <span className="text-[10px] font-bold tracking-widest uppercase font-sans">Scroll</span>
       <ChevronDown size={24} />
     </motion.div>
+    <WalkingTestimonials />
   </header>
 );
 
