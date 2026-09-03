@@ -355,18 +355,24 @@ const AboutSection = () => (
             Consistent track record of producing District and Island ranks every single year.
           </p>
         </motion.div>
-        <motion.div
+        <motion.a
+          href="https://whatsapp.com/channel/0029Va5mmNGJf05WQhSOTn1W"
+          target="_blank"
+          rel="noopener noreferrer"
           variants={fadeInUp}
-          className="p-6 sm:p-8 rounded-[2rem] bg-brand-aliceBlue border border-brand-cerulean/20 shadow-lg hover:translate-x-2 transition-transform duration-300"
+          className="block p-6 sm:p-8 rounded-[2rem] bg-brand-aliceBlue border border-brand-cerulean/20 shadow-lg hover:translate-x-2 transition-transform duration-300"
         >
           <div className="w-12 h-12 sm:w-14 sm:h-14 bg-brand-coral/10 rounded-2xl flex items-center justify-center mb-4 sm:mb-6">
             <Users size={28} className="text-brand-coral" />
           </div>
-          <h3 className="text-xl sm:text-2xl font-bold text-brand-prussian mb-2 font-sans">Active Community</h3>
+          <h3 className="text-xl sm:text-2xl font-bold text-brand-prussian mb-2 font-sans flex items-center justify-between">
+            Active Community
+            <ArrowRight size={20} className="text-brand-cerulean" />
+          </h3>
           <p className="text-gray-600 font-sans leading-relaxed text-sm sm:text-base">
-            Join a network of thousands of students striving for excellence together.
+            Join a network of thousands of students striving for excellence together. Click to join our WhatsApp channel.
           </p>
-        </motion.div>
+        </motion.a>
       </motion.div>
     </div>
   </section>
@@ -376,13 +382,20 @@ const AboutSection = () => (
 // built around a "ledger" visual language (progress rows, mono figures) so it
 // reads as a real accounting-LMS product rather than a generic SaaS screenshot.
 const DashboardPreviewSection = () => {
-  const modules = [
-    { name: "Basic Accounting Concepts", icon: BookOpen, active: false, done: true },
-    { name: "Non-Current Assets", icon: Layers, active: true, done: false },
-    { name: "Partnership Accounts", icon: Users, active: false, done: false },
-    { name: "Company Accounts", icon: FileSpreadsheet, active: false, done: false },
-    { name: "Cost Accounting", icon: Calculator, active: false, done: false },
+  const youtubeLinks = [
+    "https://www.youtube.com/embed/NxeVtENI6ns?si=Dj1plsOSde0cSiIg",
+    "https://www.youtube.com/embed/AEj1xpnpISc?si=LmULx1YYZNgAG3bw",
+    "https://www.youtube.com/embed/1x9cifc7aa8?si=ChKkbjX51hHmCxX-",
+    "https://www.youtube.com/embed/Uk3aPqX_8-g?si=bar4sO3rknALMrqB",
+    "https://www.youtube.com/embed/ia63S3YOJi8?si=LU1acEBXMb2hriJR",
   ];
+
+  const [randomLink, setRandomLink] = useState("");
+
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * youtubeLinks.length);
+    setRandomLink(youtubeLinks[randomIndex]);
+  }, []);
 
   return (
     <section id="dashboard" className="w-full py-16 sm:py-24 px-4 sm:px-6 bg-white">
@@ -392,10 +405,10 @@ const DashboardPreviewSection = () => {
             Inside the LMS
           </span>
           <h2 className="text-3xl md:text-5xl font-bold text-brand-prussian font-sinhala mt-3 mb-4 sm:mb-6">
-            ඔබේ ප්‍රගතිය සජීවීව බලන්න
+            Our YouTube Lessons
           </h2>
           <p className="text-gray-500 font-sans text-base sm:text-lg">
-            One dashboard for every lesson, quiz, and past paper — so you always know exactly where you stand.
+            Free high-quality lessons and live streams directly from our YouTube channel.
           </p>
         </div>
 
@@ -404,81 +417,29 @@ const DashboardPreviewSection = () => {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          className="relative rounded-[1.75rem] sm:rounded-[2.25rem] bg-brand-aliceBlue/40 border border-brand-cerulean/10 shadow-2xl shadow-brand-prussian/5 p-2.5 sm:p-4 overflow-hidden"
+          className="relative rounded-[1.75rem] sm:rounded-[2.25rem] bg-brand-aliceBlue/40 border border-brand-cerulean/10 shadow-2xl shadow-brand-prussian/5 p-2.5 sm:p-4 overflow-hidden max-w-4xl mx-auto"
         >
           <div className="flex items-center gap-1.5 px-3 py-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-brand-coral/50"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-brand-jasmine/60"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-brand-cerulean/50"></span>
             <span className="ml-3 text-[10px] sm:text-xs text-brand-prussian/40 font-mono">
-              app.slaccounting.lk/dashboard
+              youtube.com
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 sm:gap-4">
-            <div className="hidden md:flex flex-col gap-1.5 bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
-              {modules.map((m, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-sans font-semibold transition-colors ${m.active ? "bg-brand-prussian text-white" : "text-brand-prussian/60 hover:bg-brand-aliceBlue"
-                    }`}
-                >
-                  <m.icon size={16} className={m.active ? "text-brand-jasmine" : ""} />
-                  <span className="flex-1 truncate text-xs sm:text-sm">{m.name}</span>
-                  {m.done && <CheckCircle2 size={14} className="text-brand-cerulean" />}
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 sm:p-7 shadow-sm border border-gray-100">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-bold text-brand-coral uppercase tracking-widest font-sans mb-1">
-                    Continue Learning
-                  </p>
-                  <h3 className="text-lg sm:text-xl font-bold text-brand-prussian font-sans">
-                    Non-Current Assets — Depreciation
-                  </h3>
-                </div>
-                <button className="flex items-center gap-2 px-4 py-2.5 bg-brand-cerulean text-white rounded-xl text-sm font-bold font-sans shadow-md shadow-brand-cerulean/30 hover:bg-brand-prussian transition-colors self-start sm:self-auto">
-                  <PlayCircle size={16} /> Resume
-                </button>
-              </div>
-
-              <LedgerBar label="Journal Entries" value={92} color="bg-brand-cerulean" delay={0} />
-              <LedgerBar label="Depreciation Methods" value={76} color="bg-brand-coral" delay={0.1} />
-              <LedgerBar label="Final Accounts" value={54} color="bg-brand-jasmine" delay={0.2} />
-
-              <div className="flex items-center gap-4 sm:gap-6 mt-6 pt-6 border-t border-gray-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-brand-coral/10 flex items-center justify-center">
-                    <Flame size={16} className="text-brand-coral" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-brand-prussian font-mono">14</p>
-                    <p className="text-[10px] text-gray-400 font-sans">Day Streak</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-brand-jasmine/20 flex items-center justify-center">
-                    <Award size={16} className="text-brand-prussian" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-brand-prussian font-mono">6</p>
-                    <p className="text-[10px] text-gray-400 font-sans">Mock Papers Done</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-brand-cerulean/10 flex items-center justify-center">
-                    <BarChart3 size={16} className="text-brand-cerulean" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-brand-prussian font-mono">A</p>
-                    <p className="text-[10px] text-gray-400 font-sans">Predicted Grade</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="w-full aspect-video bg-gray-900 rounded-2xl overflow-hidden relative">
+            {randomLink && (
+              <iframe
+                className="absolute inset-0 w-full h-full"
+                src={randomLink}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              ></iframe>
+            )}
           </div>
         </motion.div>
       </div>
@@ -488,12 +449,22 @@ const DashboardPreviewSection = () => {
 
 const CurriculumSection = () => {
   const units = [
-    { num: "01", title: "ගිණුම්කරණයේ මූලික සංකල්ප", subtitle: "Basic Concepts", icon: BookOpen },
-    { num: "02", title: "ස්ථාවර වත්කම් හා ක්ෂයවීම්", subtitle: "Non-Current Assets", icon: Layers },
-    { num: "03", title: "හවුල් ගිණුම්", subtitle: "Partnership Accounts", icon: Users },
-    { num: "04", title: "සමාගම් ගිණුම්", subtitle: "Company Accounts", icon: FileSpreadsheet },
-    { num: "05", title: "පිරිවැය ගිණුම්කරණය", subtitle: "Cost Accounting", icon: Calculator },
-    { num: "06", title: "මූල්‍ය ප්‍රකාශන විශ්ලේෂණය", subtitle: "Financial Analysis", icon: BarChart3 },
+    { num: "01", title: "ගිණුම්කරණයට හැඳින්වීම", subtitle: "Grade 12", icon: BookOpen },
+    { num: "02", title: "ගිණුම්කරණ සමීකරණය", subtitle: "Grade 12", icon: Layers },
+    { num: "03", title: "ද්විත්ව සටහන් ක්‍රමය", subtitle: "Grade 12", icon: Users },
+    { num: "04", title: "මූලික පොත්, බැංකු සැසඳුම්", subtitle: "Grade 12", icon: FileSpreadsheet },
+    { num: "05", title: "ගිණුම්කරණ සංකල්ප", subtitle: "Grade 12", icon: Calculator },
+    { num: "06", title: "තනි පුද්ගල ව්‍යාපාර ගැලපිලි", subtitle: "Grade 12", icon: BarChart3 },
+    { num: "07", title: "නිෂ්පාදන පිරිවැය", subtitle: "Grade 12", icon: Layers },
+    { num: "08", title: "අසම්පූර්ණ සටහන්", subtitle: "Grade 12", icon: BookOpen },
+    { num: "09", title: "ලාභ අරමුණු කර නොගත්", subtitle: "Grade 12", icon: Users },
+    { num: "10", title: "හවුල් ව්‍යාපාර", subtitle: "Grade 12", icon: Calculator },
+    { num: "11", title: "ගිණුම්කරණ ප්‍රමිත", subtitle: "Grade 13", icon: BookOpen },
+    { num: "12", title: "සමාගම් ගිණුම්කරණය", subtitle: "Grade 13", icon: FileSpreadsheet },
+    { num: "13", title: "ගිණුම්කරණ අනුපාත", subtitle: "Grade 13", icon: BarChart3 },
+    { num: "14", title: "පිරිවැය හා කළමනාකරණ", subtitle: "Grade 13", icon: Calculator },
+    { num: "15", title: "ව්‍යාපෘති ඇගයීම", subtitle: "Grade 13", icon: Layers },
+    { num: "16", title: "පරිගණක ගිණුම්කරණය", subtitle: "Grade 13", icon: BookOpen },
   ];
 
   return (
@@ -514,15 +485,15 @@ const CurriculumSection = () => {
             questions.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
           {units.map((unit, idx) => (
             <motion.div
               key={idx}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: (idx % 3) * 0.1, duration: 0.5 }}
-              className="bg-white p-6 sm:p-7 rounded-[1.75rem] border border-gray-100 shadow-lg hover:shadow-2xl transition-all group hover:-translate-y-1.5 relative overflow-hidden"
+              transition={{ delay: (idx % 4) * 0.1, duration: 0.5 }}
+              className="bg-white p-6 sm:p-7 rounded-[1.75rem] border border-gray-100 shadow-lg hover:shadow-2xl transition-all group hover:-translate-y-1.5 relative overflow-hidden flex flex-col h-full"
             >
               <div className="flex items-start justify-between mb-5">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-brand-aliceBlue text-brand-cerulean rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-brand-cerulean group-hover:text-white transition-all duration-300">
@@ -532,8 +503,10 @@ const CurriculumSection = () => {
                   {unit.num}
                 </span>
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-brand-prussian mb-1.5 font-sinhala">{unit.title}</h3>
-              <p className="text-brand-coral text-xs sm:text-sm font-bold font-sans">{unit.subtitle}</p>
+              <div className="flex-1">
+                <h3 className="text-lg sm:text-xl font-bold text-brand-prussian mb-1.5 font-sinhala leading-tight">{unit.title}</h3>
+              </div>
+              <p className="text-brand-coral text-xs sm:text-sm font-bold font-sans mt-2">{unit.subtitle}</p>
             </motion.div>
           ))}
         </div>
@@ -707,150 +680,7 @@ const FinalCtaSection = () => (
   </section>
 );
 
-// --- FLOATING WIDGET COMPONENT (unchanged behaviour, kept as-is) ---
-interface NewsItem {
-  title: string;
-  source: string;
-  date: string;
-  summary: string;
-  url: string;
-}
 
-const FloatingEducationalWidget = ({ newsTitle, newsLink }: { newsTitle?: string; newsLink?: string }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [news, setNews] = useState<NewsItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    const fetchFact = async () => {
-      try {
-        setLoading(true);
-        // Wikipedia's official REST API for a random article summary.
-        // 100% free, incredibly reliable, no API key needed.
-        const response = await fetch("https://si.wikipedia.org/api/rest_v1/page/random/summary");
-        if (!response.ok) throw new Error("Failed to fetch");
-
-        const data = await response.json();
-
-        setNews({
-          title: data.title,
-          source: "විකිපීඩියාවෙන්",
-          date: new Date().toLocaleDateString(),
-          // Wikipedia's 'extract' is perfectly formatted for plain text summaries
-          summary: data.extract.length > 120 ? data.extract.substring(0, 120) + "..." : data.extract,
-          url: data.content_urls.desktop.page,
-        });
-        setError(false);
-      } catch (err) {
-        console.error("Fact fetch error:", err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (newsTitle && newsLink) {
-      setNews({
-        title: newsTitle,
-        source: "Latest Update",
-        date: new Date().toLocaleDateString(),
-        summary: newsTitle.length > 120 ? newsTitle.substring(0, 120) + "..." : newsTitle,
-        url: newsLink,
-      });
-      setLoading(false);
-      setError(false);
-    } else {
-      fetchFact();
-    }
-  }, [newsTitle, newsLink]);
-
-  return (
-    <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 flex flex-col items-end">
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.9, transformOrigin: "bottom right" }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="mb-4 w-[320px] sm:w-[360px] bg-white rounded-2xl shadow-2xl border border-brand-aliceBlue overflow-hidden"
-          >
-            <div className="bg-brand-prussian px-5 py-4 flex justify-between items-center relative overflow-hidden">
-              <div className="absolute right-0 top-0 w-32 h-32 bg-brand-cerulean/20 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3"></div>
-              <div className="flex items-center gap-2 relative z-10">
-                <Bell size={18} className="text-brand-jasmine" />
-                <h3 className="text-white font-bold text-sm tracking-wide font-sans">Did You Know?</h3>
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-white/60 hover:text-white transition-colors relative z-10 bg-white/10 p-1 rounded-full hover:bg-white/20"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="p-5 relative bg-gradient-to-b from-brand-aliceBlue/30 to-white min-h-[160px]">
-              {loading ? (
-                <div className="animate-pulse flex flex-col gap-3">
-                  <div className="h-3 w-20 bg-gray-200 rounded"></div>
-                  <div className="h-5 w-full bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 w-full bg-gray-100 rounded"></div>
-                  <div className="h-3 w-5/6 bg-gray-100 rounded"></div>
-                </div>
-              ) : error || !news ? (
-                <div className="text-center py-6 text-gray-400">
-                  <Newspaper size={32} className="mx-auto mb-2 opacity-30" />
-                  <p className="text-xs font-bold font-sans">Unable to load fact</p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[10px] font-bold text-brand-cerulean uppercase tracking-widest bg-brand-aliceBlue px-2 py-1 rounded-md">
-                      {news.source}
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-medium">{news.date}</span>
-                  </div>
-
-                  <h4 className="text-brand-prussian font-bold text-base mb-2 font-sans leading-tight">
-                    {news.title}
-                  </h4>
-
-                  <p className="text-gray-500 text-xs leading-relaxed mb-4 font-sans">{news.summary}</p>
-
-                  <a
-                    href={news.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-prussian bg-white border border-brand-aliceBlue px-4 py-2 rounded-xl hover:bg-brand-aliceBlue transition-colors group w-full justify-center shadow-sm"
-                  >
-                    Read Full Article{" "}
-                    <ArrowRightSquare size={14} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
-                  </a>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`relative flex items-center justify-center w-14 h-14 rounded-full shadow-2xl transition-all duration-300 ${isOpen ? "bg-brand-coral text-white rotate-90 scale-90" : "bg-brand-prussian text-white hover:scale-105 hover:bg-brand-cerulean"
-          }`}
-      >
-        {isOpen ? <X size={24} /> : <Newspaper size={24} />}
-
-        {!isOpen && (
-          <span className="absolute top-0 right-0 flex h-3.5 w-3.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-coral opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-full w-full bg-brand-coral border-2 border-white"></span>
-          </span>
-        )}
-      </button>
-    </div>
-  );
-};
 
 const Home = () => {
   const [settings, setSettings] = useState<SettingData | null>(null);
@@ -875,8 +705,6 @@ const Home = () => {
       <TestimonialsSection />
       <StatsBanner />
       <FinalCtaSection />
-
-      <FloatingEducationalWidget newsTitle={settings?.newsTitle} newsLink={settings?.newsLink} />
     </div>
   );
 };
