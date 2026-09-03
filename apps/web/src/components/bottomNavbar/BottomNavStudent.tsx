@@ -27,29 +27,29 @@ export default function BottomNavStudent() {
   // --- 1. MAIN TABS (Always Visible) ---
   // Kept to 4 items max so the bottom bar isn't overcrowded
   const mainTabs = [
-    { 
-      key: "overview", 
-      label: "Overview", 
-      href: "/student/dashboard", 
-      icon: LayoutDashboard 
+    {
+      key: "overview",
+      label: "Overview",
+      href: "/student/dashboard",
+      icon: LayoutDashboard
     },
-    { 
-      key: "classes", 
-      label: "Classes", 
-      href: "/student/classes", 
-      icon: CalendarDays 
+    {
+      key: "classes",
+      label: "Classes",
+      href: "/student/classes",
+      icon: CalendarDays
     },
-    { 
-      key: "quizzes", 
-      label: "Quizzes", 
-      href: "/student/quizzes/history", 
-      icon: ClipboardList 
+    {
+      key: "quizzes",
+      label: "Quizzes",
+      href: "/student/quizzes/history",
+      icon: ClipboardList
     },
-    { 
-      key: "profile", 
-      label: "Profile", 
-      href: "/student/Profile", 
-      icon: Users 
+    {
+      key: "profile",
+      label: "Profile",
+      href: "/student/Profile",
+      icon: Users
     },
   ];
 
@@ -113,7 +113,7 @@ export default function BottomNavStudent() {
               onClick={() => setIsMoreOpen(false)}
               className="fixed inset-0 bg-black/60 z-[60] lg:hidden backdrop-blur-sm"
             />
-            
+
             {/* Slide-up Menu */}
             <motion.div
               initial={{ y: "100%" }}
@@ -125,7 +125,7 @@ export default function BottomNavStudent() {
               {/* Drawer Header */}
               <div className="flex items-center justify-between p-6 pb-2">
                 <h3 className="text-lg font-bold text-brand-prussian">Menu</h3>
-                <button 
+                <button
                   onClick={() => setIsMoreOpen(false)}
                   className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"
                 >
@@ -178,16 +178,16 @@ export default function BottomNavStudent() {
       {/* --- BOTTOM NAVIGATION BAR --- */}
       <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-200 lg:hidden z-50 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
         <div className="flex justify-around items-center h-[70px] px-2">
-          
+
           {mainTabs.map((tab) => {
-            const isActive = tab.href === "/student/dashboard" 
+            const isActive = tab.href === "/student/dashboard"
               ? path === "/student/dashboard"
               : path.startsWith(tab.href);
 
             return (
-              <Link 
-                key={tab.key} 
-                to={tab.href} 
+              <Link
+                key={tab.key}
+                to={tab.href}
                 onClick={() => setIsMoreOpen(false)}
                 className="relative flex-1 flex flex-col items-center justify-center h-full space-y-1 group"
               >
@@ -203,8 +203,8 @@ export default function BottomNavStudent() {
 
                 {/* Icon */}
                 <div className={`relative p-1.5 rounded-xl transition-all duration-300 ${isActive ? "text-brand-cerulean -translate-y-1" : "text-gray-400 group-active:scale-90"}`}>
-                  <tab.icon 
-                    size={24} 
+                  <tab.icon
+                    size={24}
                     strokeWidth={isActive ? 2.5 : 2}
                   />
                 </div>
@@ -218,7 +218,7 @@ export default function BottomNavStudent() {
           })}
 
           {/* --- MORE BUTTON --- */}
-          <button 
+          <button
             onClick={() => setIsMoreOpen(!isMoreOpen)}
             className="relative flex-1 flex flex-col items-center justify-center h-full space-y-1 group"
           >
