@@ -204,19 +204,26 @@ const createSingleClassInternal = async (dbSession, data, filePaths) => {
  * Internal Helper: Generates and saves Session documents and Zoom meetings for a given Class document.
  * Used by both create and update operations.
  */
-const generateSessionsForClass = async (classDoc, dbSession) => {
+export const generateSessionsForClass = async (classDoc, dbSession, options = {}) => {
+  const {
+      anchorDateOverride = null,
+      startingIndex = 1,
+      count = classDoc.totalSessions,
+      appendToClass = false,
+  } = options;
+
   const schedules = Array.isArray(classDoc.timeSchedules) && classDoc.timeSchedules.length > 0
       ? classDoc.timeSchedules
       : [{ day: 0, startTime: "12:00", timezone: "UTC" }];
 
-  const anchorDate = classDoc.firstSessionDate ? moment(classDoc.firstSessionDate) : moment();
+  const anchorDate = anchorDateOverride ? moment(anchorDateOverride) : (classDoc.firstSessionDate ? moment(classDoc.firstSessionDate) : moment());
   const savedSessionIds = [];
-  let globalIndex = 1;
+  let globalIndex = startingIndex;
 
   const candidateMoments = [];
   let weekIndex = 0;
-  // Generate enough candidate weeks to satisfy totalSessions
-  while (candidateMoments.length < classDoc.totalSessions) {
+  // Generate enough candidate weeks to satisfy count
+  while (candidateMoments.length < count) {
     for (const sch of schedules) {
       const tz = sch.timezone || process.env.DEFAULT_TIMEZONE || "Asia/Colombo";
       const startMoment = getNextSessionMoment(anchorDate, sch.day, sch.startTime, tz, weekIndex);
@@ -225,9 +232,9 @@ const generateSessionsForClass = async (classDoc, dbSession) => {
     weekIndex++;
   }
 
-  // Sort chronologically and take exactly totalSessions
+  // Sort chronologically and take exactly count
   candidateMoments.sort((a, b) => a.startMoment.valueOf() - b.startMoment.valueOf());
-  const selectedMoments = candidateMoments.slice(0, classDoc.totalSessions);
+  const selectedMoments = candidateMoments.slice(0, count);
 
   for (const { startMoment, tz } of selectedMoments) {
     const endMoment = startMoment.clone().add(classDoc.sessionDurationMinutes, "minutes");
@@ -269,8 +276,62 @@ const generateSessionsForClass = async (classDoc, dbSession) => {
   }
 
   // Update Class with new Session IDs
-  classDoc.sessions = savedSessionIds;
+  if (appendToClass) {
+      classDoc.sessions = [...(classDoc.sessions || []), ...savedSessionIds];
+  } else {
+      classDoc.sessions = savedSessionIds;
+  }
   await classDoc.save({ session: dbSession });
+  
+  return savedSessionIds;
+};
+
+/**
+ * Internal Helper: Regenerates future sessions for a class while preserving past sessions.
+ */
+const handleSessionRegeneration = async (classDoc, dbSession) => {
+    const now = new Date();
+    
+    // Find future and past sessions
+    const futureSessions = await Session.find({ 
+        class: classDoc._id,
+        startAt: { $gt: now } 
+    }).session(dbSession).sort({ startAt: 1 });
+
+    const pastSessions = await Session.find({
+        class: classDoc._id,
+        startAt: { $lte: now }
+    }).session(dbSession).sort({ startAt: 1 });
+
+    // Cleanup future Zoom meetings
+    for (const s of futureSessions) {
+        if (s.zoomMeetingId) {
+            try { await deleteMeeting(s.zoomMeetingId); } 
+            catch (e) { console.warn("Zoom cleanup warning", e.message); }
+        }
+    }
+    
+    // Delete future sessions in database
+    await Session.deleteMany({ 
+        class: classDoc._id,
+        startAt: { $gt: now } 
+    }).session(dbSession);
+
+    // Keep past sessions in the classDoc array
+    classDoc.sessions = pastSessions.map(s => s._id);
+
+    // Determine the next index to use
+    const startingIndex = pastSessions.length > 0 
+        ? pastSessions[pastSessions.length - 1].index + 1 
+        : 1;
+
+    // Generate fresh future sessions (generating exactly `totalSessions` amount)
+    await generateSessionsForClass(classDoc, dbSession, {
+        anchorDateOverride: moment().add(1, 'minute'), // Start searching immediately after now
+        startingIndex: startingIndex,
+        count: classDoc.totalSessions,
+        appendToClass: true
+    });
 };
 
 // ==========================================
@@ -581,14 +642,8 @@ export const updateClass = async (req, res) => {
 
             // Regenerate Revision Sessions if needed
             if (revScheduleChanged) {
-                const oldRevSessions = await Session.find({ class: revClass._id }).session(session);
-                for (const s of oldRevSessions) {
-                    if (s.zoomMeetingId) {
-                        try { await deleteMeeting(s.zoomMeetingId); } catch (e) {}
-                    }
-                }
-                await Session.deleteMany({ class: revClass._id }).session(session);
-                await generateSessionsForClass(revClass, session);
+                console.log(`Schedule changed for revision class ${revClass._id}. Recreating future sessions...`);
+                await handleSessionRegeneration(revClass, session);
             }
         }
 
@@ -624,14 +679,8 @@ export const updateClass = async (req, res) => {
 
             // Regenerate Paper Sessions if needed
             if (papScheduleChanged) {
-                const oldPapSessions = await Session.find({ class: papClass._id }).session(session);
-                for (const s of oldPapSessions) {
-                    if (s.zoomMeetingId) {
-                        try { await deleteMeeting(s.zoomMeetingId); } catch (e) {}
-                    }
-                }
-                await Session.deleteMany({ class: papClass._id }).session(session);
-                await generateSessionsForClass(papClass, session);
+                console.log(`Schedule changed for paper class ${papClass._id}. Recreating future sessions...`);
+                await handleSessionRegeneration(papClass, session);
             }
         }
     }
@@ -640,24 +689,8 @@ export const updateClass = async (req, res) => {
 
     // 7. Handle Session Regeneration for MAIN class ONLY if schedule actually changed
     if (willReplaceSchedule) {
-      console.log(`Schedule changed for class ${classDoc._id}. Recreating sessions...`);
-      
-      const existingSessions = await Session.find({ class: classDoc._id }).session(session);
-      
-      // Cleanup old Zoom
-      for (const s of existingSessions) {
-        if (s.zoomMeetingId) {
-            try { await deleteMeeting(s.zoomMeetingId); } 
-            catch (e) { console.warn("Zoom cleanup warning", e.message); }
-        }
-      }
-      
-      // Delete old sessions in database
-      await Session.deleteMany({ class: classDoc._id }).session(session);
-
-      // Re-run session generation using the helper
-      await generateSessionsForClass(classDoc, session);
-      
+      console.log(`Schedule changed for class ${classDoc._id}. Recreating future sessions...`);
+      await handleSessionRegeneration(classDoc, session);
     } else {
       console.log(`No schedule changes for class ${classDoc._id}. Keeping existing sessions.`);
     }
