@@ -27,7 +27,7 @@ import paperSubmissionRoutes from './routes/PaperSubmissionRoutes.js';
 import settingRoutes from './routes/SettingRoutes.js';
 import newsRoutes from './routes/NewsRoutes.js';
 import reviewRoutes from './routes/ReviewRoutes.js';
-
+import attendanceRoutes from './routes/AttendanceRoutes.js';
 const router = express.Router();
 
 // Health Check
@@ -81,5 +81,8 @@ router.use('/news', newsRoutes);
 
 // Reviews
 router.use('/reviews', reviewRoutes);
+
+// Attendance
+router.use('/attendance', attendanceRoutes);
 
 export default router;

@@ -12,6 +12,9 @@ import {
   ShieldCheck,
   Signal,
 } from "lucide-react";
+import { useAuth } from "../../../../contexts/AuthContext";
+import SessionService from "../../../../services/SessionService";
+import toast from "react-hot-toast";
 
 interface OverviewTabProps {
   classData: any;
@@ -19,9 +22,11 @@ interface OverviewTabProps {
 }
 
 export default function OverviewTab({ classData, sessions }: OverviewTabProps) {
+  const { user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [copiedPass, setCopiedPass] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
 
   const upcomingSession = useMemo(() => {
     const now = new Date();
@@ -40,6 +45,23 @@ export default function OverviewTab({ classData, sessions }: OverviewTabProps) {
     navigator.clipboard.writeText(text);
     if (type === 'id') { setCopiedId(true); setTimeout(() => setCopiedId(false), 2000); } 
     else { setCopiedPass(true); setTimeout(() => setCopiedPass(false), 2000); }
+  };
+
+  const handleJoinClick = async () => {
+    if (!activeZoomLink || !upcomingSession || !user) return;
+    
+    setIsJoining(true);
+    try {
+      // Automatically mark attendance before opening Zoom
+      // Pass the user's ID as the studentId
+      await SessionService.markAttendanceStart(upcomingSession._id, user._id);
+    } catch (err) {
+      console.error("Failed to mark attendance auto:", err);
+      // We don't want to stop the student from joining the class if attendance tracking fails
+    } finally {
+      setIsJoining(false);
+      window.open(activeZoomLink, "_blank");
+    }
   };
 
   const formatDay = (date: string) => new Date(date).toLocaleDateString('en-US', { day: 'numeric' });
@@ -122,18 +144,17 @@ export default function OverviewTab({ classData, sessions }: OverviewTabProps) {
             {/* Right: Action Button */}
             <div className="w-full md:w-auto">
                 {activeZoomLink ? (
-                    <a 
-                        href={activeZoomLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="group relative flex items-center justify-center gap-3 bg-white text-brand-prussian py-5 px-10 rounded-2xl font-bold text-lg shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_-5px_rgba(255,255,255,0.4)] transition-all hover:scale-[1.02] active:scale-95 w-full md:w-auto overflow-hidden"
+                    <button 
+                        onClick={handleJoinClick}
+                        disabled={isJoining}
+                        className="group relative flex items-center justify-center gap-3 bg-white text-brand-prussian py-5 px-10 rounded-2xl font-bold text-lg shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_50px_-5px_rgba(255,255,255,0.4)] transition-all hover:scale-[1.02] active:scale-95 w-full md:w-auto overflow-hidden disabled:opacity-75 disabled:scale-100"
                     >
                         <span className="relative z-10 flex items-center gap-2">
-                           <Video size={20} className="text-brand-cerulean" /> Join Now
+                           <Video size={20} className="text-brand-cerulean" /> {isJoining ? "Joining..." : "Join Now"}
                         </span>
                         {/* Shimmer Effect */}
                         <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/50 to-transparent z-0"></div>
-                    </a>
+                    </button>
                 ) : (
                     <button disabled className="flex items-center justify-center gap-3 bg-white/5 text-gray-500 py-5 px-10 rounded-2xl font-bold border border-white/5 cursor-not-allowed w-full md:w-auto">
                         <Lock size={20} /> Access Locked

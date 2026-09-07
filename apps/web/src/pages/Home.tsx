@@ -41,7 +41,7 @@ const scaleIn: Variants = {
 
 
 
-import ReviewService, { type ReviewData } from "../services/ReviewService";
+import ReviewService from "../services/ReviewService";
 
 type AnimationState = "hidden" | "walkingIn" | "speaking" | "walkingOut";
 
@@ -715,20 +715,7 @@ const TestimonialsSection = ({ testimonials }: { testimonials: any[] }) => {
               transition={{ delay: idx * 0.12, duration: 0.5 }}
               className="bg-brand-aliceBlue/40 border border-brand-cerulean/10 rounded-[1.75rem] p-6 sm:p-7 relative"
             >
-              <div className="flex justify-between items-start mb-3">
-                <Quote size={28} className="text-brand-cerulean/20" fill="currentColor" />
-                {q.rating && (
-                  <div className="flex gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        size={16}
-                        className={i < q.rating ? "text-yellow-400 fill-current" : "text-gray-300"}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+              <Quote size={28} className="text-brand-cerulean/20 mb-3" fill="currentColor" />
               <p className="text-brand-prussian/80 font-sans text-sm sm:text-base leading-relaxed mb-5">{q.comment}</p>
               <div className="flex items-center gap-3 pt-4 border-t border-brand-prussian/10">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-cerulean to-brand-prussian flex items-center justify-center text-white font-bold text-xs font-sans uppercase">

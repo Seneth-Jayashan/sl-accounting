@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 
 // Icons
 import {
@@ -48,6 +49,9 @@ export default function ViewClassPage() {
   // Attendance State
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
+  const [selectedSessionForAttendance, setSelectedSessionForAttendance] = useState("");
+  const [selectedStudentForAttendance, setSelectedStudentForAttendance] = useState("");
+  const [isMarkingAttendance, setIsMarkingAttendance] = useState(false);
   
   // Modal State
   const [cancelModal, setCancelModal] = useState<{ isOpen: boolean; sessionId: string | null }>({
@@ -109,6 +113,24 @@ export default function ViewClassPage() {
       alert("Failed to load attendance data. Please try again.");
     } finally {
       setIsLoadingAttendance(false);
+    }
+  };
+
+  const handleMarkAttendance = async () => {
+    if (!id || !selectedSessionForAttendance || !selectedStudentForAttendance) return;
+    setIsMarkingAttendance(true);
+    try {
+      await SessionService.markAttendanceStart(selectedSessionForAttendance, selectedStudentForAttendance);
+      // Reload attendance summary
+      const data = await SessionService.getClassAttendanceSummary(id);
+      setAttendanceSummary(data);
+      setSelectedStudentForAttendance("");
+      toast.success("Attendance marked successfully");
+    } catch (err) {
+      console.error("Failed to mark attendance:", err);
+      toast.error("Failed to mark attendance. Please try again.");
+    } finally {
+      setIsMarkingAttendance(false);
     }
   };
 
@@ -664,7 +686,7 @@ export default function ViewClassPage() {
               ) : attendanceSummary && attendanceSummary.sessionSummary && attendanceSummary.sessionSummary.length > 0 ? (
                 <>
                   {/* MANUAL ATTENDANCE MARKING */}
-                  {/* <div className="bg-white border border-brand-aliceBlue rounded-2xl p-4 shadow-sm space-y-3">
+                  <div className="bg-white border border-brand-aliceBlue rounded-2xl p-4 shadow-sm space-y-3">
                     <div>
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Manual Mark Attendance</p>
                       <p className="text-xs text-gray-500 mt-0.5">If Zoom webhook missed a student, manually add them here</p>
@@ -718,7 +740,7 @@ export default function ViewClassPage() {
                         {isMarkingAttendance ? "Marking..." : "Mark Present"}
                       </button>
                     </div>
-                  </div> */}
+                  </div>
 
                   {/* ATTENDANCE OVERVIEW */}
                   <div className="bg-gradient-to-r from-brand-cerulean/10 to-brand-prussian/10 border border-brand-cerulean/20 rounded-2xl p-4">

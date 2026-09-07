@@ -16,7 +16,12 @@ const isInstructorOrAdmin = (req, classDoc) => {
  * body: { sessionId, studentId }
  */
 export const markAttendanceStartController = async (req, res) => {
-  const { sessionId, studentId } = req.body;
+  let { sessionId, studentId } = req.body;
+
+  // If the user is a student, enforce their own ID to prevent spoofing
+  if (req.user && req.user.role === 'student') {
+    studentId = req.user._id;
+  }
 
   if (!sessionId || !studentId)
     return res.status(400).json({ message: "sessionId and studentId are required" });
