@@ -10,7 +10,8 @@ import {
   Megaphone, 
   ArrowLeft,
   CreditCard,
-  ClipboardList // Added icon for Quizzes
+  ClipboardList,
+  CheckCircle2
 } from "lucide-react";
 import { ArrowPathIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 
@@ -27,6 +28,7 @@ import ResourcesTab from "./tabs/ResourcesTab";
 import AnnouncementsTab from "./tabs/ClassAnnouncementsTab";
 import ChatTab from "./tabs/ChatTab";
 import QuizTab from "./tabs/QuizTab"; // Added Quiz Tab
+import AttendanceTab from "./tabs/AttendanceTab";
 
 export default function ViewClass() {
   const { id } = useParams<{ id: string }>();
@@ -95,7 +97,8 @@ export default function ViewClass() {
     { id: 'announcements', label: 'News', icon: Megaphone },
     { id: 'recordings', label: 'Recordings', icon: PlayCircle },
     { id: 'resources', label: 'Resources', icon: FolderOpen },
-    { id: 'quizzes', label: 'Quizzes', icon: ClipboardList }, // Inserted Quizzes Tab here
+    { id: 'quizzes', label: 'Quizzes', icon: ClipboardList },
+    { id: 'attendance', label: 'Attendance', icon: CheckCircle2 },
     { id: 'chat', label: 'Chat', icon: MessageSquare },
   ];
 
@@ -206,7 +209,8 @@ export default function ViewClass() {
                 {activeTab === 'announcements' && <AnnouncementsTab classId={id!} />}
                 {activeTab === 'recordings' && <RecordingsTab sessions={sessions} />}
                 {activeTab === 'resources' && <ResourcesTab classId={id!} />}
-                {activeTab === 'quizzes' && <QuizTab classId={id!} />} {/* Added Quiz Tab Content */}
+                {activeTab === 'quizzes' && <QuizTab classId={id!} />}
+                {activeTab === 'attendance' && <AttendanceTab classId={id!} />}
                 {activeTab === 'chat' && <ChatTab />}
             </motion.div>
           </AnimatePresence>

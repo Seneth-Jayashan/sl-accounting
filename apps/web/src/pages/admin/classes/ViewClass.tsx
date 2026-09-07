@@ -26,6 +26,7 @@ import StudentEnrollmentTab from "../../../components/admin/class/StudentEnrollm
 // Services & Types
 import ClassService, { type ClassData, type ClassRecording } from "../../../services/ClassService";
 import SessionService from "../../../services/SessionService";
+import AttendanceService from "../../../services/AttendanceService";
 
 // --- SECURITY HELPER ---
 const isValidUrl = (string: string) => {
@@ -106,7 +107,7 @@ export default function ViewClassPage() {
 
     setIsLoadingAttendance(true);
     try {
-      const data = await SessionService.getClassAttendanceSummary(id);
+      const data = await AttendanceService.getClassAttendanceSummary(id);
       setAttendanceSummary(data);
     } catch (err) {
       console.error("Failed to fetch attendance:", err);
@@ -120,9 +121,9 @@ export default function ViewClassPage() {
     if (!id || !selectedSessionForAttendance || !selectedStudentForAttendance) return;
     setIsMarkingAttendance(true);
     try {
-      await SessionService.markAttendanceStart(selectedSessionForAttendance, selectedStudentForAttendance);
+      await AttendanceService.markAttendanceStart(selectedSessionForAttendance, selectedStudentForAttendance);
       // Reload attendance summary
-      const data = await SessionService.getClassAttendanceSummary(id);
+      const data = await AttendanceService.getClassAttendanceSummary(id);
       setAttendanceSummary(data);
       setSelectedStudentForAttendance("");
       toast.success("Attendance marked successfully");

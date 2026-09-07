@@ -42,7 +42,8 @@ const MENU_STRUCTURE: NavSection[] = [
     title: "System",
     items: [
       { key: "overview", label: "Overview", href: "/admin/dashboard", icon: HomeIcon },
-      { key: "reports", label: "Reports", href: "/admin/reports", icon: ChartBarIcon },
+      { key: "reports-payments", label: "Payments Report", href: "/admin/reports/payments", icon: ChartBarIcon },
+      { key: "reports-attendance", label: "Attendance Report", href: "/admin/reports/attendance", icon: ChartBarIcon },
     ],
   },
   {

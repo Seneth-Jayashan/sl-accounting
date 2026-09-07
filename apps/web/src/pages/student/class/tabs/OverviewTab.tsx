@@ -13,7 +13,7 @@ import {
   Signal,
 } from "lucide-react";
 import { useAuth } from "../../../../contexts/AuthContext";
-import SessionService from "../../../../services/SessionService";
+import AttendanceService from "../../../../services/AttendanceService";
 import toast from "react-hot-toast";
 
 interface OverviewTabProps {
@@ -54,7 +54,7 @@ export default function OverviewTab({ classData, sessions }: OverviewTabProps) {
     try {
       // Automatically mark attendance before opening Zoom
       // Pass the user's ID as the studentId
-      await SessionService.markAttendanceStart(upcomingSession._id, user._id);
+      await AttendanceService.markAttendanceStart(upcomingSession._id, user._id);
     } catch (err) {
       console.error("Failed to mark attendance auto:", err);
       // We don't want to stop the student from joining the class if attendance tracking fails

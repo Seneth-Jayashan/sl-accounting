@@ -39,6 +39,7 @@ const AdminPapers = lazy(() => import("../pages/admin/papers/AdminPapers"));
 const AdminSettings = lazy(() => import("../pages/admin/settings/AdminSettings"));
 const AdminNews = lazy(() => import("../pages/admin/news/AdminNews"));
 const Reviews = lazy(() => import("../pages/admin/Reviews"));
+const AttendanceReport = lazy(() => import("../pages/admin/reports/AttendanceReport"));
 
 export const AdminRoutes = () => {
   return (
@@ -101,6 +102,10 @@ export const AdminRoutes = () => {
           <Route path="support" element={<SupportReply />} />
           <Route path="chat" element={<TicketChat />} />
           <Route path="chat/ticket/:id" element={<TicketChat />} />
+
+          {/* Reports */}
+          <Route path="reports/payments" element={<Reports />} />
+          <Route path="reports/attendance" element={<AttendanceReport />} />
 
           {/* Knowledge Base */}
           <Route path="knowledge-base" element={<KnowledgeBase />} />

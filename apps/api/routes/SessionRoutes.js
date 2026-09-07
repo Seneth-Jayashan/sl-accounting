@@ -7,9 +7,7 @@ import {
     getAllSessions,
     updateSession,
     deleteSession,
-    cancelSession,
-    getSessionAttendance,
-    getClassAttendanceSummary
+    cancelSession
 } from '../controllers/SessionController.js';
 
 const router = express.Router();
@@ -20,8 +18,7 @@ router.use(protect);
 // ==========================================
 // SPECIFIC CLASS ROUTES (Must come BEFORE /:id)
 // ==========================================
-// Attendance summary for all sessions in a class
-router.get('/class/:classId/attendance-summary', restrictTo('admin'), getClassAttendanceSummary);
+// (Attendance routes moved to AttendanceRoutes.js)
 
 // Create a session for a specific class
 router.post('/class/:classId', restrictTo('admin'), createSessionForClass);
@@ -34,8 +31,7 @@ router.get('/class/:classId', getSessionsByClassId);
 // ==========================================
 router.get('/', getAllSessions);
 
-// Session attendance details
-router.get('/:id/attendance', restrictTo('admin'), getSessionAttendance);
+// (Single session attendance route moved to AttendanceRoutes.js)
 
 // Session CRUD operations
 router.get('/:id', getSessionById);
