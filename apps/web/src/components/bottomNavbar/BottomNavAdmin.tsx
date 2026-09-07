@@ -41,6 +41,7 @@ export default function BottomNavAdmin() {
       items: [
         { key: "reports", label: "Reports", href: "/admin/reports", icon: ChartBarIcon },
         { key: "community", label: "Community", href: "/admin/community", icon: ChatBubbleLeftRightIcon },
+        { key: "reviews", label: "Reviews", href: "/admin/reviews", icon: ChatBubbleLeftRightIcon },
       ]
     },
     {

@@ -38,6 +38,7 @@ import LessonPacks from "../pages/admin/lessonPacks/LessonPacks";
 const AdminPapers = lazy(() => import("../pages/admin/papers/AdminPapers"));
 const AdminSettings = lazy(() => import("../pages/admin/settings/AdminSettings"));
 const AdminNews = lazy(() => import("../pages/admin/news/AdminNews"));
+const Reviews = lazy(() => import("../pages/admin/Reviews"));
 
 export const AdminRoutes = () => {
   return (
@@ -114,6 +115,9 @@ export const AdminRoutes = () => {
 
           {/* Tute Delivery */}
           <Route path="tute-delivery" element={<TuteDelivery />} />
+
+          {/* Reviews */}
+          <Route path="reviews" element={<Reviews />} />
 
           {/* Default Admin Route - Redirects to Dashboard */}
           <Route path="*" element={<Navigate to="/admin/" replace />} />

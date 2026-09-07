@@ -13,7 +13,8 @@ import {
   Menu,
   ClipboardList,
   ListVideo,
-  FileText
+  FileText,
+  MessageSquare
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -34,6 +35,7 @@ const STUDENT_MENU = [
   { key: "payments", label: "Payments", href: "/student/payments", icon: CreditCard },
   { key: "profile", label: "Profile", href: "/student/Profile", icon: Users },
   { key: "tickets", label: "Support", href: "/student/tickets", icon: HelpCircle },
+  { key: "feedback", label: "Feedback", href: "/student/review", icon: MessageSquare },
 ];
 
 export default function SidebarStudent({ collapsed = false, onToggle }: Props) {

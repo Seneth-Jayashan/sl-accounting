@@ -26,14 +26,15 @@ import videoProgressRoutes from './routes/VideoProgressRoutes.js';
 import paperSubmissionRoutes from './routes/PaperSubmissionRoutes.js';
 import settingRoutes from './routes/SettingRoutes.js';
 import newsRoutes from './routes/NewsRoutes.js';
+import reviewRoutes from './routes/ReviewRoutes.js';
 
 const router = express.Router();
 
 // Health Check
 router.get('/', (req, res) => {
-    res.json({ 
-        message: 'LMS API v1 is active', 
-        timestamp: new Date().toISOString() 
+    res.json({
+        message: 'LMS API v1 is active',
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -77,5 +78,8 @@ router.use('/settings', settingRoutes);
 
 // News and Updates
 router.use('/news', newsRoutes);
+
+// Reviews
+router.use('/reviews', reviewRoutes);
 
 export default router;

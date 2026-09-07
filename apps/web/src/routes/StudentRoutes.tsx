@@ -24,6 +24,7 @@ import StudentLessonPacks from "../pages/student/lessonPacks/LessonPacks";
 import WatchLessonPack from "../pages/student/lessonPacks/WatchLessonPack";
 import LessonPackPaymentPage from "../pages/student/payments/LessonPackPaymentPage";
 const StudentPapers = lazy(() => import("../pages/student/papers/StudentPapers"));
+const MyReview = lazy(() => import("../pages/student/MyReview"));
 
 export const StudentRoutes = () => {
   return (
@@ -64,8 +65,9 @@ export const StudentRoutes = () => {
           {/* Default Student Route */}
           <Route path="*" element={<Navigate to="/student/" replace />} />
 
-          {/* Knowledge Base */}
+          {/* Knowledge Base & Feedback */}
           <Route path="knowledge-base" element={<KnowledgeBase />} />
+          <Route path="review" element={<MyReview />} />
 
           {/* Profile */}
           <Route path="profile" element={<Profile />} />

@@ -55,6 +55,7 @@ const MENU_STRUCTURE: NavSection[] = [
     title: "Community",
     items: [
       { key: "community", label: "Community", href: "/admin/community", icon: ChatBubbleLeftRightIcon },
+      { key: "reviews", label: "Reviews", href: "/admin/reviews", icon: ChatBubbleLeftRightIcon },
     ],
   },
   {

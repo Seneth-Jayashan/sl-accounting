@@ -14,7 +14,8 @@ import {
   ChevronRight,
   ClipboardList,
   ListVideo,
-  FileText
+  FileText,
+  MessageSquare
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -96,6 +97,13 @@ export default function BottomNavStudent() {
       href: "/student/tickets",
       icon: HelpCircle,
       desc: "Contact admin support"
+    },
+    {
+      key: "feedback",
+      label: "Feedback",
+      href: "/student/review",
+      icon: MessageSquare,
+      desc: "Share your experience"
     }
   ];
 

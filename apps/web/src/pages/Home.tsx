@@ -41,33 +41,35 @@ const scaleIn: Variants = {
 
 
 
+import ReviewService, { type ReviewData } from "../services/ReviewService";
+
 type AnimationState = "hidden" | "walkingIn" | "speaking" | "walkingOut";
 
-const mockTestimonials = [
+const fallbackTestimonials = [
   {
-    id: 1,
-    name: "Sanduni P.",
+    _id: '1',
+    student: { firstName: "Sanduni", lastName: "P." },
     role: "A/L 2024",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Sanduni",
-    text: "The progress dashboard changed everything for me! ❤️"
+    comment: "The progress dashboard changed everything for me! ❤️"
   },
   {
-    id: 2,
-    name: "Kasun D.",
+    _id: '2',
+    student: { firstName: "Kasun", lastName: "D." },
     role: "A/L 2025",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Kasun",
-    text: "Rewatching lessons at 11pm before a paper saved me."
+    comment: "Rewatching lessons at 11pm before a paper saved me."
   },
   {
-    id: 3,
-    name: "Nethmi F.",
+    _id: '3',
+    student: { firstName: "Nethmi", lastName: "F." },
     role: "A/L 2024",
     avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=Nethmi",
-    text: "It genuinely feels like having a tutor on call 24/7. ✨"
+    comment: "It genuinely feels like having a tutor on call 24/7. ✨"
   }
 ];
 
-const WalkingTestimonials = () => {
+const WalkingTestimonials = ({ testimonials }: { testimonials: any[] }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [animState, setAnimState] = useState<AnimationState>("hidden");
 
@@ -84,13 +86,15 @@ const WalkingTestimonials = () => {
     } else if (animState === "walkingOut") {
       const t = setTimeout(() => {
         setAnimState("hidden");
-        setCurrentIndex((prev) => (prev + 1) % mockTestimonials.length);
+        setCurrentIndex((prev) => (prev + 1) % testimonials.length);
       }, 2500);
       return () => clearTimeout(t);
     }
-  }, [animState]);
+  }, [animState, testimonials.length]);
 
-  const current = mockTestimonials[currentIndex];
+  if (!testimonials || testimonials.length === 0) return null;
+
+  const current = testimonials[currentIndex];
 
   const containerVariants: Variants = {
     hidden: { x: "100vw", y: 0, opacity: 0 },
@@ -165,15 +169,15 @@ const WalkingTestimonials = () => {
         >
           <Quote size={20} className="text-brand-coral/40 absolute top-4 right-4" />
           <p className="text-brand-prussian/90 text-sm sm:text-base italic font-medium font-sans mb-4 leading-relaxed pr-6">
-            "{current.text}"
+            "{current.comment}"
           </p>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-cerulean to-brand-prussian flex items-center justify-center text-white font-bold text-sm shadow-md">
-              {current.name.charAt(0)}
+              {current.student?.firstName?.charAt(0) || "S"}
             </div>
             <div>
-              <h4 className="text-brand-prussian font-bold text-xs sm:text-sm">{current.name}</h4>
-              <p className="text-brand-coral font-bold text-[10px] sm:text-xs tracking-wider uppercase">{current.role}</p>
+              <h4 className="text-brand-prussian font-bold text-xs sm:text-sm">{current.student?.firstName} {current.student?.lastName}</h4>
+              <p className="text-brand-coral font-bold text-[10px] sm:text-xs tracking-wider uppercase">{current.role || 'Student'}</p>
             </div>
           </div>
         </motion.div>
@@ -181,7 +185,7 @@ const WalkingTestimonials = () => {
         {/* Character Image */}
         <motion.div variants={imageVariants} className="w-40 h-48 sm:w-56 sm:h-64 relative mr-8 drop-shadow-2xl">
           <img
-            src={current.avatar}
+            src={current.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${current.student?.firstName || 'Student'}`}
             alt="Student walking"
             className="w-full h-full object-contain"
           />
@@ -236,7 +240,7 @@ const Counter = ({
   );
 };
 
-const HeroSection = ({ heroImageUrl }: { heroImageUrl?: string | null }) => (
+const HeroSection = ({ heroImageUrl, testimonials }: { heroImageUrl?: string | null, testimonials: any[] }) => (
   <header
     id="home"
     className="relative w-full min-h-[100dvh] flex items-center justify-center pt-28 pb-12 overflow-hidden bg-[#FAFCFF]"
@@ -399,7 +403,7 @@ const HeroSection = ({ heroImageUrl }: { heroImageUrl?: string | null }) => (
       <span className="text-[10px] font-bold tracking-widest uppercase font-sans">Scroll</span>
       <ChevronDown size={24} />
     </motion.div>
-    <WalkingTestimonials />
+    <WalkingTestimonials testimonials={testimonials} />
   </header>
 );
 
@@ -689,25 +693,7 @@ const ProcessSection = () => {
   );
 };
 
-const TestimonialsSection = () => {
-  // Placeholder testimonials — swap in real student quotes before launch.
-  const quotes = [
-    {
-      name: "T. Fernando",
-      tag: "A/L 2026 · Colombo",
-      text: "The progress dashboard is what changed everything for me — I could actually see which units I was weak in before the exam.",
-    },
-    {
-      name: "N. Perera",
-      tag: "A/L 2025 · Kandy",
-      text: "Being able to rewatch a lesson at 11pm before a paper saved me more than once. It genuinely feels like having a tutor on call.",
-    },
-    {
-      name: "S. Jayasuriya",
-      tag: "A/L 2025 · Gampaha",
-      text: "The past paper tracker kept me honest about how much practice I still needed. It made revision feel a lot less overwhelming.",
-    },
-  ];
+const TestimonialsSection = ({ testimonials }: { testimonials: any[] }) => {
   return (
     <section className="w-full py-16 sm:py-24 px-4 sm:px-6 bg-white">
       <div className="container mx-auto max-w-6xl">
@@ -720,7 +706,7 @@ const TestimonialsSection = () => {
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {quotes.map((q, idx) => (
+          {testimonials.slice(0, 6).map((q, idx) => (
             <motion.div
               key={idx}
               initial={{ opacity: 0, y: 30 }}
@@ -729,18 +715,28 @@ const TestimonialsSection = () => {
               transition={{ delay: idx * 0.12, duration: 0.5 }}
               className="bg-brand-aliceBlue/40 border border-brand-cerulean/10 rounded-[1.75rem] p-6 sm:p-7 relative"
             >
-              <Quote size={28} className="text-brand-cerulean/20 mb-3" fill="currentColor" />
-              <p className="text-brand-prussian/80 font-sans text-sm sm:text-base leading-relaxed mb-5">{q.text}</p>
+              <div className="flex justify-between items-start mb-3">
+                <Quote size={28} className="text-brand-cerulean/20" fill="currentColor" />
+                {q.rating && (
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        size={16}
+                        className={i < q.rating ? "text-yellow-400 fill-current" : "text-gray-300"}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-brand-prussian/80 font-sans text-sm sm:text-base leading-relaxed mb-5">{q.comment}</p>
               <div className="flex items-center gap-3 pt-4 border-t border-brand-prussian/10">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-cerulean to-brand-prussian flex items-center justify-center text-white font-bold text-xs font-sans">
-                  {q.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-cerulean to-brand-prussian flex items-center justify-center text-white font-bold text-xs font-sans uppercase">
+                  {q.student?.firstName?.[0] || "S"}
                 </div>
                 <div>
-                  <p className="font-bold text-brand-prussian text-sm font-sans">{q.name}</p>
-                  <p className="text-xs text-gray-400 font-sans">{q.tag}</p>
+                  <p className="font-bold text-brand-prussian text-sm font-sans">{q.student?.firstName} {q.student?.lastName}</p>
+                  <p className="text-xs text-gray-400 font-sans">Student</p>
                 </div>
               </div>
             </motion.div>
@@ -816,6 +812,7 @@ const FinalCtaSection = () => (
 
 const Home = () => {
   const [settings, setSettings] = useState<SettingData | null>(null);
+  const [testimonials, setTestimonials] = useState<any[]>(fallbackTestimonials);
 
   useEffect(() => {
     SettingService.getSettings()
@@ -825,16 +822,24 @@ const Home = () => {
         }
       })
       .catch(console.error);
+
+    ReviewService.getApprovedReviews()
+      .then((res) => {
+        if (res.success && res.data && res.data.length > 0) {
+          setTestimonials(res.data);
+        }
+      })
+      .catch(console.error);
   }, []);
 
   return (
     <div className="min-h-screen w-full relative bg-white selection:bg-brand-cerulean selection:text-white">
-      <HeroSection heroImageUrl={settings?.heroImageUrl} />
+      <HeroSection heroImageUrl={settings?.heroImageUrl} testimonials={testimonials} />
       <AboutSection />
       <DashboardPreviewSection />
       <CurriculumSection />
       <ProcessSection />
-      <TestimonialsSection />
+      <TestimonialsSection testimonials={testimonials} />
       <StatsBanner />
       <FinalCtaSection />
     </div>
