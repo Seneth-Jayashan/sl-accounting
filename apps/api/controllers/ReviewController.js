@@ -76,7 +76,14 @@ export const deleteMyReview = async (req, res) => {
 export const getApprovedReviews = async (req, res) => {
   try {
     const reviews = await Review.find({ status: "approved" })
-      .populate("student", "firstName lastName profileImage batch")
+      .populate({
+        path: "student",
+        select: "firstName lastName profileImage batch",
+        populate: {
+          path: "batch",
+          select: "name",
+        },
+      })
       .sort("-updatedAt")
       .limit(20);
 

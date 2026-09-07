@@ -177,7 +177,7 @@ const WalkingTestimonials = ({ testimonials }: { testimonials: any[] }) => {
             </div>
             <div>
               <h4 className="text-brand-prussian font-bold text-xs sm:text-sm">{current.student?.firstName} {current.student?.lastName}</h4>
-              <p className="text-brand-coral font-bold text-[10px] sm:text-xs tracking-wider uppercase">{current.role || 'Student'}</p>
+              <p className="text-brand-coral font-bold text-[10px] sm:text-xs tracking-wider uppercase">{current.student?.batch?.name || current.role || 'Student'}</p>
             </div>
           </div>
         </motion.div>
@@ -736,7 +736,7 @@ const TestimonialsSection = ({ testimonials }: { testimonials: any[] }) => {
                 </div>
                 <div>
                   <p className="font-bold text-brand-prussian text-sm font-sans">{q.student?.firstName} {q.student?.lastName}</p>
-                  <p className="text-xs text-gray-400 font-sans">Student</p>
+                  <p className="text-xs text-gray-400 font-sans uppercase">{q.student?.batch?.name || 'Student'}</p>
                 </div>
               </div>
             </motion.div>
