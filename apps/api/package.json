@@ -1,6 +1,6 @@
 {
   "name": "sl-accounting-api",
-  "version": "1.0.49",
+  "version": "1.0.50",
   "main": "App.js",
   "type": "module",
   "scripts": {
