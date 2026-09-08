@@ -32,6 +32,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import News from "./pages/News";
 import NewsDetails from "./pages/NewsDetails";
+import Downloads from "./pages/Downloads";
 
 import "./index.css";
 
@@ -108,6 +109,7 @@ function App() {
             <Route path="/chat/:ticketId" element={<Chat />} />
             <Route path="/news" element={<News />} />
             <Route path="/news/:id" element={<NewsDetails />} />
+            <Route path="/downloads" element={<Downloads />} />
           </Route>
 
           {/* ================= STUDENT MODULE (Lazy Loaded) ================= */}

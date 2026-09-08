@@ -24,6 +24,7 @@ export const Navbar: React.FC = () => {
     { name: 'පාඨමාලා', href: '/lesson-packs' },
     { name: 'පුවත්', href: '/news' },
     { name: 'සම්බන්ධ වන්න', href: '/contacts' },
+    { name: 'Downloads', href: '/downloads' },
   ];
 
   // Helper to determine dashboard path based on role
