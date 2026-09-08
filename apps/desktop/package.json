@@ -1,13 +1,14 @@
 {
   "name": "sl-accounting-lms-desktop",
   "private": true,
-  "version": "1.0.48",
+  "version": "1.0.47",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "sync-version": "node sync-version.js"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

@@ -7,8 +7,39 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          
+      - name: Auto-Bump Version
+        run: |
+          # Check if the commit message contains [major]
+          BUMP_TYPE="minor"
+          if [[ "${{ github.event.head_commit.message }}" == *"[major]"* ]]; then
+            BUMP_TYPE="major"
+          fi
+          
+          # Run the version bumping script
+          node versions/update-version.js $BUMP_TYPE
+          
+          # Commit and Push the updated version files back to GitHub
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add versions/version.json apps/web/package.json apps/api/package.json apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json apps/desktop/src-tauri/Cargo.toml
+          # The [skip ci] tag prevents this commit from triggering another deployment loop
+          git commit -m "Auto-bump version ($BUMP_TYPE) [skip ci]" || echo "No changes to commit"
+          git push
+
       - name: Deploy via SSH Password
         uses: appleboy/ssh-action@master
         with:
