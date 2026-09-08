@@ -10,13 +10,13 @@ import { sendCancellationSms } from "../utils/sms/Template.js";
 // --- HELPER: Field Projection ---
 const getSafeSessionProjection = (user) => {
   const isAdmin = user.role === 'admin';
-  return isAdmin ? "" : "-zoomStartUrl -zoomMeetingId"; 
+  return isAdmin ? "" : "-zoomStartUrl -zoomMeetingId";
 };
 
 export const createSessionForClass = async (req, res) => {
   const { classId } = req.params;
   const {
-    startAt, 
+    startAt,
     durationMinutes = 60,
     title,
     notes,
@@ -58,10 +58,10 @@ export const createSessionForClass = async (req, res) => {
           start_time: startMoment.toISOString(),
           duration: Number(durationMinutes),
           timezone: tz,
-          settings: { 
-            host_video: true, 
-            participant_video: false, 
-            auto_recording: "cloud" 
+          settings: {
+            host_video: true,
+            participant_video: false,
+            auto_recording: "cloud"
           },
         });
 
@@ -76,7 +76,7 @@ export const createSessionForClass = async (req, res) => {
     }
 
     const savedSession = await sessionDoc.save({ session });
-    
+
     classDoc.sessions.push(savedSession._id);
     await classDoc.save({ session });
 
@@ -123,9 +123,9 @@ export const getSessionById = async (req, res) => {
   try {
     const projection = getSafeSessionProjection(req.user);
     const session = await Session.findById(req.params.id).select(projection);
-    
+
     if (!session) return res.status(404).json({ message: "Session not found" });
-    
+
     return res.status(200).json({ session });
   } catch (err) {
     return res.status(500).json({ message: err.message });
@@ -133,8 +133,8 @@ export const getSessionById = async (req, res) => {
 };
 
 export const updateSession = async (req, res) => {
-  const { 
-    startAt, durationMinutes, title, notes, materials, skipZoom 
+  const {
+    startAt, durationMinutes, title, notes, materials, skipZoom
   } = req.body;
 
   try {
@@ -147,7 +147,7 @@ export const updateSession = async (req, res) => {
 
     let timeChanged = false;
     if (startAt) {
-      const startMoment = moment(startAt); 
+      const startMoment = moment(startAt);
       if (startMoment.isValid()) {
         const oldStart = moment(sessionDoc.startAt);
         const oldEnd = moment(sessionDoc.endAt);
@@ -166,9 +166,9 @@ export const updateSession = async (req, res) => {
         if (title) updatePayload.topic = title;
         if (timeChanged) updatePayload.start_time = moment(sessionDoc.startAt).toISOString();
         if (durationMinutes) updatePayload.duration = Number(durationMinutes);
-        
+
         if (Object.keys(updatePayload).length > 0) {
-           await updateMeeting(sessionDoc.zoomMeetingId, updatePayload);
+          await updateMeeting(sessionDoc.zoomMeetingId, updatePayload);
         }
       } catch (zoomErr) {
         console.error("Zoom update warning:", zoomErr.message);
@@ -191,21 +191,21 @@ export const deleteSession = async (req, res) => {
   try {
     const sessionDoc = await Session.findById(req.params.id).session(session);
     if (!sessionDoc) {
-        await session.abortTransaction();
-        return res.status(404).json({ message: "Session not found" });
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Session not found" });
     }
 
     const classDoc = await Class.findById(sessionDoc.class).session(session);
     if (classDoc) {
-        classDoc.sessions = classDoc.sessions.filter(s => s.toString() !== sessionDoc._id.toString());
-        await classDoc.save({ session });
+      classDoc.sessions = classDoc.sessions.filter(s => s.toString() !== sessionDoc._id.toString());
+      await classDoc.save({ session });
     }
 
     if (sessionDoc.zoomMeetingId) {
       try {
         await deleteMeeting(sessionDoc.zoomMeetingId);
-      } catch (e) { 
-        console.warn("Zoom delete skipped:", e.message); 
+      } catch (e) {
+        console.warn("Zoom delete skipped:", e.message);
       }
     }
 
@@ -236,8 +236,8 @@ export const cancelSession = async (req, res) => {
         sessionDoc.zoomMeetingId = null;
         sessionDoc.zoomStartUrl = null;
         sessionDoc.zoomJoinUrl = null;
-      } catch (e) { 
-        console.warn("Zoom delete warning:", e.message); 
+      } catch (e) {
+        console.warn("Zoom delete warning:", e.message);
       }
     }
 
@@ -250,23 +250,23 @@ export const cancelSession = async (req, res) => {
     const classDoc = await Class.findById(sessionDoc.class).populate('students', 'phoneNumber');
 
     if (classDoc && classDoc.students && classDoc.students.length > 0) {
-      
+
       const smsPromises = classDoc.students.map(student => {
         if (student.phoneNumber) {
-           return sendCancellationSms(
-             student.phoneNumber,
-             classDoc.name,
-             cancellationReason || "Unavoidable reasons"
-           ).catch(err => console.error(`SMS failed for ${student.phoneNumber}`, err));
+          return sendCancellationSms(
+            student.phoneNumber,
+            classDoc.name,
+            cancellationReason || "Unavoidable reasons"
+          ).catch(err => console.error(`SMS failed for ${student.phoneNumber}`, err));
         }
       });
 
       await Promise.all(smsPromises);
     }
 
-    return res.status(200).json({ 
-        message: "Session cancelled and students notified", 
-        session: sessionDoc 
+    return res.status(200).json({
+      message: "Session cancelled and students notified",
+      session: sessionDoc
     });
 
   } catch (err) {
@@ -279,56 +279,56 @@ export const getSessionsByClassId = async (req, res) => {
   try {
     const { classId } = req.params;
     const userId = req.user._id;
-    
+
     const isAdmin = req.user.role === 'admin';
 
     const enrollment = await Enrollment.findOne({ class: classId, student: userId });
-    
+
     const sessions = await Session.find({ class: classId }).sort({ startAt: 1 }).lean();
 
     if (isAdmin) {
-        return res.json(sessions);
+      return res.json(sessions);
     }
 
     const secureSessions = sessions.map(session => {
-        let isLocked = false;
-        
-        if (!enrollment) {
-            isLocked = true;
-        } else {
-            const sessionDate = new Date(session.startAt);
-            const sessionMonth = format(sessionDate, "yyyy-MM");
+      let isLocked = false;
 
-            const paidMonths = enrollment.paidMonths || [];
-            const hasPaidForMonth = paidMonths.includes(sessionMonth);
+      if (!enrollment) {
+        isLocked = true;
+      } else {
+        const sessionDate = new Date(session.startAt);
+        const sessionMonth = format(sessionDate, "yyyy-MM");
 
-            if (!hasPaidForMonth) {
-                isLocked = true;
-            }
+        const paidMonths = enrollment.paidMonths || [];
+        const hasPaidForMonth = paidMonths.includes(sessionMonth);
+
+        if (!hasPaidForMonth) {
+          isLocked = true;
         }
+      }
 
-        if (isLocked) {
-            return {
-                _id: session._id,
-                title: session.title,
-                startAt: session.startAt,
-                endAt: session.endAt,
-                index: session.index,
-                description: session.description, 
-                isLocked: true,
-                
-                youtubeVideoId: null,
-                recordingUrl: null,
-                zoomJoinUrl: null,
-                zoomStartUrl: null,
-                materials: null 
-            };
-        }
-        
+      if (isLocked) {
         return {
-            ...session,
-            isLocked: false
+          _id: session._id,
+          title: session.title,
+          startAt: session.startAt,
+          endAt: session.endAt,
+          index: session.index,
+          description: session.description,
+          isLocked: true,
+
+          youtubeVideoId: null,
+          recordingUrl: null,
+          zoomJoinUrl: null,
+          zoomStartUrl: null,
+          materials: null
         };
+      }
+
+      return {
+        ...session,
+        isLocked: false
+      };
     });
 
     return res.json(secureSessions);

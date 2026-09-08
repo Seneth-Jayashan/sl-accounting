@@ -52,86 +52,106 @@ export default function AttendanceTab({ classId }: AttendanceTabProps) {
   const totalCount = attendances.length;
   const attendanceRate = totalCount === 0 ? 0 : Math.round((attendedCount / totalCount) * 100);
 
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (attendanceRate / 100) * circumference;
+  const circleColor = attendanceRate >= 80 ? 'text-green-500' : attendanceRate >= 50 ? 'text-yellow-500' : 'text-red-500';
+
   return (
-    <div className="space-y-6">
-      {/* Summary Card */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-        <div>
-          <h3 className="text-xl font-bold text-brand-prussian">My Attendance</h3>
-          <p className="text-gray-500 mt-1">Track your presence across all live sessions for this class.</p>
-        </div>
-        
-        <div className="flex items-center gap-6">
-          <div className="text-center">
-            <p className="text-sm text-gray-500 uppercase tracking-widest font-bold">Attended</p>
-            <p className="text-3xl font-black text-brand-prussian mt-1">{attendedCount} / {totalCount}</p>
-          </div>
-          <div className="w-px h-12 bg-gray-200"></div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500 uppercase tracking-widest font-bold">Rate</p>
-            <p className={`text-3xl font-black mt-1 ${attendanceRate >= 80 ? 'text-green-500' : attendanceRate >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
-              {attendanceRate}%
+    <div className="space-y-8">
+      {/* Premium Summary Card */}
+      <div className="bg-gradient-to-br from-brand-prussian to-blue-900 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden">
+        {/* Abstract Background Elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-cerulean/20 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-[40px] translate-y-1/3 -translate-x-1/4"></div>
+
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="text-center md:text-left">
+            <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight">My Attendance</h3>
+            <p className="text-brand-aliceBlue/70 mt-2 font-medium max-w-sm">
+              Keep up the great work! Consistent attendance is the key to mastering your subjects.
             </p>
+          </div>
+          
+          <div className="flex items-center gap-6 bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/20">
+            <div className="text-center px-2">
+              <p className="text-xs text-brand-aliceBlue/60 uppercase tracking-widest font-bold mb-1">Sessions</p>
+              <p className="text-3xl font-black text-white">{attendedCount} <span className="text-lg text-white/50">/ {totalCount}</span></p>
+            </div>
+            
+            <div className="w-px h-16 bg-white/20"></div>
+            
+            <div className="relative w-24 h-24 flex items-center justify-center">
+              <svg className="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-lg">
+                <circle cx="48" cy="48" r={radius} stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/10" />
+                <circle 
+                  cx="48" cy="48" r={radius} 
+                  stroke="currentColor" 
+                  strokeWidth="8" 
+                  fill="transparent" 
+                  strokeDasharray={circumference} 
+                  strokeDashoffset={strokeDashoffset} 
+                  strokeLinecap="round"
+                  className={`${circleColor} transition-all duration-1000 ease-out`} 
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center justify-center">
+                <span className="text-xl font-black text-white">{attendanceRate}%</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* List */}
-      <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-brand-aliceBlue/50 text-brand-prussian font-bold text-xs uppercase tracking-widest">
-                <th className="px-6 py-4">Session</th>
-                <th className="px-6 py-4">Date & Time</th>
-                <th className="px-6 py-4 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {attendances.length > 0 ? (
-                attendances.map((record, index) => (
-                  <motion.tr 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    key={record.sessionId} 
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-brand-prussian">Session {record.index}</p>
-                      {record.title && <p className="text-xs text-gray-500 mt-0.5">{record.title}</p>}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar size={16} className="text-brand-cerulean/60" />
-                        {moment(record.startAt).format("DD MMM YYYY, hh:mm A")}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center">
-                        {record.isPresent ? (
-                          <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-bold">
-                            <CheckCircle2 size={18} /> Present
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-sm font-bold opacity-80">
-                            <XCircle size={18} /> Absent
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
-                    No sessions have been scheduled yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Modern Attendance List */}
+      <div>
+        <h4 className="text-xl font-bold text-brand-prussian mb-6 ml-2">Session History</h4>
+        
+        {attendances.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {attendances.map((record, index) => (
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                key={record.sessionId} 
+                className="bg-white border border-brand-aliceBlue p-6 rounded-[2rem] shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden group hover:-translate-y-1"
+              >
+                {/* Status Indicator Bar */}
+                <div className={`absolute top-0 left-0 w-full h-1.5 ${record.isPresent ? 'bg-green-500' : 'bg-red-500'}`}></div>
+
+                <div className="flex justify-between items-start mb-5 mt-2">
+                  <div>
+                    <span className="inline-block px-3 py-1 rounded-full bg-brand-aliceBlue text-brand-prussian text-[10px] font-black uppercase tracking-widest mb-3">
+                      Session {record.index}
+                    </span>
+                    <h5 className="font-bold text-brand-prussian text-lg line-clamp-1">{record.title || `Class Session`}</h5>
+                  </div>
+                  <div className={`p-2.5 rounded-2xl ${record.isPresent ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
+                    {record.isPresent ? <CheckCircle2 size={24} strokeWidth={2.5} /> : <XCircle size={24} strokeWidth={2.5} />}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-sm font-bold text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm text-brand-cerulean">
+                    <Calendar size={16} />
+                  </div>
+                  <span>{moment(record.startAt).format("MMM DD, YYYY • hh:mm A")}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white p-12 rounded-[2.5rem] shadow-sm border border-brand-aliceBlue text-center flex flex-col items-center justify-center">
+            <div className="w-20 h-20 bg-brand-cerulean/10 text-brand-cerulean rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+              <Calendar size={36} strokeWidth={1.5} />
+            </div>
+            <h3 className="text-2xl font-black text-brand-prussian mb-3 tracking-tight">No Attendance History</h3>
+            <p className="text-gray-500 max-w-md mx-auto font-medium">
+              You haven't attended any sessions yet, or the class hasn't started. Your attendance records will appear here automatically.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

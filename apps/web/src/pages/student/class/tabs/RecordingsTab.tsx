@@ -9,8 +9,8 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', 
 
 // Helper to get YYYY-MM from a date string
 const getMonthString = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
 export default function RecordingsTab({ sessions }: { sessions: any[] }) {
@@ -24,30 +24,30 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
     const fetchEnrollment = async () => {
       try {
         const myEnrollments = await EnrollmentService.getMyEnrollments();
-        
+
         if (sessions?.length > 0) {
-            // 1. Find the first session in the array that actually has a 'class' property
-            const sessionWithClass = sessions.find((session: any) => session.class != null);
+          // 1. Find the first session in the array that actually has a 'class' property
+          const sessionWithClass = sessions.find((session: any) => session.class != null);
 
-            if (sessionWithClass) {
-                const sessionClass = sessionWithClass.class;
-                
-                // 2. Extract the classId (whether it's a string or a populated object)
-                const classId = typeof sessionClass === 'string' ? sessionClass : sessionClass?._id;
+          if (sessionWithClass) {
+            const sessionClass = sessionWithClass.class;
+
+            // 2. Extract the classId (whether it's a string or a populated object)
+            const classId = typeof sessionClass === 'string' ? sessionClass : sessionClass?._id;
 
 
-                if (classId) {
-                    // 3. Find the matching enrollment
-                    const match = myEnrollments.find((e: any) => {
-                        const enrollClassId = typeof e.class === 'string' ? e.class : e.class?._id;
-                        return enrollClassId === classId;
-                    });
+            if (classId) {
+              // 3. Find the matching enrollment
+              const match = myEnrollments.find((e: any) => {
+                const enrollClassId = typeof e.class === 'string' ? e.class : e.class?._id;
+                return enrollClassId === classId;
+              });
 
-                    if (isMounted) setEnrollment(match || null);
-                }
-            } else {
-                if (isMounted) setEnrollment(null);
+              if (isMounted) setEnrollment(match || null);
             }
+          } else {
+            if (isMounted) setEnrollment(null);
+          }
         }
       } catch (err) {
         console.error("Failed to load enrollment rights", err);
@@ -88,9 +88,9 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
     const paidMonths = enrollment.paidMonths || [];
 
     if (!paidMonths.includes(sessionMonth)) {
-        // Format readable month name for the error message
-        const monthName = new Date(session.startAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        return { locked: true, reason: `Payment required for ${monthName}` };
+      // Format readable month name for the error message
+      const monthName = new Date(session.startAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return { locked: true, reason: `Payment required for ${monthName}` };
     }
 
     return { locked: false, reason: "" };
@@ -103,30 +103,30 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
     const grouped: { month: string, sortDate: number, categories: { category: string, sessions: any[] }[] }[] = [];
 
     recordings.forEach(session => {
-        const monthName = new Date(session.startAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const categoryName = session.recordingCategory || "General";
+      const monthName = new Date(session.startAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const categoryName = session.recordingCategory || "General";
 
-        let monthObj = grouped.find(g => g.month === monthName);
-        if (!monthObj) {
-            monthObj = { month: monthName, sortDate: new Date(session.startAt).getTime(), categories: [] };
-            grouped.push(monthObj);
-        }
+      let monthObj = grouped.find(g => g.month === monthName);
+      if (!monthObj) {
+        monthObj = { month: monthName, sortDate: new Date(session.startAt).getTime(), categories: [] };
+        grouped.push(monthObj);
+      }
 
-        let catObj = monthObj.categories.find(c => c.category === categoryName);
-        if (!catObj) {
-            catObj = { category: categoryName, sessions: [] };
-            monthObj.categories.push(catObj);
-        }
+      let catObj = monthObj.categories.find(c => c.category === categoryName);
+      if (!catObj) {
+        catObj = { category: categoryName, sessions: [] };
+        monthObj.categories.push(catObj);
+      }
 
-        catObj.sessions.push(session);
+      catObj.sessions.push(session);
     });
 
     grouped.sort((a, b) => b.sortDate - a.sortDate);
     grouped.forEach(g => {
-        g.categories.sort((a, b) => a.category.localeCompare(b.category));
-        g.categories.forEach(c => {
-            c.sessions.sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
-        });
+      g.categories.sort((a, b) => a.category.localeCompare(b.category));
+      g.categories.forEach(c => {
+        c.sessions.sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
+      });
     });
 
     return grouped;
@@ -149,7 +149,7 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
   return (
     <div className="space-y-12">
       {groupedRecordings.map((monthGroup, mIndex) => (
-        <motion.div 
+        <motion.div
           key={monthGroup.month}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -168,7 +168,7 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
               const isExpanded = expandedCategory === categoryId;
 
               return (
-                <motion.div 
+                <motion.div
                   key={catGroup.category}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -178,9 +178,8 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
                   {/* Category Header */}
                   <button
                     onClick={() => setExpandedCategory(isExpanded ? null : categoryId)}
-                    className={`w-full flex items-center justify-between p-5 md:p-6 transition-colors ${
-                      isExpanded ? "bg-brand-aliceBlue/20" : "hover:bg-gray-50"
-                    }`}
+                    className={`w-full flex items-center justify-between p-5 md:p-6 transition-colors ${isExpanded ? "bg-brand-aliceBlue/20" : "hover:bg-gray-50"
+                      }`}
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-brand-cerulean/10 text-brand-cerulean flex items-center justify-center shrink-0">
@@ -201,7 +200,7 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
                   {/* Grid of Recordings */}
                   <AnimatePresence>
                     {isExpanded && (
-                      <motion.div 
+                      <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -213,61 +212,85 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
                             {catGroup.sessions.map((session, sIndex) => {
                               const { locked, reason } = getAccessStatus(session);
 
+                              const youtubeThumbnail = session.youtubeVideoId ? `https://img.youtube.com/vi/${session.youtubeVideoId}/hqdefault.jpg` : null;
+                              const classBanner = typeof session.class === 'object' && session.class !== null ? (session.class.bannerUrl || session.class.imageUrl) : null;
+                              const thumbnail = youtubeThumbnail || classBanner;
+
                               return (
-                                  <motion.div 
-                                    key={session._id} 
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: sIndex * 0.05, duration: 0.3 }}
-                                    className={`group relative rounded-3xl p-5 border transition-all duration-300 ${
-                                        locked 
-                                        ? "bg-gray-50/80 border-gray-200" 
-                                        : "bg-white border-brand-aliceBlue shadow-sm hover:border-brand-cerulean/30 hover:shadow-lg hover:-translate-y-1"
+                                <motion.div
+                                  key={session._id}
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  transition={{ delay: sIndex * 0.05, duration: 0.3 }}
+                                  className={`group relative flex flex-col rounded-3xl border transition-all duration-300 overflow-hidden ${locked
+                                      ? "bg-gray-50/80 border-gray-200"
+                                      : "bg-white border-brand-aliceBlue shadow-sm hover:border-brand-cerulean/30 hover:shadow-lg hover:-translate-y-1"
                                     }`}
-                                  >
-                                    <div className="flex items-start gap-4 mb-5">
-                                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 shrink-0 shadow-inner ${
-                                          locked 
-                                          ? "bg-gray-200/80 text-gray-400" 
-                                          : "bg-gradient-to-br from-brand-aliceBlue to-white text-brand-cerulean group-hover:from-brand-cerulean group-hover:to-blue-600 group-hover:text-white"
-                                      }`}>
-                                        {locked ? <Lock size={24} /> : <PlayCircle size={26} strokeWidth={2.5} />}
-                                      </div>
-                                      
-                                      <div className="space-y-1.5 flex-1 pt-1">
-                                        <h4 className={`text-base font-bold line-clamp-2 leading-snug transition-colors ${
-                                            locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
-                                        }`}>
-                                          {session.recordingTitle || session.title || `Session ${session.index}`}
-                                        </h4>
-                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                          <Calendar size={13} className="mb-0.5" />
-                                          {formatDate(session.startAt)}
+                                >
+                                  {/* Thumbnail Section */}
+                                  <div className="relative aspect-video w-full bg-gradient-to-br from-brand-aliceBlue to-gray-200 overflow-hidden flex items-center justify-center">
+                                    {thumbnail ? (
+                                      <img src={thumbnail} alt={session.recordingTitle || "Recording"} className={`w-full h-full object-cover transition-transform duration-500 ${!locked ? "group-hover:scale-105" : ""}`} />
+                                    ) : (
+                                      <Video size={48} className="text-gray-300" />
+                                    )}
+
+                                    {/* Overlays */}
+                                    {locked ? (
+                                      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center">
+                                        <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                                          <Lock size={28} className="text-white" />
                                         </div>
                                       </div>
+                                    ) : (
+                                      <div className="absolute inset-0 bg-brand-prussian/0 group-hover:bg-brand-prussian/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                        <div className="w-16 h-16 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-brand-cerulean transform scale-75 group-hover:scale-100 transition-all duration-300">
+                                          <PlayCircle size={32} className="ml-1" strokeWidth={2.5} />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Category Badge */}
+                                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg">
+                                      {catGroup.category}
                                     </div>
-                                    
+                                  </div>
+
+                                  {/* Content Section */}
+                                  <div className="p-5 flex flex-col flex-1">
+                                    <div className="space-y-1.5 flex-1 mb-5">
+                                      <h4 className={`text-base font-bold line-clamp-2 leading-snug transition-colors ${locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
+                                        }`}>
+                                        {session.recordingTitle || session.title || `Session ${session.index}`}
+                                      </h4>
+                                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                        <Calendar size={13} className="mb-0.5" />
+                                        {formatDate(session.startAt)}
+                                      </div>
+                                    </div>
+
                                     {locked ? (
-                                      <div className="flex flex-col gap-3">
-                                          <div className="w-full bg-gray-100/80 py-3 rounded-xl font-bold text-xs text-gray-500 flex items-center justify-center gap-2 border border-gray-200/80 cursor-not-allowed">
-                                              <AlertCircle size={15} /> {reason}
-                                          </div>
-                                          <button 
-                                              onClick={() => navigate(`/student/payment/create/${typeof session.class === 'string' ? session.class : session.class._id}`)}
-                                              className="text-[11px] font-black text-brand-cerulean uppercase tracking-wider hover:underline text-center"
-                                          >
-                                              Pay Now to Unlock
-                                          </button>
+                                      <div className="flex flex-col gap-3 mt-auto">
+                                        <div className="w-full bg-gray-100/80 py-2.5 rounded-xl font-bold text-xs text-gray-500 flex items-center justify-center gap-2 border border-gray-200/80 cursor-not-allowed">
+                                          <AlertCircle size={15} /> {reason}
+                                        </div>
+                                        <button
+                                          onClick={() => navigate(`/student/payment/create/${typeof session.class === 'string' ? session.class : session.class._id}`)}
+                                          className="text-[11px] font-black text-brand-cerulean uppercase tracking-wider hover:underline text-center"
+                                        >
+                                          Pay Now to Unlock
+                                        </button>
                                       </div>
                                     ) : (
-                                      <button 
-                                          onClick={() => navigate(`/student/class/recording/${session._id}`)}
-                                          className="w-full bg-brand-aliceBlue/50 py-3 rounded-xl font-bold text-sm text-brand-prussian hover:bg-brand-prussian hover:text-white transition-all transform active:scale-95 shadow-sm"
+                                      <button
+                                        onClick={() => navigate(`/student/class/recording/${session._id}`)}
+                                        className="w-full mt-auto bg-brand-aliceBlue/50 py-3 rounded-xl font-bold text-sm text-brand-prussian hover:bg-brand-prussian hover:text-white transition-all transform active:scale-95 shadow-sm flex items-center justify-center gap-2"
                                       >
-                                          Watch Recording
+                                        <PlayCircle size={18} /> Watch Recording
                                       </button>
                                     )}
-                                  </motion.div>
+                                  </div>
+                                </motion.div>
                               );
                             })}
                           </div>

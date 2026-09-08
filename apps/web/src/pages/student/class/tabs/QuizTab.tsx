@@ -52,12 +52,12 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
 
   if (quizzes.length === 0) {
     return (
-      <div className="bg-white p-12 rounded-2xl shadow-sm border border-gray-100 text-center">
-        <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-          <ClipboardList size={32} />
+      <div className="bg-white p-12 rounded-[2rem] shadow-sm border border-brand-aliceBlue text-center flex flex-col items-center justify-center">
+        <div className="w-20 h-20 bg-brand-cerulean/10 text-brand-cerulean rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+          <ClipboardList size={36} strokeWidth={1.5} />
         </div>
-        <h3 className="text-xl font-bold text-gray-800 mb-2">No Quizzes Available</h3>
-        <p className="text-gray-500 max-w-md mx-auto">
+        <h3 className="text-2xl font-black text-brand-prussian mb-3 tracking-tight">No Quizzes Available</h3>
+        <p className="text-gray-500 max-w-md mx-auto font-medium">
           There are currently no active assessments for this class. Your teacher will announce when a new quiz is published.
         </p>
       </div>
@@ -65,74 +65,82 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classId }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
       {quizzes.map((quiz) => {
         const isScheduled = quiz.quizType === "schedule";
         const isFuture = isScheduled && quiz.scheduledAt ? new Date(quiz.scheduledAt) > new Date() : false;
         const isLive = quiz.quizType === "live";
         
+        // Premium card styling logic
+        const cardBg = isLive ? 'bg-gradient-to-b from-red-50/50 to-white border-red-100 hover:border-red-200' :
+                       isScheduled ? 'bg-gradient-to-b from-blue-50/50 to-white border-blue-100 hover:border-blue-200' : 
+                       'bg-gradient-to-b from-brand-aliceBlue/30 to-white border-brand-aliceBlue hover:border-brand-cerulean/30';
+
+        const iconBg = isLive ? 'bg-red-500 text-white shadow-red-200' : 
+                       isScheduled ? 'bg-blue-500 text-white shadow-blue-200' : 
+                       'bg-brand-cerulean text-white shadow-blue-100';
+
+        const badgeStyle = isLive ? 'bg-red-100 text-red-700 border border-red-200' : 
+                           isScheduled ? 'bg-blue-100 text-blue-700 border border-blue-200' : 
+                           'bg-brand-aliceBlue text-brand-prussian border border-brand-cerulean/20';
+
+        const buttonStyle = isFuture ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
+                            isLive ? 'bg-red-500 text-white hover:bg-red-600 shadow-md hover:shadow-lg shadow-red-500/20' :
+                            'bg-brand-prussian text-white hover:bg-brand-cerulean shadow-md hover:shadow-lg shadow-brand-prussian/20';
+
         return (
           <div 
             key={quiz._id} 
-            className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col"
+            className={`rounded-[2.5rem] border overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col group hover:-translate-y-1 ${cardBg}`}
           >
             {/* Card Header & Badge */}
-            <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
-                  isLive ? 'bg-red-50 text-red-600' : 
-                  isScheduled ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'
-                }`}>
-                  <FileText size={20} />
-                </div>
-                <h3 className="font-bold text-gray-800 line-clamp-2">{quiz.title}</h3>
+            <div className="p-6 md:p-8 flex items-start gap-5 relative">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${iconBg}`}>
+                <FileText size={24} strokeWidth={2} />
+              </div>
+              <div className="flex-1 pt-1">
+                <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-3 ${badgeStyle}`}>
+                  {quiz.quizType} Mode
+                </span>
+                <h3 className="text-xl font-bold text-brand-prussian line-clamp-2 leading-snug group-hover:text-brand-cerulean transition-colors">{quiz.title}</h3>
               </div>
             </div>
 
             {/* Card Body (Info) */}
-            <div className="p-5 flex-1 space-y-3">
+            <div className="px-6 md:px-8 flex-1 space-y-4">
               {quiz.description && (
-                <p className="text-sm text-gray-500 line-clamp-2 mb-2">
+                <p className="text-sm text-gray-500 line-clamp-2 font-medium">
                   {quiz.description}
                 </p>
               )}
               
-              <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
-                <Clock size={16} className="text-gray-400" />
-                <span>{quiz.duration} Minutes</span>
-              </div>
-
-              {/* Show start time only if it's a scheduled quiz */}
-              {isScheduled && quiz.scheduledAt && (
-                <div className="flex items-center gap-2 text-sm text-blue-600 font-medium bg-blue-50 px-3 py-2 rounded-lg mt-2">
-                  <Calendar size={16} />
-                  <span>Opens: {format(new Date(quiz.scheduledAt), "MMM do, h:mm a")}</span>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3 text-sm font-bold text-gray-700 bg-white/60 p-3 rounded-xl border border-white/80 shadow-sm backdrop-blur-sm">
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
+                    <Clock size={16} />
+                  </div>
+                  <span>{quiz.duration} Minutes Duration</span>
                 </div>
-              )}
-              
-              {/* Type Badge */}
-              <div className="pt-2">
-                <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-full ${
-                  isLive ? 'bg-red-100 text-red-700' : 
-                  isScheduled ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {quiz.quizType} Mode
-                </span>
+
+                {isScheduled && quiz.scheduledAt && (
+                  <div className="flex items-center gap-3 text-sm font-bold text-blue-700 bg-blue-50/80 p-3 rounded-xl border border-blue-100 shadow-sm backdrop-blur-sm">
+                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+                      <Calendar size={16} />
+                    </div>
+                    <span>Opens: {format(new Date(quiz.scheduledAt), "MMM do, h:mm a")}</span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Card Footer (Action) */}
-            <div className="p-4 bg-gray-50 mt-auto border-t border-gray-100">
+            <div className="p-6 md:p-8 mt-4">
               <button
                 onClick={() => navigate(`/student/class/quizzes/start/${quiz._id}`)}
                 disabled={isFuture}
-                className={`w-full py-2.5 text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
-                    isFuture 
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                    : 'bg-brand-prussian text-white hover:bg-brand-cerulean'
-                }`}
+                className={`w-full py-4 text-sm font-black uppercase tracking-wider rounded-2xl transition-all flex items-center justify-center gap-2 transform active:scale-95 ${buttonStyle}`}
               >
-                {isFuture ? <Clock size={18} /> : <PlayCircle size={18} />}
+                {isFuture ? <Clock size={20} /> : <PlayCircle size={20} />}
                 {isFuture ? 'Not Yet Open' : 'Go to Exam'}
               </button>
             </div>
