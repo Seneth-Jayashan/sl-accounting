@@ -10,6 +10,7 @@ const packagePaths = [
 ];
 const tauriConfPath = path.join(projectRoot, 'apps', 'desktop', 'src-tauri', 'tauri.conf.json');
 const cargoTomlPath = path.join(projectRoot, 'apps', 'desktop', 'src-tauri', 'Cargo.toml');
+const androidBuildGradlePath = path.join(projectRoot, 'apps', 'android', 'android', 'app', 'build.gradle');
 
 let versionData;
 try {
@@ -66,6 +67,15 @@ if (fs.existsSync(cargoTomlPath)) {
   cargoToml = cargoToml.replace(/(name\s*=\s*"[^"]+"\nversion\s*=\s*)"[^"]+"/, `$1"${newVersion}"`);
   fs.writeFileSync(cargoTomlPath, cargoToml, 'utf8');
   console.log(`✅ Updated ${path.relative(__dirname, cargoTomlPath)}`);
+}
+
+if (fs.existsSync(androidBuildGradlePath)) {
+  let gradle = fs.readFileSync(androidBuildGradlePath, 'utf8');
+  const versionCode = (major * 10000) + (minor * 100) + patch;
+  gradle = gradle.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`);
+  gradle = gradle.replace(/versionName\s+"[^"]+"/, `versionName "${newVersion}"`);
+  fs.writeFileSync(androidBuildGradlePath, gradle, 'utf8');
+  console.log(`✅ Updated ${path.relative(__dirname, androidBuildGradlePath)}`);
 }
 
 console.log(`🎉 All apps successfully updated to ${newVersion}!`);

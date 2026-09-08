@@ -1,0 +1,52 @@
+name: 'Release Android App'
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger this workflow when you push a tag starting with "v" (e.g. v1.0.0)
+  workflow_dispatch: # Allow manually triggering from the GitHub Actions tab
+
+jobs:
+  publish-android:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: install dependencies
+        working-directory: ./apps/android
+        run: npm install
+
+      - name: build APK
+        working-directory: ./apps/android/android
+        run: ./gradlew assembleRelease
+
+      - name: Sign App APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: apps/android/android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: upload APK to release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: ${{ steps.sign_app.outputs.signedReleaseFile }}

@@ -1,0 +1,9 @@
+{
+  "appId": "com.kalumwaduge.app",
+  "appName": "Kalum Waduge",
+  "webDir": "www",
+  "server": {
+    "url": "https://kalumwaduge.com",
+    "cleartext": true
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KalumWaduge</string>
+    <string name="title_activity_main">KalumWaduge</string>
+    <string name="package_name">com.kalumwaduge.app</string>
+    <string name="custom_url_scheme">com.kalumwaduge.app</string>
+</resources>
