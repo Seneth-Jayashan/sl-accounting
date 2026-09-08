@@ -29,6 +29,10 @@ jobs:
         working-directory: ./apps/android
         run: npm install
 
+      - name: sync capacitor
+        working-directory: ./apps/android
+        run: npx cap sync android
+
       - name: build APK
         working-directory: ./apps/android/android
         run: ./gradlew assembleRelease
