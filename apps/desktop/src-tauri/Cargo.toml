@@ -1,8 +1,8 @@
 [package]
 name = "sl-accounting-lms"
-version = "0.1.0"
+version = "1.0.48"
 description = "SL Accounting LMS Desktop Application"
-authors = ["Seneth Jayashan"]
+authors = ["One X Universe (Pvt) Ltd <[ceo@onexuniverse.com]>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

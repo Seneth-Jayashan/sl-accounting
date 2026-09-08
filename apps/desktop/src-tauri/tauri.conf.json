@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "SL Accounting LMS",
-  "version": "0.1.0",
+  "version": "1.0.48",
   "identifier": "com.slaccounting.lms",
   "build": {
-    "beforeDevCommand": "npm run dev --prefix ../web",
+    "beforeDevCommand": "",
     "devUrl": "https://kalumwaduge.com",
-    "beforeBuildCommand": "npm run build --prefix ../web",
-    "frontendDist": "../../web/dist"
+    "beforeBuildCommand": "",
+    "frontendDist": "https://kalumwaduge.com"
   },
   "app": {
     "windows": [
