@@ -3,6 +3,10 @@ name: Deploy SL Accounting LMS
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'apps/web/**'
+      - 'apps/api/**'
+      - '.github/workflows/deploy.yml'
 
 jobs:
   deploy:
