@@ -573,7 +573,7 @@ const CurriculumSection = () => {
     { num: "01", title: "ගිණුම්කරණයට හැඳින්වීම", subtitle: "Grade 12", icon: BookOpen },
     { num: "02", title: "ගිණුම්කරණ සමීකරණය", subtitle: "Grade 12", icon: Layers },
     { num: "03", title: "ද්විත්ව සටහන් ක්‍රමය", subtitle: "Grade 12", icon: Users },
-    { num: "04", title: "මූලික පොත්, බැංකු සැසඳුම්", subtitle: "Grade 12", icon: FileSpreadsheet },
+    { num: "04", title: "මූලික පොත්, බැංකු සැසඳුම්, පාලන ගිණුම්, වැරැදි නිවැරදි කිරීම්", subtitle: "Grade 12", icon: FileSpreadsheet },
     { num: "05", title: "ගිණුම්කරණ සංකල්ප", subtitle: "Grade 12", icon: Calculator },
     { num: "06", title: "තනි පුද්ගල ව්‍යාපාර ගැලපිලි", subtitle: "Grade 12", icon: BarChart3 },
     { num: "07", title: "නිෂ්පාදන පිරිවැය", subtitle: "Grade 12", icon: Layers },
@@ -583,9 +583,9 @@ const CurriculumSection = () => {
     { num: "11", title: "ගිණුම්කරණ ප්‍රමිත", subtitle: "Grade 13", icon: BookOpen },
     { num: "12", title: "සමාගම් ගිණුම්කරණය", subtitle: "Grade 13", icon: FileSpreadsheet },
     { num: "13", title: "ගිණුම්කරණ අනුපාත", subtitle: "Grade 13", icon: BarChart3 },
-    { num: "14", title: "පිරිවැය හා කළමනාකරණ", subtitle: "Grade 13", icon: Calculator },
-    { num: "15", title: "ව්‍යාපෘති ඇගයීම", subtitle: "Grade 13", icon: Layers },
-    { num: "16", title: "පරිගණක ගිණුම්කරණය", subtitle: "Grade 13", icon: BookOpen },
+    { num: "14", title: "කළමණාකරණ ගිණුම්කරණය", subtitle: "Grade 13", icon: Calculator },
+    { num: "15", title: "ආන්තික පිරිවැය", subtitle: "Grade 13", icon: Layers },
+    { num: "16", title: "ආයෝජන තීරණ", subtitle: "Grade 13", icon: BookOpen },
   ];
 
   const grade12Units = units.filter(u => u.subtitle === "Grade 12");
