@@ -133,6 +133,7 @@ export const login = async (req, res) => {
     return res.status(200).json({
       success: true,
       accessToken, 
+      refreshToken,
       user: {
         _id: user._id,
         firstName: user.firstName,
@@ -150,7 +151,7 @@ export const login = async (req, res) => {
 };
 
 export const refresh = async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken;
+  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
   if (!incomingRefreshToken) return res.status(401).json({ message: "No token provided" });
 
@@ -178,7 +179,7 @@ export const refresh = async (req, res) => {
     
     res.cookie("refreshToken", newRefreshToken, cookieOptions);
     
-    return res.status(200).json({ success: true, accessToken });
+    return res.status(200).json({ success: true, accessToken, refreshToken: newRefreshToken });
 
   } catch (err) {
     return res.status(403).json({ message: "Invalid token" });
@@ -186,7 +187,7 @@ export const refresh = async (req, res) => {
 };
 
 export const logout = async (req, res) => {
-    const incomingRefreshToken = req.cookies.refreshToken;
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
     
     try {
       if (incomingRefreshToken) {

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useRef, useCallback } from "react";
 import axios from "axios";
-import { api, setAccessToken } from "../services/api";
+import { api, setAccessToken, isNativeApp } from "../services/api";
 import ReactHotToast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -78,10 +78,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // We memoize this so it can be used in the event listener effect below
   const logout = useCallback(async () => {
     try {
-      await api.post("/auth/logout");
+      const storedRefreshToken = isNativeApp() ? localStorage.getItem("refreshToken") : null;
+      const payload = storedRefreshToken ? { refreshToken: storedRefreshToken } : {};
+      await api.post("/auth/logout", payload);
     } catch (err) {
       // Ignore errors
     } finally {
+      if (isNativeApp()) {
+        localStorage.removeItem("refreshToken");
+      }
       setAccessTokenState(null);
       setAccessToken(null);
       setUser(null);
@@ -117,13 +122,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isInitialized.current = true;
 
       try {
+        const storedRefreshToken = isNativeApp() ? localStorage.getItem("refreshToken") : null;
+        const payload = storedRefreshToken ? { refreshToken: storedRefreshToken } : {};
         const res = await axios.post(
           `${API_BASE}/auth/refresh`,
-          {},
+          payload,
           { withCredentials: true } 
         );
 
         const newAccessToken = res.data?.accessToken;
+        const newRefreshToken = res.data?.refreshToken;
+
+        if (newRefreshToken && isNativeApp()) {
+          localStorage.setItem("refreshToken", newRefreshToken);
+        }
 
         if (newAccessToken) {
           setAccessTokenState(newAccessToken);
@@ -141,6 +153,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err: any) {
         // Only destroy the session if the backend explicitly rejected the token
         if (err.response?.status === 401 || err.response?.status === 403) {
+            if (isNativeApp()) {
+              localStorage.removeItem("refreshToken");
+            }
             setAccessTokenState(null);
             setUser(null);
             setAccessToken(null);
@@ -178,6 +193,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.data?.success) {
         const token = res.data.accessToken;
+        const refreshToken = res.data.refreshToken;
+        
+        if (refreshToken && isNativeApp()) {
+          localStorage.setItem("refreshToken", refreshToken);
+        }
+        
         setAccessTokenState(token);
         setAccessToken(token);
 

@@ -23,6 +23,13 @@ export const setAccessToken = (token: string | null) => {
 
 export const getAccessToken = () => inMemoryAccessToken;
 
+export const isNativeApp = () => {
+  return (
+    typeof window !== "undefined" &&
+    (!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__ || !!(window as any).Capacitor)
+  );
+};
+
 // 4. Request Interceptor
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -85,13 +92,22 @@ api.interceptors.response.use(
 
     try {
       // Use raw axios to prevent infinite loops
+      const storedRefreshToken = isNativeApp() ? localStorage.getItem('refreshToken') : null;
+      const payload = storedRefreshToken ? { refreshToken: storedRefreshToken } : {};
+      
       const response = await axios.post(
         `${API_BASE}/auth/refresh`,
-        {},
+        payload,
         { withCredentials: true }
       );
 
       const newAccessToken = response.data?.accessToken;
+      const newRefreshToken = response.data?.refreshToken;
+      
+      if (newRefreshToken && isNativeApp()) {
+        localStorage.setItem("refreshToken", newRefreshToken);
+      }
+      
       setAccessToken(newAccessToken);
 
       window.dispatchEvent(
@@ -109,6 +125,9 @@ api.interceptors.response.use(
       // 3. Refresh Failed (Session completely dead)
       processQueue(refreshError as Error, null);
       setAccessToken(null);
+      if (isNativeApp()) {
+        localStorage.removeItem("refreshToken");
+      }
 
       // Trigger a custom event so the UI (React) knows to redirect to Login
       // This decouples the API file from React Router
