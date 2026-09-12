@@ -1,6 +1,6 @@
 [package]
 name = "sl-accounting-lms"
-version = "1.0.51"
+version = "1.0.52"
 description = "SL Accounting LMS Desktop Application"
 authors = ["One X Universe (Pvt) Ltd <ceo@onexuniverse.com>"]
 edition = "2021"
