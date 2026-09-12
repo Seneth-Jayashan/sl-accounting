@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { RotateCw } from "lucide-react"; 
 import { Toaster } from "react-hot-toast"; // <--- 1. Import Toaster
+import { GlobalRefresher } from "./components/GlobalRefresher";
 
 // --- Context & Protected Route Wrapper ---
 import AuthProvider from "./contexts/AuthContext";
@@ -81,6 +82,9 @@ function App() {
           },
         }}
       />
+      
+      <GlobalRefresher />
+
 
       <BrowserRouter>
         {/* --- Splash Screen --- */}
