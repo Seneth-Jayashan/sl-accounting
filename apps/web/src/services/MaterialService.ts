@@ -12,6 +12,8 @@ export interface MaterialData {
   fileType: "pdf" | "pptx" | "docx" | "image" | "other";
   fileSize: string;
   class: string | any; // Can be ID or populated Class object
+  classDetails?: { _id: string; name: string }; // Populated by backend via virtual/populate
+  category?: { _id: string; name: string } | string; // Populated or string ID
   createdAt: string;
   updatedAt: string;
 }

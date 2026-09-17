@@ -31,6 +31,13 @@ const materialSchema = new mongoose.Schema({
         required: true,
         index: true 
     },
+    // Linking to Category
+    category: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "MaterialCategory",
+        required: [true, "Material category is required"],
+        index: true
+    },
     isPublished: { 
         type: Boolean, 
         default: true 

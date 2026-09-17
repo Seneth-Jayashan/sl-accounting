@@ -137,12 +137,24 @@ export const getAllPublicLessonPacks = async (req, res) => {
     try {
         const query = { isPublished: true };
 
-        // Exclude the videos array from the initial list fetch to save bandwidth
+        // Include the videos array so the frontend can display the correct video count
         const packs = await LessonPack.find(query)
-            .select("-videos")
             .sort({ createdAt: -1 });
 
-        res.status(200).json({ success: true, count: packs.length, data: packs });
+        // Hide youtube URLs and IDs for the public listing
+        const safePacks = packs.map(pack => {
+            const hiddenPack = pack.toObject();
+            if (hiddenPack.videos) {
+                hiddenPack.videos = hiddenPack.videos.map(v => ({
+                    ...v,
+                    youtubeUrl: null,
+                    youtubeId: null
+                }));
+            }
+            return hiddenPack;
+        });
+
+        res.status(200).json({ success: true, count: safePacks.length, data: safePacks });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -183,7 +195,17 @@ export const getPublicById = async (req, res) => {
         if (!pack) return res.status(404).json({ success: false, message: "Not found." });
         if (!pack.isPublished) return res.status(403).json({ success: false, message: "This lesson pack is not available." });
 
-        res.status(200).json({ success: true, data: pack });
+        // Hide youtube URLs and IDs for public view
+        const hiddenPack = pack.toObject();
+        if (hiddenPack.videos) {
+            hiddenPack.videos = hiddenPack.videos.map(v => ({
+                ...v,
+                youtubeUrl: null,
+                youtubeId: null
+            }));
+        }
+
+        res.status(200).json({ success: true, data: hiddenPack });
 
 
     } catch (error) {

@@ -1,26 +1,29 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom"; // Added for navigation
 import { motion } from "framer-motion";
-import { 
-  FolderOpen, 
-  FileText, 
-  Download, 
-  RotateCw, 
-  Presentation, 
-  Image as ImageIcon, 
-  File as FileIcon, 
+import {
+  FolderOpen,
+  FileText,
+  Download,
+  RotateCw,
+  Presentation,
+  Image as ImageIcon,
+  File as FileIcon,
   FileEdit,
   Lock,           // Added
   AlertCircle,     // Added
-  FileCode
+  FileCode,
+  ChevronDown,
+  ChevronRight,
+  Layers
 } from "lucide-react";
 import MaterialService, { type MaterialData } from "../../../../services/MaterialService";
 import EnrollmentService, { type EnrollmentResponse } from "../../../../services/EnrollmentService"; // Added
 
 // --- Helpers ---
 const getMonthString = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
 export default function ResourcesTab({ classId }: { classId: string }) {
@@ -28,6 +31,7 @@ export default function ResourcesTab({ classId }: { classId: string }) {
   const [materials, setMaterials] = useState<MaterialData[]>([]);
   const [enrollment, setEnrollment] = useState<EnrollmentResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
   // 1. Fetch Data (Materials + Enrollment)
   useEffect(() => {
@@ -41,31 +45,31 @@ export default function ResourcesTab({ classId }: { classId: string }) {
       setLoading(true);
       try {
         const [matRes, enrollRes] = await Promise.all([
-             MaterialService.getStudentMaterials(classId),
-             EnrollmentService.getMyEnrollments()
+          MaterialService.getStudentMaterials(classId),
+          EnrollmentService.getMyEnrollments()
         ]);
-        
+
         if (isMounted) {
-            // A. Handle Materials Data
-            const data = (matRes as any).data || matRes;
-            if (Array.isArray(data)) {
-                setMaterials(data);
-            } else if (data && typeof data === 'object') {
-                setMaterials(Array.isArray(data.data) ? data.data : [data]);
-            } else {
-                setMaterials([]);
-            }
+          // A. Handle Materials Data
+          const data = (matRes as any).data || matRes;
+          if (Array.isArray(data)) {
+            setMaterials(data);
+          } else if (data && typeof data === 'object') {
+            setMaterials(Array.isArray(data.data) ? data.data : [data]);
+          } else {
+            setMaterials([]);
+          }
 
-            // B. Handle Enrollment Data (Find specific enrollment for this class)
-            const match = enrollRes.find((e: any) => {
-              // (typeof e.class === 'string' ? e.class : e.class?._id) === classId 
-                // Safely grab the ObjectId (whether populated or not)
-                const currentId = e.class?._id || e.class;
+          // B. Handle Enrollment Data (Find specific enrollment for this class)
+          const match = enrollRes.find((e: any) => {
+            // (typeof e.class === 'string' ? e.class : e.class?._id) === classId 
+            // Safely grab the ObjectId (whether populated or not)
+            const currentId = e.class?._id || e.class;
 
-                // Convert both to strings, compare safely, and return the result
-                return currentId?.toString() === classId?.toString();
-            });
-            setEnrollment(match || null);
+            // Convert both to strings, compare safely, and return the result
+            return currentId?.toString() === classId?.toString();
+          });
+          setEnrollment(match || null);
         }
       } catch (err) {
         console.error("Failed to load resources data", err);
@@ -92,24 +96,48 @@ export default function ResourcesTab({ classId }: { classId: string }) {
 
   // 3. Access Logic Helper
   const getAccessStatus = (file: MaterialData) => {
-      if (!enrollment) return { locked: true, reason: "Not Enrolled" };
+    if (!enrollment) return { locked: true, reason: "Not Enrolled" };
 
-      const fileMonth = getMonthString(file.createdAt);
-      const paidMonths = enrollment.paidMonths || [];
+    const fileMonth = getMonthString(file.createdAt);
+    const paidMonths = enrollment.paidMonths || [];
 
-      // Check if the month the file was created in is paid for
-      if (!paidMonths.includes(fileMonth)) {
-          const monthName = new Date(file.createdAt).toLocaleDateString('en-US', { month: 'long' });
-          return { locked: true, reason: `Pay for ${monthName}` };
-      }
+    // Check if the month the file was created in is paid for
+    if (!paidMonths.includes(fileMonth)) {
+      const monthName = new Date(file.createdAt).toLocaleDateString('en-US', { month: 'long' });
+      return { locked: true, reason: `Pay for ${monthName}` };
+    }
 
-      return { locked: false, reason: "" };
+    return { locked: false, reason: "" };
   };
 
   // 4. Sorted Materials (Newest First)
   const sortedMaterials = useMemo(() => {
-      return [...materials].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return [...materials].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [materials]);
+
+  // 5. Group by Category
+  const groupedMaterials = useMemo(() => {
+    const groups: Record<string, MaterialData[]> = {};
+    sortedMaterials.forEach(file => {
+      const categoryName = typeof file.category === 'object' && file.category?.name
+        ? file.category.name
+        : "Uncategorized";
+
+      if (!groups[categoryName]) {
+        groups[categoryName] = [];
+      }
+      groups[categoryName].push(file);
+    });
+    return groups;
+  }, [sortedMaterials]);
+
+  // 6. Set initial active category
+  useEffect(() => {
+    const keys = Object.keys(groupedMaterials);
+    if (keys.length > 0 && Object.keys(expandedCategories).length === 0) {
+      setExpandedCategories({ [keys[0]]: true }); // Open the first category by default
+    }
+  }, [groupedMaterials, expandedCategories]);
 
   if (loading) {
     return (
@@ -119,104 +147,128 @@ export default function ResourcesTab({ classId }: { classId: string }) {
       </div>
     );
   }
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      className="space-y-6"
-    >
-      {/* Header Section */}
-      <div className="flex items-center gap-3 sm:mb-8 mb-6">
-        <div className="p-2.5 sm:p-3 bg-brand-cerulean/10 rounded-2xl text-brand-cerulean">
-          <FolderOpen size={20} className="opacity-90" />
-        </div>
-        <h2 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">
-          Study Materials
-        </h2>
+return (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="space-y-6"
+  >
+    {/* Header Section */}
+    <div className="flex items-center gap-3 sm:mb-8 mb-6">
+      <div className="p-2.5 sm:p-3 bg-brand-cerulean/10 rounded-2xl text-brand-cerulean">
+        <FolderOpen size={20} className="opacity-90" />
       </div>
-      
-      {sortedMaterials.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {sortedMaterials.map((file) => {
-            const { locked, reason } = getAccessStatus(file);
+      <h2 className="text-xl sm:text-2xl font-semibold text-brand-prussian tracking-tight">
+        Study Materials
+      </h2>
+    </div>
 
-            return (
-                <div 
-                  key={file._id} 
-                  className={`relative p-5 rounded-[1.5rem] sm:rounded-[2rem] border transition-all duration-300 flex items-center justify-between group ${
-                      locked 
-                      ? "bg-gray-50 border-gray-200" 
-                      : "bg-white border-brand-aliceBlue hover:border-brand-cerulean/20 hover:shadow-md"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
-                    {/* Icon Container */}
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl sm:rounded-2xl flex items-center justify-center transition-colors duration-300 ${
-                        locked 
-                        ? "bg-gray-200 grayscale opacity-50" 
-                        : "bg-brand-aliceBlue/50 group-hover:bg-brand-cerulean/5"
-                    }`}>
-                      {locked ? <Lock size={20} className="text-gray-400"/> : getFileIcon(file.fileType)}
-                    </div>
-                    
-                    <div className="min-w-0">
-                      <h4 className={`text-sm font-semibold truncate w-full tracking-tight transition-colors ${
-                          locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
-                      }`} title={file.title}>
-                        {file.title}
-                      </h4>
-                      <div className="flex flex-col gap-0.5 mt-0.5">
-                          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider flex items-center gap-1">
-                            {locked ? (
-                                <span className="text-red-400 flex items-center gap-1"><AlertCircle size={10} /> {reason}</span>
-                            ) : (
-                                <span>{file.fileSize || "Unknown Size"}</span>
-                            )}
-                          </p>
-                          {file.description && !locked && (
-                              <p className="text-[10px] text-gray-400 truncate w-24 sm:w-32 opacity-70">{file.description}</p>
-                          )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {locked ? (
-                      <button 
-                        onClick={() => navigate(`/student/payment/create/${classId}`)}
-                        className="p-2.5 bg-gray-100 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all text-[10px] font-bold uppercase tracking-wider w-20 flex justify-center"
-                      >
-                          Unlock
-                      </button>
-                  ) : (
-                      <a 
-                        href={`${import.meta.env.VITE_API_BASE_URL}${file.fileUrl}`} 
-                        target="_blank" 
-                        rel="noreferrer noopener"
-                        className="p-2.5 bg-brand-aliceBlue text-gray-500 rounded-xl hover:bg-brand-prussian hover:text-white transition-all transform active:scale-90"
-                        title="Download File"
-                      >
-                        <Download size={18} />
-                      </a>
-                  )}
+    {Object.keys(groupedMaterials).length > 0 ? (
+      <div className="space-y-4">
+        {Object.entries(groupedMaterials).map(([category, files]) => {
+          const isCatExpanded = expandedCategories[category] || false;
+
+          return (
+            <div key={category} className="border border-brand-aliceBlue/50 rounded-xl overflow-hidden shadow-sm bg-white">
+              {/* Category Header */}
+              <div
+                onClick={() => setExpandedCategories(p => ({ ...p, [category]: !isCatExpanded }))}
+                className="flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Layers className="text-gray-500 w-5 h-5" />
+                  <h3 className="font-semibold text-brand-prussian">{category} </h3>
+                  <span className="text-xs text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">{files.length} files</span>
                 </div>
-            );
-          })}
+                <div className="text-gray-400">
+                  {isCatExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                </div>
+              </div>
+
+              {/* Active Category Materials */}
+              {isCatExpanded && (
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                  {files.map((file) => {
+                    const { locked, reason } = getAccessStatus(file);
+
+                    return (
+                      <div
+                        key={file._id}
+                        className={`relative p-5 rounded-[1.5rem] sm:rounded-[2rem] border transition-all duration-300 flex items-center justify-between group ${locked
+                            ? "bg-gray-50 border-gray-200"
+                            : "bg-white border-brand-aliceBlue hover:border-brand-cerulean/20 hover:shadow-md"
+                          }`}
+                      >
+                        <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
+                          {/* Icon Container */}
+                          <div className={`w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-xl sm:rounded-2xl flex items-center justify-center transition-colors duration-300 ${locked
+                              ? "bg-gray-200 grayscale opacity-50"
+                              : "bg-brand-aliceBlue/50 group-hover:bg-brand-cerulean/5"
+                            }`}>
+                            {locked ? <Lock size={20} className="text-gray-400" /> : getFileIcon(file.fileType)}
+                          </div>
+
+                          <div className="min-w-0">
+                            <h4 className={`text-sm font-semibold truncate w-full tracking-tight transition-colors ${locked ? "text-gray-400" : "text-brand-prussian group-hover:text-brand-cerulean"
+                              }`} title={file.title}>
+                              {file.title}
+                            </h4>
+                            <div className="flex flex-col gap-0.5 mt-0.5">
+                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider flex items-center gap-1">
+                                {locked ? (
+                                  <span className="text-red-400 flex items-center gap-1"><AlertCircle size={10} /> {reason}</span>
+                                ) : (
+                                  <span>{file.fileSize || "Unknown Size"}</span>
+                                )}
+                              </p>
+                              {file.description && !locked && (
+                                <p className="text-[10px] text-gray-400 truncate w-24 sm:w-32 opacity-70">{file.description}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {locked ? (
+                          <button
+                            onClick={() => navigate(`/student/payment/create/${classId}`)}
+                            className="p-2.5 bg-gray-100 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all text-[10px] font-bold uppercase tracking-wider w-20 flex justify-center"
+                          >
+                            Unlock
+                          </button>
+                        ) : (
+                          <a
+                            href={`${import.meta.env.VITE_API_BASE_URL}${file.fileUrl}`}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="p-2.5 bg-brand-aliceBlue text-gray-500 rounded-xl hover:bg-brand-prussian hover:text-white transition-all transform active:scale-90"
+                            title="Download File"
+                          >
+                            <Download size={18} />
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      /* Empty State */
+      <div className="bg-white rounded-[2rem] p-10 sm:p-20 text-center border-2 border-dashed border-brand-aliceBlue flex flex-col items-center">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-brand-aliceBlue/30 rounded-full flex items-center justify-center mb-6">
+          <FileCode className="text-brand-cerulean/40" size={24} strokeWidth={1.5} />
         </div>
-      ) : (
-        /* Empty State */
-        <div className="bg-white rounded-[2rem] p-10 sm:p-20 text-center border-2 border-dashed border-brand-aliceBlue flex flex-col items-center">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-brand-aliceBlue/30 rounded-full flex items-center justify-center mb-6">
-            <FileCode className="text-brand-cerulean/40" size={24} strokeWidth={1.5} />
-          </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-brand-prussian tracking-tight">
-            No Documents Yet
-          </h3>
-          <p className="text-gray-400 mt-2 max-w-xs mx-auto text-sm font-normal leading-relaxed">
-            Your instructor hasn't uploaded any lecture notes or supporting materials for this module yet.
-          </p>
-        </div>
-      )}
-    </motion.div>
-  );
+        <h3 className="text-lg sm:text-xl font-semibold text-brand-prussian tracking-tight">
+          No Documents Yet
+        </h3>
+        <p className="text-gray-400 mt-2 max-w-xs mx-auto text-sm font-normal leading-relaxed">
+          Your instructor hasn't uploaded any lecture notes or supporting materials for this module yet.
+        </p>
+      </div>
+    )}
+  </motion.div>
+);
 }

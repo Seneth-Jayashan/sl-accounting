@@ -10,7 +10,11 @@ class MaterialController {
                 return res.status(400).json({ success: false, message: "Please upload a file" });
             }
 
-            const { title, description, classId } = req.body;
+            const { title, description, classId, categoryId } = req.body;
+            
+            if (!categoryId) {
+                return res.status(400).json({ success: false, message: "Please select a category" });
+            }
 
             // req.file contains: path, mimetype, size
             const fileUrl = `/uploads/materials/${req.file.filename}`;
@@ -30,7 +34,8 @@ class MaterialController {
                 fileUrl,
                 fileType,
                 fileSize,
-                class: classId
+                class: classId,
+                category: categoryId
             });
 
             res.status(201).json({ success: true, data: material });
@@ -47,6 +52,7 @@ class MaterialController {
             
             const materials = await Material.find(filter)
                 .populate("classDetails", "name")
+                .populate("category", "name")
                 .sort("-createdAt");
 
             res.status(200).json({ success: true, count: materials.length, data: materials });
@@ -63,7 +69,9 @@ class MaterialController {
             const materials = await Material.find({ 
                 class: classId, 
                 isPublished: true 
-            }).sort("-createdAt");
+            })
+            .populate("category", "name")
+            .sort("-createdAt");
 
             res.status(200).json({ success: true, data: materials });
         } catch (error) {
