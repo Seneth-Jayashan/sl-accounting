@@ -287,9 +287,9 @@ export default function ViewPublicClassPage() {
             >
                 <div className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-2xl border border-white/60 sticky top-24">
                     
-                    {/* Price Tag */}
+                    {/* Price Tag  - Removef temporary from 292 - <p className="text-sm sm:text-lg text-gray-500 font-bold uppercase tracking-widest mb-1 sm:mb-2 font-sinhala">මාසික ගාස්තු</p>*/}
                     <div className="text-center mb-6 sm:mb-8 pb-6 sm:pb-8 border-b border-gray-100">
-                        <p className="text-sm sm:text-lg text-gray-500 font-bold uppercase tracking-widest mb-1 sm:mb-2 font-sinhala">මාසික ගාස්තු</p>
+                        
                         <div className="flex items-center justify-center gap-1 text-brand-prussian">
                             <span className="text-base sm:text-lg font-bold opacity-60">LKR</span>
                             <span className="text-4xl sm:text-5xl font-black">{classData.price.toLocaleString()}</span>
