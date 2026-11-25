@@ -26,6 +26,7 @@ const DAY_INDEX: Record<string, number> = {
 const INITIAL_FORM = {
   name: "",
   description: "",
+  promoVideoUrl: "",
   price: "",
   batch: "",
   type: "theory", // theory | revision | paper
@@ -172,6 +173,7 @@ export default function CreateClassPage() {
       const payload: CreateClassPayload = {
         name: formData.name.trim(),
         description: formData.description.trim(),
+        promoVideoUrl: formData.promoVideoUrl.trim(),
         price: Number(formData.price) || 0,
         batch: formData.batch,
         type: formData.type as any,
@@ -282,6 +284,7 @@ export default function CreateClassPage() {
                 </div>
 
                 <Textarea label="Description" name="description" value={formData.description} onChange={handleChange} required rows={4} placeholder="Detailed description of the curriculum..." />
+                <Input label="Promo Video URL (YouTube)" name="promoVideoUrl" value={formData.promoVideoUrl} onChange={handleChange} placeholder="https://www.youtube.com/watch?v=..." />
               </div>
             </Section>
 

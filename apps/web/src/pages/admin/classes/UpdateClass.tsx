@@ -31,6 +31,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000
 const INITIAL_FORM = {
   name: "",
   description: "",
+  promoVideoUrl: "",
   price: "",
   batch: "",
   type: "theory",
@@ -104,6 +105,7 @@ export default function UpdateClassPage() {
       setFormData({
         name: cls.name,
         description: cls.description || "",
+        promoVideoUrl: cls.promoVideoUrl || "",
         price: String(cls.price),
         batch: typeof cls.batch === 'object' ? cls.batch._id : cls.batch,
         type: cls.type,
@@ -251,6 +253,7 @@ export default function UpdateClassPage() {
       const payload: UpdateClassPayload = {
         name: formData.name.trim(),
         description: formData.description.trim(),
+        promoVideoUrl: formData.promoVideoUrl.trim(),
         price: Number(formData.price) || 0,
         batch: formData.batch,
         type: formData.type as any,
@@ -380,6 +383,7 @@ export default function UpdateClassPage() {
                 </div>
 
                 <Textarea label="Description" name="description" value={formData.description} onChange={handleChange} required rows={4} placeholder="Detailed description of the curriculum..." />
+                <Input label="Promo Video URL (YouTube)" name="promoVideoUrl" value={formData.promoVideoUrl} onChange={handleChange} placeholder="https://www.youtube.com/watch?v=..." />
               </div>
             </Section>
 

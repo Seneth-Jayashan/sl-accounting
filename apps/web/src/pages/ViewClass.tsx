@@ -34,6 +34,7 @@ interface ClassData {
   _id: string;
   name: string;
   description: string;
+  promoVideoId?: string | null;
   price: number;
   level: string;
   batch: any;
@@ -248,6 +249,17 @@ export default function ViewPublicClassPage() {
                     </h3>
                     <div className="prose prose-sm sm:prose-lg prose-blue max-w-none text-gray-600 font-sans leading-relaxed">
                         <p className="whitespace-pre-wrap">{classData.description}</p>
+                        {classData.promoVideoId && (
+                          <div className="mt-6 aspect-video w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                            <iframe
+                              className="w-full h-full"
+                              src={`https://www.youtube.com/embed/${classData.promoVideoId}`}
+                              title="Class Promo Video"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        )}
                     </div>
 
                     {/* Tags */}

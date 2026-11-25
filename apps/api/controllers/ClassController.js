@@ -100,6 +100,13 @@ const getNextSessionMoment = (startDateMoment, targetDayIndex, timeStr, timezone
   return m;
 };
 
+const extractYoutubeId = (url) => {
+  if (!url) return null;
+  const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = String(url).match(regExp);
+  return match && match[2].length === 11 ? match[2] : null;
+};
+
 /**
  * Internal Helper: Creates one Class Document + Associated Sessions + Zoom Meetings
  * Used by createClass to generate Theory, Revision, and Paper classes uniformly.
@@ -110,6 +117,8 @@ const createSingleClassInternal = async (dbSession, data, filePaths) => {
     ...data,
     coverImage: filePaths.coverImage,
     images: filePaths.images,
+    promoVideoUrl: data.promoVideoUrl || null,
+    promoVideoId: extractYoutubeId(data.promoVideoUrl),
     timeSchedules: data.timeSchedules || [],
     totalSessions: data.totalSessions || 1,
     sessionDurationMinutes: data.sessionDurationMinutes || 120,
@@ -554,6 +563,11 @@ export const updateClass = async (req, res) => {
       if (newImages && newImages.length > 0) classDoc.images = newImages; 
     }
 
+    if (otherUpdates.promoVideoUrl !== undefined) {
+      classDoc.promoVideoUrl = otherUpdates.promoVideoUrl || null;
+      classDoc.promoVideoId = extractYoutubeId(otherUpdates.promoVideoUrl);
+    }
+
     // 4. --- SMART SCHEDULE COMPARISON LOGIC (MAIN CLASS) ---
     let willReplaceSchedule = false;
 
@@ -796,8 +810,20 @@ export const deleteClass = async (req, res) => {
 
 export const getClassById = async (req, res) => {
   try {
-    const isAdmin = req.user.role === "admin";
-    const populateSelect = isAdmin ? "" : "-zoomStartUrl -zoomMeetingId";
+    const isAdmin = req.user.role === "admin" || req.user.role === "teacher";
+    let hasPaidEnrollment = isAdmin;
+    if (!isAdmin) {
+      hasPaidEnrollment = !!(await Enrollment.exists({
+        student: req.user._id,
+        class: req.params.classId,
+        paymentStatus: "paid",
+      }));
+    }
+    const populateSelect = isAdmin
+      ? ""
+      : hasPaidEnrollment
+      ? "-zoomStartUrl -zoomMeetingId"
+      : "-zoomStartUrl -zoomMeetingId -zoomJoinUrl -youtubeVideoId";
     const classDoc = await Class.findById(req.params.classId)
       .populate({
         path: "sessions",
@@ -889,6 +915,17 @@ export const getClassRecordings = async (req, res) => {
     const classExists = await Class.exists({ _id: classId });
     if (!classExists) {
       return res.status(404).json({ success: false, message: "Class not found" });
+    }
+
+    if (req.user && req.user.role === "student") {
+      const hasPaidEnrollment = await Enrollment.exists({
+        student: req.user._id,
+        class: classId,
+        paymentStatus: "paid",
+      });
+      if (!hasPaidEnrollment) {
+        return res.status(403).json({ success: false, message: "You are not enrolled in this class." });
+      }
     }
 
     const sessions = await Session.find({

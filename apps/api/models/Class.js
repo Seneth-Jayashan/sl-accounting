@@ -43,6 +43,8 @@ const classSchema = new mongoose.Schema({
   // Media
   images: [{ type: String }],
   coverImage: { type: String },
+  promoVideoUrl: { type: String, default: null },
+  promoVideoId: { type: String, default: null },
 
   firstSessionDate: { type: Date },
 

@@ -35,6 +35,7 @@ export interface CreateClassPayload {
   // ... (Existing fields)
   name: string;
   description?: string;
+  promoVideoUrl?: string;
   price?: number;
   batch?: string;
   timeSchedules?: SchedulePayload[];
