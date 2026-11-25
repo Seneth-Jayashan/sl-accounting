@@ -12,10 +12,14 @@ import {
   MagnifyingGlassIcon,
   EnvelopeIcon,
   PhoneIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  ChevronRightIcon,
+  XMarkIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
-// --- Updated Student Type ---
+// --- Student Type ---
 interface Student {
   _id: string;
   firstName: string;
@@ -26,6 +30,29 @@ interface Student {
   createdAt: string;
 }
 
+// --- Skeleton Loader ---
+function BatchDetailSkeleton() {
+  return (
+    <div className="max-w-7xl mx-auto space-y-6 animate-pulse pb-16">
+      <div className="h-9 w-36 bg-slate-200 rounded-xl" />
+      <div className="h-44 bg-white rounded-2xl border border-slate-100 p-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-28 bg-white rounded-2xl border border-slate-100 p-6" />
+        ))}
+      </div>
+      <div className="h-80 bg-white rounded-2xl border border-slate-100 p-6 space-y-4">
+        <div className="h-10 w-64 bg-slate-100 rounded-xl" />
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-14 bg-slate-50 rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Main Component ---
+
 export default function ViewBatchPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -33,7 +60,7 @@ export default function ViewBatchPage() {
   const [batch, setBatch] = useState<BatchData | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "students">("students");
+  const [activeTab, setActiveTab] = useState<"students" | "overview">("students");
   const [searchTerm, setSearchTerm] = useState("");
 
   const loadData = useCallback(async () => {
@@ -42,14 +69,14 @@ export default function ViewBatchPage() {
     try {
       const [batchRes, studentRes] = await Promise.allSettled([
         BatchService.getBatchById(id),
-        BatchService.getBatchStudents(id)
+        BatchService.getBatchStudents(id),
       ]);
 
-      if (batchRes.status === 'fulfilled' && batchRes.value.success) {
+      if (batchRes.status === "fulfilled" && batchRes.value.success) {
         setBatch(batchRes.value.batch || null);
       }
 
-      if (studentRes.status === 'fulfilled') {
+      if (studentRes.status === "fulfilled") {
         setStudents(studentRes.value.students || []);
       }
     } catch (error) {
@@ -66,272 +93,461 @@ export default function ViewBatchPage() {
   const filteredStudents = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return students;
-    return students.filter(s => 
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(term) ||
-      s.email.toLowerCase().includes(term)
+    return students.filter(
+      (s) =>
+        `${s.firstName} ${s.lastName}`.toLowerCase().includes(term) ||
+        s.email.toLowerCase().includes(term) ||
+        (s.mobileNumber || "").toLowerCase().includes(term)
     );
   }, [searchTerm, students]);
 
-  if (loading) return <LoadingState />;
+  if (loading && !batch) return <BatchDetailSkeleton />;
   if (!batch) return <NotFoundState onBack={() => navigate("/admin/batches")} />;
 
-  return (
-      <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 p-4 md:p-6 pb-24 animate-in fade-in duration-500">
-        
-        {/* --- Navigation & Header --- */}
-        <header className="space-y-4 md:space-y-6">
-          <button 
-            onClick={() => navigate("/admin/batches")}
-            className="flex items-center text-[10px] md:text-xs font-black uppercase tracking-widest text-brand-cerulean hover:text-brand-prussian transition-colors"
-          >
-            <ArrowLeftIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 stroke-[3px]" /> Back to Batches
-          </button>
+  const classesList = batch.classes || [];
+  const durationMonths = Math.max(
+    1,
+    moment(batch.endDate).diff(moment(batch.startDate), "months")
+  );
 
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 bg-white p-6 md:p-8 rounded-[2rem] border border-brand-aliceBlue shadow-sm">
-            <div className="space-y-4 w-full lg:w-auto">
-              <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-cerulean rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-cerulean/20 shrink-0">
-                    <UserGroupIcon className="w-6 h-6 md:w-7 md:h-7" />
-                 </div>
-                 <h1 className="text-2xl md:text-4xl font-black text-brand-prussian tracking-tight leading-tight">{batch.name}</h1>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-3 md:gap-4">
-                <StatusBadge isActive={batch.isActive} />
-                <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-gray-400 bg-brand-aliceBlue/50 px-3 py-2 md:px-4 md:py-2 rounded-xl">
-                  <CalendarDaysIcon className="w-4 h-4 md:w-5 md:h-5 text-brand-cerulean" />
-                  {moment(batch.startDate).format("MMM YYYY")} — {moment(batch.endDate).format("MMM YYYY")}
-                </div>
-              </div>
+  return (
+    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 pb-24 md:pb-12">
+      {/* TOP ACTION BAR */}
+      <div className="flex items-center justify-between gap-3">
+        <button
+          onClick={() => navigate("/admin/batches")}
+          className="group inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-prussian bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-sm transition-all"
+        >
+          <ArrowLeftIcon className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+          Back to Batches
+        </button>
+
+        <button
+          onClick={loadData}
+          disabled={loading}
+          title="Refresh batch data"
+          className="inline-flex items-center gap-2 px-3.5 py-2 bg-white rounded-xl border border-slate-200/80 shadow-sm text-xs font-semibold text-slate-600 hover:text-brand-cerulean hover:border-brand-cerulean/40 transition-colors disabled:opacity-50"
+        >
+          <ArrowPathIcon
+            className={`w-4 h-4 ${loading ? "animate-spin text-brand-cerulean" : ""}`}
+          />
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      {/* HERO BATCH HEADER */}
+      <header className="relative overflow-hidden bg-gradient-to-br from-brand-prussian via-[#07273D] to-[#02121E] rounded-2xl p-6 md:p-8 text-white shadow-lg shadow-brand-prussian/15">
+        <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-brand-cerulean/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 left-1/3 w-48 h-48 rounded-full bg-brand-jasmine/10 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <StatusBadge isActive={batch.isActive} />
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-200 bg-white/10 px-3 py-1 rounded-full border border-white/10">
+                <CalendarDaysIcon className="w-3.5 h-3.5 text-brand-jasmine" />
+                {moment(batch.startDate).format("DD MMM YYYY")} —{" "}
+                {moment(batch.endDate).format("DD MMM YYYY")}
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:gap-4 w-full lg:w-auto">
-              <StatDisplay label="Students" value={students.length} />
-              <StatDisplay label="Classes" value={batch.classes?.length || 0} />
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+              {batch.name}
+            </h1>
+
+            {batch.description && (
+              <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
+                {batch.description}
+              </p>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* KPI SUMMARY CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200/70 shadow-sm">
+          <div className="pointer-events-none absolute -top-10 -right-10 w-24 h-24 rounded-full bg-blue-500/10 blur-2xl" />
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Enrolled Students
+              </p>
+              <h3 className="text-3xl font-bold text-brand-prussian mt-2 tabular-nums">
+                {students.length}
+              </h3>
+            </div>
+            <div className="p-3 rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+              <UserGroupIcon className="w-5 h-5" />
             </div>
           </div>
-        </header>
-
-        {/* --- Custom Tabs --- */}
-        <div className="flex p-1.5 bg-brand-aliceBlue/40 rounded-2xl w-full md:w-fit overflow-x-auto">
-          <TabTrigger 
-            active={activeTab === "students"} 
-            onClick={() => setActiveTab("students")} 
-            label="Students" 
-            count={students.length}
-          />
-          <TabTrigger 
-            active={activeTab === "overview"} 
-            onClick={() => setActiveTab("overview")} 
-            label="Classes" 
-          />
         </div>
 
-        {/* --- Tab Content --- */}
-        <main>
-          <AnimatePresence mode="wait">
-            {activeTab === "students" ? (
-              <motion.div 
-                key="students"
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="space-y-4 md:space-y-6"
-              >
-                {/* Search Bar */}
-                <div className="relative w-full md:max-w-md group">
-                  <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-cerulean transition-transform group-focus-within:scale-110" />
-                  <input 
-                    type="text" 
-                    placeholder="Search name or email..." 
+        <div className="relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200/70 shadow-sm">
+          <div className="pointer-events-none absolute -top-10 -right-10 w-24 h-24 rounded-full bg-purple-500/10 blur-2xl" />
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Linked Classes
+              </p>
+              <h3 className="text-3xl font-bold text-brand-prussian mt-2 tabular-nums">
+                {classesList.length}
+              </h3>
+            </div>
+            <div className="p-3 rounded-xl bg-purple-50 text-purple-600 ring-1 ring-purple-100">
+              <AcademicCapIcon className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200/70 shadow-sm">
+          <div className="pointer-events-none absolute -top-10 -right-10 w-24 h-24 rounded-full bg-emerald-500/10 blur-2xl" />
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Duration
+              </p>
+              <h3 className="text-3xl font-bold text-brand-prussian mt-2 tabular-nums">
+                {durationMonths}
+                <span className="text-sm font-medium text-slate-400 ml-1.5">
+                  {durationMonths === 1 ? "month" : "months"}
+                </span>
+              </h3>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+              <ClockIcon className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SEGMENTED TABS */}
+      <div className="flex items-center gap-1 bg-white p-1.5 rounded-2xl border border-slate-200/70 shadow-sm w-full sm:w-fit">
+        <TabTrigger
+          active={activeTab === "students"}
+          onClick={() => setActiveTab("students")}
+          label="Students"
+          count={students.length}
+        />
+        <TabTrigger
+          active={activeTab === "overview"}
+          onClick={() => setActiveTab("overview")}
+          label="Linked Classes"
+          count={classesList.length}
+        />
+      </div>
+
+      {/* TAB CONTENT */}
+      <main>
+        <AnimatePresence mode="wait">
+          {activeTab === "students" ? (
+            <motion.div
+              key="students"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden"
+            >
+              {/* Search Toolbar */}
+              <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search student by name, email, or phone..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 md:py-4 bg-white border-2 border-brand-aliceBlue rounded-2xl md:rounded-[1.25rem] focus:border-brand-cerulean outline-none transition-all font-bold text-brand-prussian text-sm md:text-base"
+                    className="w-full pl-10 pr-9 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean transition-all"
                   />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
-                {/* Table / List */}
-                <div className="bg-white border border-brand-aliceBlue rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-sm">
-                  {/* Desktop Table */}
-                  <div className="hidden md:block">
-                      <table className="w-full text-left border-collapse">
-                        <thead className="bg-brand-aliceBlue/20">
-                          <tr>
-                            <th className="px-8 py-5 text-[10px] font-black text-brand-prussian/40 uppercase tracking-widest">Student Information</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-brand-prussian/40 uppercase tracking-widest">Contact Access</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-brand-prussian/40 uppercase tracking-widest text-right">Profile</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-brand-aliceBlue/40">
-                          {filteredStudents.length > 0 ? (
-                            filteredStudents.map((student) => (
-                              <StudentRowItem 
-                                key={student._id} 
-                                student={student} 
-                                onView={() => navigate(`/admin/students/${student._id}`)}
-                              />
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={3} className="py-24 text-center">
-                                 <p className="text-brand-prussian font-bold opacity-30">No matching students found.</p>
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
+                <span className="text-xs text-slate-400 font-medium tabular-nums">
+                  Showing <strong className="text-brand-prussian">{filteredStudents.length}</strong>{" "}
+                  of <strong className="text-brand-prussian">{students.length}</strong> students
+                </span>
+              </div>
+
+              {/* Desktop Table */}
+              {filteredStudents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-16 px-4">
+                  <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-3 border border-slate-100">
+                    <UserGroupIcon className="w-7 h-7 text-slate-300" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-brand-prussian">
+                    No students found
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {students.length === 0
+                      ? "No students are assigned to this batch yet."
+                      : "Try adjusting your search query."}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100">
+                        <tr>
+                          <th className="px-6 py-3.5">Student</th>
+                          <th className="px-6 py-3.5">Contact</th>
+                          <th className="px-6 py-3.5">Joined</th>
+                          <th className="px-6 py-3.5 text-right">Profile</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredStudents.map((student) => (
+                          <StudentRowItem
+                            key={student._id}
+                            student={student}
+                            onView={() => navigate(`/admin/students/${student._id}`)}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
 
                   {/* Mobile List View */}
-                  <div className="md:hidden divide-y divide-brand-aliceBlue/40">
-                      {filteredStudents.length > 0 ? (
-                          filteredStudents.map((student) => (
-                              <MobileStudentItem 
-                                  key={student._id}
-                                  student={student}
-                                  onView={() => navigate(`/admin/students/${student._id}`)}
-                              />
-                          ))
-                      ) : (
-                          <div className="py-16 text-center">
-                              <p className="text-brand-prussian font-bold opacity-30 text-sm">No matching students found.</p>
-                          </div>
-                      )}
+                  <div className="md:hidden divide-y divide-slate-100">
+                    {filteredStudents.map((student) => (
+                      <MobileStudentItem
+                        key={student._id}
+                        student={student}
+                        onView={() => navigate(`/admin/students/${student._id}`)}
+                      />
+                    ))}
                   </div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="classes"
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
-              >
-                {batch.classes?.map((cls: any) => (
-                  <ClassCard key={cls._id} cls={cls} onClick={() => navigate(`/admin/classes/view/${cls._id}`)} />
-                )) || <EmptyClasses />}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
-      </div>
+                </>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="classes"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+            >
+              {classesList.length > 0 ? (
+                classesList.map((cls: any) => (
+                  <ClassCard
+                    key={cls._id}
+                    cls={cls}
+                    onClick={() => navigate(`/admin/classes/view/${cls._id}`)}
+                  />
+                ))
+              ) : (
+                <EmptyClasses />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
   );
 }
 
-// --- High-Performance Sub-components ---
+// --- Sub-components ---
 
-const StatDisplay = ({ label, value }: { label: string, value: number }) => (
-  <div className="flex-1 min-w-[100px] lg:min-w-[140px] bg-brand-prussian p-4 md:p-5 rounded-2xl md:rounded-3xl text-center">
-    <div className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-brand-jasmine mb-1">{label}</div>
-    <div className="text-xl md:text-2xl font-black text-white">{value}</div>
-  </div>
-);
-
-const TabTrigger = ({ active, onClick, label, count }: any) => (
+const TabTrigger = ({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count?: number;
+}) => (
   <button
     onClick={onClick}
-    className={`flex-1 md:flex-none justify-center px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-black transition-all flex items-center gap-2 ${
-      active ? "bg-white text-brand-cerulean shadow-sm" : "text-brand-prussian/40 hover:text-brand-prussian"
-    }`}
+    className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${active
+        ? "bg-brand-prussian text-white shadow-sm"
+        : "text-slate-500 hover:text-brand-prussian hover:bg-slate-50"
+      }`}
   >
-    {label} {count !== undefined && <span className="bg-brand-aliceBlue px-1.5 py-0.5 rounded-md text-[9px] md:text-[10px]">{count}</span>}
+    <span>{label}</span>
+    {count !== undefined && (
+      <span
+        className={`px-1.5 py-0.5 rounded-md text-[10px] tabular-nums ${active
+            ? "bg-white/20 text-white"
+            : "bg-slate-100 text-slate-500"
+          }`}
+      >
+        {count}
+      </span>
+    )}
   </button>
 );
 
-const StudentRowItem = ({ student, onView }: any) => {
-  const avatarUrl = student.profilePic 
-    ? (student.profilePic.startsWith('http') ? student.profilePic : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/${student.profilePic.replace(/^\/+/, "")}`)
+const getAvatarUrl = (student: Student) =>
+  student.profilePic
+    ? student.profilePic.startsWith("http")
+      ? student.profilePic
+      : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/${student.profilePic.replace(/^\/+/, "")}`
     : `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=E8EFF7&color=05668A&bold=true`;
 
-  return (
-    <tr className="group hover:bg-brand-aliceBlue/10 transition-colors">
-      <td className="px-8 py-5">
-        <div className="flex items-center gap-4">
-          <img src={avatarUrl} alt="" className="w-12 h-12 rounded-2xl object-cover border-2 border-brand-aliceBlue group-hover:border-brand-cerulean transition-colors" />
-          <div>
-            <div className="font-black text-brand-prussian">{student.firstName} {student.lastName}</div>
-            <div className="text-[10px] font-bold text-brand-cerulean/60 uppercase">UID: {student._id.slice(-6)}</div>
+const StudentRowItem = ({
+  student,
+  onView,
+}: {
+  student: Student;
+  onView: () => void;
+}) => (
+  <tr className="hover:bg-slate-50/80 transition-colors group">
+    <td className="px-6 py-4">
+      <div className="flex items-center gap-3">
+        <img
+          src={getAvatarUrl(student)}
+          alt={`${student.firstName} ${student.lastName}`}
+          className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200 shrink-0"
+        />
+        <div className="min-w-0">
+          <div className="font-semibold text-sm text-brand-prussian truncate">
+            {student.firstName} {student.lastName}
+          </div>
+          <div className="text-[11px] font-mono text-slate-400">
+            #{student._id.slice(-6).toUpperCase()}
           </div>
         </div>
-      </td>
-      <td className="px-8 py-5">
-        <div className="space-y-1">
-          <div className="text-sm font-bold text-brand-prussian flex items-center gap-2">
-            <EnvelopeIcon className="w-4 h-4 text-brand-cerulean" /> {student.email}
+      </div>
+    </td>
+
+    <td className="px-6 py-4">
+      <div className="space-y-1">
+        <div className="text-sm text-slate-700 flex items-center gap-2">
+          <EnvelopeIcon className="w-4 h-4 text-slate-400 shrink-0" />
+          <span className="truncate max-w-xs">{student.email}</span>
+        </div>
+        {student.mobileNumber && (
+          <div className="text-xs text-slate-400 font-mono flex items-center gap-2">
+            <PhoneIcon className="w-3.5 h-3.5 shrink-0" />
+            <span>{student.mobileNumber}</span>
           </div>
-          {student.mobileNumber && (
-            <div className="text-xs font-medium text-gray-400 flex items-center gap-2">
-              <PhoneIcon className="w-3.5 h-3.5" /> {student.mobileNumber}
-            </div>
-          )}
-        </div>
-      </td>
-      <td className="px-8 py-5 text-right">
-        <button onClick={onView} className="bg-brand-aliceBlue p-3 rounded-xl text-brand-cerulean hover:bg-brand-cerulean hover:text-white transition-all active:scale-90">
-          <ArrowLeftIcon className="w-5 h-5 rotate-180 stroke-[3px]" />
-        </button>
-      </td>
-    </tr>
-  );
-};
+        )}
+      </div>
+    </td>
 
-// New Mobile List Item
-const MobileStudentItem = ({ student, onView }: any) => {
-    const avatarUrl = student.profilePic 
-      ? (student.profilePic.startsWith('http') ? student.profilePic : `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/${student.profilePic.replace(/^\/+/, "")}`)
-      : `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=E8EFF7&color=05668A&bold=true`;
-  
-    return (
-        <div onClick={onView} className="p-4 flex items-center gap-4 active:bg-gray-50 transition-colors cursor-pointer">
-            <img src={avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-100" />
-            <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-sm text-gray-900 truncate">{student.firstName} {student.lastName}</h4>
-                <p className="text-xs text-gray-500 truncate">{student.email}</p>
-            </div>
-            <ArrowLeftIcon className="w-4 h-4 text-gray-300 rotate-180" />
-        </div>
-    );
-}
+    <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 tabular-nums">
+      {student.createdAt ? moment(student.createdAt).format("DD MMM YYYY") : "—"}
+    </td>
 
-const ClassCard = ({ cls, onClick }: any) => (
-  <div 
-    onClick={onClick}
-    className="bg-white p-6 rounded-[2rem] border-2 border-brand-aliceBlue hover:border-brand-cerulean transition-all cursor-pointer group shadow-sm"
+    <td className="px-6 py-4 text-right whitespace-nowrap">
+      <button
+        onClick={onView}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-brand-aliceBlue text-xs font-semibold text-brand-prussian hover:text-brand-cerulean border border-slate-200/70 transition-colors"
+      >
+        <span>View</span>
+        <ChevronRightIcon className="w-3.5 h-3.5" />
+      </button>
+    </td>
+  </tr>
+);
+
+const MobileStudentItem = ({
+  student,
+  onView,
+}: {
+  student: Student;
+  onView: () => void;
+}) => (
+  <div
+    onClick={onView}
+    className="p-4 flex items-center gap-3.5 active:bg-slate-50 transition-colors cursor-pointer"
   >
-    <div className="w-10 h-10 md:w-12 md:h-12 bg-brand-aliceBlue rounded-2xl flex items-center justify-center text-brand-cerulean mb-4 md:mb-5 group-hover:scale-110 transition-transform">
-      <AcademicCapIcon className="w-6 h-6 md:w-7 md:h-7" />
+    <img
+      src={getAvatarUrl(student)}
+      alt={`${student.firstName} ${student.lastName}`}
+      className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200 shrink-0"
+    />
+    <div className="flex-1 min-w-0">
+      <h4 className="font-semibold text-sm text-brand-prussian truncate">
+        {student.firstName} {student.lastName}
+      </h4>
+      <p className="text-xs text-slate-400 truncate">{student.email}</p>
     </div>
-    <h4 className="text-base md:text-lg font-black text-brand-prussian mb-1 md:mb-2">{cls.className || cls.name}</h4>
-    <p className="text-xs md:text-sm font-medium text-gray-400 leading-relaxed">{cls.subject || "No specific subject defined"}</p>
+    <ChevronRightIcon className="w-4 h-4 text-slate-300 shrink-0" />
   </div>
+);
+
+const ClassCard = ({ cls, onClick }: { cls: any; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="group text-left bg-white p-6 rounded-2xl border border-slate-200/70 hover:border-brand-cerulean/40 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between gap-4"
+  >
+    <div className="w-full flex items-start justify-between gap-3">
+      <div className="w-11 h-11 rounded-xl bg-brand-aliceBlue text-brand-cerulean flex items-center justify-center group-hover:bg-brand-cerulean group-hover:text-white transition-colors shrink-0">
+        <AcademicCapIcon className="w-6 h-6" />
+      </div>
+      <ChevronRightIcon className="w-4 h-4 text-slate-300 group-hover:text-brand-cerulean group-hover:translate-x-0.5 transition-all mt-1" />
+    </div>
+
+    <div>
+      <h4 className="text-base font-bold text-brand-prussian group-hover:text-brand-cerulean transition-colors leading-snug">
+        {cls.className || cls.name}
+      </h4>
+      <p className="text-xs text-slate-400 mt-1.5 line-clamp-2">
+        {cls.subject || "No specific subject defined"}
+      </p>
+    </div>
+  </button>
 );
 
 const StatusBadge = ({ isActive }: { isActive: boolean }) => (
-  <div className={`px-3 py-1.5 md:px-4 md:py-1.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${
-    isActive ? "bg-green-100 text-green-700" : "bg-brand-aliceBlue text-brand-prussian/40"
-  }`}>
-    <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isActive ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
-    {isActive ? "Active" : "Archived"}
-  </div>
-);
-
-const LoadingState = () => (
-    <div className="flex flex-col h-[70vh] items-center justify-center space-y-4">
-      <ArrowPathIcon className="w-10 h-10 md:w-12 md:h-12 text-brand-cerulean animate-spin" />
-      <p className="text-brand-prussian text-xs md:text-sm font-black uppercase tracking-tighter animate-pulse">Synchronizing Data...</p>
-    </div>
+  <span
+    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${isActive
+        ? "bg-emerald-500/20 text-emerald-200 border-emerald-400/30"
+        : "bg-white/10 text-slate-300 border-white/15"
+      }`}
+  >
+    <span
+      className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-400 animate-pulse" : "bg-slate-400"
+        }`}
+    />
+    {isActive ? "Active Batch" : "Archived"}
+  </span>
 );
 
 const EmptyClasses = () => (
-  <div className="col-span-full py-16 md:py-20 text-center bg-brand-aliceBlue/20 rounded-[2rem] md:rounded-[3rem] border-4 border-dashed border-brand-aliceBlue">
-    <AcademicCapIcon className="w-10 h-10 md:w-12 md:h-12 text-brand-cerulean/30 mx-auto mb-4" />
-    <p className="text-brand-prussian font-bold text-sm md:text-base">No academic classes linked to this batch yet.</p>
+  <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-slate-100">
+      <AcademicCapIcon className="w-7 h-7 text-slate-300" />
+    </div>
+    <h3 className="text-sm font-semibold text-brand-prussian">
+      No linked classes yet
+    </h3>
+    <p className="text-xs text-slate-400 mt-1">
+      Classes assigned to this batch will appear here.
+    </p>
   </div>
 );
 
 const NotFoundState = ({ onBack }: { onBack: () => void }) => (
-    <div className="text-center py-32 space-y-6">
-      <div className="text-5xl md:text-6xl text-brand-prussian opacity-10 font-black">404</div>
-      <h2 className="text-xl md:text-2xl font-black text-brand-prussian">Batch Not Found</h2>
-      <button onClick={onBack} className="bg-brand-prussian text-white px-6 py-2.5 md:px-8 md:py-3 rounded-2xl font-bold hover:bg-brand-cerulean transition-all text-sm md:text-base">
-        Go Back
-      </button>
+  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+    <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-4">
+      <ExclamationTriangleIcon className="w-7 h-7" />
     </div>
+    <h2 className="text-lg font-bold text-brand-prussian mb-1">
+      Batch Not Found
+    </h2>
+    <p className="text-sm text-slate-500 mb-6 max-w-sm">
+      The batch you are looking for may have been removed or does not exist.
+    </p>
+    <button
+      onClick={onBack}
+      className="px-5 py-2.5 bg-brand-prussian text-white text-sm font-semibold rounded-xl hover:bg-brand-cerulean transition-colors"
+    >
+      Back to Batches
+    </button>
+  </div>
 );

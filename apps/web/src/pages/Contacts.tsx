@@ -2,13 +2,13 @@ import React, { useMemo, useState, memo } from "react";
 import Swal from "sweetalert2";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { 
-  MapPin, 
-  Mail, 
-  Phone, 
-  User, 
-  MessageSquare, 
-  Send, 
+import {
+  MapPin,
+  Mail,
+  Phone,
+  User,
+  MessageSquare,
+  Send,
   Globe,
   CheckCircle2,
   AlertCircle
@@ -24,7 +24,7 @@ const translations = {
     pageSubtitle: "ප්‍රශ්න හෝ අදහස් තියෙනවද? ඔබගෙන් ඇසීමට අපි කැමතියි!",
     infoTitle: "අප හා සම්බන්ධ වන්න",
     locationTitle: "මුලස්ථාන කාර්යාලය",
-    locationAddress: "කොළඹ, ශ්‍රී ලංකාව",
+    locationAddress: "ගාල්ල, ශ්‍රී ලංකාව",
     emailTitle: "අපට Email කරන්න",
     phoneTitle: "අපව අමතන්න",
     phoneHours: "සඳු–සිකු, පෙ.ව 9 – ප.ව 5",
@@ -234,15 +234,15 @@ export default function ContactUsForm(): React.ReactElement {
 
   return (
     <div className="min-h-screen flex flex-col bg-brand-aliceBlue/40 text-brand-prussian font-sans pt-24 sm:pt-32 pb-12 relative overflow-hidden">
-      
+
       {/* Optimized Background */}
       <BackgroundDecor />
 
       <main className="flex-grow relative z-10">
         <section className="max-w-7xl mx-auto px-4 sm:px-6">
-          
+
           {/* Header */}
-          <motion.header 
+          <motion.header
             initial="hidden"
             animate="visible"
             variants={fadeInUp}
@@ -250,21 +250,21 @@ export default function ContactUsForm(): React.ReactElement {
           >
             {/* Language Switcher - Optimized Styling */}
             <div className="inline-flex items-center gap-3 mb-6 bg-white border border-brand-cerulean/20 px-4 py-2 rounded-full shadow-sm">
-                <Globe size={16} className="text-brand-cerulean" />
-                <label className="inline-flex items-center gap-3 cursor-pointer select-none text-sm text-brand-prussian font-medium">
-                    <span className={!useEnglish ? "text-brand-cerulean font-bold" : "opacity-50"}>සිංහල</span>
-                    <div className="relative inline-flex h-6 w-11 items-center">
-                    <input
-                        type="checkbox"
-                        className="peer h-0 w-0 opacity-0"
-                        checked={useEnglish}
-                        onChange={(e) => setUseEnglish(e.target.checked)}
-                    />
-                    <div className="absolute inset-0 rounded-full bg-gray-200 transition peer-checked:bg-brand-prussian" />
-                    <div className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
-                    </div>
-                    <span className={useEnglish ? "text-brand-cerulean font-bold" : "opacity-50"}>English</span>
-                </label>
+              <Globe size={16} className="text-brand-cerulean" />
+              <label className="inline-flex items-center gap-3 cursor-pointer select-none text-sm text-brand-prussian font-medium">
+                <span className={!useEnglish ? "text-brand-cerulean font-bold" : "opacity-50"}>සිංහල</span>
+                <div className="relative inline-flex h-6 w-11 items-center">
+                  <input
+                    type="checkbox"
+                    className="peer h-0 w-0 opacity-0"
+                    checked={useEnglish}
+                    onChange={(e) => setUseEnglish(e.target.checked)}
+                  />
+                  <div className="absolute inset-0 rounded-full bg-gray-200 transition peer-checked:bg-brand-prussian" />
+                  <div className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+                </div>
+                <span className={useEnglish ? "text-brand-cerulean font-bold" : "opacity-50"}>English</span>
+              </label>
             </div>
 
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-brand-prussian mb-4 font-sinhala leading-tight">
@@ -275,7 +275,7 @@ export default function ContactUsForm(): React.ReactElement {
             </p>
           </motion.header>
 
-          <motion.div 
+          <motion.div
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
@@ -283,7 +283,7 @@ export default function ContactUsForm(): React.ReactElement {
           >
             {/* --- LEFT: CONTACT INFO (ISOLATED) --- */}
             <motion.div variants={fadeInUp} className="w-full lg:w-2/5">
-                <ContactInfo copy={copy} />
+              <ContactInfo copy={copy} />
             </motion.div>
 
             {/* --- RIGHT: CONTACT FORM --- */}
@@ -295,46 +295,46 @@ export default function ContactUsForm(): React.ReactElement {
 
                 <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                      {/* NAME */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-                          {copy.nameLabel}
-                        </label>
-                        <div className="relative group">
-                          <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-cerulean transition-colors" size={18} />
-                          <input
-                            type="text"
-                            name="name"
-                            placeholder={copy.namePlaceholder}
-                            value={input.name}
-                            onChange={handleChange}
-                            required
-                            minLength={2}
-                            maxLength={50}
-                            className="w-full bg-brand-aliceBlue/30 border border-gray-200 pl-11 pr-4 py-3 rounded-xl focus:border-brand-cerulean focus:ring-2 focus:ring-brand-cerulean/20 outline-none transition-all font-sans text-sm sm:text-base"
-                          />
-                        </div>
+                    {/* NAME */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                        {copy.nameLabel}
+                      </label>
+                      <div className="relative group">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-cerulean transition-colors" size={18} />
+                        <input
+                          type="text"
+                          name="name"
+                          placeholder={copy.namePlaceholder}
+                          value={input.name}
+                          onChange={handleChange}
+                          required
+                          minLength={2}
+                          maxLength={50}
+                          className="w-full bg-brand-aliceBlue/30 border border-gray-200 pl-11 pr-4 py-3 rounded-xl focus:border-brand-cerulean focus:ring-2 focus:ring-brand-cerulean/20 outline-none transition-all font-sans text-sm sm:text-base"
+                        />
                       </div>
+                    </div>
 
-                      {/* PHONE */}
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-                          {copy.phoneLabel}
-                        </label>
-                        <div className="relative group">
-                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-cerulean transition-colors" size={18} />
-                          <input
-                            type="tel"
-                            name="phoneNumber"
-                            placeholder="070 123 4567"
-                            value={input.phoneNumber}
-                            onChange={handleChange}
-                            pattern="\d{10}"
-                            required
-                            className="w-full bg-brand-aliceBlue/30 border border-gray-200 pl-11 pr-4 py-3 rounded-xl focus:border-brand-cerulean focus:ring-2 focus:ring-brand-cerulean/20 outline-none transition-all font-sans text-sm sm:text-base"
-                          />
-                        </div>
+                    {/* PHONE */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                        {copy.phoneLabel}
+                      </label>
+                      <div className="relative group">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-cerulean transition-colors" size={18} />
+                        <input
+                          type="tel"
+                          name="phoneNumber"
+                          placeholder="070 123 4567"
+                          value={input.phoneNumber}
+                          onChange={handleChange}
+                          pattern="\d{10}"
+                          required
+                          className="w-full bg-brand-aliceBlue/30 border border-gray-200 pl-11 pr-4 py-3 rounded-xl focus:border-brand-cerulean focus:ring-2 focus:ring-brand-cerulean/20 outline-none transition-all font-sans text-sm sm:text-base"
+                        />
                       </div>
+                    </div>
                   </div>
 
                   {/* EMAIL */}
@@ -377,9 +377,9 @@ export default function ContactUsForm(): React.ReactElement {
                     <div className="flex justify-between mt-1 text-[10px] sm:text-xs font-medium text-gray-400">
                       <span className={input.message.length < 15 ? "text-brand-coral" : "text-green-600 flex items-center gap-1"}>
                         {input.message.length < 15 ? (
-                            <><AlertCircle size={12} className="inline mr-1"/> {copy.minChars}</>
+                          <><AlertCircle size={12} className="inline mr-1" /> {copy.minChars}</>
                         ) : (
-                            <><CheckCircle2 size={12} className="inline mr-1"/> Ready to send</>
+                          <><CheckCircle2 size={12} className="inline mr-1" /> Ready to send</>
                         )}
                       </span>
                       <span>{copy.characterCount(input.message.length)}</span>
@@ -390,9 +390,8 @@ export default function ContactUsForm(): React.ReactElement {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className={`w-full bg-brand-prussian hover:bg-brand-cerulean text-white font-bold py-3.5 sm:py-4 rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 ${
-                      isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-                    }`}
+                    className={`w-full bg-brand-prussian hover:bg-brand-cerulean text-white font-bold py-3.5 sm:py-4 rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 ${isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+                      }`}
                   >
                     {isSubmitting ? (
                       <>
