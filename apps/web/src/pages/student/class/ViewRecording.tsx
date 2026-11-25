@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, Loader2, ShieldAlert } from "lucide-react";
 import SessionService from "../../../services/SessionService";
+import VideoProgressService from "../../../services/VideoProgressService";
 import { useAuth } from "../../../contexts/AuthContext";
 
 // @ts-ignore
@@ -46,6 +47,7 @@ export default function ViewRecording() {
         if (isMounted) {
           if (extractedId) {
             setYoutubeId(extractedId);
+            VideoProgressService.updateRecordingProgress(sessionId, "started").catch(() => {});
           } else {
             throw new Error("Recording not available yet.");
           }
@@ -139,6 +141,12 @@ export default function ViewRecording() {
       } as any);
 
       playerInstance.current = player;
+
+      player.on('ended', () => {
+        if (sessionId) {
+          VideoProgressService.updateRecordingProgress(sessionId, "completed").catch(() => {});
+        }
+      });
 
       // 2. INJECT PERSISTENT SHIELD (Works in Fullscreen)
       // We append a DOM node directly to the Plyr container so it stays 

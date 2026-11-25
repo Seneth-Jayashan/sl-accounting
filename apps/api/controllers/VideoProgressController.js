@@ -2,31 +2,33 @@ import VideoProgress from "../models/VideoProgress.js";
 
 export const upsertProgress = async (req, res) => {
     try {
-        const { videoId, status } = req.body;
+        const { videoId, sessionId, status } = req.body;
         const studentId = req.user._id;
 
-        if (!videoId || !status) {
-            return res.status(400).json({ success: false, message: "videoId and status are required." });
+        if ((!videoId && !sessionId) || !status) {
+            return res.status(400).json({ success: false, message: "videoId or sessionId and status are required." });
         }
 
         if (!['started', 'completed'].includes(status)) {
             return res.status(400).json({ success: false, message: "Invalid status." });
         }
 
-        // Find existing progress
-        let progress = await VideoProgress.findOne({ student: studentId, videoId });
+        const query = sessionId
+            ? { student: studentId, sessionId }
+            : { student: studentId, videoId };
+
+        let progress = await VideoProgress.findOne(query);
 
         if (progress) {
-            // Only update if upgrading from started to completed
             if (progress.status === 'started' && status === 'completed') {
                 progress.status = 'completed';
                 await progress.save();
             }
         } else {
-            // Create new
             progress = await VideoProgress.create({
                 student: studentId,
-                videoId,
+                ...(videoId ? { videoId } : {}),
+                ...(sessionId ? { sessionId } : {}),
                 status
             });
         }
@@ -40,13 +42,23 @@ export const upsertProgress = async (req, res) => {
 export const getMyProgress = async (req, res) => {
     try {
         const studentId = req.user._id;
-        
-        const progressList = await VideoProgress.find({ student: studentId });
-        
-        // Convert array to a record map for easier frontend consumption
+        const { type } = req.query;
+
+        const filter = { student: studentId };
+        if (type === "recording") {
+            filter.sessionId = { $ne: null };
+        }
+
+        const progressList = await VideoProgress.find(filter);
+
         const progressMap = {};
         progressList.forEach(p => {
-            progressMap[p.videoId] = { status: p.status };
+            if (p.videoId) {
+                progressMap[p.videoId] = { status: p.status };
+            }
+            if (p.sessionId) {
+                progressMap[p.sessionId.toString()] = { status: p.status };
+            }
         });
 
         res.status(200).json({ success: true, data: progressMap });

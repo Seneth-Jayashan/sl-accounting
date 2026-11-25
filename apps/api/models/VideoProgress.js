@@ -10,7 +10,13 @@ const videoProgressSchema = new mongoose.Schema(
     },
     videoId: {
       type: String,
-      required: true,
+      required: false,
+      index: true,
+    },
+    sessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Session",
+      default: null,
       index: true,
     },
     status: {
@@ -22,7 +28,14 @@ const videoProgressSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// A student can only have one progress record per video
-videoProgressSchema.index({ student: 1, videoId: 1 }, { unique: true });
+// A student can only have one progress record per video or session
+videoProgressSchema.index(
+  { student: 1, videoId: 1 },
+  { unique: true, partialFilterExpression: { videoId: { $type: "string" } } }
+);
+videoProgressSchema.index(
+  { student: 1, sessionId: 1 },
+  { unique: true, partialFilterExpression: { sessionId: { $type: "objectId" } } }
+);
 
 export default mongoose.model("VideoProgress", videoProgressSchema);

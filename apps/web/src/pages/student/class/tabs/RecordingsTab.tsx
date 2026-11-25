@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PlayCircle, Video, Calendar, Lock, AlertCircle, ChevronDown, Folder } from "lucide-react";
+import { PlayCircle, Video, Calendar, Lock, AlertCircle, ChevronDown, Folder, Check, CheckCheck, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import EnrollmentService, { type EnrollmentResponse } from "../../../../services/EnrollmentService";
+import VideoProgressService, { type VideoProgressData } from "../../../../services/VideoProgressService";
 
 // Helper to format dates safely
 const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -16,7 +17,14 @@ const getMonthString = (dateStr: string) => {
 export default function RecordingsTab({ sessions }: { sessions: any[] }) {
   const navigate = useNavigate();
   const [enrollment, setEnrollment] = useState<EnrollmentResponse | null>(null);
+  const [watchProgress, setWatchProgress] = useState<VideoProgressData>({});
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    VideoProgressService.getRecordingProgress()
+      .then((data) => setWatchProgress(data || {}))
+      .catch(() => {});
+  }, []);
 
   // 1. Fetch Enrollment to get Paid History
   useEffect(() => {
@@ -254,6 +262,33 @@ export default function RecordingsTab({ sessions }: { sessions: any[] }) {
                                     <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg">
                                       {catGroup.category}
                                     </div>
+
+                                    {/* Watch Status Badge */}
+                                    {!locked && (() => {
+                                      const status = watchProgress[session._id]?.status;
+                                      if (status === "completed") {
+                                        return (
+                                          <div title="Watched" className="absolute top-3 right-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-md">
+                                            <CheckCheck size={13} />
+                                            <span>Watched</span>
+                                          </div>
+                                        );
+                                      }
+                                      if (status === "started") {
+                                        return (
+                                          <div title="In Progress" className="absolute top-3 right-3 bg-sky-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-md">
+                                            <Check size={13} />
+                                            <span>Started</span>
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <div title="Not Watched" className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-gray-200 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                          <Circle size={11} />
+                                          <span>Unwatched</span>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
 
                                   {/* Content Section */}
