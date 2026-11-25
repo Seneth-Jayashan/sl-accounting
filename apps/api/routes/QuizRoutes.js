@@ -7,7 +7,8 @@ import {
     deleteQuiz,
     togglePublish,
     toggleActive,
-    getQuizzesByClass
+    getQuizzesByClass,
+    getPublicQuizzes
 } from "../controllers/QuizController.js";
 
 
@@ -67,6 +68,9 @@ router.patch("/:id/active", protect, restrictTo("admin", "teacher"), toggleActiv
 // ==========================================
 // STUDENT ROUTES (Participation & Results)
 // ==========================================
+
+// Get all Public Quizzes (accessible to any registered student)
+router.get("/public", protect, getPublicQuizzes);
 
 // Get Quizzes available for a specific class
 router.get("/class/:classId", protect, getQuizzesByClass);

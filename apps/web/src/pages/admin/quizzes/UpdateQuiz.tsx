@@ -387,6 +387,19 @@ const UpdateQuiz: React.FC = () => {
                     <option value="practice">Practice Quiz</option>
                   </select>
                 </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <input
+                    id="isPublic"
+                    type="checkbox"
+                    checked={Boolean((quizData as any).isPublic)}
+                    onChange={(e) => setQuizData((prev: any) => ({ ...prev, isPublic: e.target.checked }))}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">
+                    Public Exam <span className="text-xs text-gray-400 font-normal">(Any registered student can participate without payment)</span>
+                  </label>
+                </div>
               </div>
             </div>
 

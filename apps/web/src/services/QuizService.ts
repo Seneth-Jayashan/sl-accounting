@@ -136,6 +136,11 @@ const QuizService = {
     return response.data;
   },
 
+  getPublicQuizzes: async () => {
+    const response = await api.get<{ success: boolean; data: Quiz[] }>(`${QUIZ_BASE}/public`);
+    return response.data;
+  },
+
   getQuizById: async (id: string) => {
     const response = await api.get<{ success: boolean; data: Quiz }>(`${QUIZ_BASE}/${id}`);
     return response.data;

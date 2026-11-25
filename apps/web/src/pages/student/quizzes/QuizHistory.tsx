@@ -17,14 +17,21 @@ import { getGradeDetails } from "../../../utils/gradeUtils";
 export default function QuizHistory() {
   const navigate = useNavigate();
   const [attempts, setAttempts] = useState<any[]>([]);
+  const [publicQuizzes, setPublicQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const response = await QuizService.getMyAttempts();
+        const [response, publicRes] = await Promise.all([
+          QuizService.getMyAttempts(),
+          QuizService.getPublicQuizzes().catch(() => ({ success: false, data: [] }))
+        ]);
         if (response.success) {
           setAttempts(response.data || []);
+        }
+        if (publicRes?.success) {
+          setPublicQuizzes(publicRes.data || []);
         }
       } catch (error) {
         console.error("Failed to load quiz history", error);
@@ -67,6 +74,34 @@ export default function QuizHistory() {
           <p className="text-sm text-gray-500 mt-1">Track your assessment history and improvement over time.</p>
         </div>
       </div>
+
+      {publicQuizzes.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-bold text-brand-prussian mb-3">Public Exams (Open to All Registered Students)</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {publicQuizzes.map((q: any) => (
+              <div key={q._id} className="bg-white rounded-2xl p-5 border border-brand-aliceBlue shadow-sm flex flex-col justify-between gap-3">
+                <div>
+                  <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 mb-2">
+                    Public Exam
+                  </span>
+                  <h3 className="font-bold text-brand-prussian text-base">{q.title}</h3>
+                  {q.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{q.description}</p>}
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-xs text-gray-500 flex items-center gap-1"><Clock size={13} /> {q.duration} mins</span>
+                  <button
+                    onClick={() => navigate(`/student/class/quizzes/start/${q._id}`)}
+                    className="text-xs font-semibold bg-brand-prussian text-white px-3.5 py-1.5 rounded-lg hover:bg-brand-cerulean transition-colors flex items-center gap-1"
+                  >
+                    Start Exam <ArrowRight size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {attempts.length === 0 ? (
         <div className="bg-white rounded-[2rem] p-12 text-center shadow-sm border border-gray-100 flex flex-col items-center">

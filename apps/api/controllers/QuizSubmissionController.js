@@ -1,5 +1,6 @@
 import Quiz from "../models/Quiz.js";
 import QuizSubmission from "../models/QuizSubmission.js";
+import Enrollment from "../models/Enrollment.js";
 
 
 export const startQuiz = async (req, res) => {
@@ -7,17 +8,33 @@ export const startQuiz = async (req, res) => {
         const { quizId } = req.body;
         const studentId = req.user.id; 
 
-        const existingSubmission = await QuizSubmission.findOne({
+        const quiz = await Quiz.findById(quizId);
+        if (!quiz || quiz.isDeleted) return res.status(404).json({ message: "Quiz not found" });
+
+        if (!quiz.isPublished || !quiz.isActive) {
+            return res.status(403).json({ message: "This quiz is not currently available." });
+        }
+
+        if (!quiz.isPublic && quiz.class && req.user.role === "student") {
+            const hasPaidEnrollment = await Enrollment.exists({
+                student: studentId,
+                class: quiz.class,
+                paymentStatus: "paid"
+            });
+            if (!hasPaidEnrollment) {
+                return res.status(403).json({ message: "You are not enrolled in this class." });
+            }
+        }
+
+        const attemptCount = await QuizSubmission.countDocuments({
             quiz: quizId,
             student: studentId,
-            status: { $in: ["in-progress", "completed"] }
+            status: { $in: ["in-progress", "completed", "time-out"] }
         });
 
-        const quiz = await Quiz.findById(quizId);
-        if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-
-        if (existingSubmission && quiz.settings.maxAttempts <= 1) {
-            return res.status(403).json({ message: "You have already attempted this quiz." });
+        const maxAttempts = quiz.settings?.maxAttempts ?? 1;
+        if (attemptCount >= maxAttempts) {
+            return res.status(403).json({ message: "You have reached the maximum number of attempts for this quiz." });
         }
 
         const newSubmission = new QuizSubmission({
@@ -41,8 +58,12 @@ export const submitQuiz = async (req, res) => {
         const { answers } = req.body; 
         
         const submission = await QuizSubmission.findById(id).populate("quiz");
-        if (!submission || submission.status === "completed") {
+        if (!submission || submission.status === "completed" || submission.status === "time-out") {
             return res.status(400).json({ message: "Invalid or already completed submission." });
+        }
+
+        if (submission.student.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Not authorized to submit this quiz attempt." });
         }
 
         const quiz = submission.quiz;
@@ -87,7 +108,7 @@ export const submitQuiz = async (req, res) => {
             };
         });
 
-        const percentageScore = (totalPointsEarned / quiz.totalPoints) * 100;
+        const percentageScore = quiz.totalPoints > 0 ? (totalPointsEarned / quiz.totalPoints) * 100 : 0;
         const passed = percentageScore >= quiz.passingPercentage;
         const completedAt = new Date();
         const timeTaken = Math.round((completedAt - submission.startedAt) / 1000); // Seconds

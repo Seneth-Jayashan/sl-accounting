@@ -36,6 +36,7 @@ export const createQuizSchema = z.object({
       requirePassword: z.string().nullable().optional(),
     }).optional(),
     passingPercentage: z.number().min(0).max(100).default(40),
+    isPublic: z.boolean().default(false).optional(),
     isPublished: z.boolean().default(false),
   }),
 });

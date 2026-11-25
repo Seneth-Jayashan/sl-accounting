@@ -45,6 +45,21 @@ export const getQuizById = async (req, res) => {
             return res.status(404).json({ success: false, message: "Quiz not found" });
         }
 
+        const isStaff = req.user && (req.user.role === "admin" || req.user.role === "teacher");
+        if (!isStaff) {
+            const quizObj = quiz.toObject();
+            if (Array.isArray(quizObj.questions)) {
+                quizObj.questions = quizObj.questions.map((q) => ({
+                    ...q,
+                    explanation: undefined,
+                    options: Array.isArray(q.options)
+                        ? q.options.map(({ isCorrect, ...opt }) => opt)
+                        : q.options,
+                }));
+            }
+            return res.status(200).json({ success: true, data: quizObj });
+        }
+
         res.status(200).json({ success: true, data: quiz });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -59,7 +74,24 @@ export const updateQuiz = async (req, res) => {
             return res.status(404).json({ success: false, message: "Quiz not found" });
         }
 
-        Object.assign(quiz, req.body);
+        const allowedFields = [
+            "title",
+            "description",
+            "class",
+            "questions",
+            "duration",
+            "passingPercentage",
+            "isPublic",
+            "isPublished",
+            "isActive",
+            "settings",
+            "dueDate",
+        ];
+        for (const key of allowedFields) {
+            if (req.body[key] !== undefined) {
+                quiz[key] = req.body[key];
+            }
+        }
         
         const updatedQuiz = await quiz.save();
 
@@ -141,6 +173,24 @@ export const getQuizzesByClass = async (req, res) => {
             isDeleted: false, 
             isPublished: true 
         }).select("title description duration quizType scheduledAt expiresAt");
+
+        res.status(200).json({ success: true, data: quizzes });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getPublicQuizzes = async (req, res) => {
+    try {
+        const quizzes = await Quiz.find({
+            isPublic: true,
+            isPublished: true,
+            isActive: true,
+            isDeleted: false
+        })
+            .select("-questions.options.isCorrect -questions.explanation")
+            .populate("class", "name")
+            .sort({ createdAt: -1 });
 
         res.status(200).json({ success: true, data: quizzes });
     } catch (error) {

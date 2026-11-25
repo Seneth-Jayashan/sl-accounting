@@ -50,6 +50,7 @@ const quizSchema = new mongoose.Schema(
         // 4. METRICS & STATUS
         totalPoints: { type: Number, default: 0 },
         passingPercentage: { type: Number, default: 40 },
+        isPublic: { type: Boolean, default: false, index: true },
         isActive: { type: Boolean, default: true },
         isPublished: { type: Boolean, default: false },
         isDeleted: { type: Boolean, default: false },
