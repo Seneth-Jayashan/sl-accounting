@@ -810,9 +810,9 @@ export const deleteClass = async (req, res) => {
 
 export const getClassById = async (req, res) => {
   try {
-    const isAdmin = req.user.role === "admin" || req.user.role === "teacher";
+    const isAdmin = req.user?.role === "admin" || req.user?.role === "teacher";
     let hasPaidEnrollment = isAdmin;
-    if (!isAdmin) {
+    if (!isAdmin && req.user?._id) {
       hasPaidEnrollment = !!(await Enrollment.exists({
         student: req.user._id,
         class: req.params.classId,
