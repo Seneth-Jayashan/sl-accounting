@@ -7,14 +7,17 @@ import {
     deleteLessonPack,
     togglePublishStatus,
     getAllPublicLessonPacks,
-    getPublicById
+    getPublicById,
+    uploadAttachment,
+    deleteAttachment
 } from "../controllers/LessonPackController.js";
 
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
-import createUploader from "../middlewares/UploadMiddleware.js";
+import createUploader, { createDocumentUploader } from "../middlewares/UploadMiddleware.js";
 
 const router = express.Router();
 const coverUploader = createUploader('images/lesson-packs', 'coverImage');
+const attachmentUploader = createDocumentUploader('lesson-pack-files', 'attachment', 20);
 
 // ==========================================
 // PUBLIC ROUTES
@@ -39,5 +42,7 @@ router.post("/", coverUploader, createLessonPack);
 router.put("/:id", coverUploader, updateLessonPack);
 router.delete("/:id", deleteLessonPack);
 router.patch("/:id/publish", togglePublishStatus);
+router.post("/:id/attachments", attachmentUploader, uploadAttachment);
+router.delete("/:id/attachments/:attachmentId", deleteAttachment);
 
 export default router;

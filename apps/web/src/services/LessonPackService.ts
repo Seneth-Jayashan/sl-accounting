@@ -64,6 +64,9 @@ const LessonPackService = {
     formData.append("isPublished", String(data.isPublished));
     formData.append("videos", JSON.stringify(data.videos));
     formData.append("batch", data.batch);
+    if ((data as any).batches) {
+      formData.append("batches", JSON.stringify((data as any).batches));
+    }
     if (data.coverImageFile) {
       formData.append("coverImage", data.coverImageFile);
     }
@@ -84,6 +87,9 @@ const LessonPackService = {
     formData.append("isPublished", String(data.isPublished));
     formData.append("videos", JSON.stringify(data.videos));
     formData.append("batch", data.batch);
+    if ((data as any).batches) {
+      formData.append("batches", JSON.stringify((data as any).batches));
+    }
 
     if (data.coverImageFile) {
       formData.append("coverImage", data.coverImageFile);
@@ -99,6 +105,20 @@ const LessonPackService = {
 
   delete: async (id: string) => {
     const response = await api.delete<{ success: boolean; message: string }>(`${BASE_URL}/${id}`);
+    return response.data;
+  },
+
+  uploadAttachment: async (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("attachment", file);
+    const response = await api.post<{ success: boolean; data: any }>(`${BASE_URL}/${id}/attachments`, formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+    return response.data;
+  },
+
+  deleteAttachment: async (id: string, attachmentId: string) => {
+    const response = await api.delete<{ success: boolean; data: any }>(`${BASE_URL}/${id}/attachments/${attachmentId}`);
     return response.data;
   },
 

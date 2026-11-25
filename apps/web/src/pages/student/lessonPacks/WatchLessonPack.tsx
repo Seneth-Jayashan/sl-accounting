@@ -254,6 +254,28 @@ export default function WatchLessonPack() {
              <p className="text-sm text-gray-500 leading-relaxed">{pack.description}</p>
           </div>
 
+          {/* Downloadable Attachments (PDF / Word) */}
+          {pack.hasAccess && Array.isArray((pack as any).attachments) && (pack as any).attachments.length > 0 && (
+            <div className="mt-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <h3 className="text-base font-bold text-brand-prussian mb-3">Study Materials & Attachments</h3>
+              <div className="space-y-2">
+                {(pack as any).attachments.map((att: any) => (
+                  <a
+                    key={att._id || att.fileUrl}
+                    href={`${import.meta.env.VITE_API_BASE_URL || ""}${att.fileUrl}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                    className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-brand-aliceBlue/50 border border-gray-200 transition-colors"
+                  >
+                    <span className="text-sm font-medium text-brand-prussian truncate">{att.name}</span>
+                    <span className="text-xs font-semibold text-brand-cerulean shrink-0 ml-3">Download</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* RIGHT: Sidebar Playlist */}

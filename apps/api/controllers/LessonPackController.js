@@ -28,7 +28,15 @@ const deleteFile = (fileUrl) => {
 
 export const createLessonPack = async (req, res) => {
     try {
-        const { title, description, price, isPublished, batch } = req.body;
+        const { title, description, price, isPublished } = req.body;
+
+        // Feature 3: Parse multiple batches (sent as JSON array string or single value)
+        let batches = [];
+        if (req.body.batches) {
+            try { batches = JSON.parse(req.body.batches); } catch { batches = [req.body.batches]; }
+        } else if (req.body.batch) {
+            batches = [req.body.batch];
+        }
 
         // Parse the videos array sent as a JSON string from FormData
         let parsedVideos = [];
@@ -46,7 +54,11 @@ export const createLessonPack = async (req, res) => {
         }
 
         let coverImage = null;
-        if (req.file) coverImage = `/uploads/images/lesson-packs/${req.file.filename}`;
+        if (req.files?.coverImage?.[0]) {
+            coverImage = `/uploads/images/lesson-packs/${req.files.coverImage[0].filename}`;
+        } else if (req.file) {
+            coverImage = `/uploads/images/lesson-packs/${req.file.filename}`;
+        }
 
         const newPack = await LessonPack.create({
             title,
@@ -55,8 +67,8 @@ export const createLessonPack = async (req, res) => {
             coverImage,
             videos: parsedVideos,
             isPublished: isPublished === 'true' || isPublished === true,
-            batch: req.body.batch
-
+            batches,
+            batch: batches[0] || null,
         });
 
         res.status(201).json({ success: true, data: newPack });
@@ -68,7 +80,7 @@ export const createLessonPack = async (req, res) => {
 export const updateLessonPack = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, price, isPublished, batch } = req.body;
+        const { title, description, price, isPublished } = req.body;
 
         const pack = await LessonPack.findById(id);
         if (!pack) return res.status(404).json({ success: false, message: "Lesson pack not found." });
@@ -77,7 +89,18 @@ export const updateLessonPack = async (req, res) => {
         if (description !== undefined) pack.description = description;
         if (price !== undefined) pack.price = Number(price);
         if (isPublished !== undefined) pack.isPublished = isPublished === 'true' || isPublished === true;
-        if (batch !== undefined) pack.batch = batch;
+
+        // Feature 3: Update batches
+        if (req.body.batches) {
+            try {
+                const parsed = JSON.parse(req.body.batches);
+                pack.batches = parsed;
+                pack.batch = parsed[0] || null;
+            } catch { pack.batches = [req.body.batches]; pack.batch = req.body.batches; }
+        } else if (req.body.batch !== undefined) {
+            pack.batch = req.body.batch;
+            if (!pack.batches || pack.batches.length === 0) pack.batches = [req.body.batch];
+        }
 
         if (req.body.videos) {
             try {
@@ -94,7 +117,10 @@ export const updateLessonPack = async (req, res) => {
             }
         }
 
-        if (req.file) {
+        if (req.files?.coverImage?.[0]) {
+            if (pack.coverImage) deleteFile(pack.coverImage);
+            pack.coverImage = `/uploads/images/lesson-packs/${req.files.coverImage[0].filename}`;
+        } else if (req.file) {
             if (pack.coverImage) deleteFile(pack.coverImage);
             pack.coverImage = `/uploads/images/lesson-packs/${req.file.filename}`;
         }
@@ -112,9 +138,67 @@ export const deleteLessonPack = async (req, res) => {
         if (!pack) return res.status(404).json({ success: false, message: "Not found." });
 
         if (pack.coverImage) deleteFile(pack.coverImage);
+        // Delete all attachment files
+        for (const att of pack.attachments || []) deleteFile(att.fileUrl);
 
         await pack.deleteOne();
         res.status(200).json({ success: true, message: "Deleted successfully." });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ==========================================
+// FEATURE 2: Lesson Pack Attachment Upload
+// ==========================================
+
+/**
+ * POST /api/v1/lesson-packs/:id/attachments
+ * Upload a PDF/Word file attachment to a lesson pack.
+ * multipart field: "attachment"
+ */
+export const uploadAttachment = async (req, res) => {
+    try {
+        const pack = await LessonPack.findById(req.params.id);
+        if (!pack) return res.status(404).json({ success: false, message: "Lesson pack not found." });
+
+        if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded." });
+
+        const fileUrl = `/uploads/lesson-pack-files/${req.file.filename}`;
+        const attachment = {
+            name: req.body.name || req.file.originalname,
+            fileUrl,
+            mimeType: req.file.mimetype,
+            sizeBytes: req.file.size,
+            order: pack.attachments.length,
+        };
+
+        pack.attachments.push(attachment);
+        await pack.save();
+
+        res.status(201).json({ success: true, attachment: pack.attachments[pack.attachments.length - 1] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * DELETE /api/v1/lesson-packs/:id/attachments/:attachmentId
+ * Remove an attachment from a lesson pack and delete its physical file.
+ */
+export const deleteAttachment = async (req, res) => {
+    try {
+        const pack = await LessonPack.findById(req.params.id);
+        if (!pack) return res.status(404).json({ success: false, message: "Lesson pack not found." });
+
+        const att = pack.attachments.id(req.params.attachmentId);
+        if (!att) return res.status(404).json({ success: false, message: "Attachment not found." });
+
+        deleteFile(att.fileUrl);
+        att.deleteOne();
+        await pack.save();
+
+        res.status(200).json({ success: true, message: "Attachment deleted." });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -173,13 +257,28 @@ export const getAllLessonPacks = async (req, res) => {
 
         // If it's a student, we need to check which ones they have already purchased
         if (!isAdmin && req.user) {
-            const enrollments = await Enrollment.find({ student: req.user._id, lessonPack: { $exists: true } });
+            const enrollments = await Enrollment.find({
+                student: req.user._id,
+                lessonPack: { $exists: true },
+                paymentStatus: "paid"
+            });
             const purchasedPackIds = enrollments.map(e => e.lessonPack.toString());
 
-            const packsWithAccessFlag = packs.map(pack => ({
-                ...pack.toObject(),
-                hasAccess: purchasedPackIds.includes(pack._id.toString())
-            }));
+            const packsWithAccessFlag = packs.map(pack => {
+                const hasAccess = purchasedPackIds.includes(pack._id.toString());
+                const packObj = pack.toObject();
+                if (!hasAccess && packObj.videos) {
+                    packObj.videos = packObj.videos.map(v => ({
+                        ...v,
+                        youtubeUrl: null,
+                        youtubeId: null
+                    }));
+                }
+                return {
+                    ...packObj,
+                    hasAccess
+                };
+            });
             return res.status(200).json({ success: true, count: packs.length, data: packsWithAccessFlag });
         }
 
