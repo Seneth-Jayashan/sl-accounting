@@ -96,10 +96,11 @@ export const getSessionAttendance = async (req, res) => {
   const sessionId = req.params.sessionId;
 
   try {
+    const sessionDoc = await Session.findById(sessionId);
+    if (!sessionDoc) return res.status(404).json({ message: "Session not found" });
+
     const attendanceRecords = await Attendance.find({ session: sessionId })
       .populate("student", "firstName lastName email");
-
-    if (!sessionDoc) return res.status(404).json({ message: "Session not found" });
 
     const classDoc = await Class.findById(sessionDoc.class);
     if (!classDoc) return res.status(404).json({ message: "Parent class not found" });

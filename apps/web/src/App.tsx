@@ -110,7 +110,14 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
-            <Route path="/chat/:ticketId" element={<Chat />} />
+            <Route
+              path="/chat/:ticketId"
+              element={
+                <ProtectedRoute allowedRoles={["student", "admin", "customer_supporter", "teacher"]}>
+                  <Chat />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/news" element={<News />} />
             <Route path="/news/:id" element={<NewsDetails />} />
             <Route path="/downloads" element={<Downloads />} />

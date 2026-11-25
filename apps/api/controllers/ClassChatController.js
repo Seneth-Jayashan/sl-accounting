@@ -23,7 +23,7 @@ export const getClassMessages = async (req, res) => {
       }
 
       // Handle cases where batch might be an object (populated) or a string ID
-      const studentBatchId = req.user.batch.toString() || req.user.batch?.toString();
+      const studentBatchId = req.user.batch?._id?.toString() || req.user.batch?.toString();
       const classBatchId = targetClass.batch?.toString();
 
       if (!studentBatchId || studentBatchId !== classBatchId) {
@@ -61,6 +61,18 @@ export const saveMessage = async (req, res) => {
     // Validation: Must have classId AND (message text OR attachments)
     if (!classId || (!message && (!attachments || attachments.length === 0))) {
       return res.status(400).json({ success: false, message: "Message or attachment required" });
+    }
+
+    if (req.user.role === "student") {
+      const targetClass = await Class.findById(classId).select("batch");
+      if (!targetClass) {
+        return res.status(404).json({ success: false, message: "Class not found" });
+      }
+      const studentBatchId = req.user.batch?._id?.toString() || req.user.batch?.toString();
+      const classBatchId = targetClass.batch?.toString();
+      if (!studentBatchId || studentBatchId !== classBatchId) {
+        return res.status(403).json({ success: false, message: "Unauthorized: You are not enrolled in this class." });
+      }
     }
 
     const newChat = await ClassChat.create({
@@ -129,13 +141,15 @@ export const deleteMessage = async (req, res) => {
     if (chat.attachments && chat.attachments.length > 0) {
         chat.attachments.forEach((file) => {
             try {
-                // 1. Get the relative path stored in DB (e.g., "/uploads/chat-files/image.png")
-                // Remove the leading slash to join correctly
-                const relativePath = file.url.startsWith('/') ? file.url.slice(1) : file.url;
-                
-                // 2. Resolve to absolute server path
-                // Assumes 'uploads' folder is at 'apps/api/uploads' and this controller is in 'apps/api/controllers'
-                const absolutePath = path.join(__dirname, '..', relativePath);
+                const uploadsRoot = path.resolve(__dirname, '..', 'uploads');
+                const relativePath = String(file.url || '').replace(/^\/+/, '');
+                const absolutePath = path.resolve(__dirname, '..', relativePath);
+
+                // Ensure the resolved path is strictly inside the uploads directory
+                if (!absolutePath.startsWith(uploadsRoot + path.sep)) {
+                    console.warn(`Blocked path traversal attempt on delete: ${file.url}`);
+                    return;
+                }
 
                 // 3. Delete File
                 if (fs.existsSync(absolutePath)) {

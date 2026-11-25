@@ -148,7 +148,7 @@ export default function ForgotPassword() {
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.issues.forEach((issue) => {
-        errors[String(issue.path[0])] = issue.message;
+        fieldErrors[String(issue.path[0])] = issue.message;
       });
       setErrors(fieldErrors);
       return;

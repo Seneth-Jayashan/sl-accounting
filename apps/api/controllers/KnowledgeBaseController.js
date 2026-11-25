@@ -61,10 +61,11 @@ export const getAllKnowledge = async (req, res) => {
 			query.isPublished = true;
 		}
 
-		if (req.query.class && req.query.class !== 'All') query.class = req.query.class;
-		if (req.query.category) query.category = req.query.category;
-		if (req.query.search) {
-			const s = new RegExp(req.query.search, 'i');
+		if (typeof req.query.class === 'string' && req.query.class && req.query.class !== 'All') query.class = req.query.class;
+		if (typeof req.query.category === 'string' && req.query.category) query.category = req.query.category;
+		if (typeof req.query.search === 'string' && req.query.search) {
+			const escaped = req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const s = new RegExp(escaped, 'i');
 			query.$or = [{ title: s }, { description: s }, { fileName: s }];
 		}
 

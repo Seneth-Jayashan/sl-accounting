@@ -5,16 +5,16 @@ import ticketController from "../controllers/TicketController.js";
 const router = express.Router();
 
 // Get all tickets
-router.get("/", ticketController.getAllTickets);
+router.get("/", protect, restrictTo("admin", "customer_supporter"), ticketController.getAllTickets);
 
 // Create a ticket
-router.post("/", ticketController.addTicket);
+router.post("/", protect, ticketController.addTicket);
 
 // Get ticket by MongoDB _id
-router.get("/ticket/:id", ticketController.getTicketByID);
+router.get("/ticket/:id", protect, ticketController.getTicketByID);
 
 // Get all tickets of a specific user
-router.get("/tickets/:user_id", ticketController.getTicketsByUserID);
+router.get("/tickets/:user_id", protect, ticketController.getTicketsByUserID);
 
 // Update ticket by _id (auth required)
 router.put("/:id", protect, ticketController.updateTicket);

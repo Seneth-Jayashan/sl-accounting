@@ -474,7 +474,8 @@ export default function TicketChat({
   const getAbsoluteUrl = (url: string) => {
     if (!url) return url;
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    if (url.startsWith("blob:") || url.startsWith("data:")) return url;
+    if (url.startsWith("blob:")) return url;
+    if (url.startsWith("data:")) return "#";
 
     const fallback = typeof window !== "undefined" ? window.location.origin : "";
     const rawBase =

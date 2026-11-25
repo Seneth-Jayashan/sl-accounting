@@ -21,18 +21,17 @@ const ensureDir = (dirPath) => {
 
 // --- HELPER 2: Common File Filter ---
 const commonFileFilter = (req, file, cb) => {
-    // Allowed extensions
-    const filetypes = /jpeg|jpg|png|webp|gif/;
-    // Check extension
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    // Check mime type
-    const mimetype = filetypes.test(file.mimetype);
+    // Allowed extensions & MIME types (anchored)
+    const extRegex = /^\.(jpeg|jpg|png|webp|gif)$/;
+    const mimeRegex = /^image\/(jpeg|jpg|png|webp|gif)$/;
+    const extname = extRegex.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = mimeRegex.test(file.mimetype);
 
     if (mimetype && extname) {
         return cb(null, true);
     } else {
         // Create a proper error object
-        const error = new Error(`File upload failed. Only images are allowed (${filetypes}).`);
+        const error = new Error(`File upload failed. Only images are allowed.`);
         error.status = 400; // Bad Request
         return cb(error, false);
     }
@@ -47,13 +46,11 @@ const createStorage = (folderName) => multer.diskStorage({
         cb(null, relativePath);
     },
     filename: (req, file, cb) => {
-        // Sanitize: 'coverImage' -> 'cover-image'
-        // Sanitize: 'My File.jpg' -> 'my-file.jpg' (Prevent weird char issues)
-        const safeName = file.originalname.replace(/\s+/g, '-').toLowerCase();
+        const baseName = path.basename(file.originalname);
+        const safeName = baseName.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
         const prefix = file.fieldname.replace(/([A-Z])/g, (g) => `-${g[0].toLowerCase()}`);
-        
-        // e.g. cover-image-170123456789-my-photo.jpg
-        cb(null, `${prefix}-${Date.now()}-${safeName}`);
+        const rand = Math.random().toString(36).slice(2, 8);
+        cb(null, `${prefix}-${Date.now()}-${rand}-${safeName}`);
     },
 });
 

@@ -53,8 +53,9 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    resetPasswordToken: String,
-    resetPasswordExpires: Date,
+    resetPasswordToken: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
+    resetPasswordAttempts: { type: Number, default: 0, select: false },
 
     isVerified: { type: Boolean, default: false },
 
@@ -108,7 +109,7 @@ userSchema.methods.generateOtpCode = function (opts = {}) {
   const ttlMs = typeof opts.ttlMs === "number" ? opts.ttlMs : 10 * 60 * 1000; // 10 mins
   const attemptsReset = opts.attemptsReset ?? true;
 
-  const plainCode = ("000000" + Math.floor(Math.random() * 1000000)).slice(-6);
+  const plainCode = crypto.randomInt(0, 1000000).toString().padStart(6, "0");
 
   this.otp = crypto.createHash("sha256").update(String(plainCode)).digest("hex");
   this.otpExpiresAt = new Date(Date.now() + ttlMs);

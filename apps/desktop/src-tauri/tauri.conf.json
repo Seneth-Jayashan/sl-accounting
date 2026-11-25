@@ -18,7 +18,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' https://kalumwaduge.com; script-src 'self' https://kalumwaduge.com; style-src 'self' 'unsafe-inline' https://kalumwaduge.com; img-src 'self' data: https://kalumwaduge.com; connect-src 'self' https://kalumwaduge.com wss://kalumwaduge.com;"
     }
   },
   "bundle": {

@@ -107,7 +107,7 @@ const approveBundleEnrollments = async (primaryEnrollmentId, paymentId, paymentD
 
 export const createPayHereSignature = async (req, res) => {
     try {
-        const { amount, order_id, currency = "LKR" } = req.body;
+        const { amount, order_id, currency = "LKR", enrollmentId } = req.body;
         const merchantId = process.env.PAYHERE_MERCHANT_ID;
         const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
 
@@ -115,7 +115,24 @@ export const createPayHereSignature = async (req, res) => {
             return res.status(500).json({ error: "Server misconfiguration: PayHere credentials missing" });
         }
 
-        const amountFormatted = formatPayHereAmount(amount);
+        let verifiedAmount = amount;
+        if (enrollmentId) {
+            const enrollment = await Enrollment.findById(enrollmentId)
+                .populate("class", "price")
+                .populate("lessonPack", "price");
+            if (!enrollment) {
+                return res.status(404).json({ error: "Enrollment not found" });
+            }
+            if (req.user && req.user.role !== "admin" && enrollment.student.toString() !== req.user._id.toString()) {
+                return res.status(403).json({ error: "Not authorized for this enrollment" });
+            }
+            const serverPrice = enrollment.class?.price ?? enrollment.lessonPack?.price;
+            if (typeof serverPrice === "number" && serverPrice > 0) {
+                verifiedAmount = serverPrice;
+            }
+        }
+
+        const amountFormatted = formatPayHereAmount(verifiedAmount);
 
         const hashedSecret = crypto.createHash('md5')
             .update(merchantSecret)
@@ -159,6 +176,16 @@ export const payHereWebhook = async (req, res) => {
 
     if (!merchant_id || !md5sig) {
       return res.status(400).send("Invalid Payload");
+    }
+
+    if (merchant_id !== process.env.PAYHERE_MERCHANT_ID) {
+      console.error(`PayHere Merchant ID Mismatch! Order: ${order_id}`);
+      return res.status(400).send("Invalid merchant");
+    }
+
+    if (payhere_currency !== "LKR") {
+      console.error(`PayHere Currency Mismatch! Order: ${order_id}, Currency: ${payhere_currency}`);
+      return res.status(400).send("Invalid currency");
     }
 
     const computedSig = computePayHereMd5sig({
@@ -207,6 +234,14 @@ export const payHereWebhook = async (req, res) => {
     await payment.save();
 
     if (isSuccess && payment.enrollment) {
+        const linkedEnrollment = await Enrollment.findById(payment.enrollment)
+            .populate("class", "price")
+            .populate("lessonPack", "price");
+        const expectedPrice = linkedEnrollment?.class?.price ?? linkedEnrollment?.lessonPack?.price;
+        if (typeof expectedPrice === "number" && expectedPrice > 0 && Number(payhere_amount) < expectedPrice) {
+            console.error(`PayHere Amount Mismatch! Order: ${order_id}, Paid: ${payhere_amount}, Expected: ${expectedPrice}`);
+            return res.status(400).send("Amount verification failed");
+        }
         try {
             await approveBundleEnrollments(payment.enrollment, payment._id, new Date(), targetMonth);
             console.log(`Webhook: Approved enrollments for Payment ${payment._id} and Enrollment ${payment.enrollment} for ${targetMonth || 'current month'}.`);
@@ -251,18 +286,25 @@ export const uploadPaymentSlip = async (req, res) => {
     // 2. Populate BOTH class and lessonPack to avoid crashes
     const enrollment = await Enrollment.findById(enrollmentId)
       .populate('student', 'firstName phoneNumber') 
-      .populate('class', 'name')
-      .populate('lessonPack', 'title'); // <--- CRITICAL FIX
+      .populate('class', 'name price')
+      .populate('lessonPack', 'title price'); // <--- CRITICAL FIX
 
     if (!enrollment) {
       return res.status(404).json({ message: "Enrollment not found" });
     }
 
+    if (req.user && req.user.role !== "admin" && enrollment.student._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to upload slip for this enrollment" });
+    }
+
+    const expectedPrice = enrollment.class?.price ?? enrollment.lessonPack?.price;
+    const verifiedAmount = (typeof expectedPrice === "number" && expectedPrice > 0) ? expectedPrice : amount;
+
     const filePath = `/uploads/images/payments/${req.file.filename}`;
 
     const payment = new Payment({
       enrollment: enrollmentId,
-      amount: amount,
+      amount: verifiedAmount,
       method: "bank_transfer",
       status: "pending",
       verified: false,
@@ -424,6 +466,13 @@ export const getPaymentById = async (req, res) => {
           });
   
       if (!payment) return res.status(404).json({ message: "Payment not found" });
+      if (
+        req.user &&
+        req.user.role !== "admin" &&
+        payment.enrollment?.student?.toString() !== req.user._id.toString()
+      ) {
+        return res.status(403).json({ message: "Not authorized to view this payment" });
+      }
       res.json(payment);
     } catch (err) {
       res.status(500).json({ message: "Server error" });

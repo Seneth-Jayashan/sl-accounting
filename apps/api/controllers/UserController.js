@@ -117,6 +117,7 @@ export const updateUserPassword = async (req, res) => {
     }
 
     user.password = newPassword; // Mongoose pre-save hook will hash this
+    user.refreshTokens = [];
     await user.save();
 
     return res.status(200).json({ success: true, message: "Password updated successfully" });
@@ -161,18 +162,20 @@ export const forgetUserPassword = async (req, res) => {
       });
     }
 
-    // 1. Generate OTP (Reuse consistent logic)
-    // If you don't have this method on User model, use: Math.floor(100000 + Math.random() * 900000).toString();
-    // But it's better to reuse the Model logic.
-    const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const crypto = await import("crypto");
+    const resetOtp = crypto.randomInt(100000, 1000000).toString();
 
-    user.resetPasswordToken = resetOtp;
+    user.resetPasswordToken = crypto.createHash("sha256").update(resetOtp).digest("hex");
     user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 Minutes
+    user.resetPasswordAttempts = 0;
 
     await user.save();
 
-    // 2. Send Email
-    await sendVerificationEmail(user.email, resetOtp) && await sendVerificationSms(user.phoneNumber, resetOtp);
+    // 2. Send Email & SMS
+    await Promise.allSettled([
+      sendVerificationEmail(user.email, resetOtp),
+      sendVerificationSms(user.phoneNumber, resetOtp),
+    ]);
 
     return res.status(200).json({ 
       success: true, 

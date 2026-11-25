@@ -47,7 +47,8 @@ const parseOrigins = (raw) =>
     .map((o) => o.trim())
     .filter(Boolean);
 
-const CLIENT_ORIGINS = parseOrigins(process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN) || ["http://localhost:5173"];
+const parsedOrigins = parseOrigins(process.env.CLIENT_ORIGINS || process.env.CLIENT_ORIGIN);
+const CLIENT_ORIGINS = parsedOrigins.length > 0 ? parsedOrigins : ["http://localhost:5173"];
 
 const corsOrigin = (origin, callback) => {
   if (!origin) return callback(null, true);
@@ -88,6 +89,20 @@ if (process.env.NODE_ENV !== 'production') {
 // 3. STATIC FILES
 // ==========================================
 
+import { protect } from './middlewares/AuthMiddleware.js';
+
+// Protect sensitive upload directories (payment slips, submissions, chat files, documents)
+app.use(
+  [
+    '/uploads/images/payments',
+    '/uploads/documents',
+    '/uploads/papers',
+    '/uploads/submissions',
+    '/uploads/chat',
+    '/uploads/class-chat',
+  ],
+  protect
+);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ==========================================

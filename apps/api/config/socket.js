@@ -190,7 +190,7 @@ export const initSocket = (server) => {
           const studentBatchId = socket.user.batch?._id?.toString() || socket.user.batch?.toString();
           const classBatchId = targetClass.batch?.toString();
 
-          if (studentBatchId !== classBatchId) {
+          if (!studentBatchId || studentBatchId !== classBatchId) {
             console.warn(`Unauthorized: Student ${socket.user._id} tried to join Class ${classId}`);
             socket.emit("error", { message: "You are not enrolled in this class." });
             return;
@@ -206,6 +206,10 @@ export const initSocket = (server) => {
     });
 
     socket.on("send_class_message", async (payload, ack) => {
+      if (!payload || typeof payload !== "object") {
+        if (typeof ack === "function") ack({ ok: false, error: "Invalid payload" });
+        return;
+      }
       const { classId, message, attachments } = payload; 
 
       // Allow sending if there's a message OR attachments

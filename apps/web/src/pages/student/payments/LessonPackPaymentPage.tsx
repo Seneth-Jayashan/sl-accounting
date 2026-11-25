@@ -183,8 +183,8 @@ export default function LessonPackPaymentPage() {
                 {/* 1. Item Details */}
                 <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-6 items-center sm:items-start">
                     <div className="w-full sm:w-48 aspect-video rounded-xl overflow-hidden shadow-sm shrink-0 bg-gray-100 flex items-center justify-center">
-                       {getSmartCoverUrl(packData!) ? (
-                          <img src={getSmartCoverUrl(packData!)!} alt={packData?.title} className="w-full h-full object-cover" />
+                       {packData && getSmartCoverUrl(packData) ? (
+                          <img src={getSmartCoverUrl(packData)!} alt={packData.title} className="w-full h-full object-cover" />
                        ) : (
                           <PlayCircleIcon className="w-10 h-10 text-gray-300" />
                        )}

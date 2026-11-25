@@ -66,6 +66,18 @@ class MaterialController {
         try {
             const { classId } = req.params; // Sent from frontend student view
 
+            if (req.user && req.user.role === "student") {
+                const Enrollment = (await import("../models/Enrollment.js")).default;
+                const hasPaidEnrollment = await Enrollment.exists({
+                    student: req.user._id,
+                    class: classId,
+                    paymentStatus: "paid"
+                });
+                if (!hasPaidEnrollment) {
+                    return res.status(403).json({ success: false, message: "You are not enrolled in this class." });
+                }
+            }
+
             const materials = await Material.find({ 
                 class: classId, 
                 isPublished: true 

@@ -1,9 +1,20 @@
 import Chat from "../models/Chat.js";
 import User from "../models/User.js";
+import Ticket from "../models/Ticket.js";
 
 // Get all chat messages for a specific ticket
 export const getChatsByTicketId = async (req, res) => {
   try {
+    const ticket = await Ticket.findById(req.params.ticketId);
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+    const isStaff = req.user?.role === "admin" || req.user?.role === "customer_supporter";
+    const isOwner = ticket.user_id?.toString() === req.user?._id?.toString();
+    if (!isStaff && !isOwner) {
+      return res.status(403).json({ message: "Not authorized to view this ticket's chat" });
+    }
+
     const chats = await Chat.find({ ticket: req.params.ticketId })
       .sort({ createdAt: 1 });
 
@@ -17,6 +28,16 @@ export const getChatsByTicketId = async (req, res) => {
 export const addChatMessage = async (req, res) => {
   try {
     const { ticket, sender, senderRole, message, attachments, clientMessageId } = req.body;
+
+    const ticketDoc = await Ticket.findById(ticket);
+    if (!ticketDoc) {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+    const isStaff = req.user?.role === "admin" || req.user?.role === "customer_supporter";
+    const isOwner = ticketDoc.user_id?.toString() === req.user?._id?.toString();
+    if (!isStaff && !isOwner) {
+      return res.status(403).json({ message: "Not authorized to post to this ticket" });
+    }
 
     // Prefer authenticated user if middleware is applied
     const effectiveSender = req.user?._id?.toString?.() ? req.user._id : sender;

@@ -33,7 +33,8 @@ if (bumpType === 'major') {
   minor = 0;
   patch = 0;
 } else if (bumpType === 'minor') {
-  patch += 1;
+  minor += 1;
+  patch = 0;
 } else {
   console.error("Invalid bump type. Use 'minor' or 'major'.");
   process.exit(1);

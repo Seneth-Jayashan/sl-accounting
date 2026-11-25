@@ -127,6 +127,10 @@ const getAllTickets = async (req, res) => {
 // Get tickets by user ID
 const getTicketsByUserID = async (req, res) => {
   try {
+    const isStaff = req.user.role === "admin" || req.user.role === "customer_supporter";
+    if (!isStaff && req.params.user_id !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to view these tickets" });
+    }
     const tickets = await Ticket.find({ user_id: req.params.user_id });
     return res.status(200).json({ tickets });
   } catch (err) {
@@ -137,8 +141,10 @@ const getTicketsByUserID = async (req, res) => {
 
 // Add new ticket (NO ticket_id — MongoDB _id is used)
 const addTicket = async (req, res) => {
-  const { user_id, name, email, phoneNumber, Categories, message, priority } =
+  const { name, email, phoneNumber, Categories, message, priority } =
     req.body;
+  const isStaff = req.user.role === "admin" || req.user.role === "customer_supporter";
+  const user_id = isStaff && req.body.user_id ? req.body.user_id : req.user._id;
 
   try {
     const ticket = new Ticket({
@@ -184,6 +190,12 @@ const getTicketByID = async (req, res) => {
 
     if (!ticket) {
       return res.status(404).json({ message: "Ticket not found" });
+    }
+
+    const isStaff = req.user.role === "admin" || req.user.role === "customer_supporter";
+    const isOwner = ticket.user_id?.toString() === req.user._id.toString();
+    if (!isStaff && !isOwner) {
+      return res.status(403).json({ message: "Not authorized to view this ticket" });
     }
 
     return res.status(200).json({ ticket });

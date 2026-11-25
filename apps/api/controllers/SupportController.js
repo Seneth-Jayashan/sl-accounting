@@ -3,17 +3,21 @@ import nodemailer from "nodemailer";
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
 
-// CENTRALIZED EMAIL — change here only once
-const ADMIN_EMAIL = "sajanaanupama123@gmail.com";
+// CENTRALIZED EMAIL — loaded from environment variables
+const ADMIN_EMAIL = process.env.SUPPORT_EMAIL || process.env.EMAIL_USER;
+const ADMIN_EMAIL_PASS = process.env.SUPPORT_EMAIL_PASS || process.env.EMAIL_PASS;
 
 // Email transporter
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: ADMIN_EMAIL,
-    pass: "melc veit raso vsqm", // App password
-  },
-});
+const transporter =
+  ADMIN_EMAIL && ADMIN_EMAIL_PASS
+    ? nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: ADMIN_EMAIL,
+          pass: ADMIN_EMAIL_PASS,
+        },
+      })
+    : null;
 
 //   GET ALL CONTACTS
 const getAllMs = async (req, res) => {
@@ -43,20 +47,24 @@ const addMs = async (req, res) => {
       text: `You have received a new message:\n\nName: ${name}\nEmail: ${email}\nPhone: ${phoneNumber}\nMessage: ${message}\n`,
     };
 
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) console.log("Error sending email to admin:", error);
-      else console.log("Email sent to admin: " + info.response);
-    });
+    if (transporter && ADMIN_EMAIL) {
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) console.log("Error sending email to admin:", error);
+        else console.log("Email sent to admin: " + info.response);
+      });
+    }
 
     // Notify Support Team
     const supporters = await User.find({ role: "customer_supporter" });
 
-    const notifications = supporters.map((support) => ({
-      user_id: support.user_id,
-      message: `New contact message submitted by ${name}.`,
-    }));
+    if (supporters.length > 0) {
+      const notifications = supporters.map((support) => ({
+        user: support._id,
+        message: `New contact message submitted by ${name}.`,
+      }));
 
-    await Notification.insertMany(notifications);
+      await Notification.insertMany(notifications);
+    }
 
     return res.status(200).json({ Ms });
   } catch (err) {
@@ -100,10 +108,12 @@ const replyUser = async (req, res) => {
       text: `Dear ${name},\n\nThanks for contacting us.\n\nYour message: "${message}"\nOur reply: "${reply}"\n\nBest regards,\nSl Accounting team`,
     };
 
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) console.log("Error sending email:", error);
-      else console.log("Email sent: " + info.response);
-    });
+    if (transporter && ADMIN_EMAIL) {
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) console.log("Error sending email:", error);
+        else console.log("Email sent: " + info.response);
+      });
+    }
 
     return res.status(200).json({ Ms });
   } catch (err) {

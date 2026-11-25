@@ -106,27 +106,28 @@ export const getAllUsers = async (req, res) => {
 
     const query = {};
 
-    if (role) {
+    if (role && typeof role === "string") {
       query.role = role;
     }
 
-    if (batch && batch !== "All") {
+    if (batch && typeof batch === "string" && batch !== "All") {
       query.batch = batch;
     }
 
     if (isDeleted !== undefined) {
-      query.isDeleted = isDeleted === 'true';
+      query.isDeleted = String(isDeleted) === 'true';
     }
 
     if (isLocked !== undefined) {
-      query.isLocked = isLocked === 'true';
+      query.isLocked = String(isLocked) === 'true';
     }
 
-    if (search) {
+    if (search && typeof search === "string") {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       query.$or = [
-        { firstName: { $regex: search, $options: "i" } },
-        { lastName: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
+        { firstName: { $regex: escapedSearch, $options: "i" } },
+        { lastName: { $regex: escapedSearch, $options: "i" } },
+        { email: { $regex: escapedSearch, $options: "i" } },
       ];
     }
 
@@ -145,8 +146,8 @@ export const getAllUsers = async (req, res) => {
     return res.status(200).json({
       success: true,
       users,
-      totalPages: Math.ceil(count / limit),
-      currentPage: Number(page),
+      totalPages: Math.ceil(count / limitNum),
+      currentPage: pageNum,
       totalUsers: count,
     });
   } catch (error) {

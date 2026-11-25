@@ -8,7 +8,7 @@ export const validate = (schema) => (req, res, next) => {
 
     if (!result.success) {
       
-      const zodErrors = result.error.errors || [];
+      const zodErrors = result.error.issues || result.error.errors || [];
 
       const formattedErrors = zodErrors.map((e) => {
         const fieldPath = e.path.length > 1 ? e.path.slice(1).join(".") : e.path.join(".");
@@ -28,7 +28,7 @@ export const validate = (schema) => (req, res, next) => {
     }
 
     if (result.data.body) req.body = result.data.body;
-    if (result.data.query) req.query = result.data.query;
+    if (result.data.query && req.query) Object.assign(req.query, result.data.query);
     if (result.data.params) req.params = result.data.params;
 
     next();

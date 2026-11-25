@@ -151,7 +151,7 @@ export const login = async (req, res) => {
 };
 
 export const refresh = async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+  const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (!incomingRefreshToken) return res.status(401).json({ message: "No token provided" });
 
@@ -187,7 +187,7 @@ export const refresh = async (req, res) => {
 };
 
 export const logout = async (req, res) => {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
     
     try {
       if (incomingRefreshToken) {
@@ -303,10 +303,12 @@ export const forgetUserPassword = async (req, res) => {
       return res.status(200).json({ success: true, message: "If account exists, reset code sent." });
     }
 
-    const resetOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const crypto = await import("crypto");
+    const resetOtp = crypto.randomInt(100000, 1000000).toString();
 
-    user.resetPasswordToken = resetOtp;
+    user.resetPasswordToken = crypto.createHash("sha256").update(resetOtp).digest("hex");
     user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 Minutes
+    user.resetPasswordAttempts = 0;
 
     await user.save();
 
@@ -331,7 +333,7 @@ export const resetUserPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
 
     const user = await User.findOne({ email: email.toLowerCase(), isDeleted: false })
-      .select('+resetPasswordToken +resetPasswordExpires');
+      .select('+resetPasswordToken +resetPasswordExpires +resetPasswordAttempts');
 
     if (!user) return res.status(400).json({ success: false, message: "Invalid request" });
 
@@ -339,7 +341,16 @@ export const resetUserPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: "No password reset requested" });
     }
 
-    if (user.resetPasswordToken !== otp) {
+    if ((user.resetPasswordAttempts || 0) >= 5) {
+      return res.status(429).json({ success: false, message: "Too many failed attempts. Please request a new reset code." });
+    }
+
+    const crypto = await import("crypto");
+    const hashedOtp = crypto.createHash("sha256").update(String(otp)).digest("hex");
+
+    if (user.resetPasswordToken !== hashedOtp) {
+      user.resetPasswordAttempts = (user.resetPasswordAttempts || 0) + 1;
+      await user.save();
       return res.status(400).json({ success: false, message: "Invalid reset code" });
     }
 
@@ -350,6 +361,8 @@ export const resetUserPassword = async (req, res) => {
     user.password = newPassword; 
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+    user.resetPasswordAttempts = 0;
+    user.refreshTokens = [];
 
     await user.save();
 

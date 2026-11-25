@@ -50,7 +50,7 @@ export const StudentRoutes = () => {
           {/* Lesson Packs */}
           <Route path="lesson-packs" element={<StudentLessonPacks />} />
           <Route path="lesson-packs/:id" element={<WatchLessonPack />} />
-          <Route path="/payment/lesson-pack/:id" element={<LessonPackPaymentPage />} />
+          <Route path="payment/lesson-pack/:id" element={<LessonPackPaymentPage />} />
 
           {/* Enrollment & Payments */}
           <Route path="enrollment" element={<ViewEnrollment />} />

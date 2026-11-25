@@ -26,10 +26,12 @@ jobs:
           node-version: 'lts/*'
           
       - name: Auto-Bump Version
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
           # Check if the commit message contains [major]
           BUMP_TYPE="minor"
-          if [[ "${{ github.event.head_commit.message }}" == *"[major]"* ]]; then
+          if [[ "$COMMIT_MSG" == *"[major]"* ]]; then
             BUMP_TYPE="major"
           fi
           
@@ -39,7 +41,7 @@ jobs:
           # Commit and Push the updated version files back to GitHub
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add versions/version.json apps/web/package.json apps/api/package.json apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json apps/desktop/src-tauri/Cargo.toml
+          git add versions/version.json apps/web/package.json apps/api/package.json apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json apps/desktop/src-tauri/Cargo.toml apps/android/android/app/build.gradle
           # The [skip ci] tag prevents this commit from triggering another deployment loop
           git commit -m "Auto-bump version ($BUMP_TYPE) [skip ci]" || echo "No changes to commit"
           git push
@@ -89,6 +91,9 @@ jobs:
             cd /var/www/sl-accounting
             sudo chown -R www-data:www-data /var/www/sl-accounting
             sudo chmod -R 755 /var/www/sl-accounting
+            if [ -f /var/www/sl-accounting/apps/api/.env ]; then
+              sudo chmod 600 /var/www/sl-accounting/apps/api/.env
+            fi
 
             # 7. Restart Nginx to serve new static assets
             sudo systemctl reload nginx

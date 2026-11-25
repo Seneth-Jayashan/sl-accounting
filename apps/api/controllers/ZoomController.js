@@ -31,6 +31,29 @@ const {
 // ==========================================
 export const handleWebhook = async (req, res) => {
   try {
+    if (!ZOOM_WEBHOOK_SECRET) {
+      return res.status(500).send('Zoom webhook secret not configured');
+    }
+
+    const signature = req.headers['x-zm-signature'];
+    const timestamp = req.headers['x-zm-request-timestamp'];
+    if (!signature || !timestamp) {
+      return res.status(401).send('Missing Zoom webhook signature');
+    }
+
+    const message = `v0:${timestamp}:${JSON.stringify(req.body)}`;
+    const hashForVerify = crypto
+      .createHmac('sha256', ZOOM_WEBHOOK_SECRET)
+      .update(message)
+      .digest('hex');
+    const expectedSignature = `v0=${hashForVerify}`;
+
+    const sigBuf = Buffer.from(String(signature));
+    const expBuf = Buffer.from(expectedSignature);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return res.status(401).send('Invalid Zoom webhook signature');
+    }
+
     const { event, payload } = req.body;
 
     // A. ZOOM ENDPOINT VALIDATION (Required to activate webhook)
