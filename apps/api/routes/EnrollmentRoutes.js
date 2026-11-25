@@ -7,7 +7,9 @@ import {
   checkEnrollment,
   getAllEnrollments,
   getMyEnrollments,
-  enrollInLessonPack
+  enrollInLessonPack,
+  grantAccessMonths,
+  revokeAccessMonths,
 } from "../controllers/EnrollmentController.js";
 import { protect, restrictTo } from "../middlewares/AuthMiddleware.js";
 
@@ -51,5 +53,9 @@ router.put("/:id", restrictTo("admin"), updateEnrollment);
 
 // Delete Enrollment (Admin Only)
 router.delete("/:id", restrictTo("admin"), deleteEnrollment);
+
+// Feature 1: Admin grants/revokes free access months
+router.post("/:id/grant-access", restrictTo("admin"), grantAccessMonths);
+router.patch("/:id/revoke-access", restrictTo("admin"), revokeAccessMonths);
 
 export default router;

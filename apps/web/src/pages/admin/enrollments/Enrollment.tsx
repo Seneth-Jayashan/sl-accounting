@@ -39,6 +39,10 @@ export default function EnrollmentsPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [grantModalId, setGrantModalId] = useState<string | null>(null);
+  const [grantMonth, setGrantMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [grantNote, setGrantNote] = useState("");
+  const [granting, setGranting] = useState(false);
 
   // --- Fetch Data ---
   const fetchEnrollments = async () => {
@@ -93,10 +97,9 @@ export default function EnrollmentsPage() {
 
   // --- Filter Logic ---
   const filteredList = enrollments.filter(e => {
-    // Because we used strict types, TS knows student.firstName exists!
-    const studentName = `${e.student.firstName} ${e.student.lastName}`.toLowerCase();
-    const studentEmail = e.student.email.toLowerCase();
-    const className = e.class.name.toLowerCase();
+    const studentName = `${e.student?.firstName || ""} ${e.student?.lastName || ""}`.toLowerCase();
+    const studentEmail = (e.student?.email || "").toLowerCase();
+    const className = (e.class?.name || (e as any).lessonPack?.title || "").toLowerCase();
     const search = searchTerm.toLowerCase();
 
     return studentName.includes(search) || studentEmail.includes(search) || className.includes(search);
@@ -164,13 +167,13 @@ export default function EnrollmentsPage() {
                                 <tr key={item._id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="font-medium text-gray-900">
-                                            {item.student.firstName} {item.student.lastName}
+                                            {item.student?.firstName || "Unknown"} {item.student?.lastName || ""}
                                         </div>
-                                        <div className="text-xs text-gray-500">{item.student.email}</div>
+                                        <div className="text-xs text-gray-500">{item.student?.email || ""}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="text-gray-700 font-medium">{item.class.name}</div>
-                                        <div className="text-xs text-gray-400">LKR {item.class.price.toLocaleString()}</div>
+                                        <div className="text-gray-700 font-medium">{item.class?.name || (item as any).lessonPack?.title || "Lesson Pack / Deleted Class"}</div>
+                                        <div className="text-xs text-gray-400">LKR {(item.class?.price ?? (item as any).lessonPack?.price ?? 0).toLocaleString()}</div>
                                     </td>
                                     <td className="px-6 py-4">
                                         {item.paymentStatus === 'paid' ? (
@@ -195,6 +198,15 @@ export default function EnrollmentsPage() {
                                                 Mark Paid
                                             </button>
                                         )}
+                                        <button
+                                            onClick={() => {
+                                                setGrantModalId(item._id);
+                                                setGrantNote("");
+                                            }}
+                                            className="text-xs border border-blue-200 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-50"
+                                        >
+                                            Grant Month
+                                        </button>
                                         <button 
                                             onClick={() => handleDelete(item._id)}
                                             className="text-xs border border-gray-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50"
@@ -210,6 +222,60 @@ export default function EnrollmentsPage() {
             )}
         </div>
 
-      </div>
+      {grantModalId && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900">Grant Month Access</h3>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Select Month</label>
+              <input
+                type="month"
+                value={grantMonth}
+                onChange={(e) => setGrantMonth(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Note (Optional)</label>
+              <input
+                type="text"
+                value={grantNote}
+                onChange={(e) => setGrantNote(e.target.value)}
+                placeholder="e.g. Manual grant"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setGrantModalId(null)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={granting || !grantMonth}
+                onClick={async () => {
+                  setGranting(true);
+                  try {
+                    await EnrollmentService.grantAccessMonths(grantModalId, [grantMonth], grantNote || undefined);
+                    setGrantModalId(null);
+                    fetchEnrollments();
+                  } catch (e: any) {
+                    alert(e?.response?.data?.message || "Failed to grant access");
+                  } finally {
+                    setGranting(false);
+                  }
+                }}
+                className="px-4 py-2 text-xs font-semibold bg-[#0b2540] text-white rounded-lg hover:bg-[#153454] disabled:opacity-50"
+              >
+                {granting ? "Granting..." : "Grant Access"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

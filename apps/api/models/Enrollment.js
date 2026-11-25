@@ -56,6 +56,12 @@ const enrollmentSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     attendance: { type: [attendanceSchema], default: [] },
     notes: { type: String },
+
+    // Admin-granted free access months (bypass payment check)
+    grantedMonths: [{ type: String }],  // e.g. ["2026-01", "2026-02"]
+    grantedNote: { type: String },      // admin note for why access was granted
+    grantedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    grantedAt: { type: Date },
   },
   { 
     timestamps: true,

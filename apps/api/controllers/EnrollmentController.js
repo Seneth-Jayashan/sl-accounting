@@ -338,3 +338,91 @@ export const enrollInLessonPack = async (req, res) => {
         res.status(500).json({ success: false, message: "Failed to process enrollment." });
     }
 };
+
+
+// ==========================================
+// FEATURE 1: Admin Manual Access Grant
+// ==========================================
+
+/**
+ * POST /api/v1/enrollments/:id/grant-access
+ * Admin grants free access for specific months to a student's enrollment.
+ * Body: { months: ["2026-01","2026-02"], note: "..." }
+ */
+export const grantAccessMonths = async (req, res) => {
+  try {
+    const { months, note } = req.body;
+
+    if (!Array.isArray(months) || months.length === 0) {
+      return res.status(400).json({ success: false, message: "Provide an array of month strings (e.g. [\"2026-01\"])" });
+    }
+
+    // Validate month format YYYY-MM
+    const monthRegex = /^\d{4}-\d{2}$/;
+    const invalid = months.filter(m => !monthRegex.test(m));
+    if (invalid.length > 0) {
+      return res.status(400).json({ success: false, message: `Invalid month format: ${invalid.join(", ")}. Use YYYY-MM.` });
+    }
+
+    const enrollment = await Enrollment.findById(req.params.id);
+    if (!enrollment) return res.status(404).json({ success: false, message: "Enrollment not found" });
+
+    // Add months to both paidMonths (for access checks) and grantedMonths (for audit trail)
+    for (const month of months) {
+      if (!enrollment.paidMonths.includes(month)) enrollment.paidMonths.push(month);
+      if (!enrollment.grantedMonths.includes(month)) enrollment.grantedMonths.push(month);
+    }
+    enrollment.paidMonths.sort();
+    enrollment.grantedMonths.sort();
+
+    // Extend accessEndDate to cover latest granted month
+    const latestMonth = months.sort().pop();
+    const [yr, mo] = latestMonth.split("-").map(Number);
+    const monthEnd = new Date(yr, mo, 0, 23, 59, 59, 999);
+    if (!enrollment.accessEndDate || monthEnd > enrollment.accessEndDate) {
+      enrollment.accessEndDate = monthEnd;
+    }
+
+    if (enrollment.paymentStatus === "unpaid") enrollment.paymentStatus = "paid";
+    enrollment.isActive = true;
+    enrollment.grantedNote = note || null;
+    enrollment.grantedBy = req.user._id;
+    enrollment.grantedAt = new Date();
+
+    await enrollment.save();
+
+    return res.status(200).json({ success: true, message: "Access granted successfully.", enrollment });
+  } catch (err) {
+    console.error("Grant Access Error:", err);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+/**
+ * DELETE /api/v1/enrollments/:id/revoke-access
+ * Admin revokes previously granted months.
+ * Body: { months: ["2026-01"] }
+ */
+export const revokeAccessMonths = async (req, res) => {
+  try {
+    const { months } = req.body;
+
+    if (!Array.isArray(months) || months.length === 0) {
+      return res.status(400).json({ success: false, message: "Provide an array of month strings to revoke." });
+    }
+
+    const enrollment = await Enrollment.findById(req.params.id);
+    if (!enrollment) return res.status(404).json({ success: false, message: "Enrollment not found" });
+
+    // Only revoke months that were granted (not paid) — safety: only remove from grantedMonths and paidMonths
+    enrollment.grantedMonths = enrollment.grantedMonths.filter(m => !months.includes(m));
+    enrollment.paidMonths = enrollment.paidMonths.filter(m => !months.includes(m));
+
+    await enrollment.save();
+
+    return res.status(200).json({ success: true, message: "Access revoked.", enrollment });
+  } catch (err) {
+    console.error("Revoke Access Error:", err);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};

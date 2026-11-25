@@ -9,6 +9,7 @@ const Students = lazy(() => import("../pages/admin/students/Students"));
 const AddStudent = lazy(() => import("../pages/admin/students/AddStudent"));
 const ViewStudent = lazy(() => import("../pages/admin/students/ViewStudent"));
 const UpdateStudent = lazy(() => import("../pages/admin/students/UpdateStudent"));
+const AdminEnrollments = lazy(() => import("../pages/admin/enrollments/Enrollment"));
 const Classes = lazy(() => import("../pages/admin/classes/Class"));
 const CreateClass = lazy(() => import("../pages/admin/classes/CreateClass"));
 const ViewClass = lazy(() => import("../pages/admin/classes/ViewClass"));
@@ -61,6 +62,7 @@ export const AdminRoutes = () => {
           <Route path="students/add" element={<AddStudent />} />
           <Route path="students/:id" element={<ViewStudent />} />
           <Route path="students/edit/:id" element={<UpdateStudent />} />
+          <Route path="enrollments" element={<AdminEnrollments />} />
 
           {/* Classes */}
           <Route path="classes" element={<Classes />} />

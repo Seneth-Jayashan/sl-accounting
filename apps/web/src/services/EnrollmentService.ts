@@ -181,6 +181,16 @@ const EnrollmentService = {
     });
     return response.data;
   },
+
+  grantAccessMonths: async (id: string, months: string[], note?: string) => {
+    const response = await api.post(`${BASE_URL}/${id}/grant-access`, { months, note });
+    return response.data;
+  },
+
+  revokeAccessMonths: async (id: string, months: string[]) => {
+    const response = await api.patch(`${BASE_URL}/${id}/revoke-access`, { months });
+    return response.data;
+  },
 };
 
 export default EnrollmentService;
