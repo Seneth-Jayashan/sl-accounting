@@ -57,8 +57,8 @@ const createStorage = (folderName) => multer.diskStorage({
 // --- HELPER 4: Chat File Filter (Images + Docs) ---
 const chatFileFilter = (req, file, cb) => {
     // Combine Image and Document Regex
-    const allowedExt = /\.(jpeg|jpg|png|webp|gif|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|csv|txt)$/i;
-    const allowedMime = /(image\/|application\/pdf|application\/msword|application\/vnd.openxmlformats|application\/vnd.ms-excel|application\/vnd.ms-powerpoint|application\/zip|text\/csv)/i;
+    const allowedExt = /\.(jpeg|jpg|png|webp|gif|pdf|doc|docx|xls|xlsx|ppt|pptx|zip|csv|txt|webm|ogg|mp3|wav|m4a)$/i;
+    const allowedMime = /(image\/|audio\/|application\/pdf|application\/msword|application\/vnd.openxmlformats|application\/vnd.ms-excel|application\/vnd.ms-powerpoint|application\/zip|text\/csv)/i;
 
     const extname = allowedExt.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedMime.test(file.mimetype);

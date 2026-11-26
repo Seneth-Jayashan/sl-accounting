@@ -28,7 +28,7 @@ const classChatSchema = new mongoose.Schema({
   // NEW: Store attachments
   attachments: [{
     url: { type: String, required: true },
-    fileType: { type: String, enum: ['image', 'video', 'file'], default: 'file' },
+    fileType: { type: String, enum: ['image', 'video', 'audio', 'file'], default: 'file' },
     originalName: String
   }]
 }, {

@@ -6,6 +6,9 @@ import {
   MessageSquare, 
   ShieldCheck, 
   Paperclip, 
+  Mic,
+  Square,
+  Trash2,
   X, 
   FileText, 
   Image as ImageIcon,
@@ -29,6 +32,37 @@ export default function ChatTab() {
   // File Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const toggleRecording = async () => {
+    if (isRecording && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const voiceFile = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+        setSelectedFile(voiceFile);
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      alert("Microphone access denied or unavailable.");
+    }
+  };
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -267,6 +301,12 @@ export default function ChatTab() {
                                                     className="max-w-[200px] max-h-[200px] object-cover hover:scale-105 transition-transform duration-500" 
                                                 />
                                             </a>
+                                        ) : (att.fileType as string) === 'audio' ? (
+                                            <audio
+                                                controls
+                                                src={att.url.startsWith('http') ? att.url : BASE_API_URL + att.url}
+                                                className="max-w-[220px] h-9"
+                                            />
                                         ) : (
                                             <a 
                                                 href={att.url.startsWith('http') ? att.url : BASE_API_URL + att.url} 
@@ -289,6 +329,17 @@ export default function ChatTab() {
                                     <div className={`px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${isMe ? 'text-white' : 'text-gray-700'}`}>
                                         {msg.message}
                                     </div>
+                                )}
+
+                                {isMe && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setDeleteConfirmId(msg._id)}
+                                        className="self-end mt-1 px-2 py-0.5 text-[10px] text-white/70 hover:text-red-200 flex items-center gap-1 transition-colors"
+                                        title="Delete message"
+                                    >
+                                        <Trash2 size={11} /> Delete
+                                    </button>
                                 )}
                             </div>
                             
@@ -325,6 +376,9 @@ export default function ChatTab() {
                             <span className="text-[10px] text-gray-500 font-medium">{(selectedFile.size / 1024).toFixed(1)} KB</span>
                         </div>
                     </div>
+                    {selectedFile.type.startsWith("audio/") && (
+                        <audio controls src={URL.createObjectURL(selectedFile)} className="h-8 max-w-[200px]" />
+                    )}
                     <button 
                         onClick={() => { setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value=""; }} 
                         className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
@@ -367,6 +421,16 @@ export default function ChatTab() {
                 <Paperclip size={20} />
             </label>
 
+            {/* Voice Message Button */}
+            <button
+                type="button"
+                onClick={toggleRecording}
+                className={`p-2.5 rounded-full transition-colors shrink-0 mb-0.5 ${isRecording ? "bg-red-500 text-white animate-pulse" : "text-gray-400 hover:text-brand-cerulean hover:bg-brand-aliceBlue"}`}
+                title={isRecording ? "Stop recording" : "Record voice message"}
+            >
+                {isRecording ? <Square size={18} /> : <Mic size={20} />}
+            </button>
+
             {/* Text Input */}
             <input 
                 type="text" 
@@ -391,6 +455,46 @@ export default function ChatTab() {
             </button>
         </form>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xs w-full p-6 text-center shadow-xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto">
+              <Trash2 size={24} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Delete Message?</h3>
+              <p className="text-xs text-gray-500 mt-1">This action cannot be undone.</p>
+            </div>
+            <div className="flex gap-2 justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const id = deleteConfirmId;
+                  setDeleteConfirmId(null);
+                  try {
+                    await ClassChatService.deleteMessage(id);
+                    setMessages((prev) => prev.filter((m) => m._id !== id));
+                  } catch {
+                    alert("Failed to delete message");
+                  }
+                }}
+                className="px-4 py-2 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
