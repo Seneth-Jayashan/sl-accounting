@@ -4,6 +4,7 @@ import Chat from "../models/Chat.js";
 import User from "../models/User.js";
 import Ticket from "../models/Ticket.js";
 import Class from "../models/Class.js";
+import Enrollment from "../models/Enrollment.js";
 import ClassChat from "../models/ClassChat.js";
 
 let ioInstance;
@@ -191,9 +192,16 @@ export const initSocket = (server) => {
           const classBatchId = targetClass.batch?.toString();
 
           if (!studentBatchId || studentBatchId !== classBatchId) {
-            console.warn(`Unauthorized: Student ${socket.user._id} tried to join Class ${classId}`);
-            socket.emit("error", { message: "You are not enrolled in this class." });
-            return;
+            const hasPaidEnrollment = await Enrollment.exists({
+              student: socket.user._id,
+              class: classId,
+              paymentStatus: "paid",
+            });
+            if (!hasPaidEnrollment) {
+              console.warn(`Unauthorized: Student ${socket.user._id} tried to join Class ${classId}`);
+              socket.emit("error", { message: "You are not enrolled in this class." });
+              return;
+            }
           }
         }
 

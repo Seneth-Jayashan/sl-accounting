@@ -1,5 +1,6 @@
 import ClassChat from "../models/ClassChat.js";
 import Class from "../models/Class.js";
+import Enrollment from "../models/Enrollment.js";
 import fs from 'fs'; // Import File System
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -27,8 +28,15 @@ export const getClassMessages = async (req, res) => {
       const classBatchId = targetClass.batch?.toString();
 
       if (!studentBatchId || studentBatchId !== classBatchId) {
-        console.log("Unauthorized chat access attempt by user:", req.user._id);
-        return res.status(403).json({ success: false, message: "Unauthorized: You are not enrolled in this class." });
+        const hasPaidEnrollment = await Enrollment.exists({
+          student: req.user._id,
+          class: classId,
+          paymentStatus: "paid",
+        });
+        if (!hasPaidEnrollment) {
+          console.log("Unauthorized chat access attempt by user:", req.user._id);
+          return res.status(403).json({ success: false, message: "Unauthorized: You are not enrolled in this class." });
+        }
       }
     }
 
@@ -71,7 +79,14 @@ export const saveMessage = async (req, res) => {
       const studentBatchId = req.user.batch?._id?.toString() || req.user.batch?.toString();
       const classBatchId = targetClass.batch?.toString();
       if (!studentBatchId || studentBatchId !== classBatchId) {
-        return res.status(403).json({ success: false, message: "Unauthorized: You are not enrolled in this class." });
+        const hasPaidEnrollment = await Enrollment.exists({
+          student: req.user._id,
+          class: classId,
+          paymentStatus: "paid",
+        });
+        if (!hasPaidEnrollment) {
+          return res.status(403).json({ success: false, message: "Unauthorized: You are not enrolled in this class." });
+        }
       }
     }
 
@@ -106,7 +121,8 @@ export const uploadAttachment = async (req, res) => {
     
     // Determine type
     const isImage = req.file.mimetype.startsWith('image/');
-    const fileType = isImage ? 'image' : 'file';
+    const isAudio = req.file.mimetype.startsWith('audio/');
+    const fileType = isImage ? 'image' : isAudio ? 'audio' : 'file';
 
     res.status(200).json({
       success: true,
@@ -132,8 +148,9 @@ export const deleteMessage = async (req, res) => {
       return res.status(404).json({ success: false, message: "Message not found" });
     }
 
-    // Security: Only Admins can delete
-    if (req.user.role !== 'admin') {
+    // Security: Allow Admins or the message sender to delete
+    const isOwner = chat.sender?.toString() === req.user._id.toString();
+    if (req.user.role !== 'admin' && !isOwner) {
          return res.status(403).json({ success: false, message: "Not authorized to delete messages" });
     }
 
