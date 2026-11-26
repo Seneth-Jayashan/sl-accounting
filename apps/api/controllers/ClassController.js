@@ -3,6 +3,7 @@ import moment from "moment-timezone";
 import Class from "../models/Class.js";
 import Session from "../models/Session.js";
 import Batch from "../models/Batch.js";
+import Enrollment from "../models/Enrollment.js";
 import { createMeeting, deleteMeeting } from "../services/Zoom.js";
 
 // ==========================================
