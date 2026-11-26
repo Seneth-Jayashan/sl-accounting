@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  InboxIcon, 
-  TrashIcon, 
+import {
+  InboxIcon,
+  TrashIcon,
   ExclamationCircleIcon,
   ChatBubbleLeftRightIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  ArrowPathIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  TagIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 // Services & Context
@@ -18,6 +27,38 @@ import Chat from "../../../components/Chat";
 import ConfirmDialog from "../../../components/modals/ConfirmDialog";
 import Dropdown, { type DropdownOption } from "../../../components/Dropdown";
 
+// --- Skeleton Loader ---
+
+function TicketChatSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="h-28 bg-white rounded-2xl border border-slate-100 p-6"
+          >
+            <div className="h-3 w-24 bg-slate-200 rounded mb-4" />
+            <div className="h-7 w-16 bg-slate-200 rounded" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[560px]">
+        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
+          <div className="h-10 bg-slate-100 rounded-xl" />
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-20 bg-slate-50 rounded-xl" />
+          ))}
+        </div>
+        <div className="hidden lg:block lg:col-span-8 bg-white rounded-2xl border border-slate-100 p-6 space-y-4">
+          <div className="h-14 w-2/3 bg-slate-100 rounded-xl" />
+          <div className="h-96 bg-slate-50 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- MAIN COMPONENT ---
 export default function TicketChatAdmin() {
   const { user, accessToken } = useAuth();
@@ -29,29 +70,38 @@ export default function TicketChatAdmin() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
-  // UI State
+
+  // UI & Filter State
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingTicket, setLoadingTicket] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "closed">("all");
+
   // Action State
   const [statusUpdating, setStatusUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
-  const [infoDialog, setInfoDialog] = useState<{ title: string; message: string } | null>(null);
+  const [infoDialog, setInfoDialog] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState<boolean>(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] =
+    useState<boolean>(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   // --- HELPERS ---
-  const sortTicketsDesc = useCallback((items: Ticket[]) =>
-    [...items].sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    }), []);
+  const sortTicketsDesc = useCallback(
+    (items: Ticket[]) =>
+      [...items].sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      }),
+    []
+  );
 
   const selectedCount = useMemo(() => selectedIds.size, [selectedIds]);
 
@@ -66,45 +116,33 @@ export default function TicketChatAdmin() {
 
   const clearSelected = useCallback(() => setSelectedIds(new Set()), []);
 
-  const selectAllVisible = useCallback(() => {
-    setSelectedIds(
-      new Set(
-        tickets
-          .filter((t) => String(t.status || "").toLowerCase() === "closed")
-          .map((t) => t._id)
-      )
-    );
-  }, [tickets]);
-
   // --- DATA LOADING ---
-  
-  // 1. Load All Tickets
-  useEffect(() => {
-    let mounted = true;
-    setLoading(true);
-    
-    TicketService.getAllTickets()
-      .then((items) => {
-        if (!mounted) return;
-        const sorted = sortTicketsDesc(items);
-        setTickets(sorted);
-        clearSelected();
-        
-        // Handle URL Selection
-        if (params.id && sorted.some((t) => t._id === params.id)) {
-          setSelectedId(params.id);
-        } else {
-          setSelectedId(null);
-        }
-      })
-      .catch((e) => {
-        console.error(e);
-        setError("Failed to load tickets.");
-      })
-      .finally(() => mounted && setLoading(false));
 
-    return () => { mounted = false; };
+  const loadTickets = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const items = await TicketService.getAllTickets();
+      const sorted = sortTicketsDesc(items);
+      setTickets(sorted);
+      clearSelected();
+
+      if (params.id && sorted.some((t) => t._id === params.id)) {
+        setSelectedId(params.id);
+      } else if (!params.id) {
+        setSelectedId(null);
+      }
+    } catch (e) {
+      console.error(e);
+      setError("Failed to load tickets.");
+    } finally {
+      setLoading(false);
+    }
   }, [clearSelected, params.id, sortTicketsDesc]);
+
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
 
   // Keep selection clean when ticket list changes
   useEffect(() => {
@@ -131,9 +169,8 @@ export default function TicketChatAdmin() {
       try {
         const t = await TicketService.getTicketById(selectedId);
         setSelectedTicket(t ?? null);
-        // Scroll to top on mobile when selecting a ticket
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      } catch (e) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {
         setSelectedTicket(null);
       } finally {
         setLoadingTicket(false);
@@ -142,7 +179,6 @@ export default function TicketChatAdmin() {
 
     loadDetails();
 
-    // Escape Key Handler
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         handleBackToList();
@@ -150,6 +186,7 @@ export default function TicketChatAdmin() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, navigate]);
 
   // 3. Socket: New Ticket
@@ -174,13 +211,55 @@ export default function TicketChatAdmin() {
       if (!payload?._id || payload._id !== selectedId) return;
       setSelectedTicket((prev) => (prev ? { ...prev, ...payload } : payload));
       setTickets((prev) =>
-        prev.map((t) => (t._id === payload._id ? { ...t, status: payload.status } : t))
+        prev.map((t) =>
+          t._id === payload._id ? { ...t, status: payload.status } : t
+        )
       );
     };
 
     ChatService.onTicketStatusUpdated(handleStatus);
     return () => ChatService.offTicketStatusUpdated(handleStatus);
   }, [selectedId, accessToken]);
+
+  // --- DERIVED STATS & FILTERED LIST ---
+  const stats = useMemo(() => {
+    const closed = tickets.filter((t) =>
+      String(t.status || "").toLowerCase().includes("close")
+    ).length;
+    return {
+      total: tickets.length,
+      open: tickets.length - closed,
+      closed,
+    };
+  }, [tickets]);
+
+  const filteredTickets = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return tickets.filter((t) => {
+      const isClosed = String(t.status || "").toLowerCase() === "closed";
+      if (statusFilter === "active" && isClosed) return false;
+      if (statusFilter === "closed" && !isClosed) return false;
+      if (!q) return true;
+
+      return (
+        (t.name || "").toLowerCase().includes(q) ||
+        (t.email || "").toLowerCase().includes(q) ||
+        (t.Categories || "").toLowerCase().includes(q)
+      );
+    });
+  }, [tickets, searchQuery, statusFilter]);
+
+  const closedFilteredIds = useMemo(
+    () =>
+      filteredTickets
+        .filter((t) => String(t.status || "").toLowerCase() === "closed")
+        .map((t) => t._id),
+    [filteredTickets]
+  );
+
+  const selectAllVisible = useCallback(() => {
+    setSelectedIds(new Set(closedFilteredIds));
+  }, [closedFilteredIds]);
 
   // --- ACTIONS ---
 
@@ -192,7 +271,7 @@ export default function TicketChatAdmin() {
   const applyStatusChange = async (nextStatus: string) => {
     if (!selectedTicket || !selectedId) return;
     setStatusUpdating(true);
-    
+
     try {
       const updated = await TicketService.updateTicket(selectedId, {
         ...selectedTicket,
@@ -201,15 +280,16 @@ export default function TicketChatAdmin() {
 
       setSelectedTicket(updated);
       setTickets((prev) =>
-        prev.map((t) => t._id === updated._id ? { ...t, status: updated.status } : t)
+        prev.map((t) =>
+          t._id === updated._id ? { ...t, status: updated.status } : t
+        )
       );
 
-      // If Closed, redirect away
       if (String(updated.status).toLowerCase() === "closed") {
         handleRedirectAfterAction(selectedId);
       }
-    } catch (e) {
-      setError("Failed to update status");
+    } catch {
+      setError("Failed to update status.");
     } finally {
       setStatusUpdating(false);
       setPendingStatus(null);
@@ -221,20 +301,30 @@ export default function TicketChatAdmin() {
     if (!selectedTicket) return;
     const currentStatus = String(selectedTicket.status || "Open");
 
-    // Validation Logic
     if (nextStatus === "Resolved" && currentStatus !== "Resolved") {
-      setInfoDialog({ title: "Action Denied", message: "Only the user can mark this ticket as Resolved." });
+      setInfoDialog({
+        title: "Action Denied",
+        message: "Only the user can mark this ticket as Resolved.",
+      });
       return;
     }
-    if (currentStatus === "Resolved" && nextStatus !== "Closed" && nextStatus !== currentStatus) {
-      setInfoDialog({ title: "Close Required", message: "This ticket is Resolved. You can only Close it." });
+    if (
+      currentStatus === "Resolved" &&
+      nextStatus !== "Closed" &&
+      nextStatus !== currentStatus
+    ) {
+      setInfoDialog({
+        title: "Close Required",
+        message: "This ticket is Resolved. You can only Close it.",
+      });
       return;
     }
     if (nextStatus === "Closed") {
       if (String(currentStatus).toLowerCase() !== "resolved") {
         setInfoDialog({
           title: "Action Denied",
-          message: "You can only close a ticket after the user marks it as Resolved.",
+          message:
+            "You can only close a ticket after the user marks it as Resolved.",
         });
         return;
       }
@@ -258,8 +348,8 @@ export default function TicketChatAdmin() {
         return next;
       });
       handleRedirectAfterAction(selectedId);
-    } catch (e) {
-      setError("Failed to delete ticket");
+    } catch {
+      setError("Failed to delete ticket.");
     } finally {
       setDeleting(false);
       setShowDeleteConfirm(false);
@@ -278,7 +368,6 @@ export default function TicketChatAdmin() {
       setTickets((prev) => prev.filter((t) => !removed.has(t._id)));
       clearSelected();
 
-      // If current selected ticket got deleted, redirect to next available
       if (selectedId && removed.has(selectedId)) {
         const remaining = tickets.filter((t) => !removed.has(t._id));
         const next = remaining[0]?._id ?? null;
@@ -287,8 +376,8 @@ export default function TicketChatAdmin() {
         if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
         else navigate(`/admin/chat`, { replace: true });
       }
-    } catch (e) {
-      setError("Failed to delete selected tickets");
+    } catch {
+      setError("Failed to delete selected tickets.");
     } finally {
       setBulkDeleting(false);
       setShowBulkDeleteConfirm(false);
@@ -298,112 +387,263 @@ export default function TicketChatAdmin() {
   const handleRedirectAfterAction = (removedId: string) => {
     setSelectedTicket(null);
     const remaining = tickets.filter((t) => t._id !== removedId);
-    
-    // On Mobile: Go back to list. On Desktop: Select next.
+
     if (window.innerWidth < 1024) {
-        handleBackToList();
+      handleBackToList();
     } else {
-        const next = remaining[0]?._id ?? null;
-        setSelectedId(next);
-        if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
-        else navigate(`/admin/chat`, { replace: true });
+      const next = remaining[0]?._id ?? null;
+      setSelectedId(next);
+      if (next) navigate(`/admin/chat/ticket/${next}`, { replace: true });
+      else navigate(`/admin/chat`, { replace: true });
     }
   };
 
-  // Stats calculation
-  const stats = useMemo(() => ({
-    total: tickets.length,
-    open: tickets.filter((t) => !String(t.status).toLowerCase().includes("close")).length
-  }), [tickets]);
-
   return (
-    <div className="bg-[#e9f0f7] min-h-full h-[calc(100vh-64px)] supports-[height:100dvh]:h-[calc(100dvh-64px)] overflow-hidden"> 
-      <main className="h-full w-full max-w-7xl mx-auto flex flex-col lg:p-8">
-        
-        {/* Header - Visible only on Desktop OR Mobile List View */}
-        <div className={`p-4 lg:p-0 shrink-0 ${selectedId ? 'hidden lg:block' : 'block'}`}>
-          <div className="flex flex-col gap-2 mb-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold mb-1 text-[#0b2540]">Support Tickets</h1>
-              <p className="text-xs text-gray-500">Manage user inquiries and chat history.</p>
-            </div>
-            <div className="flex gap-2 text-xs font-medium">
-              <span className="bg-white px-3 py-1 rounded-full shadow-sm border text-gray-600">Total: {stats.total}</span>
-              <span className="bg-white px-3 py-1 rounded-full shadow-sm border text-blue-600">Active: {stats.open}</span>
-            </div>
-          </div>
-          {error && <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200">{error}</div>}
+    <div className="space-y-6 md:space-y-8 pb-24 md:pb-8">
+      {/* HEADER */}
+      <header
+        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${selectedId ? "hidden lg:flex" : "flex"
+          }`}
+      >
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-brand-prussian tracking-tight">
+            Support Tickets
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Manage live student support conversations, statuses, and ticket history.
+          </p>
         </div>
 
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm animate-pulse">Loading tickets...</div>
-        ) : (
-          <div className="flex-1 flex overflow-hidden lg:gap-4 relative">
-            
-            {/* LEFT COLUMN: Ticket List */}
-            <div className={`
-              flex-col bg-white lg:rounded-2xl border shadow-sm overflow-hidden
-              ${selectedId ? 'hidden lg:flex lg:w-1/3' : 'flex w-full h-full lg:w-1/3'}
-            `}>
-              <div className="p-4 border-b bg-gray-50/50 flex justify-between items-center shrink-0">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inbox</span>
-                <div className="flex items-center gap-2">
-                  {selectedCount > 0 ? (
-                    <>
-                      <span className="text-[10px] text-gray-500">Selected: {selectedCount}</span>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-                        onClick={() => setShowBulkDeleteConfirm(true)}
-                        disabled={bulkDeleting || deleting}
-                        title="Delete selected tickets"
-                      >
-                        <TrashIcon className="w-4 h-4" /> Delete
-                      </button>
-                      <button
-                        type="button"
-                        className="text-xs font-medium text-gray-600 hover:text-gray-700 disabled:opacity-50"
-                        onClick={clearSelected}
-                        disabled={bulkDeleting}
-                      >
-                        Clear
-                      </button>
-                    </>
-                  ) : (
+        <button
+          onClick={loadTickets}
+          disabled={loading}
+          className="inline-flex items-center gap-2 self-start sm:self-auto px-4 py-2.5 bg-white rounded-xl border border-slate-200/80 shadow-sm text-xs font-semibold text-slate-600 hover:text-brand-cerulean hover:border-brand-cerulean/40 transition-colors disabled:opacity-50"
+        >
+          <ArrowPathIcon
+            className={`w-4 h-4 ${loading ? "animate-spin text-brand-cerulean" : ""
+              }`}
+          />
+          <span>Refresh</span>
+        </button>
+      </header>
+
+      {/* ERROR BANNER */}
+      {error && (
+        <div className="bg-rose-50 border border-rose-200/80 text-rose-700 px-4 py-3.5 rounded-2xl text-sm font-medium flex items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <ExclamationTriangleIcon className="w-5 h-5 text-rose-500 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={() => setError("")}
+            className="p-1 rounded-lg hover:bg-rose-100 text-rose-500"
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* LOADING SKELETON */}
+      {loading && tickets.length === 0 ? (
+        <TicketChatSkeleton />
+      ) : (
+        <div className="space-y-6">
+          {/* KPI SUMMARY CARDS */}
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-3 gap-5 ${selectedId ? "hidden lg:grid" : "grid"
+              }`}
+          >
+            <div className="relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200/70 shadow-sm">
+              <div className="pointer-events-none absolute -top-10 -right-10 w-24 h-24 rounded-full bg-blue-500/10 blur-2xl" />
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Total Tickets
+                  </p>
+                  <h3 className="text-3xl font-bold text-brand-prussian mt-2 tabular-nums">
+                    {stats.total}
+                  </h3>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+                  <InboxIcon className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200/70 shadow-sm">
+              <div className="pointer-events-none absolute -top-10 -right-10 w-24 h-24 rounded-full bg-amber-500/10 blur-2xl" />
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Active Tickets
+                  </p>
+                  <h3 className="text-3xl font-bold text-brand-prussian mt-2 tabular-nums">
+                    {stats.open}
+                  </h3>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 text-amber-600 ring-1 ring-amber-100">
+                  <ClockIcon className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200/70 shadow-sm">
+              <div className="pointer-events-none absolute -top-10 -right-10 w-24 h-24 rounded-full bg-emerald-500/10 blur-2xl" />
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Closed
+                  </p>
+                  <h3 className="text-3xl font-bold text-brand-prussian mt-2 tabular-nums">
+                    {stats.closed}
+                  </h3>
+                </div>
+                <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                  <CheckCircleIcon className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SPLIT-PANE TICKET WORKSPACE */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:h-[640px]">
+            {/* LEFT COLUMN: Ticket Inbox */}
+            <section
+              className={`lg:col-span-5 xl:col-span-4 flex-col bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden ${selectedId ? "hidden lg:flex" : "flex min-h-[500px]"
+                }`}
+            >
+              {/* Search, Filter & Bulk Controls */}
+              <div className="p-3.5 border-b border-slate-100 space-y-3 bg-slate-50/60 shrink-0">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search student, email, or category..."
+                    className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-cerulean/20 focus:border-brand-cerulean transition-all"
+                  />
+                  {searchQuery && (
                     <button
-                      type="button"
-                      className="text-xs font-medium text-gray-600 hover:text-gray-700 disabled:opacity-50"
-                      onClick={selectAllVisible}
-                      disabled={tickets.length === 0 || bulkDeleting}
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     >
-                      Select all
+                      <XMarkIcon className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200/70">
+                  {(
+                    [
+                      { key: "all", label: "All", count: stats.total },
+                      { key: "active", label: "Active", count: stats.open },
+                      { key: "closed", label: "Closed", count: stats.closed },
+                    ] as const
+                  ).map((tab) => {
+                    const active = statusFilter === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setStatusFilter(tab.key)}
+                        className={`flex-1 inline-flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${active
+                            ? "bg-brand-prussian text-white shadow-sm"
+                            : "text-slate-500 hover:text-brand-prussian"
+                          }`}
+                      >
+                        <span>{tab.label}</span>
+                        <span
+                          className={`px-1 rounded text-[10px] tabular-nums ${active
+                              ? "bg-white/20 text-white"
+                              : "bg-slate-100 text-slate-400"
+                            }`}
+                        >
+                          {tab.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Bulk Selection Row */}
+                <div className="flex items-center justify-between text-xs px-0.5">
+                  <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400">
+                    Inbox ({filteredTickets.length})
+                  </span>
+                  <div className="flex items-center gap-2.5">
+                    {selectedCount > 0 ? (
+                      <>
+                        <span className="text-slate-500 font-medium tabular-nums">
+                          {selectedCount} selected
+                        </span>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 font-semibold text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                          onClick={() => setShowBulkDeleteConfirm(true)}
+                          disabled={bulkDeleting || deleting}
+                          title="Delete selected tickets"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          className="font-medium text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                          onClick={clearSelected}
+                          disabled={bulkDeleting}
+                        >
+                          Clear
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="font-semibold text-brand-cerulean hover:text-brand-prussian disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        onClick={selectAllVisible}
+                        disabled={closedFilteredIds.length === 0 || bulkDeleting}
+                      >
+                        Select closed
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Tickets List */}
               <div className="flex-1 overflow-y-auto">
-                {tickets.length === 0 ? (
-                  <div className="p-8 text-center text-gray-400 text-sm">No tickets found.</div>
+                {filteredTickets.length === 0 ? (
+                  <div className="p-10 text-center flex flex-col items-center">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
+                      <InboxIcon className="w-6 h-6 text-slate-300" />
+                    </div>
+                    <p className="text-sm font-semibold text-brand-prussian">
+                      No tickets found
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Try adjusting your search or status filter.
+                    </p>
+                  </div>
                 ) : (
-                  <ul className="divide-y divide-gray-100">
-                    {tickets.map((ticket) => (
-                      <TicketListItem 
-                        key={ticket._id} 
-                        ticket={ticket} 
+                  <ul className="divide-y divide-slate-100">
+                    {filteredTickets.map((ticket) => (
+                      <TicketListItem
+                        key={ticket._id}
+                        ticket={ticket}
                         isActive={selectedId === ticket._id}
                         isSelected={selectedIds.has(ticket._id)}
-                        selectionDisabled={String(ticket.status || "").toLowerCase() !== "closed"}
+                        selectionDisabled={
+                          String(ticket.status || "").toLowerCase() !== "closed"
+                        }
                         onToggleSelect={toggleSelected}
                         onClick={(id) => {
                           const isSame = selectedId === id;
                           const isDesktop = window.innerWidth >= 1024;
                           if (isSame && isDesktop) {
-                            // On desktop, allow deselecting to return to the list view
                             setSelectedId(null);
                             navigate(`/admin/chat`, { replace: true });
                             return;
                           }
-                          // On mobile (or when selecting a different ticket), open the ticket
                           setSelectedId(id);
                           navigate(`/admin/chat/ticket/${id}`);
                         }}
@@ -412,53 +652,63 @@ export default function TicketChatAdmin() {
                   </ul>
                 )}
               </div>
-            </div>
+            </section>
 
             {/* RIGHT COLUMN: Chat Area */}
-            <div className={`
-              flex-col gap-3 min-h-0 bg-[#e9f0f7] lg:bg-transparent
-              ${selectedId ? 'flex w-full h-full absolute inset-0 z-50 lg:static lg:z-auto lg:w-2/3' : 'hidden lg:flex lg:w-2/3'}
-            `}>
+            <section
+              className={`lg:col-span-7 xl:col-span-8 flex-col gap-3 min-h-0 ${selectedId ? "flex h-[calc(100vh-120px)] lg:h-full" : "hidden lg:flex"
+                }`}
+            >
               {/* Meta Panel */}
-              <div className="bg-white lg:rounded-2xl border-b lg:border shadow-sm p-4 shrink-0 flex items-center">
-                 {/* Back Button (Mobile Only) */}
-                 <button 
+              <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-4 shrink-0 flex items-center gap-2">
+                <button
                   onClick={() => {
                     setSelectedId(null);
-                    navigate('/admin/chat');
+                    navigate("/admin/chat");
                   }}
-                  className="mr-2 lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 active:bg-gray-200 rounded-full transition-colors touch-none"
+                  className="lg:hidden p-2 -ml-1 text-slate-500 hover:text-brand-prussian hover:bg-slate-100 rounded-xl transition-colors"
                   aria-label="Back to ticket list"
                 >
-                  <ArrowLeftIcon className="w-6 h-6" />
+                  <ArrowLeftIcon className="w-5 h-5" />
                 </button>
 
                 <div className="flex-1 min-w-0">
                   {loadingTicket ? (
-                    <div className="text-sm text-gray-400">Loading details...</div>
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <ArrowPathIcon className="w-4 h-4 animate-spin text-brand-cerulean" />
+                      <span>Loading ticket details...</span>
+                    </div>
                   ) : selectedTicket ? (
-                    <TicketMetaPanel 
-                      ticket={selectedTicket} 
+                    <TicketMetaPanel
+                      ticket={selectedTicket}
                       statusUpdating={statusUpdating}
                       deleting={deleting}
                       onStatusChange={handleStatusRequest}
                       onDelete={() => setShowDeleteConfirm(true)}
                     />
                   ) : (
-                    <div className="flex items-center gap-2 text-gray-400 text-sm justify-center h-full">
-                      <InboxIcon className="w-5 h-5" /> Select a ticket to view details
+                    <div className="flex items-center justify-center gap-2 text-slate-400 text-xs font-medium py-1">
+                      <InboxIcon className="w-4 h-4" />
+                      <span>Select a ticket from the inbox to view details</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Chat Box */}
-              <div className="flex-1 min-h-0 flex flex-col relative bg-white lg:rounded-2xl border shadow-sm overflow-hidden">
+              <div className="flex-1 min-h-0 flex flex-col relative bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
                 {selectedId && user && selectedTicket ? (
                   isChatDisabled(selectedTicket.status) ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-                      <ExclamationCircleIcon className="w-8 h-8 opacity-50" />
-                      <span className="text-sm">This ticket is Closed. Chat is disabled.</span>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-2.5 p-6 text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center">
+                        <ExclamationCircleIcon className="w-6 h-6 text-slate-300" />
+                      </div>
+                      <p className="text-sm font-semibold text-brand-prussian">
+                        Ticket Closed
+                      </p>
+                      <span className="text-xs text-slate-400">
+                        Chat is disabled for closed tickets.
+                      </span>
                     </div>
                   ) : (
                     <div className="h-full w-full">
@@ -473,16 +723,23 @@ export default function TicketChatAdmin() {
                     </div>
                   )
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-3">
-                    <ChatBubbleLeftRightIcon className="w-12 h-12 opacity-20" />
-                    <span className="text-sm font-medium">Select a conversation</span>
+                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-8">
+                    <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
+                      <ChatBubbleLeftRightIcon className="w-7 h-7 text-slate-300" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-brand-prussian">
+                      No conversation selected
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                      Choose a support ticket on the left to view its live chat history and reply.
+                    </p>
                   </div>
                 )}
               </div>
-            </div>
+            </section>
           </div>
-        )}
-      </main>
+        </div>
+      )}
 
       {/* --- MODALS --- */}
       <ConfirmDialog
@@ -502,7 +759,10 @@ export default function TicketChatAdmin() {
         confirmLabel={statusUpdating ? "Closing..." : "Close Ticket"}
         cancelLabel="Cancel"
         loading={statusUpdating}
-        onClose={() => { setShowCloseConfirm(false); setPendingStatus(null); }}
+        onClose={() => {
+          setShowCloseConfirm(false);
+          setPendingStatus(null);
+        }}
         onConfirm={() => pendingStatus && applyStatusChange(pendingStatus)}
       />
 
@@ -531,7 +791,7 @@ export default function TicketChatAdmin() {
   );
 }
 
-// --- SUB COMPONENTS ---
+// --- SUB-COMPONENTS ---
 
 const TicketListItem = ({
   ticket,
@@ -550,41 +810,71 @@ const TicketListItem = ({
 }) => (
   <li
     onClick={() => onClick(ticket._id)}
-    className={`p-4 cursor-pointer transition-all hover:bg-gray-50 border-l-4 active:bg-gray-100 ${
-      isActive ? "bg-blue-50/50 border-blue-600" : "border-transparent"
-    }`}
+    className={`p-4 cursor-pointer transition-colors border-l-[3px] ${isActive
+        ? "bg-brand-aliceBlue/60 border-l-brand-cerulean"
+        : "hover:bg-slate-50/80 border-l-transparent"
+      }`}
   >
-    <div className="flex justify-between items-start mb-1 gap-2">
-      <div className="flex items-start gap-3 min-w-0">
+    <div className="flex justify-between items-start gap-2.5">
+      <div className="flex items-start gap-2.5 min-w-0">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={() => !selectionDisabled && onToggleSelect(ticket._id)}
           onClick={(e) => e.stopPropagation()}
           disabled={selectionDisabled}
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+          title={
+            selectionDisabled
+              ? "Only closed tickets can be bulk deleted"
+              : "Select ticket"
+          }
+          className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-prussian focus:ring-brand-cerulean shrink-0 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
           aria-label="Select ticket"
         />
-        <div>
-            <h3 className={`text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-gray-700'}`}>
+        <div className="min-w-0">
+          <h3
+            className={`text-sm font-semibold truncate ${isActive ? "text-brand-cerulean" : "text-brand-prussian"
+              }`}
+          >
             {ticket.name}
-            </h3>
-            <div className="text-xs text-gray-500 truncate">{ticket.email}</div>
+          </h3>
+          <p className="text-[11px] text-slate-400 truncate">{ticket.email}</p>
         </div>
       </div>
       <StatusBadge status={ticket.status} />
     </div>
-    <div className="mt-2 flex items-center justify-between text-[10px] text-gray-400 uppercase tracking-wider pl-7">
-      <span>{ticket.Categories || "General"}</span>
-      <span>{ticket.priority || "Low"} Priority</span>
+
+    <div className="mt-2.5 flex items-center justify-between gap-2 pl-6">
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[140px]">
+        <TagIcon className="w-3 h-3 text-slate-400 shrink-0" />
+        {ticket.Categories || "General"}
+      </span>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        {ticket.priority || "Low"} Priority
+      </span>
     </div>
   </li>
 );
 
-const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onDelete }: any) => {
-  const isClosed = String(ticket.status).toLowerCase() === 'closed';
-  const isResolved = String(ticket.status).toLowerCase() === 'resolved';
+const TicketMetaPanel = ({
+  ticket,
+  statusUpdating,
+  deleting,
+  onStatusChange,
+  onDelete,
+}: any) => {
+  const isClosed = String(ticket.status).toLowerCase() === "closed";
+  const isResolved = String(ticket.status).toLowerCase() === "resolved";
   const currentStatus = String(ticket.status || "Open");
+
+  const initials = ticket.name
+    ? String(ticket.name)
+      .split(" ")
+      .map((n: string) => n[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase()
+    : "TK";
 
   const statusOptions = useMemo(() => {
     if (isClosed) return ["Closed"];
@@ -603,35 +893,59 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
     });
     return opts;
   }, [currentStatus, needsCurrentOption, statusOptions]);
-  
+
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div className="space-y-1">
-        <h2 className="font-bold text-[#0b2540]">{ticket.name}</h2>
-        <p className="text-xs text-gray-500">{ticket.email} • {ticket.phoneNumber}</p>
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 rounded-full bg-brand-aliceBlue text-brand-cerulean ring-1 ring-brand-cerulean/20 flex items-center justify-center font-bold text-xs shrink-0">
+          {initials}
+        </div>
+        <div className="min-w-0">
+          <h2 className="font-bold text-sm sm:text-base text-brand-prussian truncate">
+            {ticket.name}
+          </h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400 mt-0.5">
+            {ticket.email && (
+              <a
+                href={`mailto:${ticket.email}`}
+                className="inline-flex items-center gap-1 hover:text-brand-cerulean transition-colors truncate"
+              >
+                <EnvelopeIcon className="w-3.5 h-3.5 shrink-0" />
+                {ticket.email}
+              </a>
+            )}
+            {ticket.phoneNumber && (
+              <a
+                href={`tel:${ticket.phoneNumber}`}
+                className="inline-flex items-center gap-1 hover:text-brand-cerulean transition-colors font-mono"
+              >
+                <PhoneIcon className="w-3.5 h-3.5 shrink-0" />
+                {ticket.phoneNumber}
+              </a>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 w-full md:w-auto">
+      <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
         <Dropdown
           value={currentStatus}
           onChange={(v) => onStatusChange(v)}
           options={dropdownOptions}
           disabled={statusUpdating || deleting || isClosed}
-          className="pl-3 pr-9 py-1.5 text-sm rounded-lg w-full md:w-44"
-          wrapperClassName="w-full md:w-44"
+          className="pl-3 pr-9 py-1.5 text-xs font-semibold rounded-xl w-full md:w-40 bg-slate-50 border-slate-200/80 text-brand-prussian"
+          wrapperClassName="w-full md:w-40"
         />
 
-        {isClosed ? (
-          <button 
+        {isClosed && (
+          <button
             onClick={onDelete}
             disabled={deleting}
-            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-200/70 rounded-xl transition-colors disabled:opacity-50"
             title="Delete Ticket"
           >
-            <TrashIcon className="w-5 h-5" />
+            <TrashIcon className="w-4 h-4" />
           </button>
-        ) : (
-          <div className="hidden md:block w-9 h-9" /> 
         )}
       </div>
     </div>
@@ -640,12 +954,32 @@ const TicketMetaPanel = ({ ticket, statusUpdating, deleting, onStatusChange, onD
 
 const StatusBadge = ({ status }: { status?: string }) => {
   const s = String(status || "Open");
-  let colors = "bg-gray-100 text-gray-600";
-  if (s === "In Progress") colors = "bg-blue-100 text-blue-700";
-  if (s === "Resolved") colors = "bg-purple-100 text-purple-700";
-  if (s === "Closed") colors = "bg-red-100 text-red-700";
+  let style = "bg-slate-100 text-slate-600 ring-slate-300/70";
+  let dot = "bg-slate-400";
 
-  return <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${colors}`}>{s}</span>;
+  if (s === "Open") {
+    style = "bg-amber-50 text-amber-700 ring-amber-600/15";
+    dot = "bg-amber-500";
+  } else if (s === "In Progress") {
+    style = "bg-blue-50 text-blue-700 ring-blue-600/15";
+    dot = "bg-blue-500";
+  } else if (s === "Resolved") {
+    style = "bg-purple-50 text-purple-700 ring-purple-600/15";
+    dot = "bg-purple-500";
+  } else if (s === "Closed") {
+    style = "bg-rose-50 text-rose-700 ring-rose-600/15";
+    dot = "bg-rose-500";
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1 whitespace-nowrap shrink-0 ${style}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+      {s}
+    </span>
+  );
 };
 
-const isChatDisabled = (status?: string) => String(status || "").toLowerCase() === 'closed';
+const isChatDisabled = (status?: string) =>
+  String(status || "").toLowerCase() === "closed";

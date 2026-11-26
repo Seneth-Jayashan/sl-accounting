@@ -1,9 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import { motion, AnimatePresence } from "framer-motion";
 import KnowledgeBaseAdminService from "../../../services/KnowledgeBaseAdminService";
-import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import Dropdown from "../../../components/Dropdown";
+import {
+  ArrowLeftIcon,
+  ArrowUpTrayIcon,
+  DocumentTextIcon,
+  CalendarDaysIcon,
+  CloudArrowUpIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
+  TrashIcon,
+  ArrowPathIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  PaperClipIcon,
+} from "@heroicons/react/24/outline";
 
 const CATEGORIES = [
   "Lecture Notes",
@@ -29,30 +43,50 @@ const FileDetails: React.FC<FileDetailsProps> = ({
   onDisplayNameChange,
   formatBytes,
   className = "",
-}) => (
-  <div className={`p-4 border rounded-lg bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-4 ${className}`}>
-    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-sm text-gray-600">
-      FILE
-    </div>
-    <div className="flex-1">
-      <div className="text-sm font-medium">{displayName || file.name}</div>
-      <div className="text-xs text-gray-400">
-        {file.type || ""} {file.size ? `• ${formatBytes(file.size)}` : ""}
+}) => {
+  const ext = file.name.includes(".")
+    ? file.name.split(".").pop()?.toUpperCase()
+    : "FILE";
+
+  return (
+    <div
+      className={`p-4 border border-slate-200/80 rounded-xl bg-slate-50/80 flex flex-col sm:flex-row sm:items-start gap-4 ${className}`}
+    >
+      <div className="w-11 h-11 bg-brand-aliceBlue text-brand-cerulean ring-1 ring-brand-cerulean/20 rounded-xl flex items-center justify-center text-[11px] font-bold shrink-0">
+        {ext}
       </div>
-      <div className="mt-2">
-        <input
-          value={displayName}
-          onChange={(e) => onDisplayNameChange(e.target.value)}
-          className="w-full px-3 py-2 rounded border bg-white text-sm"
-        />
-        <p className="text-xs text-gray-400 mt-1">Edit file name before upload</p>
+
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-brand-prussian truncate">
+              {displayName || file.name}
+            </p>
+            <p className="text-xs text-slate-400 tabular-nums">
+              {file.type || "Document"}
+              {file.size ? ` • ${formatBytes(file.size)}` : ""}
+            </p>
+          </div>
+          <span className="inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold bg-white border border-slate-200/80 text-brand-cerulean rounded-full shrink-0">
+            {category}
+          </span>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Display File Name
+          </label>
+          <input
+            value={displayName}
+            onChange={(e) => onDisplayNameChange(e.target.value)}
+            placeholder="Rename file before upload..."
+            className="w-full px-3.5 py-2 rounded-xl border border-slate-200/80 bg-white text-sm font-medium text-brand-prussian focus:border-brand-cerulean focus:ring-2 focus:ring-brand-cerulean/20 outline-none transition-all"
+          />
+        </div>
       </div>
     </div>
-    <div className="text-left sm:text-right">
-      <div className="inline-block px-3 py-1 text-xs bg-gray-100 rounded-full">{category}</div>
-    </div>
-  </div>
-);
+  );
+};
 
 const AdminKnowledgeBase: React.FC = () => {
   const navigate = useNavigate();
@@ -71,7 +105,7 @@ const AdminKnowledgeBase: React.FC = () => {
   const [titleError, setTitleError] = useState<string | null>(null);
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  
+
   const fileAreaRef = useRef<HTMLDivElement | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
   const descRef = useRef<HTMLTextAreaElement | null>(null);
@@ -82,35 +116,57 @@ const AdminKnowledgeBase: React.FC = () => {
     setTitleError(null);
     setDescriptionError(null);
     setMessage(null);
-    
+
     if (e.target.files && e.target.files[0]) {
       const f = e.target.files[0];
-      const allowedExt = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".csv"];
+      const allowedExt = [
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".zip",
+        ".csv",
+      ];
       const name = (f.name || "").toLowerCase();
       const hasAllowedExt = allowedExt.some((ext) => name.endsWith(ext));
-      
+
       if (!hasAllowedExt) {
-        setError("Unsupported file type. Please select PDF, Office docs, ZIP, or CSV.");
+        setError(
+          "Unsupported file type. Please select PDF, Office docs, ZIP, or CSV."
+        );
         if (filePreviewUrl) {
           URL.revokeObjectURL(filePreviewUrl);
           setFilePreviewUrl(null);
         }
         return;
       }
-      
+
       setFile(f);
       setDisplayName(f.name);
-      
+
       if (filePreviewUrl) {
         URL.revokeObjectURL(filePreviewUrl);
         setFilePreviewUrl(null);
       }
-      
+
       if (f.type === "application/pdf" || f.type.startsWith("image/")) {
         const url = URL.createObjectURL(f);
         setFilePreviewUrl(url);
       }
     }
+  };
+
+  const handleRemoveFile = () => {
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+      setFilePreviewUrl(null);
+    }
+    setFile(null);
+    setDisplayName("");
+    setFileError(null);
   };
 
   const formatBytes = (bytes?: number) => {
@@ -147,13 +203,27 @@ const AdminKnowledgeBase: React.FC = () => {
 
     if (!title.trim()) {
       setTitleError("Title is required");
-      setTimeout(() => titleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+      setTimeout(
+        () =>
+          titleRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          }),
+        50
+      );
       return;
     }
 
     if (!file) {
       setFileError("Please attach a file.");
-      setTimeout(() => fileAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+      setTimeout(
+        () =>
+          fileAreaRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          }),
+        50
+      );
       return;
     }
 
@@ -163,27 +233,28 @@ const AdminKnowledgeBase: React.FC = () => {
       form.append("title", title.trim());
       if (description) form.append("description", description.trim());
       form.append("category", category);
-      
+
       if (schedulePublish && publishAt) {
         form.append("publishAt", new Date(publishAt).toISOString());
         form.append("isPublished", String(false));
       } else {
         form.append("isPublished", String(isPublished));
       }
-      
+
       if (displayName) form.append("fileName", displayName);
 
       const originalName = file!.name || "";
-      const ext = originalName.includes(".") ? originalName.substring(originalName.lastIndexOf(".")) : "";
+      const ext = originalName.includes(".")
+        ? originalName.substring(originalName.lastIndexOf("."))
+        : "";
       let sendName = displayName || originalName;
       if (displayName && !displayName.includes(".")) sendName = displayName + ext;
-      
+
       form.set("file", file as Blob, sendName);
 
       const res = await KnowledgeBaseAdminService.create(form);
 
       if (res?.success) {
-        // Reset form
         setTitle("");
         setDescription("");
         setCategory(CATEGORIES[0]);
@@ -194,14 +265,16 @@ const AdminKnowledgeBase: React.FC = () => {
         setFile(null);
         setDisplayName("");
 
-        const scheduled = schedulePublish && publishAt && new Date(publishAt).getTime() > Date.now();
+        const scheduled =
+          schedulePublish &&
+          publishAt &&
+          new Date(publishAt).getTime() > Date.now();
 
         if (scheduled && publishAt) {
           const isMobile = window.matchMedia("(max-width: 639px)").matches;
           const scheduledHtml = isMobile
             ? `<div class="text-sm">You have successfully scheduled this material.</div><div class="mt-3 text-base font-mono"><span id="kb-countdown">--:--:--</span></div>`
             : `<div class="text-sm">You have successfully scheduled this material.</div><div class="mt-3 text-lg font-mono"><span id="kb-countdown">--:--:--</span></div>`;
-          // show countdown modal
           Swal.fire({
             title: "Scheduled",
             html: scheduledHtml,
@@ -214,7 +287,7 @@ const AdminKnowledgeBase: React.FC = () => {
             didOpen: () => {
               const el = document.getElementById("kb-countdown");
               const target = new Date(publishAt as string).getTime();
-              let timer = setInterval(() => {
+              const timer = setInterval(() => {
                 const diff = target - Date.now();
                 if (!el) return;
                 if (diff <= 0) {
@@ -224,7 +297,9 @@ const AdminKnowledgeBase: React.FC = () => {
                   el.textContent = formatDuration(diff);
                 }
               }, 1000);
-              Swal.getConfirmButton()?.addEventListener("click", () => clearInterval(timer));
+              Swal.getConfirmButton()?.addEventListener("click", () =>
+                clearInterval(timer)
+              );
             },
           }).then(() => navigate("/admin/knowledge-list"));
         } else {
@@ -246,16 +321,26 @@ const AdminKnowledgeBase: React.FC = () => {
       }
     } catch (err: any) {
       console.error(err);
-      const serverMessage = err?.response?.data?.message || err.message || "Upload error";
+      const serverMessage =
+        err?.response?.data?.message || err.message || "Upload error";
       setError(serverMessage);
-      
+
       const fieldErrors = err?.response?.data?.errors;
       if (fieldErrors) {
         if (fieldErrors.title) setTitleError(fieldErrors.title as string);
-        if (fieldErrors.description) setDescriptionError(fieldErrors.description as string);
+        if (fieldErrors.description)
+          setDescriptionError(fieldErrors.description as string);
         setTimeout(() => {
-          if (fieldErrors.title && titleRef.current) titleRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-          else if (fieldErrors.description && descRef.current) descRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (fieldErrors.title && titleRef.current)
+            titleRef.current.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+          else if (fieldErrors.description && descRef.current)
+            descRef.current.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
         }, 50);
       }
     } finally {
@@ -264,75 +349,136 @@ const AdminKnowledgeBase: React.FC = () => {
   };
 
   return (
-      <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 pb-32 md:pb-16">
+      {/* HEADER */}
+      <header className="space-y-4">
+        <button
+          type="button"
+          onClick={() => navigate("/admin/knowledge-list")}
+          className="group inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-prussian bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-sm transition-all"
+        >
+          <ArrowLeftIcon className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+          Back to Knowledge Base
+        </button>
+
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-brand-prussian">Upload Material</h1>
-          <p className="text-xs md:text-sm text-gray-500 mt-1">
-            Add resources to the student knowledge base.
+          <h1 className="text-2xl md:text-3xl font-bold text-brand-prussian tracking-tight">
+            Upload Material
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Add lecture notes, past papers, or study guides to the student knowledge base.
           </p>
         </div>
+      </header>
 
+      {/* FEEDBACK BANNERS */}
+      <AnimatePresence>
         {message && (
-          <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm font-medium">
-            {message}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="bg-emerald-50 border border-emerald-200/80 text-emerald-700 px-4 py-3.5 rounded-2xl text-sm font-medium flex items-center gap-2.5 shadow-sm"
+          >
+            <CheckCircleIcon className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{message}</span>
+          </motion.div>
         )}
+
         {error && (
-          <div className="bg-red-50 text-red-700 p-3 rounded-xl text-sm font-medium flex items-start gap-2">
-             <span className="mt-0.5">⚠️</span> {error}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="bg-rose-50 border border-rose-200/80 text-rose-700 px-4 py-3.5 rounded-2xl text-sm font-medium flex items-center justify-between gap-3 shadow-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              <ExclamationTriangleIcon className="w-5 h-5 text-rose-500 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="p-1 rounded-lg hover:bg-rose-100 text-rose-500"
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-6 bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-lg"
-        >
-          <div className="space-y-1">
-            <label className="text-sm font-semibold text-gray-700">
-              Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              ref={titleRef}
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                if (titleError) setTitleError(null);
-                setError(null);
-              }}
-              placeholder="e.g. Chapter 1 - Introduction"
-              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-brand-cerulean/20 transition-all text-sm font-medium ${
-                titleError ? "border-red-300 focus:border-red-300" : "border-gray-200 focus:border-brand-cerulean"
-              }`}
-            />
-            {titleError && <p className="text-xs text-red-600 ml-1">{titleError}</p>}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* 1. RESOURCE DETAILS */}
+        <section className="bg-white p-6 md:p-7 rounded-2xl border border-slate-200/70 shadow-sm space-y-5">
+          <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+            <div className="w-10 h-10 rounded-xl bg-brand-aliceBlue text-brand-cerulean flex items-center justify-center shrink-0">
+              <DocumentTextIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-brand-prussian">
+                Resource Details
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Title, summary, and category classification
+              </p>
+            </div>
           </div>
 
-          {/* DESCRIPTION */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Description
-            </label>
-            <textarea
-              ref={descRef}
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value);
-                if (descriptionError) setDescriptionError(null);
-                setError(null);
-              }}
-              rows={3}
-              placeholder="Brief summary of the content..."
-              className={`w-full px-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 focus:ring-brand-cerulean/20 resize-none transition-all text-sm font-medium ${
-                descriptionError ? "border-red-300 focus:border-red-300" : "border-gray-200 focus:border-brand-cerulean"
-              }`}
-            />
-            {descriptionError && <p className="text-xs text-red-600 ml-1">{descriptionError}</p>}
-          </div>
-
-          {/* CATEGORY & PUBLISH OPTIONS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Title <span className="text-rose-500">*</span>
+              </label>
+              <input
+                ref={titleRef}
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (titleError) setTitleError(null);
+                  setError(null);
+                }}
+                placeholder="e.g., Chapter 1 - Introduction to Financial Statements"
+                className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl outline-none focus:bg-white focus:ring-2 transition-all text-sm font-medium text-brand-prussian placeholder:text-slate-400 ${titleError
+                    ? "border-rose-300 focus:border-rose-400 focus:ring-rose-500/15"
+                    : "border-slate-200/80 focus:border-brand-cerulean focus:ring-brand-cerulean/20"
+                  }`}
+              />
+              {titleError && (
+                <p className="text-xs font-medium text-rose-600">{titleError}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Description{" "}
+                <span className="text-slate-400 font-normal normal-case">
+                  (Optional)
+                </span>
+              </label>
+              <textarea
+                ref={descRef}
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (descriptionError) setDescriptionError(null);
+                  setError(null);
+                }}
+                rows={3}
+                placeholder="Brief summary of the topics covered in this material..."
+                className={`w-full px-4 py-3 bg-slate-50 border rounded-xl outline-none focus:bg-white focus:ring-2 resize-none transition-all text-sm text-slate-700 placeholder:text-slate-400 ${descriptionError
+                    ? "border-rose-300 focus:border-rose-400 focus:ring-rose-500/15"
+                    : "border-slate-200/80 focus:border-brand-cerulean focus:ring-brand-cerulean/20"
+                  }`}
+              />
+              {descriptionError && (
+                <p className="text-xs font-medium text-rose-600">
+                  {descriptionError}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 max-w-sm">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Category
               </label>
               <Dropdown
@@ -340,162 +486,217 @@ const AdminKnowledgeBase: React.FC = () => {
                 onChange={(v) => setCategory(v)}
                 options={CATEGORIES.map((c) => ({ value: c, label: c }))}
                 wrapperClassName="w-full"
-                className="px-4 py-2 rounded-xl"
+                className="px-4 py-2.5 rounded-xl bg-slate-50 border-slate-200/80 text-sm font-medium text-brand-prussian"
               />
             </div>
+          </div>
+        </section>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+        {/* 2. PUBLISHING & SCHEDULE */}
+        <section className="bg-white p-6 md:p-7 rounded-2xl border border-slate-200/70 shadow-sm space-y-5">
+          <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 flex items-center justify-center shrink-0">
+              <CalendarDaysIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-brand-prussian">
                 Availability
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsPublished(true);
-                    setSchedulePublish(false);
-                    setPublishAt(null);
-                  }}
-                  className={`w-full sm:w-40 py-2 rounded-xl text-base font-semibold ${
-                    isPublished
-                      ? "bg-brand-prussian text-white shadow-md"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
-                >
-                  Publish Now
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSchedulePublish(true);
-                    setIsPublished(false);
-                  }}
-                  className={`w-full sm:w-40 py-2 rounded-lg text-base font-semibold ${
-                    schedulePublish
-                      ? "bg-brand-prussian text-white shadow-md"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
-                >
-                  Schedule
-                </button>
-              </div>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Publish immediately or schedule a future release date
+              </p>
             </div>
           </div>
 
-          {/* SCHEDULE INPUT */}
-          {schedulePublish && (
-            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-                Publish Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                value={publishAt ?? ""}
-                onChange={(e) => setPublishAt(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-cerulean/20 text-sm font-medium"
-              />
-            </div>
-          )}
-
-          {/* FILE UPLOAD AREA */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Attachment <span className="text-red-500">*</span>
-            </label>
-            
-            {!file ? (
-              <div
-                ref={fileAreaRef}
-                className={`mt-2 relative w-full aspect-[4/3] sm:aspect-video bg-gray-50 rounded-xl overflow-hidden flex flex-col items-center justify-center hover:bg-gray-100 transition-colors group cursor-pointer border-2 border-dashed ${
-                  fileError ? "border-red-400 bg-red-50" : "border-gray-300"
+          <div className="inline-flex p-1 bg-slate-100/90 rounded-xl border border-slate-200/70 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setIsPublished(true);
+                setSchedulePublish(false);
+                setPublishAt(null);
+              }}
+              className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-semibold transition-all ${isPublished
+                  ? "bg-brand-prussian text-white shadow-sm"
+                  : "text-slate-600 hover:text-brand-prussian"
                 }`}
+            >
+              <CheckCircleIcon className="w-4 h-4" />
+              <span>Publish Now</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSchedulePublish(true);
+                setIsPublished(false);
+              }}
+              className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-xs font-semibold transition-all ${schedulePublish
+                  ? "bg-brand-prussian text-white shadow-sm"
+                  : "text-slate-600 hover:text-brand-prussian"
+                }`}
+            >
+              <ClockIcon className="w-4 h-4" />
+              <span>Schedule</span>
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {schedulePublish && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
               >
-                <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-white rounded-full shadow-sm group-hover:scale-110 transition-transform">
-                        <ArrowUpTrayIcon className="w-6 h-6 text-brand-cerulean" />
-                    </div>
-                    <p className="text-sm font-bold text-gray-600">Tap to upload file</p>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">PDF, DOC, PPT, ZIP</p>
-                </div>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                {fileError && (
-                  <p className="text-xs text-red-600 font-bold mt-2 absolute bottom-2">{fileError}</p>
-                )}
-              </div>
-            ) : (
-              <div ref={fileAreaRef} className="mt-2 w-full">
-                <div className="mb-2 flex justify-start sm:justify-end">
-                  <label className="px-3 py-1 rounded-xl border border-gray-200 text-sm cursor-pointer bg-white">
-                    Update file
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
+                <div className="pt-2 space-y-1.5 max-w-sm">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Publish Date & Time <span className="text-rose-500">*</span>
                   </label>
-                </div>
-                {filePreviewUrl ? (
-                  <div>
-                    {file?.type === "application/pdf" ? (
-                      <iframe
-                        src={filePreviewUrl}
-                        title="PDF preview"
-                        className="w-full h-56 sm:h-64 border rounded shadow-sm"
-                      />
-                    ) : (
-                      <img
-                        src={filePreviewUrl}
-                        alt="preview"
-                        className="w-full max-h-64 object-contain rounded shadow-sm"
-                      />
-                    )}
-                    <FileDetails
-                      file={file as File}
-                      displayName={displayName}
-                      category={category}
-                      onDisplayNameChange={setDisplayName}
-                      formatBytes={formatBytes}
-                      className="mt-3"
-                    />
-                  </div>
-                ) : (
-                  <FileDetails
-                    file={file as File}
-                    displayName={displayName}
-                    category={category}
-                    onDisplayNameChange={setDisplayName}
-                    formatBytes={formatBytes}
+                  <input
+                    type="datetime-local"
+                    required={schedulePublish}
+                    value={publishAt ?? ""}
+                    onChange={(e) => setPublishAt(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200/80 rounded-xl outline-none focus:bg-white focus:border-brand-cerulean focus:ring-2 focus:ring-brand-cerulean/20 text-sm font-medium text-brand-prussian tabular-nums"
                   />
-                )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+
+        {/* 3. FILE ATTACHMENT */}
+        <section className="bg-white p-6 md:p-7 rounded-2xl border border-slate-200/70 shadow-sm space-y-5">
+          <div className="flex items-center justify-between gap-3 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-aliceBlue text-brand-cerulean flex items-center justify-center shrink-0">
+                <PaperClipIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-brand-prussian">
+                  File Attachment <span className="text-rose-500">*</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Supported formats: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, ZIP, CSV
+                </p>
+              </div>
+            </div>
+
+            {file && (
+              <div className="flex items-center gap-2 shrink-0">
+                <label className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-brand-aliceBlue text-brand-prussian hover:text-brand-cerulean border border-slate-200/80 text-xs font-semibold cursor-pointer transition-colors">
+                  Replace
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  title="Remove file"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-slate-200/80 transition-colors"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="w-full sm:w-auto px-5 py-2 rounded-xl border border-gray-300 text-gray-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto px-5 py-2 rounded-xl bg-[#0b2540] text-white font-medium disabled:opacity-60"
-            >
-              {loading ? "Uploading..." : "Upload"}
-            </button>
-          </div>
+          <div ref={fileAreaRef}>
+            {!file ? (
+              <label
+                className={`group relative w-full min-h-[200px] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all ${fileError
+                    ? "border-rose-300 bg-rose-50/50"
+                    : "border-slate-300 bg-slate-50/70 hover:bg-brand-aliceBlue/25 hover:border-brand-cerulean"
+                  }`}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-white shadow-sm border border-slate-200/70 flex items-center justify-center text-brand-cerulean group-hover:scale-105 transition-transform mb-3">
+                  <ArrowUpTrayIcon className="w-6 h-6" />
+                </div>
+                <p className="text-sm font-semibold text-brand-prussian">
+                  Click to choose a file to upload
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  PDF, Word, Excel, PowerPoint, ZIP, or CSV
+                </p>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                {fileError && (
+                  <p className="text-xs font-semibold text-rose-600 mt-3">
+                    {fileError}
+                  </p>
+                )}
+              </label>
+            ) : (
+              <div className="space-y-4">
+                {filePreviewUrl && (
+                  <div className="rounded-xl border border-slate-200/80 overflow-hidden bg-slate-50">
+                    {file.type === "application/pdf" ? (
+                      <iframe
+                        src={filePreviewUrl}
+                        title="PDF preview"
+                        className="w-full h-64 sm:h-72"
+                      />
+                    ) : (
+                      <img
+                        src={filePreviewUrl}
+                        alt="File preview"
+                        className="w-full max-h-72 object-contain mx-auto"
+                      />
+                    )}
+                  </div>
+                )}
 
-        </form>
-      </div>
+                <FileDetails
+                  file={file}
+                  displayName={displayName}
+                  category={category}
+                  onDisplayNameChange={setDisplayName}
+                  formatBytes={formatBytes}
+                />
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ACTION BAR */}
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-200/80 md:static md:bg-transparent md:backdrop-blur-none md:border-none md:p-0 flex items-center justify-end gap-3 z-40 md:z-auto">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            disabled={loading}
+            className="hidden md:inline-flex px-6 py-2.5 rounded-xl bg-white border border-slate-200/80 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-brand-prussian hover:bg-brand-cerulean text-white px-7 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm hover:shadow-md active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <>
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              <>
+                <CloudArrowUpIcon className="w-4 h-4" />
+                <span>{schedulePublish ? "Schedule Upload" : "Upload Material"}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 };
 
