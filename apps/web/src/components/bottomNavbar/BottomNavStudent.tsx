@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   BookOpen,
+  Library,
   CreditCard,
   Users,
   HelpCircle,
@@ -15,7 +16,8 @@ import {
   ClipboardList,
   ListVideo,
   FileText,
-  MessageSquare
+  MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -26,86 +28,94 @@ export default function BottomNavStudent() {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   // --- 1. MAIN TABS (Always Visible) ---
-  // Kept to 4 items max so the bottom bar isn't overcrowded
   const mainTabs = [
     {
       key: "overview",
       label: "Overview",
       href: "/student/dashboard",
-      icon: LayoutDashboard
+      icon: LayoutDashboard,
     },
     {
       key: "classes",
       label: "Classes",
       href: "/student/classes",
-      icon: CalendarDays
+      icon: CalendarDays,
     },
     {
       key: "quizzes",
       label: "Quizzes",
       href: "/student/quizzes/history",
-      icon: ClipboardList
+      icon: ClipboardList,
     },
     {
       key: "profile",
       label: "Profile",
       href: "/student/Profile",
-      icon: Users
+      icon: Users,
     },
   ];
 
-  // --- 2. MORE MENU ITEMS (Hidden in Drawer) ---
+  // --- 2. MORE MENU ITEMS (Slide-Up Drawer) ---
   const moreItems = [
     {
       key: "papers",
       label: "Essay Papers",
       href: "/student/papers",
       icon: FileText,
-      desc: "Submit your papers"
+      desc: "Submit & track essay papers",
     },
     {
       key: "tutes",
       label: "My Tutes",
       href: "/student/my-tutes",
       icon: BookOpen,
-      desc: "Access your class tutes"
+      desc: "Track physical study pack deliveries",
     },
     {
       key: "lesson-packs",
       label: "Lesson Packs",
       href: "/student/lesson-packs",
       icon: ListVideo,
-      desc: "Browse video lessons"
+      desc: "Browse & watch video bundles",
     },
     {
       key: "materials",
       label: "Study Materials",
       href: "/student/knowledge-base",
-      icon: BookOpen,
-      desc: "Additional reading & resources"
+      icon: Library,
+      desc: "Notes, past papers & guides",
     },
     {
       key: "payments",
       label: "Payments",
       href: "/student/payments",
       icon: CreditCard,
-      desc: "View transactions & slips"
+      desc: "View transactions & receipts",
     },
     {
       key: "support",
       label: "Support",
       href: "/student/tickets",
       icon: HelpCircle,
-      desc: "Contact admin support"
+      desc: "Open a live support ticket",
     },
     {
       key: "feedback",
       label: "Feedback",
       href: "/student/review",
       icon: MessageSquare,
-      desc: "Share your experience"
-    }
+      desc: "Share your course review",
+    },
   ];
+
+  const isTabActive = (href: string) => {
+    const normalizedPath = path.toLowerCase();
+    const normalizedHref = href.toLowerCase();
+    if (normalizedHref === "/student/dashboard") {
+      return normalizedPath === "/student/dashboard";
+    }
+    return normalizedPath.startsWith(normalizedHref);
+  };
 
   return (
     <>
@@ -119,62 +129,105 @@ export default function BottomNavStudent() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMoreOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[60] lg:hidden backdrop-blur-sm"
+              className="fixed inset-0 bg-black/60 z-[60] lg:hidden backdrop-blur-xs"
             />
 
-            {/* Slide-up Menu */}
+            {/* Slide-up Sheet */}
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="fixed bottom-0 left-0 w-full bg-white rounded-t-[2rem] z-[70] lg:hidden overflow-hidden border-t border-gray-100 shadow-2xl"
             >
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between p-6 pb-2">
-                <h3 className="text-lg font-bold text-brand-prussian">Menu</h3>
-                <button
-                  onClick={() => setIsMoreOpen(false)}
-                  className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"
-                >
-                  <X size={20} />
-                </button>
+              {/* Handle Pill & Header */}
+              <div className="pt-3 px-6 pb-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-brand-prussian text-brand-jasmine text-[10px] font-extrabold uppercase tracking-wider">
+                      <Sparkles size={10} />
+                      Student Menu
+                    </span>
+                    <h3 className="text-base font-extrabold text-brand-prussian">
+                      More Options
+                    </h3>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsMoreOpen(false)}
+                    aria-label="Close menu"
+                    className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-brand-prussian flex items-center justify-center transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
-              {/* Drawer Links - Added overflow-y-auto to handle the larger menu on smaller screens */}
-              <div className="p-4 space-y-3 pb-24 overflow-y-auto max-h-[75vh]">
-                {moreItems.map((item) => (
-                  <Link
-                    key={item.key}
-                    to={item.href}
-                    onClick={() => setIsMoreOpen(false)}
-                    className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 active:bg-gray-100 transition-colors"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-brand-cerulean shadow-sm">
-                      <item.icon size={20} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-800">{item.label}</p>
-                      <p className="text-xs text-gray-500">{item.desc}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-gray-400" />
-                  </Link>
-                ))}
+              {/* Drawer Links */}
+              <div className="p-4 space-y-2 pb-24 overflow-y-auto max-h-[75vh]">
+                {moreItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isTabActive(item.href);
 
-                {/* Logout Button inside Drawer */}
+                  return (
+                    <Link
+                      key={item.key}
+                      to={item.href}
+                      onClick={() => setIsMoreOpen(false)}
+                      className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all ${active
+                          ? "bg-brand-aliceBlue/60 border-brand-cerulean/30 shadow-2xs"
+                          : "bg-gray-50/80 border-transparent hover:bg-gray-100/80 active:scale-[0.99]"
+                        }`}
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors ${active
+                            ? "bg-brand-cerulean text-white"
+                            : "bg-white text-brand-cerulean border border-gray-100"
+                          }`}
+                      >
+                        <Icon size={19} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-extrabold truncate ${active ? "text-brand-prussian" : "text-gray-800"
+                            }`}
+                        >
+                          {item.label}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate mt-0.5">
+                          {item.desc}
+                        </p>
+                      </div>
+
+                      <ChevronRight
+                        size={16}
+                        className={`shrink-0 ${active ? "text-brand-cerulean" : "text-gray-300"
+                          }`}
+                      />
+                    </Link>
+                  );
+                })}
+
+                {/* Logout Button */}
                 <button
+                  type="button"
                   onClick={() => {
-                    logout();
                     setIsMoreOpen(false);
+                    logout();
                   }}
-                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-50 text-red-600 active:bg-red-100 transition-colors mt-4"
+                  className="w-full flex items-center gap-3.5 p-3.5 rounded-2xl bg-red-50/90 hover:bg-red-100/80 text-red-600 border border-red-100 transition-colors mt-3 active:scale-[0.99]"
                 >
-                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
-                    <LogOut size={20} />
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-2xs text-red-500 shrink-0">
+                    <LogOut size={19} />
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="font-bold">Log Out</p>
-                    <p className="text-xs opacity-70">Sign out of your account</p>
+                    <p className="text-sm font-extrabold">Log Out</p>
+                    <p className="text-xs text-red-500/80">
+                      Sign out of your student account
+                    </p>
                   </div>
                 </button>
               </div>
@@ -184,41 +237,43 @@ export default function BottomNavStudent() {
       </AnimatePresence>
 
       {/* --- BOTTOM NAVIGATION BAR --- */}
-      <div className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-200 lg:hidden z-50 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-        <div className="flex justify-around items-center h-[70px] px-2">
-
+      <nav
+        aria-label="Mobile Navigation"
+        className="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-200/80 lg:hidden z-50 pb-safe shadow-[0_-6px_24px_rgba(11,37,64,0.06)]"
+      >
+        <div className="flex justify-around items-center h-[70px] px-1.5">
           {mainTabs.map((tab) => {
-            const isActive = tab.href === "/student/dashboard"
-              ? path === "/student/dashboard"
-              : path.startsWith(tab.href);
+            const active = !isMoreOpen && isTabActive(tab.href);
+            const Icon = tab.icon;
 
             return (
               <Link
                 key={tab.key}
                 to={tab.href}
                 onClick={() => setIsMoreOpen(false)}
-                className="relative flex-1 flex flex-col items-center justify-center h-full space-y-1 group"
+                className="relative flex-1 flex flex-col items-center justify-center h-full gap-1 group"
               >
-                {/* Active Indicator Line */}
-                {isActive && (
+                {active && (
                   <motion.div
-                    layoutId="bottom-nav-active"
-                    className="absolute top-0 w-10 h-1 bg-brand-cerulean rounded-b-lg shadow-sm"
-                    initial={false}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    layoutId="bottom-nav-indicator"
+                    className="absolute top-0 w-10 h-1 bg-brand-cerulean rounded-b-full"
+                    transition={{ type: "spring", stiffness: 450, damping: 32 }}
                   />
                 )}
 
-                {/* Icon */}
-                <div className={`relative p-1.5 rounded-xl transition-all duration-300 ${isActive ? "text-brand-cerulean -translate-y-1" : "text-gray-400 group-active:scale-90"}`}>
-                  <tab.icon
-                    size={24}
-                    strokeWidth={isActive ? 2.5 : 2}
-                  />
+                <div
+                  className={`relative p-1.5 rounded-xl transition-all duration-200 ${active
+                      ? "bg-brand-aliceBlue/80 text-brand-cerulean -translate-y-0.5"
+                      : "text-gray-400 group-hover:text-brand-prussian group-active:scale-90"
+                    }`}
+                >
+                  <Icon size={21} strokeWidth={active ? 2.5 : 2} />
                 </div>
 
-                {/* Label */}
-                <span className={`text-[10px] font-bold transition-colors duration-300 ${isActive ? "text-brand-prussian" : "text-gray-400"}`}>
+                <span
+                  className={`text-[10px] font-bold tracking-tight transition-colors ${active ? "text-brand-prussian" : "text-gray-400"
+                    }`}
+                >
                   {tab.label}
                 </span>
               </Link>
@@ -227,19 +282,40 @@ export default function BottomNavStudent() {
 
           {/* --- MORE BUTTON --- */}
           <button
-            onClick={() => setIsMoreOpen(!isMoreOpen)}
-            className="relative flex-1 flex flex-col items-center justify-center h-full space-y-1 group"
+            type="button"
+            onClick={() => setIsMoreOpen((prev) => !prev)}
+            className="relative flex-1 flex flex-col items-center justify-center h-full gap-1 group"
           >
-            <div className={`relative p-1.5 rounded-xl transition-all duration-300 ${isMoreOpen ? "text-brand-prussian -translate-y-1" : "text-gray-400 group-active:scale-90"}`}>
-              <Menu size={24} strokeWidth={isMoreOpen ? 2.5 : 2} />
+            {isMoreOpen && (
+              <motion.div
+                layoutId="bottom-nav-indicator"
+                className="absolute top-0 w-10 h-1 bg-brand-prussian rounded-b-full"
+                transition={{ type: "spring", stiffness: 450, damping: 32 }}
+              />
+            )}
+
+            <div
+              className={`relative p-1.5 rounded-xl transition-all duration-200 ${isMoreOpen
+                  ? "bg-brand-prussian text-white -translate-y-0.5 shadow-xs"
+                  : "text-gray-400 group-hover:text-brand-prussian group-active:scale-90"
+                }`}
+            >
+              {isMoreOpen ? (
+                <X size={21} strokeWidth={2.5} />
+              ) : (
+                <Menu size={21} strokeWidth={2} />
+              )}
             </div>
-            <span className={`text-[10px] font-bold transition-colors duration-300 ${isMoreOpen ? "text-brand-prussian" : "text-gray-400"}`}>
+
+            <span
+              className={`text-[10px] font-bold tracking-tight transition-colors ${isMoreOpen ? "text-brand-prussian" : "text-gray-400"
+                }`}
+            >
               More
             </span>
           </button>
-
         </div>
-      </div>
+      </nav>
     </>
   );
 }

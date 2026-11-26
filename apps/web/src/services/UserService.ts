@@ -74,6 +74,7 @@ export interface DashboardStats {
 }
 
 export interface NextSessionData {
+  _id?: string;
   title: string;
   subject: string;
   startTime: string; // ISO String
