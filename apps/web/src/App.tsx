@@ -1,9 +1,10 @@
 import { useState, Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { RotateCw } from "lucide-react"; 
+import { RotateCw } from "lucide-react";
 import { Toaster } from "react-hot-toast"; // <--- 1. Import Toaster
 import { GlobalRefresher } from "./components/GlobalRefresher";
+import { SeasonalDecorations } from "./components/decorations/SeasonalDecorations";
 
 // --- Context & Protected Route Wrapper ---
 import AuthProvider from "./contexts/AuthContext";
@@ -38,11 +39,11 @@ import Downloads from "./pages/Downloads";
 import "./index.css";
 
 // --- LAZY LOADED MODULES ---
-const AdminRoutes = lazy(() => 
+const AdminRoutes = lazy(() =>
   import("./routes/AdminRoutes").then(module => ({ default: module.AdminRoutes }))
 );
 
-const StudentRoutes = lazy(() => 
+const StudentRoutes = lazy(() =>
   import("./routes/StudentRoutes").then(module => ({ default: module.StudentRoutes }))
 );
 
@@ -72,7 +73,7 @@ function App() {
   return (
     <AuthProvider>
       {/* <--- 4. Add Toaster Global Component --- */}
-      <Toaster 
+      <Toaster
         position="bottom-center"
         toastOptions={{
           style: {
@@ -82,8 +83,9 @@ function App() {
           },
         }}
       />
-      
+
       <GlobalRefresher />
+      <SeasonalDecorations />
 
 
       <BrowserRouter>
@@ -124,27 +126,27 @@ function App() {
           </Route>
 
           {/* ================= STUDENT MODULE (Lazy Loaded) ================= */}
-          <Route 
-            path="/student/*" 
+          <Route
+            path="/student/*"
             element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <Suspense fallback={<PageLoader />}>
                   <StudentRoutes />
                 </Suspense>
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* ================= ADMIN MODULE (Lazy Loaded) ================= */}
-          <Route 
-            path="/admin/*" 
+          <Route
+            path="/admin/*"
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <Suspense fallback={<PageLoader />}>
                   <AdminRoutes />
                 </Suspense>
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* ================= FALLBACK ================= */}
