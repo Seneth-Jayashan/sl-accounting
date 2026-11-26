@@ -334,7 +334,7 @@ export default function ChatTab() {
                                 {isMe && (
                                     <button
                                         type="button"
-                                        onClick={() => setDeleteConfirmId(msg._id)}
+                                        onClick={() => setDeleteConfirmId(msg._id || null)}
                                         className="self-end mt-1 px-2 py-0.5 text-[10px] text-white/70 hover:text-red-200 flex items-center gap-1 transition-colors"
                                         title="Delete message"
                                     >
